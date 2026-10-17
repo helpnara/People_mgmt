@@ -15,6 +15,10 @@ struct LaunchArguments: Sendable {
     let openPerson: String?
     /// 사람 추가 시트를 바로 연다.
     let addPerson: Bool
+    /// 연 사람의 가장 최근 기록 상세까지 연다.
+    let openRecord: Bool
+    /// 연 사람의 기록 추가 시트를 바로 연다.
+    let addRecord: Bool
     /// 검색창에 이 글자를 넣은 채로 연다.
     let search: String?
     /// 저장소를 일부러 못 열게 한다 — 안내 화면이 뜨는지 본다.
@@ -24,6 +28,8 @@ struct LaunchArguments: Sendable {
         seedSampleData = arguments.contains("-seedSampleData")
         openFirstPerson = arguments.contains("-openFirstPerson")
         addPerson = arguments.contains("-addPerson")
+        openRecord = arguments.contains("-openRecord")
+        addRecord = arguments.contains("-addRecord")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }

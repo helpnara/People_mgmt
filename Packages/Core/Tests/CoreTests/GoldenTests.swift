@@ -15,6 +15,8 @@ final class GoldenTests: XCTestCase {
         struct TitleCase: Decodable { let name: String; let title: String?; let note: String?; let expected: String }
         struct SortPerson: Decodable { let name: String; let createdAt: Double }
         struct SortCase: Decodable { let name: String; let people: [SortPerson]; let expected: [String] }
+        struct TimelineRecord: Decodable { let id: String; let occurredAt: Double; let createdAt: Double }
+        struct TimelineCase: Decodable { let name: String; let records: [TimelineRecord]; let expected: [String] }
         struct ValidationCase: Decodable { let name: String; let expected: String? }
         struct RecordSaveCase: Decodable { let title: String?; let note: String?; let expected: Bool }
         struct NoonCase: Decodable { let iso: String; let timeZone: String; let expectedEpoch: Double }
@@ -37,6 +39,7 @@ final class GoldenTests: XCTestCase {
         let tagSplit: [SplitCase]
         let displayTitle: [TitleCase]
         let nameSort: [SortCase]
+        let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
         let recordSave: [RecordSaveCase]
         let dayNoon: [NoonCase]
@@ -80,6 +83,17 @@ final class GoldenTests: XCTestCase {
         for c in try Self.loadGolden().nameSort {
             let people = c.people.map { (name: $0.name, createdAt: Date(timeIntervalSince1970: $0.createdAt)) }
             let sorted = people.sorted(by: NameSort.areInIncreasingOrder).map(\.name)
+            XCTAssertEqual(sorted, c.expected, c.name)
+        }
+    }
+
+    func testTimelineSort() throws {
+        for c in try Self.loadGolden().timelineSort {
+            let sorted = c.records.sorted {
+                TimelineSort.areInIncreasingOrder(
+                    (occurredAt: Date(timeIntervalSince1970: $0.occurredAt), createdAt: Date(timeIntervalSince1970: $0.createdAt)),
+                    (occurredAt: Date(timeIntervalSince1970: $1.occurredAt), createdAt: Date(timeIntervalSince1970: $1.createdAt)))
+            }.map(\.id)
             XCTAssertEqual(sorted, c.expected, c.name)
         }
     }

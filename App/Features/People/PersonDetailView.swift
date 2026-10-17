@@ -9,10 +9,14 @@ struct PersonDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var editing = false
+    @State private var addingRecord = false
     @State private var confirmingDelete = false
+    @State private var pendingRecordDelete: Record?
     @State private var errorMessage: String?
+    @State private var appliedArguments = false
 
     private var store: PersonStore { PersonStore(context: context) }
+    private var timeline: [Record] { RecordStore.timeline(of: person) }
 
     var body: some View {
         Group {
@@ -37,6 +41,24 @@ struct PersonDetailView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
+        // 자주 쓰는 `기록 추가` 는 한 손이 닿는 아래에 — 키보드 툴바가 아니라 화면 안의 띠로 (CLAUDE.md).
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                Spacer()
+                Button {
+                    addingRecord = true
+                } label: {
+                    Label("기록 추가", systemImage: "plus")
+                        .font(.scaled(16, weight: .semibold))
+                        .padding(.horizontal, Font.scaledLength(18))
+                        .padding(.vertical, Font.scaledLength(12))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.accent)
+                .padding(.trailing, 16)
+                .padding(.bottom, 8)
+            }
+        }
         .navigationTitle(person.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -60,16 +82,37 @@ struct PersonDetailView: View {
         .sheet(isPresented: $editing) {
             PersonEditView(mode: .edit(person)) { _ in }
         }
+        .sheet(isPresented: $addingRecord) {
+            RecordEditView(mode: .create(anchor: person)) { _ in }
+        }
         .confirmationDialog("삭제", isPresented: $confirmingDelete, titleVisibility: .hidden) {
             Button("삭제", role: .destructive) { deletePerson() }
             Button("취소", role: .cancel) {}
         } message: {
             Text(store.deletionMessage(for: person))
         }
+        .confirmationDialog(
+            "기록 삭제",
+            isPresented: Binding(get: { pendingRecordDelete != nil }, set: { if !$0 { pendingRecordDelete = nil } }),
+            titleVisibility: .hidden,
+            presenting: pendingRecordDelete
+        ) { record in
+            Button("삭제", role: .destructive) { deleteRecord(record) }
+            Button("취소", role: .cancel) { pendingRecordDelete = nil }
+        } message: { record in
+            Text("'\(record.displayTitle)' 기록을 삭제하시겠습니까? 되돌릴 수 없습니다.")
+        }
         .alert("삭제하지 못했습니다", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("닫기", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
+        }
+        .onAppear {
+            // CI 스크린샷: -addRecord 면 기록 추가 시트를 바로 연다 (한 번만).
+            if !appliedArguments {
+                appliedArguments = true
+                if LaunchArguments.current.addRecord { addingRecord = true }
+            }
         }
     }
 
@@ -149,17 +192,26 @@ struct PersonDetailView: View {
         }
     }
 
-    /// 타임라인 (4.2.3). 기록 추가 · 상세는 3단계에서 들어온다 — 지금은 시작점과 빈 상태만 그린다.
+    /// 타임라인 (4.2.3). 최신순, 맨 아래에 첫 인연 시작점. 기록 행을 밀면 삭제(확인 뒤).
     private var timelineSection: some View {
-        Section("타임라인") {
-            if (person.records ?? []).isEmpty {
+        Section {
+            if timeline.isEmpty {
                 Text("아직 기록이 없습니다. 함께한 일을 남겨 보세요.")
                     .font(.scaled(15))
                     .foregroundStyle(Color.muted)
-            } else {
-                Text("기록 \(person.records?.count ?? 0)건 — 타임라인은 3단계에서 보입니다.")
-                    .font(.scaled(15))
-                    .foregroundStyle(Color.muted)
+            }
+            ForEach(timeline) { record in
+                NavigationLink(value: record) {
+                    TimelineRow(record: record, viewer: person)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button {
+                        pendingRecordDelete = record
+                    } label: {
+                        Label("삭제", systemImage: "trash")
+                    }
+                    .tint(Color.danger)
+                }
             }
             if person.hasFirstEncounter {
                 Button {
@@ -170,6 +222,7 @@ struct PersonDetailView: View {
                             .font(.scaled(15))
                             .foregroundStyle(Color.accent)
                             .frame(width: Font.scaledLength(22))
+                            .padding(.top, 2)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(firstMetText)
                                 .font(.scaled(13))
@@ -182,6 +235,8 @@ struct PersonDetailView: View {
                 }
                 .buttonStyle(.plain)
             }
+        } header: {
+            Text(timeline.isEmpty ? "타임라인" : "타임라인 · 기록 \(timeline.count)건")
         }
     }
 
@@ -199,5 +254,14 @@ struct PersonDetailView: View {
         } catch {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
         }
+    }
+
+    private func deleteRecord(_ record: Record) {
+        do {
+            try RecordStore(context: context).delete(record)
+        } catch {
+            errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
+        }
+        pendingRecordDelete = nil
     }
 }

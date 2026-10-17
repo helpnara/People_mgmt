@@ -11,7 +11,7 @@ struct PeopleListView: View {
     /// 정렬은 저장소가 아니라 `Core.NameSort` 가 한다 — 정답표와 같은 규칙, 같은 답.
     @Query private var fetched: [Person]
 
-    @State private var path: [Person] = []
+    @State private var path = NavigationPath()
     @State private var searchText = ""
     @State private var showingAdd = false
     @State private var pendingDelete: Person?
@@ -65,9 +65,12 @@ struct PeopleListView: View {
             .navigationDestination(for: Person.self) { person in
                 PersonDetailView(person: person)
             }
+            .navigationDestination(for: Record.self) { record in
+                RecordDetailView(record: record)
+            }
             .sheet(isPresented: $showingAdd) {
                 PersonEditView(mode: .create) { person in
-                    path = [person]
+                    path.append(person)
                 }
             }
             .confirmationDialog(
@@ -150,11 +153,17 @@ struct PeopleListView: View {
         try? await Task.sleep(for: .milliseconds(300))
         if let search = arguments.search { searchText = search }
         if arguments.addPerson { showingAdd = true }
-        if let name = arguments.openPerson,
-           let match = people.first(where: { NameSort.key($0.name) == NameSort.key(name) }) {
-            path = [match]
-        } else if arguments.openFirstPerson, let first = people.first {
-            path = [first]
+        var opened: Person?
+        if let name = arguments.openPerson {
+            opened = people.first { NameSort.key($0.name) == NameSort.key(name) }
+        } else if arguments.openFirstPerson {
+            opened = people.first
+        }
+        if let opened {
+            path.append(opened)
+            if arguments.openRecord, let latest = RecordStore.timeline(of: opened).first {
+                path.append(latest)
+            }
         }
     }
 }

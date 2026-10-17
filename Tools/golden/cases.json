@@ -359,5 +359,37 @@
     "유리",
     "나비",
     "김하나"
+  ],
+  "timelineSort": [
+    {
+      "name": "최신 날짜 먼저 · 같은 날짜는 나중에 만든 것 먼저",
+      "records": [
+        {
+          "id": "a",
+          "occurredAt": 100,
+          "createdAt": 1
+        },
+        {
+          "id": "b",
+          "occurredAt": 300,
+          "createdAt": 2
+        },
+        {
+          "id": "c",
+          "occurredAt": 300,
+          "createdAt": 5
+        },
+        {
+          "id": "d",
+          "occurredAt": 200,
+          "createdAt": 3
+        },
+        {
+          "id": "e",
+          "occurredAt": 300,
+          "createdAt": 4
+        }
+      ]
+    }
   ]
 }
