@@ -1,0 +1,75 @@
+name: Core 테스트 (리눅스)
+
+# 원격 세션(리눅스 컨테이너)에는 Swift 툴체인이 없고 download.swift.org 도 막혀 있다.
+# 그래서 이 워크플로가 **가장 빠른 심판**이다 — macOS 러너를 안 쓰므로 몇 분이면 끝난다.
+#
+# 두 단계로 나눈 이유:
+#   golden — 원격 세션에서도 돌릴 수 있는 것. 기댓값이 최신인지 본다
+#   swift  — 그 기댓값과 Core 의 결과가 같은지 본다
+
+on:
+  push:
+    branches: ["claude/**", main, master]
+    paths:
+      - "Packages/Core/**"
+      - "Tools/golden/**"
+      - "Tools/privacy/**"
+      - "App/PrivacyInfo.xcprivacy"
+      - ".github/workflows/core-test.yml"
+  pull_request:
+    paths:
+      - "Packages/Core/**"
+      - "Tools/golden/**"
+  workflow_dispatch:
+
+concurrency:
+  group: core-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  golden:
+    name: 파이썬 기댓값이 최신인가
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 기댓값을 다시 계산해 커밋된 것과 대조
+        run: |
+          python3 -I Tools/golden/generate.py --check || {
+            echo "::error::python3 Tools/golden/generate.py 를 돌리고 결과를 커밋하세요."
+            exit 1
+          }
+
+      # 애플 서버가 올린 뒤 메일로만 알려 주는 종류(ITMS-91056)를 올리기 전에 잡는다.
+      - name: 개인정보 명세의 키와 값이 Xcode 정의와 맞는지
+        run: python3 -I Tools/privacy/check-privacy-manifest.py
+
+  swift:
+    name: swift test
+    needs: golden
+    runs-on: ubuntu-latest
+    # 우분투 러너에는 Swift 가 없다. 공식 이미지를 쓴다.
+    container: swift:6.1-noble
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 툴체인
+        run: swift --version
+
+      - name: 빌드
+        working-directory: Packages/Core
+        run: swift build
+
+      # **실패한 시험 이름만 따로 찍는다.** 로그가 길어 꼬리만 받으면 실패가 안 보인다.
+      - name: 테스트
+        working-directory: Packages/Core
+        # 컨테이너의 기본 쉘은 sh(dash) 라 pipefail 이 없다 — bash 를 못 박는다.
+        shell: bash
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee /tmp/test.log || {
+            echo "::group::실패한 것만"
+            grep -E "error:|failed \(" /tmp/test.log | head -40
+            echo "::endgroup::"
+            exit 1
+          }

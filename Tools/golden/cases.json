@@ -1,0 +1,363 @@
+{
+  "_comment": "Core 의 기댓값을 만드는 사례. 이름 · 소속 · 메모는 전부 지어낸 것이다 — 실제 사람을 적지 않는다 (CLAUDE.md).",
+  "tags": [
+    {
+      "name": "같은 태그 세 표기",
+      "input": [
+        "#멘토",
+        "멘토 ",
+        "멘토"
+      ]
+    },
+    {
+      "name": "대소문자 무시 · 먼저 나온 표기 유지",
+      "input": [
+        "Mentor",
+        "mentor",
+        "MENTOR",
+        "project"
+      ]
+    },
+    {
+      "name": "빈 것 · # 만 · 공백만",
+      "input": [
+        "",
+        "#",
+        "   ",
+        "##",
+        "# "
+      ]
+    },
+    {
+      "name": "안쪽 공백 하나로",
+      "input": [
+        "대학  동기",
+        " 회사   선배 "
+      ]
+    },
+    {
+      "name": "30자 넘으면 버림",
+      "input": [
+        "가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나",
+        "가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다"
+      ]
+    },
+    {
+      "name": "NFD 자모를 NFC 로",
+      "input": [
+        "멘토",
+        "멘토"
+      ]
+    },
+    {
+      "name": "스물한 개면 스무 개까지",
+      "input": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6",
+        "t7",
+        "t8",
+        "t9",
+        "t10",
+        "t11",
+        "t12",
+        "t13",
+        "t14",
+        "t15",
+        "t16",
+        "t17",
+        "t18",
+        "t19",
+        "t20",
+        "t21"
+      ]
+    }
+  ],
+  "tagSplit": [
+    {
+      "name": "쉼표 · 줄바꿈 · 세미콜론",
+      "input": "회사, 멘토\n#대학;친구"
+    },
+    {
+      "name": "쉼표 뒤 빈칸과 중복",
+      "input": "a, b, , A ,c"
+    }
+  ],
+  "displayTitle": [
+    {
+      "name": "제목 있음",
+      "title": "분기 회의",
+      "note": "첫 줄"
+    },
+    {
+      "name": "제목 공백이면 메모 첫 줄",
+      "title": "  ",
+      "note": "\n\n점심 먹으며 이직 고민 들음\n둘째 줄"
+    },
+    {
+      "name": "메모 첫 줄 40자 넘으면 자르고 말줄임",
+      "title": null,
+      "note": "가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하"
+    },
+    {
+      "name": "딱 40자는 그대로",
+      "title": null,
+      "note": "가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타"
+    },
+    {
+      "name": "둘 다 없음",
+      "title": null,
+      "note": null
+    },
+    {
+      "name": "메모가 공백뿐",
+      "title": "",
+      "note": " \n \n"
+    }
+  ],
+  "nameSort": [
+    {
+      "name": "가나다 · 영문 먼저 · 대소문자 무시 · 같은 이름은 먼저 만든 것",
+      "people": [
+        {
+          "name": "홍길동",
+          "createdAt": 300
+        },
+        {
+          "name": "김하늘",
+          "createdAt": 200
+        },
+        {
+          "name": "alice",
+          "createdAt": 500
+        },
+        {
+          "name": "Bob",
+          "createdAt": 400
+        },
+        {
+          "name": "김하늘",
+          "createdAt": 100
+        },
+        {
+          "name": " 박서연",
+          "createdAt": 600
+        },
+        {
+          "name": "김하늘",
+          "createdAt": 150
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "name": "   "
+    },
+    {
+      "name": ""
+    },
+    {
+      "name": "홍길동"
+    },
+    {
+      "name": " 홍길동 "
+    },
+    {
+      "name": "가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가"
+    }
+  ],
+  "recordSave": [
+    {
+      "title": null,
+      "note": null
+    },
+    {
+      "title": " ",
+      "note": "\n"
+    },
+    {
+      "title": "회의",
+      "note": null
+    },
+    {
+      "title": null,
+      "note": "메모만"
+    },
+    {
+      "title": "",
+      "note": "  x"
+    }
+  ],
+  "dayNoon": [
+    {
+      "iso": "2026-03-08T23:30:00+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    {
+      "iso": "2026-03-08T23:30:00+09:00",
+      "timeZone": "UTC"
+    },
+    {
+      "iso": "2026-01-01T00:00:00+09:00",
+      "timeZone": "Asia/Seoul"
+    },
+    {
+      "iso": "2025-12-31T23:59:59+09:00",
+      "timeZone": "Asia/Seoul"
+    }
+  ],
+  "search": {
+    "people": [
+      {
+        "id": "11111111-1111-1111-1111-111111111111",
+        "name": "김하늘",
+        "organization": "청림소프트",
+        "role": "팀장",
+        "relationshipType": "동료",
+        "metThrough": "직장",
+        "firstNote": "입사 첫날 옆자리",
+        "tags": [
+          "멘토",
+          "독서모임"
+        ],
+        "records": [
+          {
+            "id": "aaaaaaaa-0000-0000-0000-000000000001",
+            "displayTitle": "분기 회의",
+            "title": "분기 회의",
+            "note": "로드맵 우선순위 논의. 예산은 보류",
+            "location": "본사 3층",
+            "tags": [
+              "업무"
+            ]
+          },
+          {
+            "id": "aaaaaaaa-0000-0000-0000-000000000002",
+            "displayTitle": "점심",
+            "title": "점심",
+            "note": "이직 고민을 들었다",
+            "location": "국숫집",
+            "tags": []
+          }
+        ]
+      },
+      {
+        "id": "22222222-2222-2222-2222-222222222222",
+        "name": "이도윤",
+        "nickname": "도윤 형",
+        "organization": "한빛대학교",
+        "role": "연구원",
+        "relationshipType": "친구",
+        "metThrough": "학교",
+        "firstNote": "대학 동아리",
+        "tags": [
+          "대학",
+          "등산"
+        ],
+        "records": []
+      },
+      {
+        "id": "33333333-3333-3333-3333-333333333333",
+        "name": "박서연",
+        "organization": "마루디자인",
+        "role": "대표",
+        "relationshipType": "협력사",
+        "metThrough": "소개",
+        "firstNote": "김하늘 팀장의 소개",
+        "tags": [],
+        "records": [
+          {
+            "id": "aaaaaaaa-0000-0000-0000-000000000003",
+            "displayTitle": "킥오프",
+            "title": "킥오프",
+            "note": "브랜드 리뉴얼 범위 합의",
+            "location": null,
+            "tags": [
+              "프로젝트",
+              "멘토링"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "44444444-4444-4444-4444-444444444444",
+        "name": "Alice Park",
+        "organization": "Nabi Labs",
+        "role": "Engineer",
+        "relationshipType": "고객",
+        "metThrough": "온라인",
+        "firstNote": null,
+        "tags": [
+          "Mentor"
+        ],
+        "records": []
+      },
+      {
+        "id": "55555555-5555-5555-5555-555555555555",
+        "name": "최민준",
+        "organization": null,
+        "role": null,
+        "relationshipType": "지인",
+        "metThrough": "행사·교육",
+        "firstNote": null,
+        "tags": [],
+        "records": [
+          {
+            "id": "aaaaaaaa-0000-0000-0000-000000000004",
+            "displayTitle": "세미나 뒤풀이",
+            "title": null,
+            "note": "세미나 뒤풀이\n데이터 시각화 이야기",
+            "location": "강남",
+            "tags": []
+          }
+        ]
+      }
+    ],
+    "queries": [
+      "김",
+      "하늘",
+      "멘토",
+      "#멘토",
+      "mentor",
+      "#MENTOR",
+      "회의",
+      "예산",
+      "이직",
+      "도윤",
+      "형",
+      "학교",
+      "소개",
+      "김하늘 소개",
+      "김 예산",
+      "김 없는말",
+      "강남",
+      "시각화",
+      "#업무",
+      "#프로젝트 박",
+      "   ",
+      "#",
+      "Alice",
+      "alice park",
+      "park nabi",
+      "하늘"
+    ]
+  },
+  "josa": [
+    "홍길동",
+    "김하늘",
+    "박서연",
+    "Alice Park",
+    "최민준 ",
+    "이도윤",
+    "7",
+    "",
+    "강",
+    "유리",
+    "나비",
+    "김하나"
+  ]
+}
