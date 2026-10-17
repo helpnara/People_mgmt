@@ -114,6 +114,11 @@ def sort_people(people: list[dict]) -> list[str]:
     return [p["name"] for p in ordered]
 
 
+def sort_timeline(records: list[dict]) -> list[str]:
+    ordered = sorted(records, key=lambda r: (-r["occurredAt"], -r["createdAt"]))
+    return [r["id"] for r in ordered]
+
+
 # ── 검증 (Validation) ────────────────────────────────────────────────────────
 
 def name_problem(name: str):
@@ -246,6 +251,8 @@ def build() -> dict:
                            for c in cases["displayTitle"]]
     out["nameSort"] = [{"name": c["name"], "people": c["people"], "expected": sort_people(c["people"])}
                        for c in cases["nameSort"]]
+    out["timelineSort"] = [{"name": c["name"], "records": c["records"], "expected": sort_timeline(c["records"])}
+                           for c in cases["timelineSort"]]
     out["validation"] = [{"name": c["name"], "expected": name_problem(c["name"])}
                          for c in cases["validation"]]
     out["recordSave"] = [{"title": c["title"], "note": c["note"],

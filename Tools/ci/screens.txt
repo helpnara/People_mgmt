@@ -7,6 +7,7 @@
 02-people.png            0,0.18,1,0.85
 03-person-detail.png     0,0.14,1,0.85
 05-search.png            0,0.18,1,0.70
+09-record-detail.png     0,0.14,1,0.80
 06-large-text.png        0,0.20,1,0.85
 dark/02-people.png       0,0.18,1,0.85
 ipad/02-people.png       0,0.12,1,0.85
