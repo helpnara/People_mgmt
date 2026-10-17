@@ -11,6 +11,8 @@ struct LaunchArguments: Sendable {
     let seedSampleData: Bool
     /// 목록의 첫 사람 상세를 바로 연다.
     let openFirstPerson: Bool
+    /// 이 이름의 사람 상세를 바로 연다 (`-openPerson 김하늘`). 첫 인연 · 소개 관계가 있는 사람을 찍으려고.
+    let openPerson: String?
     /// 사람 추가 시트를 바로 연다.
     let addPerson: Bool
     /// 검색창에 이 글자를 넣은 채로 연다.
@@ -23,10 +25,11 @@ struct LaunchArguments: Sendable {
         openFirstPerson = arguments.contains("-openFirstPerson")
         addPerson = arguments.contains("-addPerson")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")
-        if let index = arguments.firstIndex(of: "-search"), index + 1 < arguments.count {
-            search = arguments[index + 1]
-        } else {
-            search = nil
+        func value(after flag: String) -> String? {
+            guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
+            return arguments[index + 1]
         }
+        search = value(after: "-search")
+        openPerson = value(after: "-openPerson")
     }
 }
