@@ -1,7 +1,8 @@
 # 로드맵 — 지금 어디까지 왔나
 
 > **지금 어디까지 (2026-10-17):** 요구사항 v0.5 확정. **뼈대 + 2단계(사람 관리)가 첫 CI 에서 초록** — 리눅스 Core 테스트 · macOS 빌드 · 앱 테스트 6개 · 스크린샷 12장 모두 통과 (`claude/slow-connection`, 실행 1). 가정 A2 · A3 · A4 · A5 · A7 · A8 확인.
-> 다음: 사용자가 06-ci §2 의 처음 한 번 할 일(기본 브랜치 · 시크릿 · App ID · ASC)을 마치면 설정을 검증하고, 3단계(기록 · 타임라인) 착수 여부를 묻는다.
+> **사용자가 처음 한 번 할 일을 모두 마쳤고 검증도 끝났다 (2026-10-17 저녁)** — TestFlight 워크플로가 업로드 없이 아카이브 · 서명 · App Store 검증까지 통과, 처리방침은 `main` 에서 게시됨 (06-ci §2.5). 가정 A1 · A6 확인.
+> 다음: 3단계(기록 · 타임라인) 착수 여부와 첫 TestFlight 업로드("착수하자")를 사용자에게 묻는다.
 > 사용자가 할 일(처음 한 번)은 [06-ci.md §2](06-ci.md) — App ID · ASC 앱 등록 · 시크릿 4개 · 기본 브랜치 main · Pages.
 
 **세션을 시작하면 이 문서를 가장 먼저 읽는다.** 아래 표가 이 프로젝트의 기억이다.
@@ -45,20 +46,20 @@
 
 | # | 가정 | 확인 방법 | 확인한 날 |
 |---|---|---|---|
-| A1 | App Store Connect 에서 앱 이름 `느린 인연` 이 유일하다 | ASC 앱 등록 때 거부되지 않는다 | |
+| A1 | App Store Connect 에서 앱 이름 `느린 인연` 이 유일하다 | ASC 앱 등록 때 거부되지 않는다 | 2026-10-17 (사용자가 ASC 에 등록, 거부되지 않음) |
 | A2 | SwiftData 에서 **다대다(`Record.participants`) + 자기참조(`Person.introducedBy`)** 관계가 CloudKit 제약(옵셔널 · 기본값) 아래 컴파일되고 nullify 가 동작한다 | `ios.yml` 앱 테스트 `PersonStoreTests` | 2026-10-17 (ios 실행 1, 앱 테스트 6개 통과) |
 | A3 | XcodeGen 이 `Localizable.xcstrings` · `PrivacyInfo.xcprivacy` 를 리소스로 번들에 넣는다 | `ios.yml` "번들 안의 개인정보 명세" 단계 | 2026-10-17 (번들 안의 명세 단계 통과) |
 | A4 | `Packages/Core` 가 리눅스 `swift:6.1-noble` 에서 선다 (`precomposedStringWithCanonicalMapping` · `Calendar` · `ISO8601DateFormatter`) | `core-test.yml` | 2026-10-17 (core-test 실행 1) |
 | A5 | Swift 문자열 `<` 와 파이썬 `str` 비교가 NFC 문자열에서 같은 차례를 낸다 (정렬 정답표) | `GoldenTests.testNameSort` | 2026-10-17 (GoldenTests 통과) |
-| A6 | 자동 서명이 `com.helpnara.slow.connection` 의 프로파일을 만든다 — 지난 앱과 같은 API 키 · 등록된 기기로 | 첫 `testflight.yml` | |
+| A6 | 자동 서명이 `com.helpnara.slow.connection` 의 프로파일을 만든다 — 지난 앱과 같은 API 키 · 등록된 기기로 | 첫 `testflight.yml` | 2026-10-17 (testflight 실행 1, upload=false — 아카이브 · 내보내기 · 검증 통과) |
 | A7 | `-search 멘토` 처럼 한글 실행 인자가 `simctl launch` 를 그대로 통과한다 | `05-search.png` 에 결과가 보인다 | 2026-10-17 (05-search 에 결과 2명) |
 | A8 | 빈 상태 · 안내 화면(글자만)의 PNG 가 40,000 바이트 문턱을 넘는다 | `01-empty.png` · `08-store-failure.png` 가 찍힌다 | 2026-10-17 (176,747 · 166,229 바이트) |
 
 ## 5. 스토어 준비 목록 (테스트하는 동안 미리)
 
-- [ ] 개인정보 처리방침 페이지 게시 — `Settings → Pages → GitHub Actions`, 변수 `SUPPORT_EMAIL` ([06-ci](06-ci.md))
+- [x] 개인정보 처리방침 페이지 게시 — 2026-10-17 `main` 에서 게시 (`https://helpnara.github.io/People_mgmt/privacy/`)
 - [ ] 상표 검색 (KIPRIS) — `느린 인연`
-- [ ] App Store Connect 앱 등록 — 이름 · 기본 언어 한국어 · SKU `slowconnection`
+- [x] App Store Connect 앱 등록 — 2026-10-17 사용자 (이름 `느린 인연`)
 - [ ] 스크린샷 흐름 — iPhone 6.5"(1284×2778 또는 1242×2688) · iPad 13"(2064×2752), 견본 자료로
 - [ ] 부제 · 키워드 · 설명 — "1위의 뜻" 을 먼저 정한다
 - [ ] App Privacy 라벨 — 데이터 수집 안 함
