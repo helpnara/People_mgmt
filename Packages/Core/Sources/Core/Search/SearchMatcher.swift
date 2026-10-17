@@ -145,9 +145,9 @@ public enum SearchMatcher {
                     worst = match
                 }
             }
-            guard allMatched, let worst else { continue }
-            hits.append(SearchHit(personID: person.id, kind: worst.kind,
-                                  evidence: worst.evidence, nameKey: NameSort.key(person.name)))
+            guard allMatched, let decisive = worst else { continue }
+            hits.append(SearchHit(personID: person.id, kind: decisive.kind,
+                                  evidence: decisive.evidence, nameKey: NameSort.key(person.name)))
         }
         return hits.sorted { lhs, rhs in
             if lhs.kind != rhs.kind { return lhs.kind < rhs.kind }
