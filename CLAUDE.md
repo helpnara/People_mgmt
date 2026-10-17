@@ -82,7 +82,7 @@
 
 ```
 docs/            설계 문서. 코드보다 이게 먼저다 (requirements-v0.5 · roadmap · 08-feedback · 06-ci · adr/)
-Tools/           여기서 돌릴 수 있는 도구 — golden(정답표) · privacy(명세 검사) · ci(화소 검사) · site(처리방침) · draw-icon.py
+Tools/           여기서 돌릴 수 있는 도구 — golden(정답표) · privacy(명세 검사) · ci(화소 검사) · site(처리방침) · make-icon.py(아이콘: Tools/icon-source.png 가 원본)
 Packages/Core/   순수 Swift. Foundation 만 → 리눅스에서 테스트된다
 App/             앱 타깃 (SwiftUI + SwiftData). macOS 에서만 빌드된다
 AppTests/        인메모리 저장소로 저장 규칙을 시험한다
