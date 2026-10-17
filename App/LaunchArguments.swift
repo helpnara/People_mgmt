@@ -1,0 +1,32 @@
+import Foundation
+
+/// CI 스크린샷 · 테스트가 실행 인자로 화면을 지정한다 (.github/workflows/ios.yml).
+///
+/// 원격 세션은 앱을 눌러 볼 수 없다. 켜기만 하면 빈 목록 한 장밖에 못 보므로,
+/// 인자로 견본 자료를 채우고 특정 화면을 바로 연다.
+struct LaunchArguments: Sendable {
+    static let current = LaunchArguments(ProcessInfo.processInfo.arguments)
+
+    /// 인메모리 저장소에 견본 자료를 채운다. **진짜 저장소에는 손대지 않는다.**
+    let seedSampleData: Bool
+    /// 목록의 첫 사람 상세를 바로 연다.
+    let openFirstPerson: Bool
+    /// 사람 추가 시트를 바로 연다.
+    let addPerson: Bool
+    /// 검색창에 이 글자를 넣은 채로 연다.
+    let search: String?
+    /// 저장소를 일부러 못 열게 한다 — 안내 화면이 뜨는지 본다.
+    let simulateStoreFailure: Bool
+
+    init(_ arguments: [String]) {
+        seedSampleData = arguments.contains("-seedSampleData")
+        openFirstPerson = arguments.contains("-openFirstPerson")
+        addPerson = arguments.contains("-addPerson")
+        simulateStoreFailure = arguments.contains("-simulateStoreFailure")
+        if let index = arguments.firstIndex(of: "-search"), index + 1 < arguments.count {
+            search = arguments[index + 1]
+        } else {
+            search = nil
+        }
+    }
+}

@@ -1,9 +1,9 @@
 # 느린 인연 요구사항 정의서
 
-- 문서 버전: 0.4
+- 문서 버전: 0.5
 - 목적: iPhone 중심 개인용 POC/파일럿 앱 개발
 - 앱 이름: 느린 인연
-- 문서 상태: 결정 확정본 (v0.1 검토 의견서 `requirements-review-v0.1.md`, SNA 지표 검토 `sna-metrics-review.md` 반영)
+- 문서 상태: 결정 확정본 (v0.1 검토 의견서 `requirements-review-v0.1.md`, SNA 지표 검토 `sna-metrics-review.md`, 느린 시리즈 개발 방식 반영)
 
 ---
 
@@ -17,6 +17,7 @@
 | 0.2 | 내부 모순 해소, 화면·데이터·검색·검증·비기능 요구사항 구체화, 수용 기준을 검증 가능한 형태로 재작성, 테스트 계획 추가 |
 | 0.3 | 부록 A의 결정 사항 13건을 사용자 선택으로 확정. 번들 식별자, 타겟 이름, 프로젝트 생성 방식 반영 |
 | 0.4 | 관계 지표 도입 검토 반영. 기록 참여자 N:M, 소개 관계 필드를 P0 스키마에 추가. 이인·전체 지표 P1, 구조 지표 P2. 13절 원칙 보강 (D-14~D-17) |
+| 0.5 | 느린 부자·느린 여백과 같은 개발 방식으로 정렬: 맥 없이 GitHub Actions가 빌드·배포, Core 패키지 분리, XCTest + 파이썬 정답표, 브랜치 전략, 유니버설 기기, 1.0 = App Store 공개 (D-18~D-22) |
 
 ### 0.2 문서 구성 원칙
 
@@ -58,6 +59,11 @@
 - 관계 지표는 사람을 평가하지 않고 관계 상태와 내 네트워크의 모양만 보여 준다. 종합 점수·순위표는 기본 화면에서 제외 (D-14)
 - 기록은 여러 사람이 참여할 수 있다(N:M). 소개 관계 필드를 둔다. 둘 다 P0 스키마 (D-15, D-16)
 - 이인·전체 지표 P1, 구조 지표 P2 (D-17)
+- 1.0은 App Store 무료 공개를 목표로 한다. 스토어 준비는 테스트 기간에 미리 (D-18)
+- 유니버설(iPhone·iPad) 빌드, 아이폰 레이아웃 우선 (D-19)
+- 작업 브랜치 `claude/slow-connection`, 스토어 판은 `main` (D-20)
+- 테스트는 XCTest + 파이썬 정답표(golden JSON) (D-21)
+- 컴파일·실행·스크린샷·배포는 GitHub Actions의 macOS 러너가 하고, 순수 로직은 `Packages/Core`로 분리해 리눅스 러너에서 테스트한다 (D-22)
 
 ---
 
@@ -627,13 +633,15 @@ Person 0..1 ── N Person      (introducedBy)
 | 최소 OS | iOS 17.0 (SwiftData 요구). 개발·테스트 기기는 최신 iOS |
 | 언어·UI | Swift 5.9 이상, SwiftUI |
 | 저장소 | SwiftData, 로컬 단일 스토어. CloudKit 동기화는 켜지 않음 |
-| 아키텍처 | 뷰는 저장소 프로토콜(`PersonStore`, `RecordStore` 등)을 통해서만 데이터에 접근한다. SwiftData 구현체는 프로토콜 뒤에 둔다. 검색·정렬·태그 정규화·표시명 생성은 UI와 분리된 순수 함수로 두어 단위 테스트한다 |
+| 아키텍처 | 읽기는 `@Query`, 쓰기는 `PersonStore`·`RecordStore` 한 곳으로만. 검색·정렬·태그 정규화·표시명·검증·조사·날짜 정규화는 `Packages/Core`(Foundation만)의 순수 함수로 두어 리눅스에서 단위 테스트한다 (ADR-0002) |
 | 화면 크기 | iPhone SE(4.7")부터 Pro Max까지 레이아웃 대응 |
-| iPad | 초기 필수 범위 제외. iPhone 앱 호환 모드로 실행되면 충분(FR-037은 P2) |
+| iPad | 유니버설 빌드(기기 계열 1,2)로 iPad에도 정식 설치된다. 레이아웃은 아이폰 것을 그대로 쓰고 고정 폭을 두지 않는다. iPad 전용 배치(목록·상세 나란히)는 FR-037 P2 (D-19) |
 | 외부 의존성 | 서드파티 라이브러리 없이 Apple 프레임워크만 사용한다 |
 | 프로젝트 생성 | XcodeGen `project.yml`을 소스로 관리하고 `.xcodeproj`는 생성물로 취급해 커밋하지 않는다. Mac에서 `xcodegen generate` 후 Xcode로 연다 |
 | 타겟 구성 | 앱 타겟 `SlowConnection`, 단위 테스트 타겟 `SlowConnectionTests`, UI 테스트 타겟 `SlowConnectionUITests`. 표시 이름(`CFBundleDisplayName`)은 "느린 인연" |
-| 테스트 프레임워크 | 단위 테스트는 Swift Testing(Xcode 16 이상), UI 테스트는 XCUITest |
+| 테스트 프레임워크 | XCTest. 순수 로직은 `Packages/Core`에서 파이썬 정답표(`Tools/golden`)와 대조하고 리눅스 CI에서 돈다. 저장 규칙은 앱 테스트 타깃이 인메모리 저장소로 시험한다 (D-21) |
+| 개발 환경 | 맥 없음. 리눅스 원격 세션이 코드를 쓰고, GitHub Actions의 macOS 러너가 빌드·앱 테스트·시뮬레이터 스크린샷·TestFlight 업로드를 한다. 스크린샷은 `screenshots/`에 되돌려 커밋된다 (D-22, `docs/06-ci.md`) |
+| 브랜치 | 작업은 `claude/slow-connection`, App Store에 낸 판은 `main` (D-20) |
 
 ### 8.2 저장 및 안정성
 
@@ -695,8 +703,8 @@ Person 0..1 ── N Person      (introducedBy)
 
 ### 8.8 배포
 
-- 개인용 POC이므로 App Store 심사는 거치지 않는다.
-- Apple Developer Program에 가입하고 TestFlight 내부 테스트로 배포한다(빌드당 90일 유효). 무료 계정의 직접 설치는 7일마다 재설치가 필요해 파일럿에 부적합하다.
+- 1.0은 App Store 무료 공개를 목표로 한다 (D-18). 그 전까지는 TestFlight 내부 테스트로 본인 기기에 설치한다(빌드당 90일 유효).
+- 빌드·서명·업로드는 GitHub Actions의 `testflight.yml`이 App Store Connect API 키(팀 단위, 느린 시리즈 공통)로 수행한다. 절차와 처음 한 번 할 일은 `docs/06-ci.md`.
 - 번들 식별자는 `com.helpnara.slow.connection`이다. 느린 시리즈 공통 접두어는 `com.helpnara.slow`이며, 이후 앱은 같은 접두어 아래 영어 이름으로 둔다(예: 느린 나이테 `com.helpnara.slow.rings`). 앱 그룹이 필요해지면 `group.com.helpnara.slow`를 사용한다.
 
 ---
@@ -800,7 +808,7 @@ POC는 아래 조건을 모두 충족하면 핵심 기능 구현 완료로 판�
 
 ## 11. 테스트 계획
 
-### 11.1 단위 테스트 (Swift Testing)
+### 11.1 단위 테스트 (XCTest, `Packages/Core` + 앱 테스트)
 
 | 대상 | 내용 |
 |---|---|
@@ -890,6 +898,11 @@ v0.3에서 사용자 선택으로 모두 확정되었다. 변경이 필요하면
 | D-15 | 기록 참여자 N:M | 지금 P0 스키마에 반영 | P1 마이그레이션 / 1:N 유지 | 6.2, 6.5, FR-042 |
 | D-16 | 소개 관계 필드 | 지금 추가 | P2 | 6.1, FR-043 |
 | D-17 | 지표 도입 범위 | 이인·전체 지표 P1, 구조 지표 P2 | 이인만 / 전부 P1 / 일부 P0 | FR-044~049 |
+| D-18 | 1.0 정의 | 처음부터 App Store 공개 목표 | 본인 TestFlight 후 검토 / TestFlight 전용 | 8.8, roadmap |
+| D-19 | 기기 계열 | 유니버설(1,2), 아이폰 레이아웃 우선 | iPhone 전용 | 8.1 |
+| D-20 | 브랜치 | 작업 `claude/slow-connection`, 스토어 판 `main` | master 단일 / master를 스토어 판으로 | 8.1, 06-ci |
+| D-21 | 테스트 | XCTest + 파이썬 정답표 | Swift Testing | 8.1, 11 |
+| D-22 | 개발 환경 | 맥 없음, GitHub Actions macOS 러너가 빌드·배포, Core는 리눅스 테스트 | | 8.1, 06-ci |
 
 ## 부록 B. v0.1 대비 변경 이력
 
@@ -917,3 +930,8 @@ v0.3에서 사용자 선택으로 모두 확정되었다. 변경이 필요하면
 - 5.5 관계 지표 명세 신설. P1에 FR-044~046, P2에 FR-047~049 추가
 - 7.6 삭제 문구, 9절 AC-08 수정과 AC-33~35 추가, 10·11절 갱신
 - 13절에 지표 운용 원칙 추가. 부록 A에 D-14~D-17 추가
+
+**v0.5**
+- 8.1 기술 스택에 개발 환경(맥 없음, CI가 컴파일러), 테스트(XCTest + 정답표), 브랜치, 유니버설 기기 반영
+- 8.8 배포를 App Store 공개 목표와 GitHub Actions 경로로 수정
+- 부록 A에 D-18~D-22 추가
