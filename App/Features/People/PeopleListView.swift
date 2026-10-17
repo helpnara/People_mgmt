@@ -150,7 +150,12 @@ struct PeopleListView: View {
         try? await Task.sleep(for: .milliseconds(300))
         if let search = arguments.search { searchText = search }
         if arguments.addPerson { showingAdd = true }
-        if arguments.openFirstPerson, let first = people.first { path = [first] }
+        if let name = arguments.openPerson,
+           let match = people.first(where: { NameSort.key($0.name) == NameSort.key(name) }) {
+            path = [match]
+        } else if arguments.openFirstPerson, let first = people.first {
+            path = [first]
+        }
     }
 }
 

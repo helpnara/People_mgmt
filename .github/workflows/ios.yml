@@ -305,13 +305,13 @@ jobs:
           # **빈 상태** — 진짜(시뮬레이터) 저장소. 위에서 앱을 지웠으므로 처음 설치한 모습이다.
           shoot 01-empty.png
           shoot 02-people.png -seedSampleData
-          shoot 03-person-detail.png -seedSampleData -openFirstPerson
+          shoot 03-person-detail.png -seedSampleData -openPerson 박서연
           shoot 04-add-person.png -seedSampleData -addPerson
           shoot 05-search.png -seedSampleData -search 멘토
           # **큰 글씨** (접근성). 이 한 장이 없으면 Dynamic Type 이 아무것도 안 바꾸고 있는 것을 못 잡는다.
           shoot 06-large-text.png -seedSampleData \
             -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
-          shoot 07-large-text-detail.png -seedSampleData -openFirstPerson \
+          shoot 07-large-text-detail.png -seedSampleData -openPerson 박서연 \
             -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
           # 저장소를 끝내 못 열었을 때의 안내 화면 — 죽지 않고 이 화면이 뜨는지, 지우기 단추가 없는지.
           shoot 08-store-failure.png -simulateStoreFailure
@@ -320,7 +320,7 @@ jobs:
           xcrun simctl ui "$UDID" appearance dark
           mkdir -p screenshots/dark
           shoot dark/02-people.png -seedSampleData
-          shoot dark/03-person-detail.png -seedSampleData -openFirstPerson
+          shoot dark/03-person-detail.png -seedSampleData -openPerson 김하늘
           xcrun simctl ui "$UDID" appearance light
 
           # ── iPad ──
@@ -335,7 +335,7 @@ jobs:
             mkdir -p screenshots/ipad
             UDID="$IPAD"
             shoot ipad/02-people.png -seedSampleData
-            shoot ipad/03-person-detail.png -seedSampleData -openFirstPerson
+            shoot ipad/03-person-detail.png -seedSampleData -openPerson 김하늘
             UDID="${{ steps.sim.outputs.udid }}"
           else
             echo "::warning::iPad 시뮬레이터가 없어 iPad 스크린샷을 건너뜁니다"

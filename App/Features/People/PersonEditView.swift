@@ -125,7 +125,8 @@ struct PersonEditView: View {
         }
         .interactiveDismissDisabled(hasChanges)
         .onAppear {
-            if isCreate { nameFocused = true }
+            // CI 스크린샷(-addPerson)에서는 포커스를 주지 않는다 — 시뮬레이터가 키보드 안내 팝업을 띄워 화면을 가린다.
+            if isCreate && !LaunchArguments.current.addPerson { nameFocused = true }
         }
     }
 
