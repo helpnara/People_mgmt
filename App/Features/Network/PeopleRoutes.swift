@@ -19,8 +19,9 @@ enum PeopleRowDetail: Hashable {
 }
 
 /// 미지정 목록에서 무엇을 채우러 가는가 — 누르면 **바로 편집**이 열리고, 채우면 그 줄에 `채웠습니다` (D-31 · 이슈 16).
+/// `record` 만 기록 쓰기를 열고, 나머지는 사람 편집을 연다.
 enum FillField: String, Hashable {
-    case relationshipType, metThrough, organization, tags
+    case relationshipType, metThrough, organization, tags, firstMet, acquaintances, record
 
     var label: String {
         switch self {
@@ -28,6 +29,18 @@ enum FillField: String, Hashable {
         case .metThrough: return "알게 된 경로"
         case .organization: return "소속"
         case .tags: return "태그"
+        case .firstMet: return "처음 만난 날"
+        case .acquaintances: return "아는 사이"
+        case .record: return "기록"
+        }
+    }
+
+    /// 줄 끝에 쓰는 말 — 아직일 때.
+    var action: String {
+        switch self {
+        case .record: return "기록 쓰기"
+        case .acquaintances: return "아는 사람 고르기"
+        default: return "\(label) 채우기"
         }
     }
 
@@ -37,6 +50,9 @@ enum FillField: String, Hashable {
         case .metThrough: return !(person.metThrough ?? "").isEmpty
         case .organization: return !(person.organization ?? "").isEmpty
         case .tags: return !person.tags.isEmpty
+        case .firstMet: return person.firstMetDate != nil
+        case .acquaintances: return !person.acquaintances.isEmpty
+        case .record: return !(person.records ?? []).isEmpty
         }
     }
 }
@@ -47,6 +63,12 @@ struct PeopleListRoute: Hashable {
     let ids: [UUID]
     var fill: FillField?
     var detail: PeopleRowDetail = .none
+}
+
+/// 고칠 기록 몇 건을 보여 주는 길 — 누르면 바로 기록 수정 (D-31: 함께한 사람이 한 명뿐인 기록).
+struct RecordFillRoute: Hashable {
+    let title: String
+    let recordIDs: [UUID]
 }
 
 /// 지표의 근거 기록을 보여 주는 길.
@@ -79,7 +101,7 @@ struct PeopleRouteView: View {
                         Button {
                             editing = person
                         } label: {
-                            row(person, trailing: fill.isFilled(person) ? "채웠습니다" : "\(fill.label) 채우기",
+                            row(person, trailing: fill.isFilled(person) ? "채웠습니다" : fill.action,
                                 done: fill.isFilled(person))
                         }
                         .buttonStyle(.plain)
@@ -93,7 +115,11 @@ struct PeopleRouteView: View {
                 Text("\(people.count)명")
             } footer: {
                 if let fill = route.fill {
-                    Text("누르면 바로 편집이 열립니다. \(fill.label)\(Josa.eulReul(fill.label)) 채우고 저장하면 이 목록에 채웠습니다로 표시됩니다.")
+                    if fill == .record {
+                        Text("누르면 그 사람과의 기록 쓰기가 바로 열립니다. 저장하면 이 목록에 채웠습니다로 표시됩니다.")
+                    } else {
+                        Text("누르면 바로 편집이 열립니다. \(fill.label)\(Josa.eulReul(fill.label)) 채우고 저장하면 이 목록에 채웠습니다로 표시됩니다.")
+                    }
                 }
             }
         }
@@ -103,7 +129,11 @@ struct PeopleRouteView: View {
         .navigationTitle(route.title)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editing) { person in
-            PersonEditView(mode: .edit(person)) { _ in }
+            if route.fill == .record {
+                RecordEditView(mode: .create(anchor: person)) { _ in }
+            } else {
+                PersonEditView(mode: .edit(person)) { _ in }
+            }
         }
     }
 
@@ -177,5 +207,70 @@ struct EvidenceRouteView: View {
         .background(Color.ground)
         .navigationTitle(route.title)
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// `RecordFillRoute` 의 목적지 — 누르면 바로 기록 수정. 함께한 사람을 더하면 그 줄에 `채웠습니다`.
+struct RecordFillRouteView: View {
+    let route: RecordFillRoute
+    @Query private var records: [Record]
+    @State private var editing: Record?
+
+    init(route: RecordFillRoute) {
+        self.route = route
+        let ids = route.recordIDs
+        _records = Query(filter: #Predicate<Record> { ids.contains($0.uuid) })
+    }
+
+    var body: some View {
+        let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
+        let ordered = route.recordIDs.compactMap { byID[$0] }.filter { !$0.isGone }
+        List {
+            Section {
+                ForEach(ordered) { record in
+                    Button {
+                        editing = record
+                    } label: {
+                        row(record)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } header: {
+                Text("\(ordered.count)건")
+            } footer: {
+                Text("누르면 기록 수정이 바로 열립니다. 그 자리에 함께한 사람이 더 있었다면 더하세요 — 함께한 사람끼리 관계도에 선이 생깁니다. 둘만 만난 기록이면 그대로 두어도 됩니다.")
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.ground)
+        .navigationTitle(route.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editing) { record in
+            RecordEditView(mode: .edit(record)) { _ in }
+        }
+    }
+
+    private func row(_ record: Record) -> some View {
+        let others = (record.participants ?? []).filter { !$0.isMe }
+        let names = others.prefix(3).map(\.name)
+        let done = others.count >= 2
+        return HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(record.displayTitle).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                Text(([record.occurredAt.formatted(date: .abbreviated, time: .omitted)] + names).joined(separator: " · "))
+                    .font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Label {
+                Text(done ? "채웠습니다" : "함께한 사람 더하기")
+            } icon: {
+                if done { Image(systemName: "checkmark.circle.fill") }
+            }
+            .font(.scaled(12, weight: done ? .semibold : .regular))
+            .foregroundStyle(done ? Color.accent : Color.faint)
+            .lineLimit(1)
+        }
+        .contentShape(Rectangle())
     }
 }

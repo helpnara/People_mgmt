@@ -11,6 +11,11 @@ import Foundation
 /// 나는 넣지 않는다 — 모두가 나와 이어져 있어 넣으면 한 덩어리가 된다. 사람을 점수화하지 않는다 (ADR-0004):
 /// 모듈성은 그룹을 보여 줄지의 문턱으로만 쓰고 화면에 숫자로 내지 않는다.
 public enum CommunityDetection {
+    /// 모임을 보여 주는 문턱 (D-30) — 모듈성이 이보다 낮으면 뚜렷한 모임이 없다고 보고 묶지 않는다.
+    public static let minimumModularity = 0.3
+    /// 이보다 작은 묶음은 모임으로 그리지 않는다.
+    public static let minimumGroupSize = 3
+
     public struct Link: Sendable, Equatable {
         public let i: Int
         public let j: Int

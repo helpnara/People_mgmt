@@ -11,6 +11,8 @@ struct LaunchArguments: Sendable {
     let seedSampleData: Bool
     /// 견본에 사람 5,000명 · 기록 50,000건을 더 채운다 — 화면 시간을 재려고 (요구사항 8.5). `-seedSampleData` 와 함께.
     let largeSample: Bool
+    /// 견본에 모임 셋(15명 · 아는 사이)을 더 채운다 — 모임 찾기를 찍으려고 (D-30). `-seedSampleData` 와 함께.
+    let communitySample: Bool
     /// 목록의 첫 사람 상세를 바로 연다.
     let openFirstPerson: Bool
     /// 이 이름의 사람 상세를 바로 연다 (`-openPerson 김하늘`). 첫 인연 · 소개 관계가 있는 사람을 찍으려고.
@@ -29,7 +31,7 @@ struct LaunchArguments: Sendable {
     let viewCard: Bool
     /// 연 사람 상세를 관계 돌아보기 구역까지 내린다 (6번째 묶음).
     let scrollToReview: Bool
-    /// 내 인맥을 이 보기로 바로 연다 (`-openNetwork graph|traits|overview`).
+    /// 내 인맥을 이 보기로 바로 연다 (`-openNetwork graph|traits|overview|readiness`).
     let openNetwork: String?
     /// 수정 시트에서 명함 글자를 바로 읽어 제안 화면을 띄운다.
     let readCard: Bool
@@ -43,6 +45,7 @@ struct LaunchArguments: Sendable {
     init(_ arguments: [String]) {
         seedSampleData = arguments.contains("-seedSampleData")
         largeSample = arguments.contains("-seedLargeSample")
+        communitySample = arguments.contains("-seedCommunitySample")
         openFirstPerson = arguments.contains("-openFirstPerson")
         addPerson = arguments.contains("-addPerson")
         openMe = arguments.contains("-openMe")

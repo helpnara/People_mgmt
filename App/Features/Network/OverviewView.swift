@@ -51,12 +51,12 @@ struct OverviewView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .task(id: OverviewKey(count: snapshot.people.count, months: quietMonths, today: snapshot.today)) {
+        .task(id: OverviewKey(generation: snapshot.generation, months: quietMonths)) {
             let people = snapshot.people.map {
                 OverviewPerson(id: $0.id, name: $0.name, firstMetDay: $0.firstMetDay, lastDay: $0.lastDay)
             }
             let days = Int((Double(quietMonths) * DyadMetricsCalculator.daysPerMonth).rounded())
-            withFirstMet = snapshot.people.filter { $0.firstMetDay != nil }.count
+            withFirstMet = snapshot.readiness.withFirstMet
             overview = NetworkOverview.compute(people: people, today: snapshot.today, yearStart: snapshot.yearStart,
                                                yearEnd: snapshot.yearEnd, neglectDays: days)
         }
@@ -65,9 +65,8 @@ struct OverviewView: View {
     private var withRecords: Int { snapshot.people.count - (overview?.noRecordIDs.count ?? 0) }
 
     private struct OverviewKey: Hashable {
-        let count: Int
+        let generation: UUID
         let months: Int
-        let today: Int
     }
 
     private func link(_ title: String, ids: [UUID], detail: PeopleRowDetail) -> some View {

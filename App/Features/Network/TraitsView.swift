@@ -42,7 +42,7 @@ struct TraitsView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         // 나누기는 자료가 바뀔 때 한 번 — 본문에서 사람 전원을 훑지 않는다 (CLAUDE.md).
-        .task(id: snapshot.people.count) {
+        .task(id: snapshot.generation) {
             let people = snapshot.people
             traits = [
                 Trait(title: "관계 유형", field: .relationshipType, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.relationshipType ?? ""]) })),
