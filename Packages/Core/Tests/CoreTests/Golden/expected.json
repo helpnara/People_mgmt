@@ -430,6 +430,90 @@
       "name": "대표 · 팩스가 한 줄"
     }
   ],
+  "communityName": [
+    {
+      "expected": "청림소프트",
+      "members": [
+        {
+          "organization": "청림소프트",
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "organization": "청림소프트 ",
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "organization": "한빛",
+          "tags": []
+        }
+      ],
+      "name": "소속이 이긴다"
+    },
+    {
+      "expected": "#등산",
+      "members": [
+        {
+          "organization": "A",
+          "tags": [
+            "등산",
+            "독서"
+          ]
+        },
+        {
+          "organization": "B",
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서",
+            "등산"
+          ]
+        }
+      ],
+      "name": "소속이 모두 달라 태그로"
+    },
+    {
+      "expected": "학교",
+      "members": [
+        {
+          "metThrough": "학교",
+          "organization": null,
+          "tags": []
+        },
+        {
+          "metThrough": "학교",
+          "organization": "",
+          "tags": []
+        }
+      ],
+      "name": "경로로"
+    },
+    {
+      "expected": null,
+      "members": [
+        {
+          "organization": "A",
+          "tags": [
+            "x"
+          ]
+        },
+        {
+          "organization": "B",
+          "tags": [
+            "y"
+          ]
+        }
+      ],
+      "name": "이름 없음"
+    }
+  ],
   "contactFromContact": [
     {
       "emails": [
@@ -1802,6 +1886,258 @@
       ]
     }
   ],
+  "inputReadiness": [
+    {
+      "expected": [
+        {
+          "current": "사람 0명 · 관계 유형과 경로를 적은 사람 0%",
+          "feature": "traits",
+          "hint": "사람을 20명 더 적으면 분포가 뜻을 갖습니다.",
+          "level": "notYet",
+          "progress": 0.0
+        },
+        {
+          "current": "처음 만난 날을 적은 사람 0명 / 0명",
+          "feature": "firstMet",
+          "hint": "사람을 적으면 시작합니다.",
+          "level": "notYet",
+          "progress": 0.0
+        },
+        {
+          "current": "기록이 있는 사람 0명 / 0명",
+          "feature": "review",
+          "hint": "사람을 적으면 시작합니다.",
+          "level": "notYet",
+          "progress": 0.0
+        },
+        {
+          "current": "서로 이어진 사람 0명 / 0명 (0%)",
+          "feature": "graph",
+          "hint": "사람을 적으면 시작합니다.",
+          "level": "notYet",
+          "progress": 0.0
+        },
+        {
+          "current": "진한 선 0개 · 이어진 사람 0명",
+          "feature": "groups",
+          "hint": "진한 선 20개 · 이어진 사람 10명 더 있으면 모임(그룹)을 찾아 관계도에 묶어 보여 줍니다.",
+          "level": "notYet",
+          "progress": 0.0
+        }
+      ],
+      "input": {
+        "linkedPeople": 0,
+        "people": 0,
+        "strongEdges": 0,
+        "withFirstMet": 0,
+        "withMetThrough": 0,
+        "withRecords": 0,
+        "withRelationshipType": 0
+      },
+      "name": "빈 저장소",
+      "summary": "5가지 중 0가지 준비됨 · 다음: 특성 분포"
+    },
+    {
+      "expected": [
+        {
+          "current": "사람 13명 · 관계 유형과 경로를 적은 사람 92%",
+          "feature": "traits",
+          "hint": "사람을 7명 더 적으면 분포가 뜻을 갖습니다.",
+          "level": "almost",
+          "progress": 0.65
+        },
+        {
+          "current": "처음 만난 날을 적은 사람 5명 / 13명",
+          "feature": "firstMet",
+          "hint": "처음 만난 날을 2명 더 적으면 올해 처음 만남과 인연 기간이 정확해집니다.",
+          "level": "almost",
+          "progress": 0.7692307692307693
+        },
+        {
+          "current": "기록이 있는 사람 2명 / 13명",
+          "feature": "review",
+          "hint": "5명과의 기록을 더 남기면 최근 기록 없음 · 관계 돌아보기가 뜻을 갖습니다.",
+          "level": "notYet",
+          "progress": 0.3076923076923077
+        },
+        {
+          "current": "서로 이어진 사람 2명 / 13명 (15%)",
+          "feature": "graph",
+          "hint": "2명을 더 이으면 관계도에 모양이 드러납니다 — 아는 사이를 고르거나, 기록에 함께한 사람을 두 명 이상 넣으세요.",
+          "level": "notYet",
+          "progress": 0.5128205128205128
+        },
+        {
+          "current": "진한 선 1개 · 이어진 사람 2명",
+          "feature": "groups",
+          "hint": "진한 선 19개 · 이어진 사람 8명 더 있으면 모임(그룹)을 찾아 관계도에 묶어 보여 줍니다.",
+          "level": "notYet",
+          "progress": 0.05
+        }
+      ],
+      "input": {
+        "linkedPeople": 2,
+        "people": 13,
+        "strongEdges": 1,
+        "withFirstMet": 5,
+        "withMetThrough": 12,
+        "withRecords": 2,
+        "withRelationshipType": 13
+      },
+      "name": "첫날 13명 (실사용 첫날 비슷한 모양)",
+      "summary": "5가지 중 0가지 준비됨 · 다음: 특성 분포"
+    },
+    {
+      "expected": [
+        {
+          "current": "사람 10명 · 관계 유형과 경로를 적은 사람 100%",
+          "feature": "traits",
+          "hint": "사람을 10명 더 적으면 분포가 뜻을 갖습니다.",
+          "level": "notYet",
+          "progress": 0.5
+        },
+        {
+          "current": "처음 만난 날을 적은 사람 5명 / 10명",
+          "feature": "firstMet",
+          "hint": "올해 처음 만난 사람과 인연 기간이 정확하게 보입니다.",
+          "level": "ready",
+          "progress": 1.0
+        },
+        {
+          "current": "기록이 있는 사람 5명 / 10명",
+          "feature": "review",
+          "hint": "오래 기록이 없는 인연과 사람마다의 흐름이 보입니다.",
+          "level": "ready",
+          "progress": 1.0
+        },
+        {
+          "current": "서로 이어진 사람 2명 / 10명 (20%)",
+          "feature": "graph",
+          "hint": "1명을 더 이으면 관계도에 모양이 드러납니다 — 아는 사이를 고르거나, 기록에 함께한 사람을 두 명 이상 넣으세요.",
+          "level": "almost",
+          "progress": 0.6666666666666666
+        },
+        {
+          "current": "진한 선 2개 · 이어진 사람 2명",
+          "feature": "groups",
+          "hint": "진한 선 18개 · 이어진 사람 8명 더 있으면 모임(그룹)을 찾아 관계도에 묶어 보여 줍니다.",
+          "level": "notYet",
+          "progress": 0.1
+        }
+      ],
+      "input": {
+        "linkedPeople": 2,
+        "people": 10,
+        "strongEdges": 2,
+        "withFirstMet": 5,
+        "withMetThrough": 10,
+        "withRecords": 5,
+        "withRelationshipType": 10
+      },
+      "name": "10명의 30% 는 3명 (소수점 함정)",
+      "summary": "5가지 중 2가지 준비됨 · 다음: 특성 분포"
+    },
+    {
+      "expected": [
+        {
+          "current": "사람 40명 · 관계 유형과 경로를 적은 사람 70%",
+          "feature": "traits",
+          "hint": "관계 유형 · 알게 된 경로를 4명 더 채우면 분포가 정확해집니다.",
+          "level": "almost",
+          "progress": 0.875
+        },
+        {
+          "current": "처음 만난 날을 적은 사람 13명 / 40명",
+          "feature": "firstMet",
+          "hint": "처음 만난 날을 7명 더 적으면 올해 처음 만남과 인연 기간이 정확해집니다.",
+          "level": "almost",
+          "progress": 0.65
+        },
+        {
+          "current": "기록이 있는 사람 14명 / 40명",
+          "feature": "review",
+          "hint": "6명과의 기록을 더 남기면 최근 기록 없음 · 관계 돌아보기가 뜻을 갖습니다.",
+          "level": "almost",
+          "progress": 0.7
+        },
+        {
+          "current": "서로 이어진 사람 9명 / 40명 (23%)",
+          "feature": "graph",
+          "hint": "3명을 더 이으면 관계도에 모양이 드러납니다 — 아는 사이를 고르거나, 기록에 함께한 사람을 두 명 이상 넣으세요.",
+          "level": "almost",
+          "progress": 0.75
+        },
+        {
+          "current": "진한 선 14개 · 이어진 사람 9명",
+          "feature": "groups",
+          "hint": "진한 선 6개 · 이어진 사람 1명 더 있으면 모임(그룹)을 찾아 관계도에 묶어 보여 줍니다.",
+          "level": "almost",
+          "progress": 0.7
+        }
+      ],
+      "input": {
+        "linkedPeople": 9,
+        "people": 40,
+        "strongEdges": 14,
+        "withFirstMet": 13,
+        "withMetThrough": 28,
+        "withRecords": 14,
+        "withRelationshipType": 30
+      },
+      "name": "거의",
+      "summary": "5가지 중 0가지 준비됨 · 다음: 특성 분포"
+    },
+    {
+      "expected": [
+        {
+          "current": "사람 60명 · 관계 유형과 경로를 적은 사람 83%",
+          "feature": "traits",
+          "hint": "내 인연의 구성이 믿을 만하게 보입니다.",
+          "level": "ready",
+          "progress": 1.0
+        },
+        {
+          "current": "처음 만난 날을 적은 사람 40명 / 60명",
+          "feature": "firstMet",
+          "hint": "올해 처음 만난 사람과 인연 기간이 정확하게 보입니다.",
+          "level": "ready",
+          "progress": 1.0
+        },
+        {
+          "current": "기록이 있는 사람 45명 / 60명",
+          "feature": "review",
+          "hint": "오래 기록이 없는 인연과 사람마다의 흐름이 보입니다.",
+          "level": "ready",
+          "progress": 1.0
+        },
+        {
+          "current": "서로 이어진 사람 25명 / 60명 (42%)",
+          "feature": "graph",
+          "hint": "사람들 사이의 연결이 관계도에 드러납니다.",
+          "level": "ready",
+          "progress": 1.0
+        },
+        {
+          "current": "진한 선 30개 · 이어진 사람 25명",
+          "feature": "groups",
+          "hint": "모임(그룹)을 찾을 만큼 연결이 쌓였습니다.",
+          "level": "ready",
+          "progress": 1.0
+        }
+      ],
+      "input": {
+        "linkedPeople": 25,
+        "people": 60,
+        "strongEdges": 30,
+        "withFirstMet": 40,
+        "withMetThrough": 50,
+        "withRecords": 45,
+        "withRelationshipType": 55
+      },
+      "name": "모두 준비됨",
+      "summary": "5가지 중 5가지 준비됨 · 모두 준비됨"
+    }
+  ],
   "josa": [
     {
       "expected": {
@@ -1898,6 +2234,359 @@
         "iGa": "가"
       },
       "text": "김하나"
+    }
+  ],
+  "louvain": [
+    {
+      "expected": {
+        "communities": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            3,
+            4,
+            5
+          ]
+        ],
+        "modularity": 0.3571428571428571
+      },
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 1.0
+        }
+      ],
+      "name": "두 삼각형을 다리 하나가 잇다",
+      "nodeCount": 6,
+      "resolution": 1.0
+    },
+    {
+      "expected": {
+        "communities": [
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        ],
+        "modularity": 0.0
+      },
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 3,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 5,
+          "weight": 1.0
+        }
+      ],
+      "name": "별 — 가운데 하나에 다섯",
+      "nodeCount": 6,
+      "resolution": 1.0
+    },
+    {
+      "expected": {
+        "communities": [
+          [
+            0,
+            1
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "modularity": 0.26
+      },
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        }
+      ],
+      "name": "사슬 여섯",
+      "nodeCount": 6,
+      "resolution": 1.0
+    },
+    {
+      "expected": {
+        "communities": [
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ]
+        ],
+        "modularity": 0.0
+      },
+      "links": [],
+      "name": "선이 없다",
+      "nodeCount": 4,
+      "resolution": 1.0
+    },
+    {
+      "expected": {
+        "communities": [
+          [
+            3,
+            4,
+            5,
+            6
+          ],
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            7,
+            8,
+            9
+          ],
+          [
+            10
+          ]
+        ],
+        "modularity": 0.5797193877551021
+      },
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 2.0
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 5,
+          "j": 6,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 6,
+          "weight": 1.0
+        },
+        {
+          "i": 7,
+          "j": 8,
+          "weight": 1.0
+        },
+        {
+          "i": 8,
+          "j": 9,
+          "weight": 1.0
+        },
+        {
+          "i": 7,
+          "j": 9,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 0.5
+        },
+        {
+          "i": 6,
+          "j": 7,
+          "weight": 0.5
+        }
+      ],
+      "name": "세 덩어리 · 무게 · 고립점 · 겹친 선",
+      "nodeCount": 11,
+      "resolution": 1.0
+    },
+    {
+      "expected": {
+        "communities": [
+          [
+            0,
+            1,
+            2
+          ],
+          [
+            3,
+            4,
+            5
+          ],
+          [
+            6,
+            7
+          ]
+        ],
+        "modularity": -0.020000000000000157
+      },
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 1.0
+        },
+        {
+          "i": 5,
+          "j": 6,
+          "weight": 1.0
+        },
+        {
+          "i": 6,
+          "j": 7,
+          "weight": 1.0
+        },
+        {
+          "i": 7,
+          "j": 0,
+          "weight": 1.0
+        }
+      ],
+      "name": "해상도를 올리면 잘게",
+      "nodeCount": 8,
+      "resolution": 2.0
     }
   ],
   "nameSort": [
@@ -2794,6 +3483,55 @@
     {
       "days": 3650,
       "expected": "10년"
+    }
+  ],
+  "splitConnected": [
+    {
+      "communities": [
+        [
+          0,
+          1,
+          2,
+          3
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "expected": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          4,
+          5
+        ]
+      ],
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        }
+      ],
+      "name": "끊긴 그룹을 나눈다",
+      "nodeCount": 6
     }
   ],
   "tagSplit": [

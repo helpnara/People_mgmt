@@ -48,6 +48,18 @@ final class GoldenTests: XCTestCase {
         struct GraphCase: Decodable {
             let name: String; let people: [GraphPersonRaw]; let records: [[UUID]]; let ties: [[UUID]]; let cliqueLimit: Int; let expected: [GraphEdgeRaw]
         }
+        struct LinkRaw: Decodable { let i: Int; let j: Int; let weight: Double }
+        struct LouvainExpected: Decodable { let communities: [[Int]]; let modularity: Double }
+        struct LouvainCase: Decodable { let name: String; let nodeCount: Int; let links: [LinkRaw]; let resolution: Double; let expected: LouvainExpected }
+        struct SplitCase: Decodable { let name: String; let nodeCount: Int; let links: [LinkRaw]; let communities: [[Int]]; let expected: [[Int]] }
+        struct NamingMemberRaw: Decodable { let organization: String?; let tags: [String]?; let metThrough: String? }
+        struct NamingCase: Decodable { let name: String; let members: [NamingMemberRaw]; let expected: String? }
+        struct ReadinessInputRaw: Decodable {
+            let people: Int; let withFirstMet: Int; let withRelationshipType: Int; let withMetThrough: Int
+            let withRecords: Int; let strongEdges: Int; let linkedPeople: Int
+        }
+        struct ReadinessItemRaw: Decodable { let feature: String; let level: String; let progress: Double; let current: String; let hint: String }
+        struct ReadinessCase: Decodable { let name: String; let input: ReadinessInputRaw; let expected: [ReadinessItemRaw]; let summary: String }
         struct PresetChoicesCase: Decodable { let name: String; let presets: [String]; let used: [String]; let expected: [String] }
         struct ContactSplitCase: Decodable { let text: String; let expected: FieldsExpected }
         struct LabeledRaw: Decodable { let label: String; let value: String }
@@ -99,6 +111,10 @@ final class GoldenTests: XCTestCase {
         let contactSplit: [ContactSplitCase]
         let contactFromContact: [ContactFromContactCase]
         let presetChoices: [PresetChoicesCase]
+        let louvain: [LouvainCase]
+        let splitConnected: [SplitCase]
+        let communityName: [NamingCase]
+        let inputReadiness: [ReadinessCase]
         let dyadMetrics: [DyadCase]
         let spanText: [SpanCase]
         let networkOverview: [OverviewCase]
@@ -275,6 +291,46 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.map(\.introduced), c.expected.map(\.introduced), c.name)
             XCTAssertEqual(got.map(\.sameOrganization), c.expected.map(\.sameOrganization), c.name)
             XCTAssertEqual(got.map(\.acquainted), c.expected.map(\.acquainted), "\(c.name) — 아는 사이")
+        }
+    }
+
+    func testLouvain() throws {
+        for c in try Self.loadGolden().louvain {
+            let links = c.links.map { CommunityDetection.Link(i: $0.i, j: $0.j, weight: $0.weight) }
+            let got = CommunityDetection.louvain(nodeCount: c.nodeCount, links: links, resolution: c.resolution)
+            XCTAssertEqual(got.communities, c.expected.communities, "\(c.name) — 그룹")
+            XCTAssertEqual(got.modularity, c.expected.modularity, accuracy: 1e-9, "\(c.name) — 모듈성")
+        }
+    }
+
+    func testSplitConnected() throws {
+        for c in try Self.loadGolden().splitConnected {
+            let links = c.links.map { CommunityDetection.Link(i: $0.i, j: $0.j, weight: $0.weight) }
+            XCTAssertEqual(CommunityDetection.splitConnected(c.communities, nodeCount: c.nodeCount, links: links), c.expected, c.name)
+        }
+    }
+
+    func testCommunityName() throws {
+        for c in try Self.loadGolden().communityName {
+            let members = c.members.map { CommunityNaming.Member(organization: $0.organization, tags: $0.tags ?? [], metThrough: $0.metThrough) }
+            XCTAssertEqual(CommunityNaming.suggest(members), c.expected, c.name)
+        }
+    }
+
+    func testInputReadiness() throws {
+        for c in try Self.loadGolden().inputReadiness {
+            let i = c.input
+            let got = InputReadiness.evaluate(ReadinessInput(
+                people: i.people, withFirstMet: i.withFirstMet, withRelationshipType: i.withRelationshipType,
+                withMetThrough: i.withMetThrough, withRecords: i.withRecords, strongEdges: i.strongEdges, linkedPeople: i.linkedPeople))
+            XCTAssertEqual(got.map(\.feature.rawValue), c.expected.map(\.feature), c.name)
+            XCTAssertEqual(got.map(\.level.rawValue), c.expected.map(\.level), "\(c.name) — 단계")
+            XCTAssertEqual(got.map(\.current), c.expected.map(\.current), "\(c.name) — 지금")
+            XCTAssertEqual(got.map(\.hint), c.expected.map(\.hint), "\(c.name) — 할 일")
+            for (g, e) in zip(got, c.expected) {
+                XCTAssertEqual(g.progress, e.progress, accuracy: 1e-9, "\(c.name) — \(e.feature) 막대")
+            }
+            XCTAssertEqual(InputReadiness.summary(got), c.summary, "\(c.name) — 한 줄")
         }
     }
 

@@ -760,6 +760,426 @@
       ]
     }
   ],
+  "inputReadiness": [
+    {
+      "name": "빈 저장소",
+      "input": {
+        "people": 0,
+        "withFirstMet": 0,
+        "withRelationshipType": 0,
+        "withMetThrough": 0,
+        "withRecords": 0,
+        "strongEdges": 0,
+        "linkedPeople": 0
+      }
+    },
+    {
+      "name": "첫날 13명 (실사용 첫날 비슷한 모양)",
+      "input": {
+        "people": 13,
+        "withFirstMet": 5,
+        "withRelationshipType": 13,
+        "withMetThrough": 12,
+        "withRecords": 2,
+        "strongEdges": 1,
+        "linkedPeople": 2
+      }
+    },
+    {
+      "name": "10명의 30% 는 3명 (소수점 함정)",
+      "input": {
+        "people": 10,
+        "withFirstMet": 5,
+        "withRelationshipType": 10,
+        "withMetThrough": 10,
+        "withRecords": 5,
+        "strongEdges": 2,
+        "linkedPeople": 2
+      }
+    },
+    {
+      "name": "거의",
+      "input": {
+        "people": 40,
+        "withFirstMet": 13,
+        "withRelationshipType": 30,
+        "withMetThrough": 28,
+        "withRecords": 14,
+        "strongEdges": 14,
+        "linkedPeople": 9
+      }
+    },
+    {
+      "name": "모두 준비됨",
+      "input": {
+        "people": 60,
+        "withFirstMet": 40,
+        "withRelationshipType": 55,
+        "withMetThrough": 50,
+        "withRecords": 45,
+        "strongEdges": 30,
+        "linkedPeople": 25
+      }
+    }
+  ],
+  "louvain": [
+    {
+      "name": "두 삼각형을 다리 하나가 잇다",
+      "nodeCount": 6,
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "별 — 가운데 하나에 다섯",
+      "nodeCount": 6,
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 3,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 5,
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "사슬 여섯",
+      "nodeCount": 6,
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "선이 없다",
+      "nodeCount": 4,
+      "links": []
+    },
+    {
+      "name": "세 덩어리 · 무게 · 고립점 · 겹친 선",
+      "nodeCount": 11,
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 2.0
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 5,
+          "j": 6,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 6,
+          "weight": 1.0
+        },
+        {
+          "i": 7,
+          "j": 8,
+          "weight": 1.0
+        },
+        {
+          "i": 8,
+          "j": 9,
+          "weight": 1.0
+        },
+        {
+          "i": 7,
+          "j": 9,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 0.5
+        },
+        {
+          "i": 6,
+          "j": 7,
+          "weight": 0.5
+        }
+      ]
+    },
+    {
+      "name": "해상도를 올리면 잘게",
+      "nodeCount": 8,
+      "resolution": 2.0,
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 1,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 0,
+          "j": 2,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 3,
+          "j": 5,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 1.0
+        },
+        {
+          "i": 5,
+          "j": 6,
+          "weight": 1.0
+        },
+        {
+          "i": 6,
+          "j": 7,
+          "weight": 1.0
+        },
+        {
+          "i": 7,
+          "j": 0,
+          "weight": 1.0
+        }
+      ]
+    }
+  ],
+  "splitConnected": [
+    {
+      "name": "끊긴 그룹을 나눈다",
+      "nodeCount": 6,
+      "links": [
+        {
+          "i": 0,
+          "j": 1,
+          "weight": 1.0
+        },
+        {
+          "i": 2,
+          "j": 3,
+          "weight": 1.0
+        },
+        {
+          "i": 4,
+          "j": 5,
+          "weight": 1.0
+        }
+      ],
+      "communities": [
+        [
+          0,
+          1,
+          2,
+          3
+        ],
+        [
+          4,
+          5
+        ]
+      ]
+    }
+  ],
+  "communityName": [
+    {
+      "name": "소속이 이긴다",
+      "members": [
+        {
+          "organization": "청림소프트",
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "organization": "청림소프트 ",
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "organization": "한빛",
+          "tags": []
+        }
+      ]
+    },
+    {
+      "name": "소속이 모두 달라 태그로",
+      "members": [
+        {
+          "organization": "A",
+          "tags": [
+            "등산",
+            "독서"
+          ]
+        },
+        {
+          "organization": "B",
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서",
+            "등산"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "경로로",
+      "members": [
+        {
+          "organization": null,
+          "tags": [],
+          "metThrough": "학교"
+        },
+        {
+          "organization": "",
+          "tags": [],
+          "metThrough": "학교"
+        }
+      ]
+    },
+    {
+      "name": "이름 없음",
+      "members": [
+        {
+          "organization": "A",
+          "tags": [
+            "x"
+          ]
+        },
+        {
+          "organization": "B",
+          "tags": [
+            "y"
+          ]
+        }
+      ]
+    }
+  ],
   "dyadMetrics": [
     {
       "name": "기록 없음",
