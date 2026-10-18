@@ -46,6 +46,8 @@ struct LaunchArguments: Sendable {
     let failSaves: Bool
     /// 관계도의 시점 막대를 이 자리로 (`-timeSlice 2` — 0 이 가장 이른 분기). 지난 시점의 관계도를 찍으려고 (D-32).
     let timeSlice: Int?
+    /// 설정 화면을 바로 연다 (`-openSettings`) — 백업 · 복원 화면을 찍으려고 (D-34).
+    let openSettings: Bool
 
     init(_ arguments: [String]) {
         seedSampleData = arguments.contains("-seedSampleData")
@@ -63,6 +65,7 @@ struct LaunchArguments: Sendable {
         pickCardPhoto = arguments.contains("-pickCardPhoto")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")
         failSaves = arguments.contains("-failSaves")
+        openSettings = arguments.contains("-openSettings")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
             return arguments[index + 1]
