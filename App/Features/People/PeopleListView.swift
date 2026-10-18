@@ -1,20 +1,24 @@
+import Combine
 import Core
 import SwiftData
 import SwiftUI
 
 /// 홈 — 사람 목록 (요구사항 4.2.1). 검색은 같은 화면의 검색 모드다 (4.2.6).
+///
+/// **속도 (이슈 6).** 5,000명 · 50,000건에서 정렬 · 검색을 본문이 그려질 때마다 다시 셈하니 목록 정렬이
+/// 0.6~1초씩 되풀이되고 검색이 1.4~2.3초(첫 번 18초) 걸렸다. 그래서
+/// - 정렬 결과와 검색 색인을 **상태에 담아** 자료가 바뀔 때만 다시 만든다 (`ModelContext.didSave` 로 자료 판을 센다)
+/// - 정렬은 이름 열쇠를 항목마다 한 번만 만든다 (`Core.NameSort.sorted`)
+/// - 검색 색인은 칸을 미리 접어 두고(`Core.SearchIndex`), 찾기는 주 스레드 밖에서 한다
 struct PeopleListView: View {
     let arguments: LaunchArguments
     let isSampleData: Bool
 
     @Environment(\.modelContext) private var context
-    /// 정렬은 저장소가 아니라 `Core.NameSort` 가 한다 — 정답표와 같은 규칙, 같은 답.
     @Query private var fetched: [Person]
 
     @State private var path = NavigationPath()
     @State private var searchText = ""
-    /// 300ms 디바운스된 검색어 (요구사항 5.3). 글자마다 전부 훑지 않는다.
-    @State private var debouncedSearch = ""
     /// 목록 정렬 (FR-027). 기기 편의라 UserDefaults.
     @AppStorage("people.sort") private var sortOption: PeopleSortOption = .name
     @State private var showingAdd = false
@@ -22,26 +26,34 @@ struct PeopleListView: View {
     @State private var errorMessage: String?
     @State private var appliedArguments = false
 
+    /// 저장할 때마다 하나씩 오른다. 정렬 · 색인을 다시 만들 때를 이것으로 안다.
+    @State private var dataVersion = 0
+    @State private var sortedPeople: [Person] = []
+    @State private var searchIndex: SearchIndex?
+    @State private var indexVersion = -1
+    @State private var searchRows: [SearchRow] = []
+    /// `searchRows` 가 어느 검색어의 결과인가 — 아직 찾는 중인지 가르려고.
+    @State private var searchedText = ""
+
     private var store: PersonStore { PersonStore(context: context) }
 
-    private var people: [Person] {
-        LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {
-            PersonStore.sorted(fetched, by: sortOption)
-        }
+    /// 보여 줄 목록. 정렬이 끝나기 전(첫 화면 · 사람 수가 막 바뀐 때)에는 받은 차례 그대로.
+    private var displayedPeople: [Person] {
+        let source = sortedPeople.count == fetched.count ? sortedPeople : fetched
+        return source.filter { !$0.isGone }
     }
 
-    private var query: SearchQuery { SearchQuery(parsing: debouncedSearch) }
+    private var isQuerying: Bool { !SearchQuery(parsing: searchText).isEmpty }
 
-    private var hits: [(person: Person, hit: SearchHit)] {
-        guard !query.isEmpty else { return [] }
-        return LaunchTiming.measure("검색 '\(debouncedSearch)' (\(fetched.count)명)") {
-            var byID: [UUID: Person] = [:]
-            for person in fetched { byID[person.uuid] = person }
-            let searchable = fetched.map { SearchablePerson(person: $0) }
-            return SearchMatcher.hits(query, in: searchable).compactMap { hit in
-                byID[hit.personID].map { (person: $0, hit: hit) }
-            }
-        }
+    private struct ListKey: Hashable {
+        let version: Int
+        let sort: PeopleSortOption
+        let count: Int
+    }
+
+    private struct SearchKey: Hashable {
+        let text: String
+        let version: Int
     }
 
     var body: some View {
@@ -49,7 +61,7 @@ struct PeopleListView: View {
             Group {
                 if fetched.isEmpty && searchText.isEmpty {
                     EmptyPeopleView { showingAdd = true }
-                } else if !query.isEmpty && hits.isEmpty && debouncedSearch == searchText {
+                } else if isQuerying && searchRows.isEmpty && searchedText == searchText {
                     ContentUnavailableView.search(text: searchText)
                 } else {
                     list
@@ -77,16 +89,6 @@ struct PeopleListView: View {
                         Label("사람 추가", systemImage: "plus")
                     }
                 }
-            }
-            // 검색어가 멈춘 뒤 300ms 에 한 번만 센다 (요구사항 5.3).
-            .task(id: searchText) {
-                if searchText.isEmpty {
-                    debouncedSearch = ""
-                    return
-                }
-                try? await Task.sleep(for: .milliseconds(300))
-                guard !Task.isCancelled else { return }
-                debouncedSearch = searchText
             }
             .navigationDestination(for: Person.self) { person in
                 PersonDetailView(person: person)
@@ -116,6 +118,17 @@ struct PeopleListView: View {
                 Text(errorMessage ?? "")
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
+            dataVersion += 1
+        }
+        .task(id: ListKey(version: dataVersion, sort: sortOption, count: fetched.count)) {
+            sortedPeople = LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {
+                PersonStore.sorted(fetched, by: sortOption)
+            }
+        }
+        .task(id: SearchKey(text: searchText, version: dataVersion)) {
+            await runSearch()
+        }
         .task { await applyArgumentsOnce() }
     }
 
@@ -128,9 +141,9 @@ struct PeopleListView: View {
                         .foregroundStyle(Color.muted)
                 }
             }
-            if query.isEmpty {
+            if !isQuerying {
                 Section {
-                    ForEach(people) { person in
+                    ForEach(displayedPeople) { person in
                         NavigationLink(value: person) {
                             PersonRow(person: person, evidence: nil, showsLastRecord: true)
                         }
@@ -145,17 +158,17 @@ struct PeopleListView: View {
                         }
                     }
                 } header: {
-                    Text("\(people.count)명 · \(sortOption.label)")
+                    Text("\(displayedPeople.count)명 · \(sortOption.label)")
                 }
             } else {
                 Section {
-                    ForEach(hits, id: \.person.uuid) { item in
+                    ForEach(searchRows.filter { !$0.person.isGone }) { row in
                         // 기록에서 일치했으면 그 기록 상세까지 바로 연다 (FR-034). 그래서 NavigationLink 가 아니라 Button 이다.
                         Button {
-                            open(item.person, recordID: item.hit.recordID)
+                            open(row.person, recordID: row.hit.recordID)
                         } label: {
                             HStack {
-                                PersonRow(person: item.person, evidence: item.hit.evidence)
+                                PersonRow(person: row.person, evidence: row.hit.evidence)
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.scaled(13, weight: .semibold))
@@ -165,12 +178,42 @@ struct PeopleListView: View {
                         .buttonStyle(.plain)
                     }
                 } header: {
-                    Text("\(hits.count)명")
+                    Text(searchedText == searchText ? "\(searchRows.count)명" : "찾는 중…")
                 }
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+    }
+
+    /// 검색어가 멈춘 뒤 300ms 에 한 번만 센다 (요구사항 5.3). 색인은 자료가 바뀐 뒤 처음 찾을 때만 다시 만든다.
+    private func runSearch() async {
+        let text = searchText
+        let query = SearchQuery(parsing: text)
+        guard !query.isEmpty else {
+            searchRows = []
+            searchedText = text
+            return
+        }
+        try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled else { return }
+
+        if searchIndex == nil || indexVersion != dataVersion {
+            searchIndex = LaunchTiming.measure("검색 색인 만들기 (\(fetched.count)명)") {
+                SearchIndex(fetched.filter { !$0.isGone }.map { SearchablePerson(person: $0) })
+            }
+            indexVersion = dataVersion
+        }
+        guard let index = searchIndex else { return }
+        let started = Date()
+        let hits = await Task.detached(priority: .userInitiated) { SearchMatcher.hits(query, in: index) }.value
+        LaunchTiming.log("검색 '\(text)' (\(index.count)명)", since: started)
+        guard !Task.isCancelled else { return }
+
+        var byID: [UUID: Person] = [:]
+        for person in fetched { byID[person.uuid] = person }
+        searchRows = hits.compactMap { hit in byID[hit.personID].map { SearchRow(person: $0, hit: hit) } }
+        searchedText = text
     }
 
     /// 사람 상세를 열고, 기록이 지정됐으면 그 기록 상세까지 연다.
@@ -200,9 +243,9 @@ struct PeopleListView: View {
         if arguments.addPerson { showingAdd = true }
         var opened: Person?
         if let name = arguments.openPerson {
-            opened = people.first { NameSort.key($0.name) == NameSort.key(name) }
+            opened = fetched.first { NameSort.key($0.name) == NameSort.key(name) }
         } else if arguments.openFirstPerson {
-            opened = people.first
+            opened = PersonStore.sorted(fetched, by: .name).first
         }
         if let opened {
             path.append(opened)
@@ -213,10 +256,17 @@ struct PeopleListView: View {
     }
 }
 
+/// 검색 결과 한 줄.
+struct SearchRow: Identifiable {
+    let person: Person
+    let hit: SearchHit
+    var id: UUID { hit.personID }
+}
+
 struct PersonRow: View {
     let person: Person
     let evidence: String?
-    /// 목록에서만 마지막 기록일을 상대 시간으로 (FR-040). 선택기 · 검색 결과에서는 끈다.
+    /// 목록에서만 마지막 기록일을 날 수로 (FR-040 · 이슈 7). 선택기 · 검색 결과에서는 끈다.
     var showsLastRecord = false
 
     var body: some View {
@@ -250,8 +300,9 @@ struct PersonRow: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// 기록 날짜는 그날 정오로 저장하므로 **날 수**로 센다 — 시각으로 세면 오전에 오늘 기록이 `3시간 후` 가 된다 (이슈 7).
     private var lastRecordText: String {
         guard let last = person.lastRecordAt else { return "기록 없음" }
-        return "마지막 기록 " + last.formatted(.relative(presentation: .named))
+        return "마지막 기록 " + RelativeDay.phrase(from: last, to: Date(), calendar: .current)
     }
 }

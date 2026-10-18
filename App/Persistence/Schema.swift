@@ -1,20 +1,17 @@
 import Foundation
 import SwiftData
 
-/// 스키마 1판 (요구사항 6절). 칸을 바꾸는 판부터는 `SchemaV2` 를 더하고 **이 판은 지우지 않는다** —
-/// 마이그레이션의 원본이다 (느린 부자 docs/18).
+/// 스키마 **2판** — 지금 쓰는 판 (요구사항 6절 · FR-050).
 ///
-/// **CloudKit 제약을 첫 판부터 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성에 기본값 또는
-/// 옵셔널 · 모든 관계 옵셔널. 지금은 동기화를 켜지 않지만, 나중에 켤 때 스키마를 다시 만들지
-/// 않으려면 처음부터 이렇게 둬야 한다.
-enum SchemaV1: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(1, 0, 0) }
+/// 1판에서 **명함 사진 칸(`businessCard`) 하나만** 더했다. 나머지는 1판과 글자 하나 다르지 않아야 한다 —
+/// 가벼운 옮기기(lightweight)가 그것을 전제로 한다. 칸을 또 바꾸면 `SchemaV3` 를 더하고 이 판은 얼린다.
+///
+/// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
+enum SchemaV2: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(2, 0, 0) }
     static var models: [any PersistentModel.Type] { [Person.self, Record.self] }
 
-    /// 사람 (요구사항 6.1). 앱의 중심 객체.
-    ///
-    /// 고유 식별자는 `uuid` 다. `id` 라고 짓지 않는 이유는 `PersistentModel` 이 이미
-    /// `id`(저장소 식별자)를 갖고 있어서 — 설계서의 `id` 가 코드에서는 `uuid` 다.
+    /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
     @Model
     final class Person {
         var uuid: UUID = UUID()
@@ -28,14 +25,17 @@ enum SchemaV1: VersionedSchema {
         /// 날짜만 뜻이 있다. 저장할 때 그날 정오로 맞춘다 (요구사항 7.3).
         var firstMetDate: Date?
         var firstNote: String?
+        /// 연락 수단 메모 (FR-032) — 전화 · 메일을 자유 글자로. 명함 · 연락처에서 채울 수 있다.
         var contactNote: String?
         var tags: [String] = []
         var createdAt: Date = Date()
         var updatedAt: Date = Date()
+        /// 명함 사진 (FR-050 · 2판). JPEG, 긴 변 1,600px 이하. 저장소 밖 파일로 둔다 — 목록을 읽을 때 같이 올라오지 않게.
+        @Attribute(.externalStorage)
+        var businessCard: Data?
 
         /// 이 사람을 나에게 소개한 사람 (FR-043). 소개자를 지우면 비워진다(nullify).
         var introducedBy: Person?
-        /// 이 사람이 소개한 사람들 — `introducedBy` 의 역방향.
         @Relationship(inverse: \Person.introducedBy)
         var introduced: [Person]? = []
         /// 참여한 기록 — `Record.participants` 의 역방향 (N:M, FR-042).
@@ -52,7 +52,7 @@ enum SchemaV1: VersionedSchema {
         }
     }
 
-    /// 관계 기록 (요구사항 6.2). 참여자 1명 이상에 속한다.
+    /// 관계 기록 (요구사항 6.2). 참여자 1명 이상에 속한다. 1판과 같다.
     @Model
     final class Record {
         var uuid: UUID = UUID()
@@ -82,13 +82,16 @@ enum SchemaV1: VersionedSchema {
     }
 }
 
-typealias Person = SchemaV1.Person
-typealias Record = SchemaV1.Record
+typealias Person = SchemaV2.Person
+typealias Record = SchemaV2.Record
 
-/// 판 사이의 이사 계획. 1판뿐이라 단계가 없다 — 2판이 생기면 여기에 `MigrationStage` 를 더한다.
+/// 판 사이의 이사 계획. 1판 → 2판은 칸 하나를 더하는 **가벼운 옮기기**다.
+/// 실제 옮겨지는지는 `AppTests/MigrationTests.swift` 가 1판 저장소를 디스크에 만들어 연다.
 enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self] }
-    static var stages: [MigrationStage] { [] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self] }
+    static var stages: [MigrationStage] {
+        [.lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self)]
+    }
 }
 
 extension PersistentModel {
@@ -98,7 +101,7 @@ extension PersistentModel {
     var isGone: Bool { isDeleted || modelContext == nil }
 }
 
-extension SchemaV1.Person {
+extension SchemaV2.Person {
     /// 목록 보조 정보 (요구사항 6.1 `subtitle`): 소속 · 직무, 둘 다 없으면 관계 유형.
     var subtitle: String? {
         let parts = [organization, role].compactMap { $0 }.filter { !$0.isEmpty }

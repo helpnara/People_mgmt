@@ -12,6 +12,12 @@ enum LaunchTiming {
         print("⏱ \(label) \(elapsed)ms")
     }
 
+    /// `started` 부터 지금까지.
+    static func log(_ label: String, since started: Date) {
+        guard LaunchArguments.current.largeSample else { return }
+        print("⏱ \(label) \(Int(Date().timeIntervalSince(started) * 1000))ms")
+    }
+
     /// 한 작업에 걸린 시간.
     static func measure<T>(_ label: String, _ work: () -> T) -> T {
         guard LaunchArguments.current.largeSample else { return work() }
