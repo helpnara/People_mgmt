@@ -18,6 +18,9 @@ struct RelationGraphView: View {
     @State private var showsOrganization = true
     @State private var selected: Int?
     @State private var typeChips: [String] = []
+    /// 그림이 뜻을 갖는 조건 — 진한 선 수 · 서로 이어진 사람 수 (사용자 요청 · 2026-10-18).
+    @State private var strongCount = 0
+    @State private var linkedPeople = 0
 
     private var meIndex: Int { snapshot.people.count }
 
@@ -61,6 +64,9 @@ struct RelationGraphView: View {
         .task(id: snapshot.people.count) {
             let buckets = TraitDistribution.buckets(snapshot.people.map { (id: $0.id, values: [$0.relationshipType ?? ""]) }, limit: 8)
             typeChips = buckets.filter { !$0.isRest && !$0.isUnspecified }.map(\.label)
+            let strong = snapshot.edges.filter(\.isStrong)
+            strongCount = strong.count
+            linkedPeople = Set(strong.flatMap { [$0.a, $0.b] }).count
         }
     }
 
@@ -117,9 +123,25 @@ struct RelationGraphView: View {
                     .font(.scaled(13))
                     .foregroundStyle(Color.muted)
             }
+            readiness
             RecordedScopeNotice()
         }
         .padding(16)
+    }
+
+    /// 무엇이 선이 되는지와 지금 얼마나 이어졌는지.
+    private var readiness: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("진한 선 \(strongCount)개 · 서로 이어진 사람 \(linkedPeople)명 / \(snapshot.people.count)명")
+                .font(.scaled(13, weight: .medium))
+                .foregroundStyle(Color.bodyText)
+                .monospacedDigit()
+            Text(strongCount == 0
+                 ? "아직 사람끼리 이어진 선이 없습니다. 기록의 함께한 사람에 두 명 이상을 넣거나, 알게 된 경로를 소개로 하고 소개한 사람을 고르면 선이 생깁니다."
+                 : "진한 선은 함께한 기록과 소개에서 생깁니다. 함께한 사람을 빠짐없이 넣을수록 모임의 모양이 드러납니다.")
+                .font(.scaled(12))
+                .foregroundStyle(Color.muted)
+        }
     }
 
     private func selectedDetail(_ person: NetworkSnapshot.PersonInfo) -> String {

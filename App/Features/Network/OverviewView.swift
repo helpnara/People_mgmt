@@ -9,6 +9,8 @@ struct OverviewView: View {
     /// 최근 기록 없음의 기준 개월. 기기 편의라 UserDefaults.
     @AppStorage("network.quietMonths") private var quietMonths = 6
     @State private var overview: NetworkOverview?
+    /// 처음 만난 날을 적은 사람 수 — 자료가 바뀔 때 한 번 센다 (본문에서 전원을 훑지 않는다).
+    @State private var withFirstMet = 0
 
     var body: some View {
         List {
@@ -20,6 +22,9 @@ struct OverviewView: View {
                         Tile(value: overview.newThisYearIDs.count, label: "올해\n처음 만남")
                     }
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                } footer: {
+                    // 숫자가 무엇으로 세어지는지 · 지금 얼마나 채워졌는지 (사용자 요청 · 2026-10-18).
+                    Text("최근 12개월은 기록 날짜로 셉니다 — 기록이 있는 사람 \(withRecords)명 / \(overview.total)명. 올해 처음 만남은 처음 만난 날을 적은 사람만 셉니다 — 적은 사람 \(withFirstMet)명 / \(overview.total)명.")
                 }
                 Section {
                     link("올해 처음 만난 사람", ids: overview.newThisYearIDs, keepOrder: true) { person in
@@ -55,10 +60,13 @@ struct OverviewView: View {
                 OverviewPerson(id: $0.id, name: $0.name, firstMetDay: $0.firstMetDay, lastDay: $0.lastDay)
             }
             let days = Int((Double(quietMonths) * DyadMetricsCalculator.daysPerMonth).rounded())
+            withFirstMet = snapshot.people.filter { $0.firstMetDay != nil }.count
             overview = NetworkOverview.compute(people: people, today: snapshot.today, yearStart: snapshot.yearStart,
                                                yearEnd: snapshot.yearEnd, neglectDays: days)
         }
     }
+
+    private var withRecords: Int { snapshot.people.count - (overview?.noRecordIDs.count ?? 0) }
 
     private struct OverviewKey: Hashable {
         let count: Int
