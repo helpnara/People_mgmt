@@ -245,6 +245,19 @@ struct PersonStore {
         }
     }
 
+    /// 두 사람을 아는 사이로 잇는다 (아는 사이 후보 · 빌드 16). 이미 이어져 있으면 아무것도 하지 않는다.
+    /// 나 · 지운 사람 · 자기 자신은 잇지 않는다. 실패하면 넣은 연결을 버린다(`commit`).
+    func link(_ a: Person, _ b: Person) throws {
+        guard a !== b, !a.isMe, !b.isMe, !a.isGone, !b.isGone else { return }
+        let already = (a.tiesAsFirst ?? []).contains { $0.second === b } || (a.tiesAsSecond ?? []).contains { $0.first === b }
+        guard !already else { return }
+        let tie = Tie()
+        context.insert(tie)   // 넣고 나서 잇는다 (스키마 4판의 규칙).
+        tie.first = a
+        tie.second = b
+        try commit()
+    }
+
     private func clipped(_ text: String, _ limit: Int) -> String? {
         guard let cleaned = TextNormalization.nilIfEmpty(text) else { return nil }
         return String(cleaned.prefix(limit))

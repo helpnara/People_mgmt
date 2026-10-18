@@ -28,13 +28,21 @@ struct RecordEditView: View {
     @State private var pendingTag = ""
     /// 새 기록이면 제목 칸에 바로 커서를 둔다 — 기록 30초(1.4 성공 기준) · 전수조사 이슈 22.
     @FocusState private var titleFocused: Bool
+    /// 최근 함께한 사람 (빌드 16) — 최근 기록부터 처음 보이는 사람 8명. 사람 수가 바뀔 때 한 번 센다.
+    @State private var recentPeople: [Person] = []
+    /// 지난 기록의 장소 — 눌러야 들어간다 (빌드 16). 저절로 채우면 틀린 장소가 저장되기 쉽다.
+    private let lastLocation = RecordMemory.lastLocation
 
     init(mode: Mode, onSaved: @escaping (Record) -> Void) {
         self.mode = mode
         self.onSaved = onSaved
         let draft: RecordDraft
         switch mode {
-        case .create(let anchor): draft = RecordDraft(anchor: anchor)
+        case .create(let anchor):
+            var fresh = RecordDraft(anchor: anchor)
+            // 지난번에 고른 기록 유형으로 시작한다 (빌드 16) — 하루 여러 명이면 같은 유형이 이어진다.
+            if let last = RecordMemory.lastType { fresh.recordType = last }
+            draft = fresh
         case .edit(let record): draft = RecordDraft(record: record)
         }
         _draft = State(initialValue: draft)
@@ -77,6 +85,15 @@ struct RecordEditView: View {
                 Section("장소") {
                     TextField("장소", text: $draft.location)
                         .limited($draft.location, to: Limits.location)
+                    if isCreate, draft.location.isEmpty, let lastLocation {
+                        Button {
+                            draft.location = lastLocation
+                        } label: {
+                            Label("지난 장소: \(lastLocation)", systemImage: "arrow.uturn.backward")
+                                .font(.scaled(14))
+                                .lineLimit(2)
+                        }
+                    }
                 }
                 Section("함께한 사람") {
                     NavigationLink {
@@ -91,6 +108,7 @@ struct RecordEditView: View {
                             }
                         }
                     }
+                    recentChips
                 }
                 Section("태그") {
                     TagEditor(tags: $draft.tags, input: $pendingTag)
@@ -127,7 +145,52 @@ struct RecordEditView: View {
         }
         .task(id: everyone.count) {
             candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
+            loadRecentPeople()
         }
+    }
+
+    /// 최근 함께한 사람 중 아직 고르지 않은 사람 — 누르면 함께한 사람에 들어간다 (빌드 16 · 조사 보고서 지금 7).
+    @ViewBuilder
+    private var recentChips: some View {
+        let shown = recentPeople.filter { person in !draft.participants.contains { $0 === person } }
+        if !shown.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("최근 함께한 사람 — 누르면 넣습니다")
+                    .font(.scaled(12))
+                    .foregroundStyle(Color.muted)
+                WrapLayout(spacing: 8) {
+                    ForEach(shown) { person in
+                        Button {
+                            draft.participants.append(person)
+                        } label: {
+                            Chip(text: "+ \(person.name)", selected: false)
+                                .tapTarget()
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(person.name) 넣기")
+                    }
+                }
+            }
+        }
+    }
+
+    /// 오늘까지의 최근 기록 40건에서 사람을 모은다 — 본문이 아니라 화면을 열 때 한 번 (CLAUDE.md).
+    private func loadRecentPeople() {
+        let todayNoon = DayNormalizer.noon(of: Date(), calendar: .current)
+        var descriptor = FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt <= todayNoon },
+                                                 sortBy: [SortDescriptor(\Record.occurredAt, order: .reverse)])
+        descriptor.fetchLimit = 40
+        let recent = (try? context.fetch(descriptor)) ?? []
+        let entries = recent.map { record in
+            RecentCompanions.Entry(occurredAt: record.occurredAt, createdAt: record.createdAt,
+                                   participants: (record.participants ?? []).filter { !$0.isMe && !$0.isGone }.map {
+                                       RecentCompanions.Participant(id: $0.uuid, name: $0.name)
+                                   })
+        }
+        let ids = RecentCompanions.pick(entries, excluding: Set(anchor.map { [$0.uuid] } ?? []))
+        var byID: [UUID: Person] = [:]
+        for person in candidates { byID[person.uuid] = person }
+        recentPeople = ids.compactMap { byID[$0] }
     }
 
     private var participantSummary: String {
@@ -149,6 +212,7 @@ struct RecordEditView: View {
             switch mode {
             case .create:
                 record = try store.create(draft)
+                RecordMemory.remember(type: draft.recordType, location: draft.location)
             case .edit(let existing):
                 try store.apply(draft, to: existing)
                 record = existing
@@ -157,6 +221,31 @@ struct RecordEditView: View {
             onSaved(record)
         } catch {
             saveError = error.localizedDescription
+        }
+    }
+}
+
+/// 기록 쓰기가 기억하는 것 (빌드 16 · 조사 보고서 지금 7) — 마지막 기록 유형과 장소. 이 기기에만 둔다.
+enum RecordMemory {
+    private static let typeKey = "lastRecordType"
+    private static let locationKey = "lastRecordLocation"
+
+    /// 아는 유형일 때만 — 없어진 키로 시작하지 않게.
+    static var lastType: String? {
+        guard let key = UserDefaults.standard.string(forKey: typeKey),
+              RecordType.all.contains(where: { $0.key == key }) else { return nil }
+        return key
+    }
+
+    static var lastLocation: String? {
+        TextNormalization.nilIfEmpty(UserDefaults.standard.string(forKey: locationKey) ?? "")
+    }
+
+    static func remember(type: String, location: String) {
+        UserDefaults.standard.set(type, forKey: typeKey)
+        // 장소를 비운 기록은 지난 장소를 지우지 않는다 — 어제의 장소가 다음에도 쓸모 있다.
+        if let place = TextNormalization.nilIfEmpty(location) {
+            UserDefaults.standard.set(place, forKey: locationKey)
         }
     }
 }

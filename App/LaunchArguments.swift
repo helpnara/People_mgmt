@@ -48,6 +48,8 @@ struct LaunchArguments: Sendable {
     let timeSlice: Int?
     /// 설정 화면을 바로 연다 (`-openSettings`) — 백업 · 복원 화면을 찍으려고 (D-34).
     let openSettings: Bool
+    /// 아는 사이 후보 화면을 바로 연다 (`-openSuggestions` · 빌드 16).
+    let openSuggestions: Bool
 
     init(_ arguments: [String]) {
         seedSampleData = arguments.contains("-seedSampleData")
@@ -66,6 +68,7 @@ struct LaunchArguments: Sendable {
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")
         failSaves = arguments.contains("-failSaves")
         openSettings = arguments.contains("-openSettings")
+        openSuggestions = arguments.contains("-openSuggestions")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
             return arguments[index + 1]

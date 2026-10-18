@@ -114,6 +114,8 @@ struct NetworkSnapshot: Sendable {
     var gaps = Gaps()
     /// 지난 시점의 관계도 · 모임의 변화 (8번째 묶음 · D-32). 자리 잡기를 하는 자료에만.
     var timeline = Timeline()
+    /// 아는 사이 후보 (빌드 16) — 이름 · 근거까지 만들어 둔다. 화면이 사람 전원에서 이름을 찾지 않게.
+    var suggestions: [AcquaintanceSuggestionRoute.Item] = []
     /// 만들 때마다 새 값 — 화면은 이것으로 다시 셀 때를 안다. 사람 수만 보면 칸을 채운 뒤 돌아와도 그대로다.
     let generation = UUID()
 
@@ -237,6 +239,19 @@ enum NetworkSnapshotBuilder {
                                        edges: edges, positions: [])
         snapshot.readiness = readiness
         snapshot.gaps = gaps
+        if includesGraph {
+            var nameOf: [UUID: String] = [:]
+            for person in graphPeople { nameOf[person.id] = person.name }
+            snapshot.suggestions = AcquaintanceSuggestions.suggest(people: graphPeople, edges: edges, declined: DeclinedPairs.load())
+                .map { suggestion in
+                    AcquaintanceSuggestionRoute.Item(a: suggestion.a, b: suggestion.b,
+                                                     aName: nameOf[suggestion.a] ?? "", bName: nameOf[suggestion.b] ?? "",
+                                                     evidence: AcquaintanceSuggestionRoute.evidence(
+                                                        together: suggestion.together,
+                                                        introducer: suggestion.introducer.flatMap { nameOf[$0] }))
+                }
+            lap("아는 사이 후보 \(snapshot.suggestions.count)쌍")
+        }
         guard includesGraph else { return snapshot }
 
         let links = edges.compactMap { edge -> GraphLayout.Link? in

@@ -5,6 +5,8 @@ import SwiftUI
 struct PersonPickerView: View {
     let people: [Person]
     @Binding var selection: Person?
+    /// 제목 — 사람 편집에서는 `소개한 사람`, 단축어 `기록 추가` 에서는 `누구와의 기록인가요` (빌드 16).
+    var title = "소개한 사람"
 
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
@@ -58,7 +60,7 @@ struct PersonPickerView: View {
         .searchable(text: $searchText, prompt: "이름")
         .task(id: people.count) { refold() }
         .onChange(of: searchText) { _, _ in refilter() }
-        .navigationTitle("소개한 사람")
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }
 }
