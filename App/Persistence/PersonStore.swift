@@ -252,7 +252,7 @@ struct PersonStore {
 // MARK: - 검색이 보는 값 (Core 는 SwiftData 를 모른다)
 
 extension SearchablePerson {
-    @MainActor
+    /// 주 스레드에 묶지 않는다 — 검색 색인은 따로 연 문맥에서 만든다 (이슈 8 · `SearchIndexBuilder`).
     init(person: Person) {
         self.init(
             id: person.uuid,
