@@ -126,6 +126,155 @@ def sort_timeline(records: list[dict]) -> list[str]:
     return [r["id"] for r in ordered]
 
 
+# ── 날 수 (RelativeDay) ──────────────────────────────────────────────────────
+
+def relative_day(days: int) -> str:
+    if days == 0:
+        return "오늘"
+    if days == 1:
+        return "어제"
+    if days == -1:
+        return "내일"
+    n = abs(days)
+    suffix = "전" if days > 0 else "후"
+    if n < 7:
+        return f"{n}일 {suffix}"
+    if n < 30:
+        return f"{n // 7}주 {suffix}"
+    if n < 365:
+        return f"{n // 30}개월 {suffix}"
+    return f"{n // 365}년 {suffix}"
+
+
+# ── 연락처 (ContactName · ContactNote) ───────────────────────────────────────
+
+def east_asian(text: str) -> bool:
+    chars = [ch for ch in text if not ch.isspace()]
+    return bool(chars) and all(0xAC00 <= ord(ch) <= 0xD7A3 or 0x4E00 <= ord(ch) <= 0x9FFF for ch in chars)
+
+
+def contact_name(given: str, family: str) -> str:
+    g = collapsed_spaces(normalized(given))
+    f = collapsed_spaces(normalized(family))
+    if not g:
+        return f
+    if not f:
+        return g
+    if east_asian(f) and east_asian(g):
+        return f + g
+    return g + " " + f
+
+
+def contact_note(phones: list[str], emails: list[str]) -> str:
+    seen, parts = set(), []
+    for raw in phones + emails:
+        item = collapsed_spaces(normalized(raw))
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        parts.append(item)
+    return " · ".join(parts)[:500]
+
+
+# ── 명함 (BusinessCardParser) ────────────────────────────────────────────────
+
+ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전무", "상무", "이사", "본부장", "실장", "센터장",
+                 "부장", "차장", "과장", "팀장", "대리", "주임", "사원", "책임", "선임", "수석", "연구원", "교수",
+                 "원장", "매니저", "디자이너", "개발자", "엔지니어", "컨설턴트",
+                 "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
+                 "consultant", "president", "founder", "professor", "lead"]
+KOREAN_ORG = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
+LATIN_ORG = {"inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"}
+DEPARTMENT_SUFFIXES = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+PHONE_RE = re.compile(r"(?:\+82[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}")
+LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
+
+
+def latin_letters(token: str) -> str:
+    return "".join(ch for ch in token if ch.isascii() and ch.isalpha()).lower()
+
+
+def is_org(text: str) -> bool:
+    if any(k in text for k in KOREAN_ORG):
+        return True
+    return any(latin_letters(t) in LATIN_ORG for t in text.split(" "))
+
+
+def is_role_token(token: str) -> bool:
+    latin = latin_letters(token)
+    for k in ROLE_KEYWORDS:
+        if k[0].isascii():
+            if latin == k:
+                return True
+        elif token.endswith(k):
+            return True
+    return False
+
+
+def is_hangul_name(text: str) -> bool:
+    tokens = text.split(" ")
+    if not (len(tokens) == 1 or all(len(t) == 1 for t in tokens)):
+        return False
+    joined = "".join(tokens)
+    if not 2 <= len(joined) <= 4:
+        return False
+    if not all(0xAC00 <= ord(ch) <= 0xD7A3 for ch in joined):
+        return False
+    return not any(joined.endswith(s) for s in DEPARTMENT_SUFFIXES)
+
+
+def is_fax(lower: str) -> bool:
+    return lower.startswith(("fax", "팩스", "f.", "f "))
+
+
+def parse_card(lines: list[list]) -> dict:
+    out = {"name": None, "organization": None, "role": None, "phones": [], "emails": [], "lines": []}
+    candidate = None
+    def offer(name, height):
+        nonlocal candidate
+        if candidate is not None and candidate[1] >= height:
+            return
+        candidate = (name, height)
+    for raw, height in lines:
+        text = collapsed_spaces(normalized(raw))
+        if not text:
+            continue
+        out["lines"].append(text)
+        lower = text.lower()
+        emails = EMAIL_RE.findall(text)
+        phones = PHONE_RE.findall(text)
+        if emails or phones or "www." in lower or "http" in lower:
+            for e in (x.lower() for x in emails):
+                if e not in out["emails"]:
+                    out["emails"].append(e)
+            if not is_fax(lower):
+                for p in (x.strip(" ") for x in phones):
+                    if p not in out["phones"]:
+                        out["phones"].append(p)
+            continue
+        if is_org(text):
+            if out["organization"] is None:
+                out["organization"] = text
+            continue
+        tokens = text.split(" ")
+        if len(tokens) >= 2 and is_hangul_name(tokens[0]) and any(is_role_token(t) for t in tokens[1:]):
+            offer(tokens[0], height)
+            if out["role"] is None:
+                out["role"] = " ".join(tokens[1:])
+            continue
+        if any(is_role_token(t) for t in tokens):
+            if out["role"] is None:
+                out["role"] = text
+            continue
+        if is_hangul_name(text):
+            offer(text.replace(" ", ""), height)
+        elif LATIN_NAME_RE.search(text):
+            offer(text, height)
+    out["name"] = candidate[0] if candidate else None
+    return out
+
+
 # ── 검증 (Validation) ────────────────────────────────────────────────────────
 
 def name_problem(name: str):
@@ -259,6 +408,16 @@ def build() -> dict:
                            for c in cases["displayTitle"]]
     out["nameSort"] = [{"name": c["name"], "people": c["people"], "expected": sort_people(c["people"])}
                        for c in cases["nameSort"]]
+    from datetime import date
+    out["relativeDay"] = [{"from": c["from"], "to": c["to"],
+                           "expected": relative_day((date.fromisoformat(c["to"]) - date.fromisoformat(c["from"])).days)}
+                          for c in cases["relativeDay"]]
+    out["contactName"] = [{"given": c["given"], "family": c["family"], "expected": contact_name(c["given"], c["family"])}
+                          for c in cases["contactName"]]
+    out["contactNote"] = [{"phones": c["phones"], "emails": c["emails"], "expected": contact_note(c["phones"], c["emails"])}
+                          for c in cases["contactNote"]]
+    out["cardParse"] = [{"name": c["name"], "lines": c["lines"], "expected": parse_card(c["lines"])}
+                        for c in cases["cardParse"]]
     out["recencySort"] = [{"name": c["name"], "people": c["people"], "expected": sort_recency(c["people"])}
                           for c in cases["recencySort"]]
     out["timelineSort"] = [{"name": c["name"], "records": c["records"], "expected": sort_timeline(c["records"])}

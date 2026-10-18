@@ -15,6 +15,22 @@ final class GoldenTests: XCTestCase {
         struct TitleCase: Decodable { let name: String; let title: String?; let note: String?; let expected: String }
         struct SortPerson: Decodable { let name: String; let createdAt: Double }
         struct SortCase: Decodable { let name: String; let people: [SortPerson]; let expected: [String] }
+        struct DayCase: Decodable { let from: String; let to: String; let expected: String }
+        struct ContactNameCase: Decodable { let given: String; let family: String; let expected: String }
+        struct ContactNoteCase: Decodable { let phones: [String]; let emails: [String]; let expected: String }
+        struct CardExpected: Decodable {
+            let name: String?; let organization: String?; let role: String?
+            let phones: [String]; let emails: [String]; let lines: [String]
+        }
+        struct CardLineRaw: Decodable {
+            let text: String; let height: Double
+            init(from decoder: Decoder) throws {
+                var container = try decoder.unkeyedContainer()
+                text = try container.decode(String.self)
+                height = try container.decode(Double.self)
+            }
+        }
+        struct CardCase: Decodable { let name: String; let lines: [CardLineRaw]; let expected: CardExpected }
         struct RecencyPerson: Decodable { let name: String; let createdAt: Double; let lastRecordAt: Double? }
         struct RecencyCase: Decodable { let name: String; let people: [RecencyPerson]; let expected: [String] }
         struct TimelineRecord: Decodable { let id: String; let occurredAt: Double; let createdAt: Double }
@@ -42,6 +58,10 @@ final class GoldenTests: XCTestCase {
         let displayTitle: [TitleCase]
         let nameSort: [SortCase]
         let recencySort: [RecencyCase]
+        let relativeDay: [DayCase]
+        let contactName: [ContactNameCase]
+        let contactNote: [ContactNoteCase]
+        let cardParse: [CardCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
         let recordSave: [RecordSaveCase]
@@ -87,6 +107,59 @@ final class GoldenTests: XCTestCase {
             let people = c.people.map { (name: $0.name, createdAt: Date(timeIntervalSince1970: $0.createdAt)) }
             let sorted = people.sorted(by: NameSort.areInIncreasingOrder).map(\.name)
             XCTAssertEqual(sorted, c.expected, c.name)
+        }
+    }
+
+    func testRecencySortHelperMatchesComparator() throws {
+        for c in try Self.loadGolden().recencySort {
+            let sorted = RecencySort.sorted(c.people,
+                                            lastRecordAt: { $0.lastRecordAt.map { Date(timeIntervalSince1970: $0) } },
+                                            name: { $0.name },
+                                            createdAt: { Date(timeIntervalSince1970: $0.createdAt) }).map(\.name)
+            XCTAssertEqual(sorted, c.expected, c.name)
+        }
+    }
+
+    func testNameSortHelperMatchesComparator() throws {
+        for c in try Self.loadGolden().nameSort {
+            let sorted = NameSort.sorted(c.people, name: { $0.name }, createdAt: { Date(timeIntervalSince1970: $0.createdAt) }).map(\.name)
+            XCTAssertEqual(sorted, c.expected, c.name)
+        }
+    }
+
+    func testRelativeDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        func noon(_ iso: String) throws -> Date {
+            let parts = iso.split(separator: "-").compactMap { Int($0) }
+            return try XCTUnwrap(calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 12)), iso)
+        }
+        for c in try Self.loadGolden().relativeDay {
+            XCTAssertEqual(RelativeDay.phrase(from: try noon(c.from), to: try noon(c.to), calendar: calendar), c.expected, "\(c.from) → \(c.to)")
+        }
+    }
+
+    func testContactName() throws {
+        for c in try Self.loadGolden().contactName {
+            XCTAssertEqual(ContactName.compose(given: c.given, family: c.family), c.expected, "\(c.given) / \(c.family)")
+        }
+    }
+
+    func testContactNote() throws {
+        for c in try Self.loadGolden().contactNote {
+            XCTAssertEqual(ContactNote.compose(phones: c.phones, emails: c.emails), c.expected)
+        }
+    }
+
+    func testBusinessCardParser() throws {
+        for c in try Self.loadGolden().cardParse {
+            let got = BusinessCardParser.parse(c.lines.map { CardLine(text: $0.text, height: $0.height) })
+            XCTAssertEqual(got.name, c.expected.name, "\(c.name) — 이름")
+            XCTAssertEqual(got.organization, c.expected.organization, "\(c.name) — 소속")
+            XCTAssertEqual(got.role, c.expected.role, "\(c.name) — 직무")
+            XCTAssertEqual(got.phones, c.expected.phones, "\(c.name) — 전화")
+            XCTAssertEqual(got.emails, c.expected.emails, "\(c.name) — 메일")
+            XCTAssertEqual(got.lines, c.expected.lines, "\(c.name) — 줄")
         }
     }
 

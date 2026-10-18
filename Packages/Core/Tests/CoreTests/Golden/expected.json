@@ -1,4 +1,391 @@
 {
+  "cardParse": [
+    {
+      "expected": {
+        "emails": [
+          "haneul@example.com"
+        ],
+        "lines": [
+          "청림소프트 주식회사",
+          "김하늘",
+          "개발팀 팀장",
+          "M. 010-1234-5678",
+          "E. haneul@example.com",
+          "서울시 중구 세종대로 1"
+        ],
+        "name": "김하늘",
+        "organization": "청림소프트 주식회사",
+        "phones": [
+          "010-1234-5678"
+        ],
+        "role": "개발팀 팀장"
+      },
+      "lines": [
+        [
+          "청림소프트 주식회사",
+          0.05
+        ],
+        [
+          "김하늘",
+          0.12
+        ],
+        [
+          "개발팀 팀장",
+          0.04
+        ],
+        [
+          "M. 010-1234-5678",
+          0.03
+        ],
+        [
+          "E. haneul@example.com",
+          0.03
+        ],
+        [
+          "서울시 중구 세종대로 1",
+          0.03
+        ]
+      ],
+      "name": "한글 명함"
+    },
+    {
+      "expected": {
+        "emails": [],
+        "lines": [
+          "마루디자인㈜",
+          "박서연 대표",
+          "T 02-555-0101 F 02-555-0102",
+          "www.maru.example"
+        ],
+        "name": "박서연",
+        "organization": "마루디자인㈜",
+        "phones": [
+          "02-555-0101",
+          "02-555-0102"
+        ],
+        "role": "대표"
+      },
+      "lines": [
+        [
+          "마루디자인㈜",
+          0.05
+        ],
+        [
+          "박서연 대표",
+          0.09
+        ],
+        [
+          "T 02-555-0101 F 02-555-0102",
+          0.03
+        ],
+        [
+          "www.maru.example",
+          0.03
+        ]
+      ],
+      "name": "이름과 직무가 한 줄 · 한 줄에 전화 둘 · 웹 주소"
+    },
+    {
+      "expected": {
+        "emails": [
+          "doyun.lee@example.ac.kr"
+        ],
+        "lines": [
+          "이 도 윤",
+          "한빛대학교 연구원",
+          "doyun.lee@example.ac.kr"
+        ],
+        "name": "이도윤",
+        "organization": "한빛대학교 연구원",
+        "phones": [],
+        "role": null
+      },
+      "lines": [
+        [
+          "이 도 윤",
+          0.1
+        ],
+        [
+          "한빛대학교 연구원",
+          0.04
+        ],
+        [
+          "doyun.lee@example.ac.kr",
+          0.03
+        ]
+      ],
+      "name": "띄어 쓴 이름 · 소속 낱말이 있는 줄"
+    },
+    {
+      "expected": {
+        "emails": [
+          "alice@nabi.example"
+        ],
+        "lines": [
+          "Nabi Labs Inc.",
+          "Alice Park",
+          "Senior Engineer",
+          "+82 10-9876-5432",
+          "ALICE@nabi.example"
+        ],
+        "name": "Alice Park",
+        "organization": "Nabi Labs Inc.",
+        "phones": [
+          "+82 10-9876-5432"
+        ],
+        "role": "Senior Engineer"
+      },
+      "lines": [
+        [
+          "Nabi Labs Inc.",
+          0.05
+        ],
+        [
+          "Alice Park",
+          0.1
+        ],
+        [
+          "Senior Engineer",
+          0.04
+        ],
+        [
+          "+82 10-9876-5432",
+          0.03
+        ],
+        [
+          "ALICE@nabi.example",
+          0.03
+        ]
+      ],
+      "name": "영문 명함"
+    },
+    {
+      "expected": {
+        "emails": [],
+        "lines": [
+          "홍보",
+          "최민준",
+          "두리"
+        ],
+        "name": "최민준",
+        "organization": null,
+        "phones": [],
+        "role": null
+      },
+      "lines": [
+        [
+          "홍보",
+          0.04
+        ],
+        [
+          "최민준",
+          0.11
+        ],
+        [
+          "두리",
+          0.11
+        ]
+      ],
+      "name": "글자가 가장 큰 줄이 이름"
+    },
+    {
+      "expected": {
+        "emails": [],
+        "lines": [
+          "12345"
+        ],
+        "name": null,
+        "organization": null,
+        "phones": [],
+        "role": null
+      },
+      "lines": [
+        [
+          "",
+          0.1
+        ],
+        [
+          "   ",
+          0.1
+        ],
+        [
+          "12345",
+          0.02
+        ]
+      ],
+      "name": "빈 줄과 짧은 숫자"
+    },
+    {
+      "expected": {
+        "emails": [],
+        "lines": [
+          "정유진",
+          "Fax 02-777-8888",
+          "Mobile 010-2222-3333",
+          "팩스 02-777-9999"
+        ],
+        "name": "정유진",
+        "organization": null,
+        "phones": [
+          "010-2222-3333"
+        ],
+        "role": null
+      },
+      "lines": [
+        [
+          "정유진",
+          0.1
+        ],
+        [
+          "Fax 02-777-8888",
+          0.03
+        ],
+        [
+          "Mobile 010-2222-3333",
+          0.03
+        ],
+        [
+          "팩스 02-777-9999",
+          0.03
+        ]
+      ],
+      "name": "팩스 줄은 전화에서 뺀다"
+    },
+    {
+      "expected": {
+        "emails": [],
+        "lines": [
+          "개발팀",
+          "한지우",
+          "선임연구원"
+        ],
+        "name": "한지우",
+        "organization": null,
+        "phones": [],
+        "role": "선임연구원"
+      },
+      "lines": [
+        [
+          "개발팀",
+          0.08
+        ],
+        [
+          "한지우",
+          0.07
+        ],
+        [
+          "선임연구원",
+          0.04
+        ]
+      ],
+      "name": "부서 이름은 사람 이름이 아니다"
+    },
+    {
+      "expected": {
+        "emails": [],
+        "lines": [
+          "한지우",
+          "나비랩스 그룹",
+          "PM"
+        ],
+        "name": "한지우",
+        "organization": "나비랩스 그룹",
+        "phones": [],
+        "role": null
+      },
+      "lines": [
+        [
+          "한지우",
+          0.09
+        ],
+        [
+          "나비랩스   그룹",
+          0.05
+        ],
+        [
+          "PM",
+          0.04
+        ]
+      ],
+      "name": "NFD 자모와 연속 빈칸"
+    }
+  ],
+  "contactName": [
+    {
+      "expected": "김하늘",
+      "family": "김",
+      "given": "하늘"
+    },
+    {
+      "expected": "Alice Park",
+      "family": "Park",
+      "given": "Alice"
+    },
+    {
+      "expected": "박",
+      "family": "박",
+      "given": ""
+    },
+    {
+      "expected": "서연",
+      "family": "",
+      "given": " 서연 "
+    },
+    {
+      "expected": "민준 Choi",
+      "family": "Choi",
+      "given": "민준"
+    },
+    {
+      "expected": "",
+      "family": "",
+      "given": ""
+    },
+    {
+      "expected": "김하늘",
+      "family": "김",
+      "given": "하늘"
+    },
+    {
+      "expected": "Mary Jane Watson",
+      "family": "Watson",
+      "given": "Mary  Jane"
+    },
+    {
+      "expected": "王小明",
+      "family": "王",
+      "given": "小明"
+    }
+  ],
+  "contactNote": [
+    {
+      "emails": [
+        "a@example.com"
+      ],
+      "expected": "010-1234-5678 · a@example.com",
+      "phones": [
+        "010-1234-5678",
+        " 010-1234-5678 ",
+        ""
+      ]
+    },
+    {
+      "emails": [],
+      "expected": "",
+      "phones": []
+    },
+    {
+      "emails": [
+        "x@example.com",
+        "x@example.com",
+        "y@example.com"
+      ],
+      "expected": "02-555-0101 · x@example.com · y@example.com",
+      "phones": [
+        "02-555-0101"
+      ]
+    }
+  ],
   "dayNoon": [
     {
       "expectedEpoch": 1772938800.0,
@@ -271,6 +658,73 @@
       "expected": true,
       "note": "  x",
       "title": ""
+    }
+  ],
+  "relativeDay": [
+    {
+      "expected": "오늘",
+      "from": "2026-10-18",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "어제",
+      "from": "2026-10-17",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "내일",
+      "from": "2026-10-19",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "6일 전",
+      "from": "2026-10-12",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "1주 전",
+      "from": "2026-10-11",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "4주 전",
+      "from": "2026-09-19",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "1개월 전",
+      "from": "2026-09-18",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "12개월 전",
+      "from": "2025-10-19",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "1년 전",
+      "from": "2025-10-18",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "7년 전",
+      "from": "2019-03-04",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "1주 후",
+      "from": "2026-10-25",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "2개월 후",
+      "from": "2027-01-01",
+      "to": "2026-10-18"
+    },
+    {
+      "expected": "어제",
+      "from": "2026-02-28",
+      "to": "2026-03-01"
     }
   ],
   "search": {
