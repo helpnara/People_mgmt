@@ -22,6 +22,32 @@ final class GoldenTests: XCTestCase {
             let mobile: String; let office: String; let fax: String; let email: String; let other: String
             var fields: ContactFields { ContactFields(mobile: mobile, office: office, fax: fax, email: email, other: other) }
         }
+        struct MetricRecordRaw: Decodable { let id: UUID; let day: Int; let type: String }
+        struct TypeCountRaw: Decodable { let type: String; let count: Int }
+        struct DyadExpected: Decodable {
+            let total: Int; let lastYear: Int; let daysSinceLast: Int?; let spanDays: Int?; let spanFromFirstMeeting: Bool
+            let perMonthTenths: Int?; let frequencyText: String?; let trend: String?; let recentHalf: Int; let previousHalf: Int
+            let diversityClass: String?; let typeCounts: [TypeCountRaw]; let pastIDs: [UUID]; let lastYearIDs: [UUID]
+            let recentHalfIDs: [UUID]; let previousHalfIDs: [UUID]; let firstID: UUID?; let lastID: UUID?; let spanText: String?
+        }
+        struct DyadCase: Decodable { let name: String; let records: [MetricRecordRaw]; let firstMetDay: Int?; let today: Int; let expected: DyadExpected }
+        struct SpanCase: Decodable { let days: Int; let expected: String }
+        struct OverviewPersonRaw: Decodable { let id: UUID; let name: String; let firstMetDay: Int?; let lastDay: Int? }
+        struct OverviewExpected: Decodable {
+            let total: Int; let activeCount: Int; let newThisYearIDs: [UUID]; let quietIDs: [UUID]; let noRecordIDs: [UUID]
+        }
+        struct OverviewCase: Decodable {
+            let name: String; let people: [OverviewPersonRaw]; let today: Int; let yearStart: Int; let yearEnd: Int
+            let neglectDays: Int; let expected: OverviewExpected
+        }
+        struct TraitItemRaw: Decodable { let id: UUID; let values: [String] }
+        struct TraitExpected: Decodable { let label: String; let count: Int; let ids: [UUID]; let isUnspecified: Bool; let isRest: Bool }
+        struct TraitCase: Decodable { let name: String; let items: [TraitItemRaw]; let limit: Int; let expected: [TraitExpected] }
+        struct GraphPersonRaw: Decodable { let id: UUID; let name: String; let organization: String?; let introducedBy: UUID? }
+        struct GraphEdgeRaw: Decodable { let a: UUID; let b: UUID; let together: Int; let introduced: Bool; let sameOrganization: Bool }
+        struct GraphCase: Decodable {
+            let name: String; let people: [GraphPersonRaw]; let records: [[UUID]]; let cliqueLimit: Int; let expected: [GraphEdgeRaw]
+        }
         struct PresetChoicesCase: Decodable { let name: String; let presets: [String]; let used: [String]; let expected: [String] }
         struct ContactSplitCase: Decodable { let text: String; let expected: FieldsExpected }
         struct LabeledRaw: Decodable { let label: String; let value: String }
@@ -73,6 +99,11 @@ final class GoldenTests: XCTestCase {
         let contactSplit: [ContactSplitCase]
         let contactFromContact: [ContactFromContactCase]
         let presetChoices: [PresetChoicesCase]
+        let dyadMetrics: [DyadCase]
+        let spanText: [SpanCase]
+        let networkOverview: [OverviewCase]
+        let traitBuckets: [TraitCase]
+        let graphEdges: [GraphCase]
         let cardParse: [CardCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
@@ -173,6 +204,75 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.emails, c.expected.emails, "\(c.name) — 메일")
             XCTAssertEqual(got.lines, c.expected.lines, "\(c.name) — 줄")
             XCTAssertEqual(got.contact, c.expected.contact.fields, "\(c.name) — 연락 수단 칸")
+        }
+    }
+
+    func testDyadMetrics() throws {
+        for c in try Self.loadGolden().dyadMetrics {
+            let records = c.records.map { MetricRecord(id: $0.id, day: $0.day, type: $0.type) }
+            let got = DyadMetricsCalculator.compute(records: records, firstMetDay: c.firstMetDay, today: c.today)
+            let e = c.expected
+            XCTAssertEqual(got.total, e.total, "\(c.name) — 건수")
+            XCTAssertEqual(got.lastYear, e.lastYear, "\(c.name) — 12개월")
+            XCTAssertEqual(got.daysSinceLast, e.daysSinceLast, "\(c.name) — 마지막 기록")
+            XCTAssertEqual(got.spanDays, e.spanDays, "\(c.name) — 인연 기간")
+            XCTAssertEqual(got.spanDays.map(MetricText.span(days:)), e.spanText, "\(c.name) — 인연 기간 글")
+            XCTAssertEqual(got.spanFromFirstMeeting, e.spanFromFirstMeeting, c.name)
+            XCTAssertEqual(got.perMonth.map { Int(($0 * 10).rounded(.toNearestOrAwayFromZero)) }, e.perMonthTenths, "\(c.name) — 빈도")
+            XCTAssertEqual(got.perMonth.map(MetricText.frequency(perMonth:)), e.frequencyText, "\(c.name) — 빈도 글")
+            XCTAssertEqual(got.trend?.rawValue, e.trend, "\(c.name) — 추세")
+            XCTAssertEqual(got.recentHalf, e.recentHalf, c.name)
+            XCTAssertEqual(got.previousHalf, e.previousHalf, c.name)
+            XCTAssertEqual(got.diversityClass?.rawValue, e.diversityClass, "\(c.name) — 다양성")
+            XCTAssertEqual(got.typeCounts.map(\.type), e.typeCounts.map(\.type), "\(c.name) — 유형")
+            XCTAssertEqual(got.typeCounts.map(\.count), e.typeCounts.map(\.count), "\(c.name) — 유형 건수")
+            XCTAssertEqual(got.pastIDs, e.pastIDs, "\(c.name) — 근거")
+            XCTAssertEqual(got.lastYearIDs, e.lastYearIDs, c.name)
+            XCTAssertEqual(got.recentHalfIDs, e.recentHalfIDs, c.name)
+            XCTAssertEqual(got.previousHalfIDs, e.previousHalfIDs, c.name)
+            XCTAssertEqual(got.firstID, e.firstID, c.name)
+            XCTAssertEqual(got.lastID, e.lastID, c.name)
+        }
+    }
+
+    func testSpanText() throws {
+        for c in try Self.loadGolden().spanText {
+            XCTAssertEqual(MetricText.span(days: c.days), c.expected, "\(c.days)일")
+        }
+    }
+
+    func testNetworkOverview() throws {
+        for c in try Self.loadGolden().networkOverview {
+            let people = c.people.map { OverviewPerson(id: $0.id, name: $0.name, firstMetDay: $0.firstMetDay, lastDay: $0.lastDay) }
+            let got = NetworkOverview.compute(people: people, today: c.today, yearStart: c.yearStart, yearEnd: c.yearEnd, neglectDays: c.neglectDays)
+            XCTAssertEqual(got.total, c.expected.total, c.name)
+            XCTAssertEqual(got.activeCount, c.expected.activeCount, c.name)
+            XCTAssertEqual(got.newThisYearIDs, c.expected.newThisYearIDs, "\(c.name) — 올해")
+            XCTAssertEqual(got.quietIDs, c.expected.quietIDs, "\(c.name) — 최근 기록 없음")
+            XCTAssertEqual(got.noRecordIDs, c.expected.noRecordIDs, "\(c.name) — 기록 없음")
+        }
+    }
+
+    func testTraitBuckets() throws {
+        for c in try Self.loadGolden().traitBuckets {
+            let got = TraitDistribution.buckets(c.items.map { (id: $0.id, values: $0.values) }, limit: c.limit)
+            XCTAssertEqual(got.map(\.label), c.expected.map(\.label), c.name)
+            XCTAssertEqual(got.map(\.count), c.expected.map(\.count), c.name)
+            XCTAssertEqual(got.map(\.ids), c.expected.map(\.ids), c.name)
+            XCTAssertEqual(got.map(\.isUnspecified), c.expected.map(\.isUnspecified), c.name)
+            XCTAssertEqual(got.map(\.isRest), c.expected.map(\.isRest), c.name)
+        }
+    }
+
+    func testGraphEdges() throws {
+        for c in try Self.loadGolden().graphEdges {
+            let people = c.people.map { GraphPerson(id: $0.id, name: $0.name, organization: $0.organization, introducedBy: $0.introducedBy) }
+            let got = RelationGraph.edges(people: people, records: c.records, organizationCliqueLimit: c.cliqueLimit)
+            XCTAssertEqual(got.map(\.a), c.expected.map(\.a), c.name)
+            XCTAssertEqual(got.map(\.b), c.expected.map(\.b), c.name)
+            XCTAssertEqual(got.map(\.together), c.expected.map(\.together), c.name)
+            XCTAssertEqual(got.map(\.introduced), c.expected.map(\.introduced), c.name)
+            XCTAssertEqual(got.map(\.sameOrganization), c.expected.map(\.sameOrganization), c.name)
         }
     }
 

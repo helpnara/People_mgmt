@@ -89,6 +89,12 @@ struct PeopleListView: View {
                         Label("정렬", systemImage: "arrow.up.arrow.down")
                     }
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    // 내 인맥 (6번째 묶음) — 목록 위 단추 (2026-10-18 사용자 결정).
+                    NavigationLink(value: NetworkRoute(tab: .graph)) {
+                        Label("내 인맥", systemImage: "point.3.connected.trianglepath.dotted")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingAdd = true
@@ -102,6 +108,9 @@ struct PeopleListView: View {
             }
             .navigationDestination(for: Record.self) { record in
                 RecordDetailView(record: record)
+            }
+            .navigationDestination(for: NetworkRoute.self) { route in
+                NetworkView(initialTab: route.tab)
             }
             .sheet(isPresented: $showingAdd) {
                 PersonEditView(mode: .create) { person in
@@ -286,6 +295,10 @@ struct PeopleListView: View {
         try? await Task.sleep(for: .milliseconds(300))
         LaunchTiming.mark("목록 첫 표시 (\(fetched.count)명)")
         if let search = arguments.search { searchText = search }
+        if let name = arguments.openNetwork {
+            path.append(NetworkRoute(tab: NetworkView.Tab(rawValue: name) ?? .graph))
+            return
+        }
         if arguments.addPerson { showingAdd = true }
         var opened: Person?
         if arguments.openMe {

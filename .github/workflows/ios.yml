@@ -325,6 +325,11 @@ jobs:
           shoot 14-me.png -seedSampleData -openMe
           # **명함 크게 보기** (이슈 14) — 빌드 7 까지 빈 화면에 갇혔다. 명함 자리가 비면 화소 검사(screens.txt)가 잡는다.
           shoot 15-card-viewer.png -seedSampleData -openPerson 김하늘 -viewCard
+          # **내 인맥** (6번째 묶음) — 관계도 · 특성 · 돌아보기, 사람 상세의 관계 돌아보기.
+          shoot 16-network-graph.png -seedSampleData -openNetwork graph
+          shoot 17-network-traits.png -seedSampleData -openNetwork traits
+          shoot 18-network-overview.png -seedSampleData -openNetwork overview
+          shoot 19-person-review.png -seedSampleData -openPerson 김하늘 -scrollToReview
           # **사진첩 고르기 창** (이슈 10). 빌드 4 · 5 실기기에서 이 길로 주 스레드가 쉬지 않고 돌다 꺼졌다.
           # 시뮬레이터 사진첩의 견본 사진이 뜨면 PNG 가 2MB 를 넘는다 (빌드 7 CI 에서 잡힘 — 홈 화면으로 잘못 봤다).
           SHOOT_MAX=6000000 shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto
@@ -353,6 +358,7 @@ jobs:
           }
           busy_check 사진첩-고르기 -seedSampleData -addPerson -pickCardPhoto
           busy_check 사람-목록 -seedSampleData
+          busy_check 인맥-관계도 -seedSampleData -openNetwork graph
           # 저장소를 끝내 못 열었을 때의 안내 화면 — 죽지 않고 이 화면이 뜨는지, 지우기 단추가 없는지.
           shoot 08-store-failure.png -simulateStoreFailure
 
@@ -398,7 +404,7 @@ jobs:
         continue-on-error: true
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
-          for args in "-seedSampleData -seedLargeSample" "-seedSampleData -seedLargeSample -search 견본" "-seedSampleData -seedLargeSample -openPerson 김하늘"; do
+          for args in "-seedSampleData -seedLargeSample" "-seedSampleData -seedLargeSample -search 견본" "-seedSampleData -seedLargeSample -openPerson 김하늘" "-seedSampleData -seedLargeSample -openNetwork graph"; do
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
             echo "── $args ──"
             # shellcheck disable=SC2086
