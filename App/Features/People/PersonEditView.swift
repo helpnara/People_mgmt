@@ -58,8 +58,9 @@ struct PersonEditView: View {
     private var store: PersonStore { PersonStore(context: context) }
 
     /// 동명이인 (FR-021). 안내만 하고 막지 않는다.
+    /// 이미 받아 둔 `everyone` 에서 찾는다 — 본문이 그려질 때마다 저장소를 다시 읽지 않는다 (이슈 10).
     private var duplicates: [Person] {
-        store.sameName(as: draft.name, excluding: editingPerson)
+        PersonStore.sameName(as: draft.name, in: everyone, excluding: editingPerson)
     }
 
     /// 소개자 후보 — 자기 자신은 뺀다.
@@ -283,10 +284,18 @@ struct PersonEditView: View {
     /// 명함 사진을 받아 저장하고 바로 글자를 읽는다.
     private func ingestCard(_ data: Data, alreadyStraight: Bool) async {
         readingCard = true
-        let processed = alreadyStraight
+        var processed = alreadyStraight
             ? await CardImaging.normalizedCard(from: data)
             : await CardImaging.straightenedCard(from: data)
-        draft.businessCard = processed ?? data
+        // 펴지 못했으면 줄이기만 한다. **원본을 그대로 담지 않는다** — 휴대폰 사진은 수 MB 이고 화면마다 다시 풀린다 (이슈 10).
+        if processed == nil, !alreadyStraight {
+            processed = await CardImaging.normalizedCard(from: data)
+        }
+        guard let card = processed else {
+            readingCard = false
+            return
+        }
+        draft.businessCard = card
         await readCard()
     }
 

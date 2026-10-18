@@ -38,9 +38,13 @@ struct PeopleListView: View {
     private var store: PersonStore { PersonStore(context: context) }
 
     /// 보여 줄 목록. 정렬이 끝나기 전(첫 화면 · 사람 수가 막 바뀐 때)에는 받은 차례 그대로.
+    ///
+    /// **여기서 사람마다 SwiftData 에 묻지 않는다 (이슈 10).** 빌드 4 에서 주 스레드가 이 자리(`filter { !$0.isGone }`)를
+    /// 10초 넘게 돌다 시스템에 꺼졌다 — 본문이 그려질 때마다 전원의 삭제 여부를 두 번씩 물었다.
+    /// 지운 사람은 저장과 함께 `@Query` 에서 빠지고 사람 수가 달라져 정렬 결과 대신 받은 차례를 쓴다.
+    /// 그 틈의 지운 객체는 **화면에 그려지는 줄에서만** 거른다 (`ForEach` 안).
     private var displayedPeople: [Person] {
-        let source = sortedPeople.count == fetched.count ? sortedPeople : fetched
-        return source.filter { !$0.isGone }
+        sortedPeople.count == fetched.count ? sortedPeople : fetched
     }
 
     private var isQuerying: Bool { !SearchQuery(parsing: searchText).isEmpty }
@@ -144,17 +148,19 @@ struct PeopleListView: View {
             if !isQuerying {
                 Section {
                     ForEach(displayedPeople) { person in
-                        NavigationLink(value: person) {
-                            PersonRow(person: person, evidence: nil, showsLastRecord: true)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            // 역할 없는 단추 — `role: .destructive` 는 확인 전에 줄을 먼저 접는다 (느린 부자 178~182).
-                            Button {
-                                pendingDelete = person
-                            } label: {
-                                Label("삭제", systemImage: "trash")
+                        if !person.isGone {
+                            NavigationLink(value: person) {
+                                PersonRow(person: person, evidence: nil, showsLastRecord: true)
                             }
-                            .tint(Color.danger)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                // 역할 없는 단추 — `role: .destructive` 는 확인 전에 줄을 먼저 접는다 (느린 부자 178~182).
+                                Button {
+                                    pendingDelete = person
+                                } label: {
+                                    Label("삭제", systemImage: "trash")
+                                }
+                                .tint(Color.danger)
+                            }
                         }
                     }
                 } header: {
@@ -162,20 +168,22 @@ struct PeopleListView: View {
                 }
             } else {
                 Section {
-                    ForEach(searchRows.filter { !$0.person.isGone }) { row in
-                        // 기록에서 일치했으면 그 기록 상세까지 바로 연다 (FR-034). 그래서 NavigationLink 가 아니라 Button 이다.
-                        Button {
-                            open(row.person, recordID: row.hit.recordID)
-                        } label: {
-                            HStack {
-                                PersonRow(person: row.person, evidence: row.hit.evidence)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.scaled(13, weight: .semibold))
-                                    .foregroundStyle(Color.faint)
+                    ForEach(searchRows) { row in
+                        if !row.person.isGone {
+                            // 기록에서 일치했으면 그 기록 상세까지 바로 연다 (FR-034). 그래서 NavigationLink 가 아니라 Button 이다.
+                            Button {
+                                open(row.person, recordID: row.hit.recordID)
+                            } label: {
+                                HStack {
+                                    PersonRow(person: row.person, evidence: row.hit.evidence)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.scaled(13, weight: .semibold))
+                                        .foregroundStyle(Color.faint)
+                                }
                             }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 } header: {
                     Text(searchedText == searchText ? "\(searchRows.count)명" : "찾는 중…")
