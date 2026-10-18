@@ -3,30 +3,65 @@ import SwiftUI
 
 /// **관계도** (FR-047 · 048 · 2026-10-18 사용자 결정) — 나를 가운데 두고, 이어진 사람끼리 모이게.
 ///
-/// - 진한 선: 함께한 기록 · 소개. 함께한 기록이 많을수록 조금 굵다.
-/// - 옅은 점선: 같은 소속 (끄고 켤 수 있다).
+/// - 진한 선: 함께한 기록 · 아는 사이 · 소개. 함께한 기록이 많을수록 조금 굵다.
+/// - 옅은 점선: 같은 소속 (끄고 켤 수 있다). 지난 시점에는 그리지 않는다 — 소속에는 날짜가 없다.
 /// - 점은 **모두 같은 크기 · 같은 색**이다 — 크기 · 거리로 사람을 줄 세우지 않는다 (ADR-0004).
 ///   관계 유형 칩을 고르면 그 유형만 진하게 보인다 (사람이 많아 유형마다 색을 나누면 구분이 안 된다).
-/// - 모임 (D-30): 조건이 차면 Louvain 으로 찾은 묶음을 옅은 테두리로 감싸고 이름을 단다. 모임 칩을 고르면 그 모임만 진하게.
+/// - 모임 (D-30): 조건이 차면 Louvain 으로 찾은 모임을 옅은 테두리로 감싸고 이름을 단다. 모임 칩을 고르면 그 모임만 진하게.
+/// - **시점 막대** (8번째 묶음 · D-32): 분기 끝마다 12개월 창으로 다시 센 관계도. 지난 시점의 자리는 **지금 자리에서 출발**해
+///   셈한다 — 같은 사람은 비슷한 자리에 머물고 변한 곳만 움직인다. 앱을 쓰기 전 시기는 옅게.
+///
+/// 그리기는 프레임마다 돈다 — **사람 전원을 훑는 셈은 자료나 시점이 바뀔 때 상태에 담는다** (CLAUDE.md · 전수조사 이슈 18).
 struct RelationGraphView: View {
     let snapshot: NetworkSnapshot
+
+    fileprivate struct DrawnLink {
+        let i: Int
+        let j: Int
+        let width: CGFloat
+    }
 
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var highlight: String?
+    @State private var highlightKey: String?
     @State private var showsOrganization = true
     @State private var selected: Int?
     @State private var selectedDetail = ""
     @State private var typeChips: [String] = []
-    /// 고른 모임 (`snapshot.communities` 의 id). 관계 유형 칩과 함께 고르지 않는다.
+    /// 사람 자리마다 관계 유형의 이름 열쇠 — 칩 강조를 그릴 때마다 세지 않게.
+    @State private var typeKeys: [String] = []
+    /// 고른 모임 (보이는 시점의 `communities` 의 id). 관계 유형 칩과 함께 고르지 않는다.
     @State private var highlightCommunity: Int?
-    /// 사람 자리 → 모임 id.
+    /// 사람 자리 → 모임 id (보이는 시점의).
     @State private var membership: [Int: Int] = [:]
     @State private var groupsItem: ReadinessItem?
 
+    /// 지금의 선 — 자료가 바뀔 때 한 번 만든다.
+    @State private var currentStrong: [DrawnLink] = []
+    @State private var currentOrganization: [DrawnLink] = []
+
+    /// 시점 막대의 값. `slices.count` 이면 지금.
+    @State private var sliderValue: Double = 0
+    /// 고른 지난 시점 (`timeline.slices` 의 자리). nil 이면 지금.
+    @State private var sliceIndex: Int?
+    @State private var sliceStrong: [DrawnLink] = []
+    /// 그 시점에 있던 사람.
+    @State private var slicePresent: [Bool] = []
+    /// 시점마다 셈해 둔 자리 — 다시 고르면 바로 그린다.
+    @State private var slicePositions: [Int: [GraphLayout.Point]] = [:]
+
     private var meIndex: Int { snapshot.people.count }
+    private var timeline: NetworkSnapshot.Timeline { snapshot.timeline }
+    private var slice: NetworkSnapshot.Timeline.Slice? {
+        sliceIndex.flatMap { $0 < timeline.slices.count ? timeline.slices[$0] : nil }
+    }
+    private var activeCommunities: [NetworkSnapshot.Community] { slice?.communities ?? snapshot.communities }
+    private var activePositions: [GraphLayout.Point] {
+        sliceIndex.flatMap { slicePositions[$0] } ?? snapshot.positions
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -60,24 +95,62 @@ struct RelationGraphView: View {
                     selectedDetail = selected.map { detail(forIndex: $0) } ?? ""
                 }
                 .accessibilityElement()
-                .accessibilityLabel("관계도 — 사람 \(snapshot.people.count)명, 이어진 선 \(snapshot.edges.count)개. 아래 특성 · 돌아보기에서 목록으로 볼 수 있습니다.")
+                .accessibilityLabel("관계도 \(slice?.label ?? "지금") — 사람 \(snapshot.people.count)명. 위의 특성 · 돌아보기 칸에서 목록으로 볼 수 있습니다.")
             }
             .clipped()
             .background(Color.raised)
+            if !timeline.slices.isEmpty {
+                timeBar
+            }
             footer
         }
         .task(id: snapshot.generation) {
             let buckets = TraitDistribution.buckets(snapshot.people.map { (id: $0.id, values: [$0.relationshipType ?? ""]) }, limit: 8)
             typeChips = buckets.filter { !$0.isRest && !$0.isUnspecified }.map(\.label)
-            var map: [Int: Int] = [:]
-            for community in snapshot.communities {
-                for i in community.memberIndices { map[i] = community.id }
+            typeKeys = snapshot.people.map { NameSort.key($0.relationshipType ?? "") }
+            var index: [UUID: Int] = [:]
+            for (i, person) in snapshot.people.enumerated() { index[person.id] = i }
+            var strong: [DrawnLink] = []
+            var organization: [DrawnLink] = []
+            for edge in snapshot.edges {
+                guard let i = index[edge.a], let j = index[edge.b] else { continue }
+                if edge.isStrong {
+                    strong.append(DrawnLink(i: i, j: j, width: 1 + CGFloat(min(edge.together, 4)) * 0.5))
+                } else if edge.sameOrganization {
+                    organization.append(DrawnLink(i: i, j: j, width: 0.8))
+                }
             }
-            membership = map
-            // 다시 만든 자료는 차례가 달라질 수 있다 — 고른 사람을 푼다.
+            currentStrong = strong
+            currentOrganization = organization
+            // 다시 만든 자료는 차례가 달라질 수 있다 — 고른 사람 · 시점을 푼다.
             selected = nil
-            if let id = highlightCommunity, !snapshot.communities.contains(where: { $0.id == id }) { highlightCommunity = nil }
+            sliceIndex = nil
+            slicePositions = [:]
+            sliderValue = Double(timeline.slices.count)
+            // CI 스크린샷 — 지난 시점의 관계도를 바로 연다 (`-timeSlice`).
+            if let k = LaunchArguments.current.timeSlice, k < timeline.slices.count {
+                sliderValue = Double(k)
+            }
+            refreshMembership()
             groupsItem = InputReadiness.evaluate(snapshot.readiness).first { $0.feature == .groups }
+        }
+        .onChange(of: sliderValue) { _, value in
+            let k = Int(value.rounded())
+            let next = k >= timeline.slices.count ? nil : k
+            guard next != sliceIndex else { return }
+            sliceIndex = next
+            selected = nil
+            prepareSlice()
+            refreshMembership()
+        }
+        .task(id: sliceIndex) {
+            // 막대를 끄는 동안은 셈하지 않는다 — 멈추고 0.25초 뒤 그 시점의 자리를 셈한다.
+            guard let k = sliceIndex, slicePositions[k] == nil, let slice else { return }
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            let positions = await Self.layout(slice: slice, peopleCount: snapshot.people.count, start: snapshot.positions)
+            guard !Task.isCancelled else { return }
+            slicePositions[k] = positions
         }
     }
 
@@ -89,38 +162,93 @@ struct RelationGraphView: View {
                 HStack(spacing: 8) {
                     chip("전체", selected: highlight == nil && highlightCommunity == nil) {
                         highlight = nil
+                        highlightKey = nil
                         highlightCommunity = nil
                     }
                     ForEach(typeChips, id: \.self) { type in
                         chip(type, selected: highlight == type) {
                             highlight = highlight == type ? nil : type
+                            highlightKey = highlight.map { NameSort.key($0) }
                             highlightCommunity = nil
                         }
                     }
                 }
                 .padding(.horizontal, 16)
             }
-            if !snapshot.communities.isEmpty {
+            if !activeCommunities.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Text("모임").font(.scaled(13, weight: .semibold)).foregroundStyle(Color.muted)
-                        ForEach(snapshot.communities) { community in
+                        ForEach(activeCommunities) { community in
                             chip("\(community.name) \(community.memberIDs.count)", selected: highlightCommunity == community.id) {
                                 highlightCommunity = highlightCommunity == community.id ? nil : community.id
                                 highlight = nil
+                                highlightKey = nil
                             }
                         }
                     }
                     .padding(.horizontal, 16)
                 }
             }
-            Toggle(isOn: $showsOrganization) {
-                Text("같은 소속도 옅은 선으로 잇기").font(.scaled(14)).foregroundStyle(Color.bodyText)
+            if sliceIndex == nil {
+                Toggle(isOn: $showsOrganization) {
+                    Text("같은 소속도 옅은 선으로 잇기").font(.scaled(14)).foregroundStyle(Color.bodyText)
+                }
+                .tint(Color.accent)
+                .padding(.horizontal, 16)
             }
-            .tint(Color.accent)
-            .padding(.horizontal, 16)
         }
         .padding(.bottom, 8)
+    }
+
+    /// 시점 막대 (D-32) — 분기 끝마다 · 맨 오른쪽이 지금.
+    private var timeBar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(slice?.label ?? "지금")
+                    .font(.scaled(15, weight: .semibold))
+                    .foregroundStyle(Color.ink)
+                Spacer(minLength: 8)
+                if sliceIndex != nil {
+                    Button("지금으로") { sliderValue = Double(timeline.slices.count) }
+                        .font(.scaled(14))
+                }
+            }
+            Slider(value: $sliderValue, in: 0...Double(timeline.slices.count), step: 1) {
+                Text("시점")
+            } minimumValueLabel: {
+                Text(timeline.slices.first?.label ?? "").font(.scaled(11)).foregroundStyle(Color.muted)
+            } maximumValueLabel: {
+                Text("지금").font(.scaled(11)).foregroundStyle(Color.muted)
+            }
+            .tint(Color.accent)
+            .accessibilityValue(slice?.label ?? "지금")
+            Text(timeLine)
+                .font(.scaled(12))
+                .foregroundStyle(Color.muted)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+    }
+
+    /// 시점 막대 아래 한 줄 — 그 시점에 무엇을 보고 있나.
+    private var timeLine: String {
+        guard let slice else {
+            return "막대를 왼쪽으로 옮기면 분기마다 그 전 12개월의 기록으로 다시 그린 관계도를 봅니다."
+        }
+        var parts: [String]
+        switch slice.status {
+        case .sparse:
+            parts = ["이 시기는 기록이 적습니다 — 진한 선 \(slice.links.count)개 (모임은 \(TemporalNetwork.minimumStrongEdges)개부터)"]
+        case .unclear:
+            parts = ["진한 선 \(slice.links.count)개 · 뚜렷하게 나뉘는 모임은 없습니다"]
+        case .shown:
+            parts = ["모임 \(slice.communities.count)개 · 진한 선 \(slice.links.count)개"]
+        }
+        parts.append("그 시점에 있던 사람 \(slice.present.count)명")
+        var line = parts.joined(separator: " · ") + "."
+        if slice.beforeUse { line += " 앱을 쓰기 시작한 뒤의 시기가 더 정확합니다." }
+        return line
     }
 
     private func chip(_ text: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -140,10 +268,10 @@ struct RelationGraphView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(person.name).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink)
-                            Text(selectedDetail).font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(1)
+                            Text(selectedDetail).font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(2)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").foregroundStyle(Color.faint)
+                        Image(systemName: "chevron.right").foregroundStyle(Color.muted)
                     }
                     .padding(12)
                     .background(Color.raised, in: RoundedRectangle(cornerRadius: 12))
@@ -154,7 +282,9 @@ struct RelationGraphView: View {
                     .font(.scaled(13))
                     .foregroundStyle(Color.muted)
             }
-            readiness
+            if sliceIndex == nil {
+                readiness
+            }
             RecordedScopeNotice()
         }
         .padding(16)
@@ -168,7 +298,7 @@ struct RelationGraphView: View {
                 .foregroundStyle(Color.bodyText)
                 .monospacedDigit()
             Text(snapshot.readiness.strongEdges == 0
-                 ? "아직 사람끼리 이어진 선이 없습니다. 기록의 함께한 사람에 두 명 이상을 넣거나, 사람 편집의 아는 사이에서 서로 아는 사람을 고르거나, 알게 된 경로를 소개로 하고 소개한 사람을 고르면 선이 생깁니다."
+                 ? "아직 사람끼리 이어진 선이 없습니다. 기록의 함께한 사람에 두 명 이상을 넣거나, 사람 수정의 아는 사이에서 서로 아는 사람을 고르거나, 알게 된 경로를 소개로 하고 소개한 사람을 고르면 선이 생깁니다."
                  : "진한 선은 함께한 기록 · 아는 사이 · 소개에서 생깁니다. 함께한 사람을 빠짐없이 넣을수록 모임의 모양이 드러납니다.")
                 .font(.scaled(12))
                 .foregroundStyle(Color.muted)
@@ -192,11 +322,45 @@ struct RelationGraphView: View {
     /// 누른 사람 한 줄 — 누를 때 한 번 센다 (본문에서 선 전부를 훑지 않는다).
     private func detail(forIndex i: Int) -> String {
         let person = snapshot.people[i]
-        let links = snapshot.edges.filter { $0.isStrong && ($0.a == person.id || $0.b == person.id) }.count
-        let community = membership[i].flatMap { id in snapshot.communities.first { $0.id == id } }
+        let links = (sliceIndex == nil ? currentStrong : sliceStrong).filter { $0.i == i || $0.j == i }.count
+        let community = membership[i].flatMap { id in activeCommunities.first { $0.id == id } }
         let parts = [person.subtitle, community.map { "모임 " + $0.name },
                      links > 0 ? "이어진 사람 \(links)명" : "아직 이어진 사람 없음"].compactMap { $0 }
         return parts.joined(separator: " · ")
+    }
+
+    // MARK: - 시점
+
+    /// 고른 시점의 선 · 있던 사람을 상태에 담는다.
+    private func prepareSlice() {
+        guard let slice else {
+            sliceStrong = []
+            slicePresent = []
+            return
+        }
+        sliceStrong = slice.links.map { DrawnLink(i: $0.i, j: $0.j, width: 1 + CGFloat(min($0.weight, 4)) * 0.5) }
+        var present = [Bool](repeating: false, count: snapshot.people.count)
+        for i in slice.present where i < present.count { present[i] = true }
+        slicePresent = present
+    }
+
+    private func refreshMembership() {
+        var map: [Int: Int] = [:]
+        for community in activeCommunities {
+            for i in community.memberIndices { map[i] = community.id }
+        }
+        membership = map
+        if let id = highlightCommunity, !activeCommunities.contains(where: { $0.id == id }) { highlightCommunity = nil }
+    }
+
+    /// 지난 시점의 자리 — 지금 자리에서 출발해 낮은 온도로 조금만 움직인다 (주 스레드 밖).
+    private static func layout(slice: NetworkSnapshot.Timeline.Slice, peopleCount: Int,
+                               start: [GraphLayout.Point]) async -> [GraphLayout.Point] {
+        await Task.detached(priority: .userInitiated) {
+            let links = slice.links.map { GraphLayout.Link(i: $0.i, j: $0.j, weight: 1 + log(1 + $0.weight)) }
+            return GraphLayout.layout(nodeCount: peopleCount + 1, center: peopleCount, links: links,
+                                      iterations: 60, initial: start, startTemperature: 0.02)
+        }.value
     }
 
     // MARK: - 그리기
@@ -210,14 +374,19 @@ struct RelationGraphView: View {
                        y: size.height / 2 + baseY * scale + offset.height)
     }
 
+    private func isShown(_ i: Int) -> Bool {
+        sliceIndex == nil || (i < slicePresent.count && slicePresent[i])
+    }
+
     private func draw(in context: inout GraphicsContext, size: CGSize) {
-        let positions = snapshot.positions
+        let positions = activePositions
         guard positions.count == snapshot.people.count + 1 else { return }
-        var index: [UUID: Int] = [:]
-        for (i, person) in snapshot.people.enumerated() { index[person.id] = i }
+        // 앱을 쓰기 전 시기는 옅게 (D-32).
+        if slice?.beforeUse == true { context.opacity = 0.55 }
+        let highlighting = highlight != nil || highlightCommunity != nil
 
         // 모임 — 옅은 테두리. 채운 볼록 껍질에 굵고 둥근 선을 겹쳐 점 둘레에 여백을 둔다. 한 층으로 그려 겹친 곳이 진해지지 않게.
-        for community in snapshot.communities {
+        for community in activeCommunities {
             let points = community.memberIndices.map { screenPoint(positions[$0], size: size) }
             let hull = Self.convexHull(points)
             guard let first = hull.first else { continue }
@@ -226,7 +395,7 @@ struct RelationGraphView: View {
             for point in hull.dropFirst() { path.addLine(to: point) }
             path.closeSubpath()
             var layer = context
-            layer.opacity = highlightCommunity == nil ? 0.10 : (highlightCommunity == community.id ? 0.22 : 0.04)
+            layer.opacity *= highlightCommunity == nil ? 0.10 : (highlightCommunity == community.id ? 0.22 : 0.04)
             layer.drawLayer { inner in
                 inner.fill(path, with: .color(Color.accent))
                 inner.stroke(path, with: .color(Color.accent), style: StrokeStyle(lineWidth: 28, lineCap: .round, lineJoin: .round))
@@ -240,24 +409,21 @@ struct RelationGraphView: View {
         }
 
         // 선
-        var weak = Path()
-        for edge in snapshot.edges {
-            guard let i = index[edge.a], let j = index[edge.b] else { continue }
-            let a = screenPoint(positions[i], size: size)
-            let b = screenPoint(positions[j], size: size)
-            if edge.isStrong {
-                var path = Path()
-                path.move(to: a)
-                path.addLine(to: b)
-                let faded = (highlight != nil || highlightCommunity != nil) && !(matches(i) && matches(j))
-                context.stroke(path, with: .color(Color.accent.opacity(faded ? 0.12 : 0.55)),
-                               lineWidth: 1 + CGFloat(min(edge.together, 4)) * 0.5)
-            } else if showsOrganization && edge.sameOrganization {
-                weak.move(to: a)
-                weak.addLine(to: b)
-            }
+        for link in sliceIndex == nil ? currentStrong : sliceStrong {
+            let a = screenPoint(positions[link.i], size: size)
+            let b = screenPoint(positions[link.j], size: size)
+            var path = Path()
+            path.move(to: a)
+            path.addLine(to: b)
+            let faded = highlighting && !(matches(link.i) && matches(link.j))
+            context.stroke(path, with: .color(Color.accent.opacity(faded ? 0.12 : 0.55)), lineWidth: link.width)
         }
-        if showsOrganization {
+        if sliceIndex == nil && showsOrganization && !currentOrganization.isEmpty {
+            var weak = Path()
+            for link in currentOrganization {
+                weak.move(to: screenPoint(positions[link.i], size: size))
+                weak.addLine(to: screenPoint(positions[link.j], size: size))
+            }
             context.stroke(weak, with: .color(Color.faint.opacity(0.7)), style: StrokeStyle(lineWidth: 0.8, dash: [3, 3]))
         }
 
@@ -265,10 +431,10 @@ struct RelationGraphView: View {
         let radius: CGFloat = 5
         let showsNames = snapshot.people.count <= 40 || scale >= 2.5
         var labels = 0
-        for (i, person) in snapshot.people.enumerated() {
+        for (i, person) in snapshot.people.enumerated() where isShown(i) {
             let p = screenPoint(positions[i], size: size)
             guard p.x > -20, p.y > -20, p.x < size.width + 20, p.y < size.height + 20 else { continue }
-            let faded = (highlight != nil || highlightCommunity != nil) && !matches(i)
+            let faded = highlighting && !matches(i)
             let rect = CGRect(x: p.x - radius, y: p.y - radius, width: radius * 2, height: radius * 2)
             context.fill(Path(ellipseIn: rect), with: .color(faded ? Color.faint.opacity(0.5) : Color.accent))
             if selected == i {
@@ -294,16 +460,18 @@ struct RelationGraphView: View {
         if let highlightCommunity {
             return i < snapshot.people.count && membership[i] == highlightCommunity
         }
-        guard let highlight else { return true }
-        guard i < snapshot.people.count else { return true }
-        return NameSort.key(snapshot.people[i].relationshipType ?? "") == NameSort.key(highlight)
+        guard let highlightKey else { return true }
+        guard i < typeKeys.count else { return true }
+        return typeKeys[i] == highlightKey
     }
 
-    /// 누른 자리에서 가장 가까운 사람 (22pt 안). 없으면 고른 것을 푼다.
+    /// 누른 자리에서 가장 가까운 사람 (22pt 안). 없으면 고른 것을 푼다. 그 시점에 없던 사람은 고르지 않는다.
     private func nearest(to location: CGPoint, size: CGSize) -> Int? {
+        let positions = activePositions
+        guard positions.count == snapshot.people.count + 1 else { return nil }
         var best: (index: Int, distance: CGFloat)?
-        for i in snapshot.people.indices {
-            let p = screenPoint(snapshot.positions[i], size: size)
+        for i in snapshot.people.indices where isShown(i) {
+            let p = screenPoint(positions[i], size: size)
             let d = hypot(p.x - location.x, p.y - location.y)
             if d < 22, d < (best?.distance ?? .infinity) { best = (i, d) }
         }

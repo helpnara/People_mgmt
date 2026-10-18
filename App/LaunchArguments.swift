@@ -41,6 +41,11 @@ struct LaunchArguments: Sendable {
     let search: String?
     /// 저장소를 일부러 못 열게 한다 — 안내 화면이 뜨는지 본다.
     let simulateStoreFailure: Bool
+    /// 저장을 일부러 실패시킨다 — 저장 실패 알림 · 입력 유지 · 다시 시도를 본다 (AC-29 · 전수조사 이슈 19).
+    /// `-simulateStoreFailure` 는 저장소 **열기** 실패, 이것은 **저장** 실패.
+    let failSaves: Bool
+    /// 관계도의 시점 막대를 이 자리로 (`-timeSlice 2` — 0 이 가장 이른 분기). 지난 시점의 관계도를 찍으려고 (D-32).
+    let timeSlice: Int?
 
     init(_ arguments: [String]) {
         seedSampleData = arguments.contains("-seedSampleData")
@@ -57,6 +62,7 @@ struct LaunchArguments: Sendable {
         readCard = arguments.contains("-readCard")
         pickCardPhoto = arguments.contains("-pickCardPhoto")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")
+        failSaves = arguments.contains("-failSaves")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
             return arguments[index + 1]
@@ -64,5 +70,6 @@ struct LaunchArguments: Sendable {
         search = value(after: "-search")
         openPerson = value(after: "-openPerson")
         openNetwork = value(after: "-openNetwork")
+        timeSlice = value(after: "-timeSlice").flatMap { Int($0) }
     }
 }

@@ -50,6 +50,7 @@ struct RecordStore {
     /// 저장하고, 실패하면 이번에 바꾼 것을 모두 되돌린다 — `PersonStore.commit` 과 같은 까닭 (전수조사 2026-10-18).
     private func commit() throws {
         do {
+            try SaveFailure.check()
             try context.save()
         } catch {
             context.rollback()
@@ -104,6 +105,21 @@ extension SchemaV4.Record {
     var displayTitle: String { DisplayTitle.make(title: title, note: note) }
 
     var type: RecordType { RecordType.named(recordType) }
+
+    /// 삭제 확인 문구 (FR-009 — 대상과 범위 · 전수조사 이슈 19). 기록은 한 번만 저장되므로(N:M) 지우면
+    /// 함께한 다른 사람의 타임라인에서도 사라진다. `viewer` 는 지금 보고 있는 사람의 타임라인 (기록 상세면 nil).
+    /// 단추를 누를 때 미리 만들어 둔다 — 확인 창이 닫히는 동안 지운 기록을 다시 읽지 않게.
+    func deletionMessage(viewer: Person?) -> String {
+        let people = (participants ?? []).filter { !$0.isGone && !$0.isMe }
+        var text = "'\(displayTitle)' 기록을 삭제하시겠습니까?"
+        if let viewer {
+            let others = people.filter { $0 !== viewer }.count
+            if others > 0 { text += " 함께한 \(others)명의 타임라인에서도 사라집니다." }
+        } else if people.count >= 2 {
+            text += " 함께한 \(people.count)명의 타임라인에서 모두 사라집니다."
+        }
+        return text + " 되돌릴 수 없습니다."
+    }
 
     /// 이 사람 말고 함께한 사람 수 — 타임라인 행의 "외 N명".
     func otherParticipantCount(besides person: Person) -> Int {

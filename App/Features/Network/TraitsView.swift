@@ -10,6 +10,9 @@ struct TraitsView: View {
         let title: String
         let field: FillField
         let buckets: [TraitBucket]
+        /// 칸마다 사람 id — 이름 순. 자료가 바뀔 때 한 번 맞춘다 (전수조사 이슈 18: 빌드 11 까지는 줄마다
+        /// 사람 전원으로 사전을 새로 만들었다).
+        let orderedIDs: [[UUID]]
         var id: String { title }
     }
 
@@ -20,11 +23,11 @@ struct TraitsView: View {
             ForEach(traits) { trait in
                 Section {
                     let maximum = max(trait.buckets.map(\.count).max() ?? 1, 1)
-                    ForEach(Array(trait.buckets.enumerated()), id: \.offset) { _, bucket in
+                    ForEach(Array(trait.buckets.enumerated()), id: \.offset) { index, bucket in
                         // 값으로 연다 (이슈 16). 미지정 칸은 누르면 바로 편집 — 채울 것 목록이다.
                         NavigationLink(value: PeopleListRoute(
                             title: "\(trait.title) · \(bucket.label)",
-                            ids: snapshot.peopleByName(bucket.ids).map(\.id),
+                            ids: trait.orderedIDs[index],
                             fill: bucket.isUnspecified ? trait.field : nil)) {
                             BucketRow(bucket: bucket, maximum: maximum, total: snapshot.people.count)
                         }
@@ -44,11 +47,20 @@ struct TraitsView: View {
         // 나누기는 자료가 바뀔 때 한 번 — 본문에서 사람 전원을 훑지 않는다 (CLAUDE.md).
         .task(id: snapshot.generation) {
             let people = snapshot.people
+            // 이름 순 자리를 한 번 — 칸마다 그 자리로 줄 세운다.
+            let byName = NameSort.sorted(people, name: \.name, createdAt: { _ in Date.distantPast })
+            let rank = Dictionary(byName.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+            func trait(_ title: String, _ field: FillField, _ buckets: [TraitBucket]) -> Trait {
+                let ordered = buckets.map { bucket in
+                    bucket.ids.sorted { (rank[$0] ?? Int.max) < (rank[$1] ?? Int.max) }
+                }
+                return Trait(title: title, field: field, buckets: buckets, orderedIDs: ordered)
+            }
             traits = [
-                Trait(title: "관계 유형", field: .relationshipType, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.relationshipType ?? ""]) })),
-                Trait(title: "알게 된 경로", field: .metThrough, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.metThrough ?? ""]) })),
-                Trait(title: "소속", field: .organization, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.organization ?? ""]) })),
-                Trait(title: "태그", field: .tags, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: $0.tags) })),
+                trait("관계 유형", .relationshipType, TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.relationshipType ?? ""]) })),
+                trait("알게 된 경로", .metThrough, TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.metThrough ?? ""]) })),
+                trait("소속", .organization, TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.organization ?? ""]) })),
+                trait("태그", .tags, TraitDistribution.buckets(people.map { (id: $0.id, values: $0.tags) })),
             ]
         }
     }

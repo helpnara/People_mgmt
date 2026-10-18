@@ -139,7 +139,11 @@ public enum GraphLayout {
     /// 이제 사분 나무(Barnes–Hut)로 **멀리 있는 칸은 칸 무게중심 하나로** 밀어낸다 — 한 사람당 70곳 안팎만 본다.
     /// 세기는 파이썬으로 같은 셈을 돌려 골랐다: 미는 힘의 합은 사람 수와 상관없이 같으므로 당기는 힘(gravity)은 1.5 로 고정,
     /// 끄는 힘은 사람이 30명을 넘으면 (30/n)^0.75 로 줄인다 — 5,000명이 고르게 퍼지고(반지름 90% 0.39) 작은 그림은 그대로다.
-    public static func layout(nodeCount n: Int, center: Int?, links: [Link], iterations: Int = 160) -> [Point] {
+    ///
+    /// `initial` 이 있으면 해바라기 대신 그 자리에서 시작하고 `startTemperature` 만큼만 움직인다 — 지난 시점의 관계도를
+    /// 지금 자리에서 출발시켜 같은 사람이 비슷한 자리에 머물고 변한 곳만 움직이게 (8번째 묶음 · D-32).
+    public static func layout(nodeCount n: Int, center: Int?, links: [Link], iterations: Int = 160,
+                              initial: [Point]? = nil, startTemperature: Double = 0.08) -> [Point] {
         guard n > 0 else { return [] }
         let goldenAngle = 2.399963229728653
         var positions = (0..<n).map { i -> Point in
@@ -147,6 +151,7 @@ public enum GraphLayout {
             let angle = Double(i) * goldenAngle
             return Point(x: 0.5 + r * cos(angle), y: 0.5 + r * sin(angle))
         }
+        if let initial, initial.count == n { positions = initial }
         if let center { positions[center] = Point(x: 0.5, y: 0.5) }
         guard n > 1 else { return positions }
 
@@ -161,7 +166,7 @@ public enum GraphLayout {
         // 퍼져 있어 5,000명은 40번이면 160번과 같은 모양이다 (파이썬: 반지름 중앙값 0.255 · 0.26). 500명 이하는 그대로.
         let rounds = n <= 500 ? iterations : max(40, iterations * 500 / n)
         for iteration in 0..<rounds {
-            let temperature = 0.08 * (1 - Double(iteration) / Double(rounds)) + 0.002
+            let temperature = startTemperature * (1 - Double(iteration) / Double(rounds)) + 0.002
             var dx = [Double](repeating: 0, count: n)
             var dy = [Double](repeating: 0, count: n)
 

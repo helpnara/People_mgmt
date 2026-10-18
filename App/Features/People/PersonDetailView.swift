@@ -12,12 +12,13 @@ struct PersonDetailView: View {
     @State private var addingRecord = false
     @State private var confirmingDelete = false
     @State private var pendingRecordDelete: Record?
+    /// 기록 삭제 확인 문구 — 밀어서 `삭제` 를 누를 때 만든다. 확인 창이 닫히는 동안 지운 기록을 다시 읽지 않게 (이슈 19).
+    @State private var pendingRecordDeleteMessage = ""
     @State private var errorMessage: String?
     @State private var appliedArguments = false
     @State private var viewingCard = false
 
     private var store: PersonStore { PersonStore(context: context) }
-    private var timeline: [Record] { RecordStore.timeline(of: person) }
 
     var body: some View {
         Group {
@@ -128,8 +129,8 @@ struct PersonDetailView: View {
         ) { record in
             Button("삭제", role: .destructive) { deleteRecord(record) }
             Button("취소", role: .cancel) { pendingRecordDelete = nil }
-        } message: { record in
-            Text("'\(record.displayTitle)' 기록을 삭제하시겠습니까? 되돌릴 수 없습니다.")
+        } message: { _ in
+            Text(pendingRecordDeleteMessage)
         }
         .alert("삭제하지 못했습니다", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("닫기", role: .cancel) {}
@@ -228,10 +229,7 @@ struct PersonDetailView: View {
 
     private func introducedSection(_ introduced: [Person]) -> some View {
         Section("소개한 인연 \(introduced.count)명") {
-            ForEach(introduced.sorted {
-                NameSort.areInIncreasingOrder((name: $0.name, createdAt: $0.createdAt),
-                                              (name: $1.name, createdAt: $1.createdAt))
-            }) { other in
+            ForEach(NameSort.sorted(introduced, name: \.name, createdAt: \.createdAt)) { other in
                 NavigationLink(value: other) {
                     PersonRow(person: other, evidence: nil)
                 }
@@ -240,8 +238,10 @@ struct PersonDetailView: View {
     }
 
     /// 타임라인 (4.2.3). 최신순, 맨 아래에 첫 인연 시작점. 기록 행을 밀면 삭제(확인 뒤).
+    /// 정렬은 한 번 그릴 때 한 번 (빌드 11 까지는 세 번 셌다 · 이슈 18).
     private var timelineSection: some View {
-        Section {
+        let timeline = RecordStore.timeline(of: person)
+        return Section {
             if timeline.isEmpty {
                 Text("아직 기록이 없습니다. 함께한 일을 남겨 보세요.")
                     .font(.scaled(15))
@@ -253,6 +253,7 @@ struct PersonDetailView: View {
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button {
+                        pendingRecordDeleteMessage = record.deletionMessage(viewer: person)
                         pendingRecordDelete = record
                     } label: {
                         Label("삭제", systemImage: "trash")

@@ -10,6 +10,8 @@ struct RecordDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var editing = false
     @State private var confirmingDelete = false
+    /// 삭제 확인 문구 — 단추를 누를 때 만든다 (이슈 19).
+    @State private var deleteMessage = ""
     @State private var errorMessage: String?
 
     var body: some View {
@@ -87,6 +89,7 @@ struct RecordDetailView: View {
                         Label("편집", systemImage: "pencil")
                     }
                     Button(role: .destructive) {
+                        deleteMessage = record.deletionMessage(viewer: nil)
                         confirmingDelete = true
                     } label: {
                         Label("삭제", systemImage: "trash")
@@ -103,7 +106,7 @@ struct RecordDetailView: View {
             Button("삭제", role: .destructive) { deleteRecord() }
             Button("취소", role: .cancel) {}
         } message: {
-            Text("'\(record.displayTitle)' 기록을 삭제하시겠습니까? 되돌릴 수 없습니다.")
+            Text(deleteMessage)
         }
         .alert("삭제하지 못했습니다", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("닫기", role: .cancel) {}

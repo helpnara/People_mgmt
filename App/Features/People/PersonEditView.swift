@@ -48,6 +48,17 @@ struct PersonEditView: View {
     @State private var relationshipChoices = RelationshipPresets.relationshipTypes
     @State private var metThroughChoices = RelationshipPresets.metThroughOptions
 
+    /// 소개자 · 아는 사람 후보(자기 자신은 뺀다, 이름 순)와 같은 이름 찾기 사전.
+    /// **본문에서 사람 전원을 훑지 않는다** (전수조사 이슈 18) — 빌드 11 까지는 글자를 칠 때마다 전원을 거르고
+    /// 두 번 정렬하고 이름 열쇠를 다시 셌다. 사람 수가 바뀔 때만 다시 만들고, 같은 이름은 이름이 바뀔 때만 찾는다.
+    @State private var candidates: [Person] = []
+    @State private var nameIndex: [String: [Person]] = [:]
+    @State private var duplicates: [Person] = []
+    /// 태그 칸에 치던 글자 — 저장할 때 태그로 넣는다 (이슈 19).
+    @State private var pendingTag = ""
+    /// 명함 사진을 읽지 못했다 (이슈 19) — 말없이 넘어가지 않는다.
+    @State private var cardFailed = false
+
     init(mode: Mode, onSaved: @escaping (Person) -> Void) {
         self.mode = mode
         self.onSaved = onSaved
@@ -78,22 +89,11 @@ struct PersonEditView: View {
     private var hasChanges: Bool { draft != original }
     private var store: PersonStore { PersonStore(context: context) }
 
-    /// 동명이인 (FR-021). 안내만 하고 막지 않는다.
-    /// 이미 받아 둔 `everyone` 에서 찾는다 — 본문이 그려질 때마다 저장소를 다시 읽지 않는다 (이슈 10).
-    private var duplicates: [Person] {
-        PersonStore.sameName(as: draft.name, in: everyone, excluding: editingPerson)
-    }
-
     private var acquaintanceSummary: String {
         let names = draft.acquaintances.prefix(2).map(\.name)
         if draft.acquaintances.isEmpty { return "고르지 않음" }
         let rest = draft.acquaintances.count - names.count
         return names.joined(separator: ", ") + (rest > 0 ? " 외 \(rest)명" : "")
-    }
-
-    /// 소개자 후보 — 자기 자신은 뺀다.
-    private var introducerCandidates: [Person] {
-        PersonStore.sorted(everyone.filter { $0 !== editingPerson }, by: .name)
     }
 
     var body: some View {
@@ -112,7 +112,7 @@ struct PersonEditView: View {
                 contactSection
                 if !isMe { relationshipSections }
                 Section("태그") {
-                    TagEditor(tags: $draft.tags)
+                    TagEditor(tags: $draft.tags, input: $pendingTag)
                 }
                 if isCreate && !isMe {
                     Section {
@@ -144,6 +144,11 @@ struct PersonEditView: View {
                 Button("버리기", role: .destructive) { dismiss() }
                 Button("계속 편집", role: .cancel) {}
             }
+            .alert("명함 사진을 읽지 못했습니다", isPresented: $cardFailed) {
+                Button("닫기", role: .cancel) {}
+            } message: {
+                Text("다른 사진으로 다시 시도해 주세요.")
+            }
             .alert("저장하지 못했습니다", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
                 Button("다시 시도", action: save)
                 Button("닫기", role: .cancel) {}
@@ -161,13 +166,19 @@ struct PersonEditView: View {
                 guard let item else { return }
                 cardItem = nil
                 Task {
-                    guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+                    guard let data = try? await item.loadTransferable(type: Data.self) else {
+                        cardFailed = true
+                        return
+                    }
                     await ingestCard(data, alreadyStraight: false)
                 }
             }
         }
         .interactiveDismissDisabled(hasChanges)
         .onAppear(perform: applyArgumentsOnce)
+        .onAppear(perform: rebuildPeopleIndex)
+        .onChange(of: everyone.count) { _, _ in rebuildPeopleIndex() }
+        .onChange(of: draft.name) { _, _ in refreshDuplicates() }
     }
 
     // MARK: - 구역
@@ -198,7 +209,7 @@ struct PersonEditView: View {
                         maxLength: Limits.metThrough)
             if draft.metThrough == RelationshipPresets.introducedLabel {
                 NavigationLink {
-                    PersonPickerView(people: introducerCandidates, selection: $draft.introducedBy)
+                    PersonPickerView(people: candidates, selection: $draft.introducedBy)
                 } label: {
                     LabeledContent("소개한 사람", value: draft.introducedBy?.name ?? "선택 안 함")
                 }
@@ -206,7 +217,7 @@ struct PersonEditView: View {
         }
         Section {
             NavigationLink {
-                PeopleMultiPickerView(people: introducerCandidates, selection: $draft.acquaintances, title: "아는 사람")
+                PeopleMultiPickerView(people: candidates, selection: $draft.acquaintances, title: "아는 사람")
             } label: {
                 LabeledContent("아는 사람", value: acquaintanceSummary)
             }
@@ -376,6 +387,7 @@ struct PersonEditView: View {
         }
         guard let card = processed else {
             readingCard = false
+            cardFailed = true
             return
         }
         draft.businessCard = card
@@ -406,7 +418,30 @@ struct PersonEditView: View {
         }
     }
 
+    /// 사람 수가 바뀔 때만 — 후보 목록과 같은 이름 사전을 다시 만든다 (이슈 18).
+    private func rebuildPeopleIndex() {
+        let others = everyone.filter { $0 !== editingPerson && !$0.isGone }
+        candidates = PersonStore.sorted(others, by: .name)
+        var index: [String: [Person]] = [:]
+        for person in others { index[NameSort.key(person.name), default: []].append(person) }
+        nameIndex = index
+        refreshDuplicates()
+    }
+
+    /// 동명이인 (FR-021). 안내만 하고 막지 않는다. 이름이 바뀔 때만 사전에서 찾는다.
+    private func refreshDuplicates() {
+        let key = NameSort.key(draft.name)
+        duplicates = key.isEmpty ? [] : (nameIndex[key] ?? []).filter { !$0.isGone }
+    }
+
+    /// 태그 칸에 치다 만 글자를 태그로 넣는다 — 저장할 때 버려지지 않게 (이슈 19).
+    private func flushPendingTag() {
+        draft.tags = TagEditor.merged(draft.tags, pending: pendingTag)
+        pendingTag = ""
+    }
+
     private func save() {
+        flushPendingTag()
         do {
             let person: Person
             switch mode {
@@ -427,6 +462,7 @@ struct PersonEditView: View {
 
     /// 저장하고 시트를 비운 채로 다음 사람을 받는다 (FR-051).
     private func saveAndContinue() {
+        flushPendingTag()
         do {
             let person = try store.create(draft)
             savedInRow.append(person.name)

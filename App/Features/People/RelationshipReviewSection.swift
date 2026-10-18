@@ -8,42 +8,21 @@ import SwiftUI
 struct RelationshipReviewSection: View {
     let person: Person
 
+    /// 지표는 기록이 바뀔 때 한 번 센다 (전수조사 이슈 18) — 본문이 그려질 때마다 셈하지 않는다.
+    @State private var metrics: DyadMetrics?
+
+    /// 다시 셀 때 — 기록 수 · 가장 최근에 고친 기록 · 처음 만난 날이 바뀌면.
+    private struct Key: Hashable {
+        let count: Int
+        let latestEdit: Date?
+        let firstMet: Date?
+    }
+
     var body: some View {
         let records = person.records ?? []
-        let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
-        let metrics = DyadMetricsCalculator.compute(
-            records: records.map { MetricRecord(id: $0.uuid, day: DayIndex.of($0.occurredAt), type: $0.recordType) },
-            firstMetDay: person.firstMetDate.map { DayIndex.of($0) },
-            today: DayIndex.of(Date()))
-        let pick: ([UUID]) -> [Record] = { ids in ids.compactMap { byID[$0] } }
-
         Section {
-            if metrics.total == 0 {
-                Text("기록이 쌓이면 이 인연을 돌아볼 수 있습니다.")
-                    .font(.scaled(15))
-                    .foregroundStyle(Color.muted)
-            } else {
-                row("기록", value: "\(metrics.total)건 · 최근 12개월 \(metrics.lastYear)건",
-                    evidence: pick(metrics.pastIDs), title: "기록 \(metrics.total)건")
-                if let days = metrics.daysSinceLast {
-                    row("마지막 기록", value: RelativeDay.phrase(days: days),
-                        evidence: pick(metrics.lastID.map { [$0] } ?? []), title: "마지막 기록")
-                }
-                if let span = metrics.spanDays {
-                    row("인연 기간", value: MetricText.span(days: span) + (metrics.spanFromFirstMeeting ? " · 처음 만난 날부터" : " · 첫 기록부터"),
-                        evidence: pick([metrics.lastID, metrics.firstID].compactMap { $0 }.uniqued()), title: "처음과 마지막 기록")
-                }
-                row("만남 빈도",
-                    value: metrics.perMonth.map(MetricText.frequency(perMonth:)) ?? waiting(DyadMetricsCalculator.frequencyMinimum, have: metrics.total),
-                    evidence: metrics.perMonth == nil ? [] : pick(metrics.pastIDs), title: "만남 빈도의 근거")
-                row("흐름",
-                    value: metrics.trend.map { "\(MetricText.trend($0)) · 최근 6개월 \(metrics.recentHalf)건 · 그 전 6개월 \(metrics.previousHalf)건" }
-                        ?? waiting(DyadMetricsCalculator.trendMinimum, have: metrics.total),
-                    evidence: metrics.trend == nil ? [] : pick(metrics.recentHalfIDs + metrics.previousHalfIDs), title: "최근 12개월 기록")
-                row("함께한 일",
-                    value: metrics.diversityClass.map { "\(MetricText.diversity($0)) · " + typeSummary(metrics.typeCounts) }
-                        ?? waiting(DyadMetricsCalculator.diversityMinimum, have: metrics.total),
-                    evidence: metrics.diversityClass == nil ? [] : pick(metrics.pastIDs), title: "함께한 일")
+            if let metrics {
+                content(metrics)
             }
         } header: {
             Text("관계 돌아보기")
@@ -52,6 +31,44 @@ struct RelationshipReviewSection: View {
             Text("내가 기록한 범위 기준입니다. 적지 않은 만남은 계산되지 않습니다. 이 사람과의 기록이 쌓이면 만남 빈도(\(DyadMetricsCalculator.frequencyMinimum)건) · 흐름(\(DyadMetricsCalculator.trendMinimum)건) · 함께한 일(\(DyadMetricsCalculator.diversityMinimum)건)이 차례로 열립니다. 처음 만난 날을 적으면 인연 기간이 그날부터 셉니다.")
         }
         .id(RelationshipReviewSection.anchor)
+        .task(id: Key(count: records.count, latestEdit: records.map(\.updatedAt).max(), firstMet: person.firstMetDate)) {
+            // 바깥의 `records` 를 붙잡지 않고 다시 읽는다 — 이 화면이 가진 값(`person`)만 쓴다.
+            metrics = DyadMetricsCalculator.compute(
+                records: (person.records ?? []).filter { !$0.isGone }.map { MetricRecord(id: $0.uuid, day: DayIndex.of($0.occurredAt), type: $0.recordType) },
+                firstMetDay: person.firstMetDate.map { DayIndex.of($0) },
+                today: DayIndex.of(Date()))
+        }
+    }
+
+    @ViewBuilder
+    private func content(_ metrics: DyadMetrics) -> some View {
+            if metrics.total == 0 {
+                Text("기록이 쌓이면 이 인연을 돌아볼 수 있습니다.")
+                    .font(.scaled(15))
+                    .foregroundStyle(Color.muted)
+            } else {
+                row("기록", value: "\(metrics.total)건 · 최근 12개월 \(metrics.lastYear)건",
+                    evidence: metrics.pastIDs, title: "기록 \(metrics.total)건")
+                if let days = metrics.daysSinceLast {
+                    row("마지막 기록", value: RelativeDay.phrase(days: days),
+                        evidence: metrics.lastID.map { [$0] } ?? [], title: "마지막 기록")
+                }
+                if let span = metrics.spanDays {
+                    row("인연 기간", value: MetricText.span(days: span) + (metrics.spanFromFirstMeeting ? " · 처음 만난 날부터" : " · 첫 기록부터"),
+                        evidence: [metrics.lastID, metrics.firstID].compactMap { $0 }.uniqued(), title: "처음과 마지막 기록")
+                }
+                row("만남 빈도",
+                    value: metrics.perMonth.map(MetricText.frequency(perMonth:)) ?? waiting(DyadMetricsCalculator.frequencyMinimum, have: metrics.total),
+                    evidence: metrics.perMonth == nil ? [] : metrics.pastIDs, title: "만남 빈도의 근거")
+                row("흐름",
+                    value: metrics.trend.map { "\(MetricText.trend($0)) · 최근 6개월 \(metrics.recentHalf)건 · 그 전 6개월 \(metrics.previousHalf)건" }
+                        ?? waiting(DyadMetricsCalculator.trendMinimum, have: metrics.total),
+                    evidence: metrics.trend == nil ? [] : metrics.recentHalfIDs + metrics.previousHalfIDs, title: "최근 12개월 기록")
+                row("함께한 일",
+                    value: metrics.diversityClass.map { "\(MetricText.diversity($0)) · " + typeSummary(metrics.typeCounts) }
+                        ?? waiting(DyadMetricsCalculator.diversityMinimum, have: metrics.total),
+                    evidence: metrics.diversityClass == nil ? [] : metrics.pastIDs, title: "함께한 일")
+            }
     }
 
     /// 문턱 아래 — 몇 건부터 보이고, 지금 몇 건이며, 몇 건 더 적으면 되는지 (원칙 4 · 사용자 요청).
@@ -67,7 +84,7 @@ struct RelationshipReviewSection: View {
     }
 
     @ViewBuilder
-    private func row(_ label: String, value: String, evidence: [Record], title: String) -> some View {
+    private func row(_ label: String, value: String, evidence: [UUID], title: String) -> some View {
         let content = VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.scaled(13)).foregroundStyle(Color.muted)
             Text(value).font(.scaled(16)).foregroundStyle(evidence.isEmpty ? Color.muted : Color.ink)
@@ -77,7 +94,7 @@ struct RelationshipReviewSection: View {
             content
         } else {
             // 값으로 연다 (이슈 16).
-            NavigationLink(value: EvidenceRoute(title: title, recordIDs: evidence.map(\.uuid), viewerID: person.uuid)) {
+            NavigationLink(value: EvidenceRoute(title: title, recordIDs: evidence, viewerID: person.uuid)) {
                 content
             }
         }

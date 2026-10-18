@@ -45,6 +45,7 @@ struct OverviewView: View {
             } else {
                 ProgressView()
             }
+            changesSection
             Section {
                 RecordedScopeNotice()
             }
@@ -59,6 +60,39 @@ struct OverviewView: View {
             withFirstMet = snapshot.readiness.withFirstMet
             overview = NetworkOverview.compute(people: people, today: snapshot.today, yearStart: snapshot.yearStart,
                                                yearEnd: snapshot.yearEnd, neglectDays: days)
+        }
+    }
+
+    /// **모임의 변화** (8번째 묶음 · D-32) — 분기마다 모임이 어떻게 변했나. 말은 중립으로 (원칙 5).
+    /// 누르면 그 시점 그 모임의 사람들. 최근 것부터.
+    @ViewBuilder
+    private var changesSection: some View {
+        let timeline = snapshot.timeline
+        Section {
+            if timeline.changes.isEmpty {
+                Text(timeline.slices.isEmpty
+                     ? "기록이 한 분기를 넘게 쌓이면 분기마다 모임이 어떻게 변했는지 보입니다."
+                     : "아직 분기끼리 견줄 만큼 모임이 드러나지 않았습니다. 한 분기에 진한 선이 \(TemporalNetwork.minimumStrongEdges)개 넘게 쌓이면 모임의 변화가 보입니다.")
+                    .font(.scaled(14))
+                    .foregroundStyle(Color.muted)
+            } else {
+                ForEach(timeline.changes.prefix(30)) { change in
+                    NavigationLink(value: PeopleListRoute(title: "\(change.sliceLabel) · \(change.name)", ids: change.memberIDs)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(change.name) — \(change.phrase)")
+                                .font(.scaled(15))
+                                .foregroundStyle(Color.ink)
+                            Text(change.sliceLabel + (change.beforeUse ? " · 앱을 쓰기 전 시기" : "") + " · \(change.memberIDs.count)명")
+                                .font(.scaled(12))
+                                .foregroundStyle(Color.muted)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("모임의 변화")
+        } footer: {
+            Text("분기 끝마다 그 전 12개월의 함께한 기록 · 아는 사이 · 소개로 모임을 다시 찾고, 앞 분기와 사람이 얼마나 겹치는지로 견줍니다. 소속은 날짜가 없어 넣지 않습니다. 앱을 쓰기 시작한 뒤의 시기가 더 정확합니다.")
         }
     }
 

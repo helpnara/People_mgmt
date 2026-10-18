@@ -174,6 +174,23 @@ enum SampleData {
             tie.first = a
             tie.second = b
         }
+
+        // 지난 시점의 관계도 (D-32) — 모임마다 다른 시기에 만난 기록. 독서 모임은 2025년 1~9월, 등산은 2025년 4월 ~
+        // 2026년 3월, 프로젝트는 2026년 1~9월. 시점 막대를 옮기면 모임이 생기고 기록이 끊기는 것이 보인다.
+        let calendar = Calendar.current
+        func monthly(_ group: [Person], from start: (Int, Int), months: Int, type: String, title: String) {
+            for k in 0..<months {
+                let month = (start.1 - 1 + k) % 12 + 1
+                let year = start.0 + (start.1 - 1 + k) / 12
+                guard let date = calendar.date(from: DateComponents(year: year, month: month, day: 12)) else { continue }
+                let record = Record(recordType: type, occurredAt: DayNormalizer.noon(of: date, calendar: calendar), title: title)
+                context.insert(record)
+                record.participants = group
+            }
+        }
+        monthly(reading, from: (2025, 1), months: 9, type: "event", title: "독서 모임")
+        monthly(hiking, from: (2025, 4), months: 12, type: "trip", title: "산행")
+        monthly(project, from: (2026, 1), months: 9, type: "meeting", title: "프로젝트 회의")
         try? context.save()
     }
 
