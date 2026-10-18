@@ -25,11 +25,12 @@ struct TimelineRow: View {
                     .font(.scaled(16, weight: .medium))
                     .foregroundStyle(Color.ink)
                 if let preview = record.notePreview {
-                    Text(preview).font(.scaled(14)).foregroundStyle(Color.bodyText).lineLimit(1)
+                    Text(preview).font(.scaled(14)).foregroundStyle(Color.bodyText).readableLineLimit(1)
                 }
-                HStack(spacing: 8) {
+                // 장소 · 태그는 줄을 넘으면 접는다 — 큰 글씨에서 한 줄에 다 서지 않는다 (D-33).
+                WrapLayout(spacing: 8) {
                     if let location = record.location, !location.isEmpty {
-                        Label(location, systemImage: "mappin").font(.scaled(12)).foregroundStyle(Color.muted).lineLimit(1)
+                        Label(location, systemImage: "mappin").font(.scaled(12)).foregroundStyle(Color.muted).readableLineLimit(1)
                     }
                     ForEach(record.tags.prefix(3), id: \.self) { tag in
                         Text("#\(tag)").font(.scaled(12)).foregroundStyle(Color.chipInk)

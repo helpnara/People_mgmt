@@ -84,11 +84,12 @@ private struct BucketRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
+            // 큰 글씨에서는 사람 수를 이름 아래로 (D-33).
+            AdaptiveStack {
                 Text(bucket.label)
                     .font(.scaled(15, weight: bucket.isUnspecified || bucket.isRest ? .regular : .medium))
                     .foregroundStyle(bucket.isUnspecified || bucket.isRest ? Color.muted : Color.ink)
-                    .lineLimit(1)
+                    .readableLineLimit(1)
                 Spacer(minLength: 8)
                 Text("\(bucket.count)명 · \(percent)%")
                     .font(.scaled(13))

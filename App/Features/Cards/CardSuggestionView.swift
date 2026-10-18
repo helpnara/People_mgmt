@@ -124,7 +124,7 @@ struct CardSuggestionView: View {
                 Text(label).font(.scaled(13)).foregroundStyle(Color.muted)
                 Text(value ?? "읽지 못함")
                     .font(.scaled(16, weight: value == nil ? .regular : .medium))
-                    .foregroundStyle(value == nil ? Color.faint : Color.ink)
+                    .foregroundStyle(value == nil ? Color.muted : Color.ink)
             }
         }
         .disabled(value == nil)

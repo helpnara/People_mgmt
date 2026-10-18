@@ -52,7 +52,7 @@ struct PeopleMultiPickerView: View {
                         PersonRow(person: person, evidence: nil)
                         Spacer()
                         if person === locked {
-                            Text("기록을 연 사람").font(.scaled(12)).foregroundStyle(Color.faint)
+                            Text("기록을 연 사람").font(.scaled(12)).foregroundStyle(Color.muted)
                         }
                         Image(systemName: isSelected(person) ? "checkmark.circle.fill" : "circle")
                             .font(.scaled(20))

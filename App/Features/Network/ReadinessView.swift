@@ -110,7 +110,8 @@ private struct ReadinessRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            // 큰 글씨에서는 단계(준비됨 · 거의 · 아직)를 지금 상태 아래로 (D-33).
+            AdaptiveStack {
                 Text(item.current)
                     .font(.scaled(14))
                     .foregroundStyle(Color.bodyText)

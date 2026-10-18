@@ -401,7 +401,8 @@ struct PersonRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline) {
+            // 큰 글씨에서는 마지막 기록일을 이름 아래로 (D-33).
+            AdaptiveStack {
                 Text(person.name)
                     .font(.scaled(17, weight: .semibold))
                     .foregroundStyle(Color.ink)
@@ -409,21 +410,21 @@ struct PersonRow: View {
                     Spacer(minLength: 8)
                     Text(lastRecordText)
                         .font(.scaled(12))
-                        .foregroundStyle(Color.faint)
-                        .lineLimit(1)
+                        .foregroundStyle(Color.muted)
+                        .readableLineLimit(1)
                 }
             }
             if let subtitle = person.subtitle {
                 Text(subtitle)
                     .font(.scaled(14))
                     .foregroundStyle(Color.muted)
-                    .lineLimit(1)
+                    .readableLineLimit(1)
             }
             if let evidence {
                 Text(evidence)
                     .font(.scaled(13))
                     .foregroundStyle(Color.accent)
-                    .lineLimit(1)
+                    .readableLineLimit(1)
             }
         }
         .padding(.vertical, 2)

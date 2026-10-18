@@ -315,6 +315,13 @@ jobs:
             -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
           shoot 07-large-text-detail.png -seedSampleData -openPerson 박서연 \
             -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
+          # **가장 큰 글씨 AX5** (빌드 14 · D-33) — 앱 글자가 접근성 다섯 단계까지 커진다. 칩은 두 줄로 접히고
+          # 이름 옆의 날짜 · 막대 옆의 수는 아래로 내려가야 한다. 잘려서 몇 글자만 남으면 실패로 본다(눈으로).
+          AX5="-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL"
+          shoot 25-ax5-people.png -seedSampleData $AX5
+          shoot 26-ax5-detail.png -seedSampleData -openPerson 박서연 $AX5
+          shoot 27-ax5-add-person.png -seedSampleData -addPerson $AX5
+          shoot 28-ax5-overview.png -seedSampleData -openNetwork overview $AX5
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
@@ -382,6 +389,10 @@ jobs:
           mkdir -p screenshots/dark
           shoot dark/02-people.png -seedSampleData
           shoot dark/03-person-detail.png -seedSampleData -openPerson 김하늘
+          # 새 화면도 다크로 (빌드 14 · 전수조사 이슈 21) — 관계도 · 입력 상태 · 설정.
+          shoot dark/16-network-graph.png -seedSampleData -seedCommunitySample -openNetwork graph
+          shoot dark/20-network-readiness.png -seedSampleData -openNetwork readiness
+          shoot dark/24-settings.png -seedSampleData -openSettings
           xcrun simctl ui "$UDID" appearance light
 
           # ── iPad ──

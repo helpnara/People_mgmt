@@ -144,11 +144,12 @@ struct PeopleRouteView: View {
     }
 
     private func row(_ person: Person, trailing: String?, done: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+        // 큰 글씨에서는 오른쪽 말(채우기 · 채웠습니다)을 이름 아래로 (D-33).
+        AdaptiveStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(person.name).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink)
                 if let subtitle = person.subtitle {
-                    Text(subtitle).font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(1)
+                    Text(subtitle).font(.scaled(13)).foregroundStyle(Color.muted).readableLineLimit(1)
                 }
             }
             Spacer(minLength: 8)
@@ -159,8 +160,8 @@ struct PeopleRouteView: View {
                     if done { Image(systemName: "checkmark.circle.fill") }
                 }
                 .font(.scaled(12, weight: done ? .semibold : .regular))
-                .foregroundStyle(done ? Color.accent : Color.faint)
-                .lineLimit(1)
+                .foregroundStyle(done ? Color.accent : Color.muted)
+                .readableLineLimit(1)
             }
         }
         .contentShape(Rectangle())
@@ -278,11 +279,11 @@ struct RecordFillRouteView: View {
         let others = (record.participants ?? []).filter { !$0.isMe }
         let names = others.prefix(3).map(\.name)
         let done = others.count >= 2
-        return HStack(alignment: .firstTextBaseline) {
+        return AdaptiveStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(record.displayTitle).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                Text(record.displayTitle).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink).readableLineLimit(1)
                 Text(([record.occurredAt.formatted(date: .abbreviated, time: .omitted)] + names).joined(separator: " · "))
-                    .font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(1)
+                    .font(.scaled(13)).foregroundStyle(Color.muted).readableLineLimit(1)
             }
             Spacer(minLength: 8)
             Label {
@@ -291,8 +292,8 @@ struct RecordFillRouteView: View {
                 if done { Image(systemName: "checkmark.circle.fill") }
             }
             .font(.scaled(12, weight: done ? .semibold : .regular))
-            .foregroundStyle(done ? Color.accent : Color.faint)
-            .lineLimit(1)
+            .foregroundStyle(done ? Color.accent : Color.muted)
+            .readableLineLimit(1)
         }
         .contentShape(Rectangle())
     }
