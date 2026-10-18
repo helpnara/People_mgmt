@@ -176,6 +176,138 @@ def contact_note(phones: list[str], emails: list[str]) -> str:
     return " · ".join(parts)[:500]
 
 
+# ── 관계 유형 · 알게 된 경로 선택지 (RelationshipPresets.choices) ───────────
+
+def preset_choices(presets: list[str], used: list[str]) -> list[str]:
+    counts: dict = {}
+    for raw in used:
+        v = normalized(raw)
+        if not v or v in presets:
+            continue
+        counts[v] = counts.get(v, 0) + 1
+    extras = sorted(counts, key=lambda v: (-counts[v], folded(v), v))
+    return presets + extras
+
+
+# ── 연락 수단 다섯 칸 (ContactFields · ContactSorter) ─────────────────────────
+
+CONTACT_KINDS = ("mobile", "office", "fax", "email")
+
+
+def contact_fields() -> dict:
+    return {"mobile": "", "office": "", "fax": "", "email": "", "other": ""}
+
+
+def contact_contains(f: dict, v: str) -> bool:
+    return v in (f["mobile"], f["office"], f["fax"], f["email"]) or v in f["other"].split(" · ")
+
+
+def contact_place(f: dict, raw: str, kind: str) -> None:
+    value = collapsed_spaces(normalized(raw))
+    if not value or contact_contains(f, value):
+        return
+    if kind in CONTACT_KINDS and not f[kind]:
+        f[kind] = value
+    else:
+        f["other"] = value if not f["other"] else f["other"] + " · " + value
+
+
+def label_key(label: str) -> str:
+    return "".join(ch for ch in label.lower() if ch.isalpha())
+
+
+def label_kind(key: str):
+    if not key:
+        return ("none",)
+    has = lambda parts: any(p in key for p in parts)
+    if key == "f" or has(["fax", "팩스"]):
+        return ("kind", "fax")
+    if key in ("e", "email", "mail") or has(["메일"]):
+        return ("kind", "email")
+    if key in ("m", "hp", "handphone") or has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]):
+        return ("kind", "mobile")
+    if key in ("o", "main", "dir") or has(["office", "work", "company", "direct", "회사", "사무실", "직장", "대표", "직통"]):
+        return ("kind", "office")
+    if key in ("t", "tel", "phone", "telephone", "전화", "전화번호", "연락처"):
+        return ("phone",)
+    if has(["home", "other", "pager", "school", "집", "자택", "기타"]):
+        return ("kind", "other")
+    return ("unknown",)
+
+
+def is_mobile(number: str) -> bool:
+    digits = "".join(ch for ch in number if ch.isascii() and ch.isdigit())
+    if "+" in number and digits.startswith("82"):
+        digits = "0" + digits[2:]
+    return 10 <= len(digits) <= 11 and digits.startswith("01") and digits[2] in "016789"
+
+
+def contact_from_contact(phones: list[dict], emails: list[str]) -> dict:
+    f = contact_fields()
+    for p in phones:
+        k = label_kind(label_key(p["label"]))
+        if k[0] in ("none", "phone"):
+            kind = "mobile" if is_mobile(p["value"]) else "office"
+        elif k == ("kind", "email") or k[0] == "unknown":
+            kind = "other"
+        else:
+            kind = k[1]
+        contact_place(f, p["value"], kind)
+    for e in emails:
+        contact_place(f, e, "email")
+    return f
+
+
+# Swift 의 Character.isNewline 과 같은 줄바꿈들. `\r\n` 은 둘로 갈라지고 빈 조각은 버려진다.
+CONTACT_SPLIT_RE = re.compile("[·,;|\n\r\x0b\x0c\x85\u2028\u2029]")
+
+
+def contact_tokens(text: str) -> list[str]:
+    parts = CONTACT_SPLIT_RE.split(normalized(text))
+    return [p for p in (collapsed_spaces(x) for x in parts) if p]
+
+
+def contact_resolve(label: str, value: str, is_email: bool):
+    k = label_kind(label)
+    if is_email:
+        return "email" if k in (("none",), ("kind", "email")) else None
+    if k[0] in ("none", "phone"):
+        return "mobile" if is_mobile(value) else "office"
+    if k == ("kind", "email") or k[0] == "unknown":
+        return None
+    return k[1]
+
+
+def contact_sort(token: str, f: dict) -> None:
+    emails = [m.span() for m in EMAIL_RE.finditer(token)]
+    phones = [m.span() for m in PHONE_RE.finditer(token)
+              if not any(s < m.end() and m.start() < e for s, e in emails)]
+    found = sorted([(s, e, True) for s, e in emails] + [(s, e, False) for s, e in phones])
+    if not found:
+        contact_place(f, token, "other")
+        return
+    placements, cursor = [], 0
+    for s, e, is_email in found:
+        kind = contact_resolve(label_key(token[cursor:s]), token[s:e], is_email)
+        if kind is None:
+            contact_place(f, token, "other")
+            return
+        placements.append((token[s:e], kind))
+        cursor = e
+    if label_key(token[cursor:]):
+        contact_place(f, token, "other")
+        return
+    for value, kind in placements:
+        contact_place(f, value, kind)
+
+
+def contact_split(text: str) -> dict:
+    f = contact_fields()
+    for token in contact_tokens(text):
+        contact_sort(token, f)
+    return f
+
+
 # ── 명함 (BusinessCardParser) ────────────────────────────────────────────────
 
 ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전무", "상무", "이사", "본부장", "실장", "센터장",
@@ -230,6 +362,7 @@ def is_fax(lower: str) -> bool:
 
 def parse_card(lines: list[list]) -> dict:
     out = {"name": None, "organization": None, "role": None, "phones": [], "emails": [], "lines": []}
+    contact_lines = []
     candidate = None
     def offer(name, height):
         nonlocal candidate
@@ -245,6 +378,7 @@ def parse_card(lines: list[list]) -> dict:
         emails = EMAIL_RE.findall(text)
         phones = PHONE_RE.findall(text)
         if emails or phones or "www." in lower or "http" in lower:
+            contact_lines.append(text)
             for e in (x.lower() for x in emails):
                 if e not in out["emails"]:
                     out["emails"].append(e)
@@ -272,6 +406,7 @@ def parse_card(lines: list[list]) -> dict:
         elif LATIN_NAME_RE.search(text):
             offer(text, height)
     out["name"] = candidate[0] if candidate else None
+    out["contact"] = contact_split("\n".join(contact_lines))
     return out
 
 
@@ -416,6 +551,13 @@ def build() -> dict:
                           for c in cases["contactName"]]
     out["contactNote"] = [{"phones": c["phones"], "emails": c["emails"], "expected": contact_note(c["phones"], c["emails"])}
                           for c in cases["contactNote"]]
+    out["presetChoices"] = [{"name": c["name"], "presets": c["presets"], "used": c["used"],
+                             "expected": preset_choices(c["presets"], c["used"])}
+                            for c in cases["presetChoices"]]
+    out["contactSplit"] = [{"text": t, "expected": contact_split(t)} for t in cases["contactSplit"]]
+    out["contactFromContact"] = [{"phones": c["phones"], "emails": c["emails"],
+                                  "expected": contact_from_contact(c["phones"], c["emails"])}
+                                 for c in cases["contactFromContact"]]
     out["cardParse"] = [{"name": c["name"], "lines": c["lines"], "expected": parse_card(c["lines"])}
                         for c in cases["cardParse"]]
     out["recencySort"] = [{"name": c["name"], "people": c["people"], "expected": sort_recency(c["people"])}

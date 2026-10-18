@@ -15,13 +15,16 @@ struct PeopleListView: View {
     let isSampleData: Bool
 
     @Environment(\.modelContext) private var context
-    @Query private var fetched: [Person]
+    /// 나를 뺀 사람들. 나는 맨 위 칸에 따로 서고 사람 수 · 검색 · 정렬에 들지 않는다 (이슈 12).
+    @Query(filter: #Predicate<Person> { $0.isMe == false }) private var fetched: [Person]
+    @Query(filter: #Predicate<Person> { $0.isMe == true }) private var meList: [Person]
 
     @State private var path = NavigationPath()
     @State private var searchText = ""
     /// 목록 정렬 (FR-027). 기기 편의라 UserDefaults.
     @AppStorage("people.sort") private var sortOption: PeopleSortOption = .name
     @State private var showingAdd = false
+    @State private var addingMe = false
     @State private var pendingDelete: Person?
     @State private var errorMessage: String?
     @State private var appliedArguments = false
@@ -63,7 +66,7 @@ struct PeopleListView: View {
     var body: some View {
         NavigationStack(path: $path) {
             Group {
-                if fetched.isEmpty && searchText.isEmpty {
+                if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
                     EmptyPeopleView { showingAdd = true }
                 } else if isQuerying && searchRows.isEmpty && searchedText == searchText {
                     ContentUnavailableView.search(text: searchText)
@@ -104,6 +107,9 @@ struct PeopleListView: View {
                 PersonEditView(mode: .create) { person in
                     path.append(person)
                 }
+            }
+            .sheet(isPresented: $addingMe) {
+                PersonEditView(mode: .createMe) { _ in }
             }
             .confirmationDialog(
                 "삭제",
@@ -146,6 +152,7 @@ struct PeopleListView: View {
                 }
             }
             if !isQuerying {
+                meSection
                 Section {
                     ForEach(displayedPeople) { person in
                         if !person.isGone {
@@ -192,6 +199,37 @@ struct PeopleListView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+    }
+
+    /// **나** (이슈 12). 인맥은 나를 기준으로 그린다 — 목록 맨 위에 늘 있다.
+    @ViewBuilder
+    private var meSection: some View {
+        Section {
+            if let me = meList.first, !me.isGone {
+                NavigationLink(value: me) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.scaled(30))
+                            .foregroundStyle(Color.accent)
+                        PersonRow(person: me, evidence: nil)
+                    }
+                }
+            } else {
+                Button {
+                    addingMe = true
+                } label: {
+                    Label("내 정보를 적어 보세요", systemImage: "person.crop.circle.badge.plus")
+                        .font(.scaled(16, weight: .semibold))
+                        .foregroundStyle(Color.accent)
+                }
+            }
+        } header: {
+            Text("나")
+        } footer: {
+            if meList.isEmpty {
+                Text("인맥은 나를 기준으로 그립니다. 내 이름 · 소속 · 연락 수단 · 명함을 적어 두세요.")
+            }
+        }
     }
 
     /// 검색어가 멈춘 뒤 300ms 에 한 번만 센다 (요구사항 5.3). 색인은 자료가 바뀐 뒤 처음 찾을 때만 다시 만든다.
@@ -250,7 +288,9 @@ struct PeopleListView: View {
         if let search = arguments.search { searchText = search }
         if arguments.addPerson { showingAdd = true }
         var opened: Person?
-        if let name = arguments.openPerson {
+        if arguments.openMe {
+            opened = meList.first
+        } else if let name = arguments.openPerson {
             opened = fetched.first { NameSort.key($0.name) == NameSort.key(name) }
         } else if arguments.openFirstPerson {
             opened = PersonStore.sorted(fetched, by: .name).first

@@ -1,5 +1,6 @@
 import Contacts
 import ContactsUI
+import Core
 import Foundation
 import UIKit
 import VisionKit
@@ -77,7 +78,8 @@ struct PickedContact: Sendable {
     var organization = ""
     var department = ""
     var jobTitle = ""
-    var phones: [String] = []
+    /// 번호와 그 이름표(휴대전화 · 직장 · 직장 팩스 …) — 칸을 나누는 근거다 (이슈 11).
+    var phones: [ContactSorter.LabeledValue] = []
     var emails: [String] = []
 }
 
@@ -111,7 +113,11 @@ final class ContactPicker: NSObject, CNContactPickerDelegate {
         if available(CNContactOrganizationNameKey) { picked.organization = contact.organizationName }
         if available(CNContactDepartmentNameKey) { picked.department = contact.departmentName }
         if available(CNContactJobTitleKey) { picked.jobTitle = contact.jobTitle }
-        if available(CNContactPhoneNumbersKey) { picked.phones = contact.phoneNumbers.map { $0.value.stringValue } }
+        if available(CNContactPhoneNumbersKey) {
+            picked.phones = contact.phoneNumbers.map {
+                ContactSorter.LabeledValue(label: $0.label ?? "", value: $0.value.stringValue)
+            }
+        }
         if available(CNContactEmailAddressesKey) { picked.emails = contact.emailAddresses.map { String($0.value) } }
         Task { @MainActor [weak self] in self?.finish(picked) }
     }
