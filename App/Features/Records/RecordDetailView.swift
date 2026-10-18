@@ -72,7 +72,7 @@ struct RecordDetailView: View {
             Section {
                 Text("만든 날 \(record.createdAt.formatted(date: .abbreviated, time: .shortened)) · 고친 날 \(record.updatedAt.formatted(date: .abbreviated, time: .shortened))")
                     .font(.scaled(12))
-                    .foregroundStyle(Color.faint)
+                    .foregroundStyle(Color.muted)
             }
         }
         .listStyle(.insetGrouped)

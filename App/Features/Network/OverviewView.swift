@@ -16,7 +16,8 @@ struct OverviewView: View {
         List {
             if let overview {
                 Section {
-                    HStack(spacing: 10) {
+                    // 큰 글씨에서는 세 칸을 위아래로 (D-33).
+                    AdaptiveStack(spacing: 10) {
                         Tile(value: overview.total, label: "사람")
                         Tile(value: overview.activeCount, label: "최근 12개월\n기록 있음")
                         Tile(value: overview.newThisYearIDs.count, label: "올해\n처음 만남")

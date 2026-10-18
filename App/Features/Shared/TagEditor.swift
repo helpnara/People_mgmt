@@ -25,6 +25,7 @@ struct TagEditor: View {
                             tags.removeAll { $0 == tag }
                         } label: {
                             Chip(text: "#\(tag)", showsRemove: true)
+                                .tapTarget()
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(tag) 태그 제거")

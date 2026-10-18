@@ -21,3 +21,8 @@ ipad/02-people.png       0,0.12,1,0.85
 22-network-timeline.png  0.05,0.30,0.95,0.70
 23-network-changes.png   0,0.15,1,0.85
 24-settings.png          0,0.15,1,0.85
+25-ax5-people.png        0,0.18,1,0.85
+26-ax5-detail.png        0,0.14,1,0.85
+28-ax5-overview.png      0,0.15,1,0.85
+dark/16-network-graph.png 0.05,0.30,0.95,0.75
+dark/20-network-readiness.png 0,0.15,1,0.85

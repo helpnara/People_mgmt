@@ -15,14 +15,15 @@ struct RecordTypeChips: View {
                         Image(systemName: type.symbol).font(.scaled(13))
                         Text(type.label)
                             .font(.scaled(14, weight: selection == type.key ? .semibold : .regular))
-                            .lineLimit(1)
-                            .fixedSize()
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, Font.scaledLength(11))
                     .padding(.vertical, Font.scaledLength(6))
                     .foregroundStyle(selection == type.key ? Color.accent : Color.chipInk)
                     .background(selection == type.key ? Color.accentSoft : Color.chip, in: Capsule())
                     .overlay(Capsule().strokeBorder(selection == type.key ? Color.accent : Color.clear, lineWidth: 1))
+                    .tapTarget()
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selection == type.key ? .isSelected : [])

@@ -21,6 +21,7 @@ struct RelationGraphView: View {
         let width: CGFloat
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
     @State private var offset: CGSize = .zero
@@ -86,7 +87,8 @@ struct RelationGraphView: View {
                         )
                 )
                 .onTapGesture(count: 2) {
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    // 동작 줄이기를 켜 두었으면 움직이지 않고 바로 (요구사항 8.6 · D-33).
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
                         scale = 1; lastScale = 1; offset = .zero; lastOffset = .zero
                     }
                 }
@@ -254,6 +256,7 @@ struct RelationGraphView: View {
     private func chip(_ text: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Chip(text: text, selected: selected)
+                .tapTarget()
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -403,7 +406,7 @@ struct RelationGraphView: View {
             if highlightCommunity == nil || highlightCommunity == community.id,
                let top = hull.min(by: { $0.y < $1.y }) {
                 let centerX = hull.map(\.x).reduce(0, +) / CGFloat(hull.count)
-                context.draw(Text(community.name).font(.scaled(11, weight: .semibold)).foregroundStyle(Color.muted),
+                context.draw(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(Color.muted),
                              at: CGPoint(x: centerX, y: top.y - 20), anchor: .center)
             }
         }
@@ -442,7 +445,7 @@ struct RelationGraphView: View {
             }
             if showsNames && !faded && labels < 150 {
                 labels += 1
-                context.draw(Text(person.name).font(.scaled(11)).foregroundStyle(Color.bodyText),
+                context.draw(Text(person.name).font(.scaledCapped(11)).foregroundStyle(Color.bodyText),
                              at: CGPoint(x: p.x, y: p.y + radius + 8), anchor: .center)
             }
         }
@@ -452,7 +455,7 @@ struct RelationGraphView: View {
         let meRect = CGRect(x: me.x - 9, y: me.y - 9, width: 18, height: 18)
         context.fill(Path(ellipseIn: meRect), with: .color(Color.ink))
         context.stroke(Path(ellipseIn: meRect.insetBy(dx: -3, dy: -3)), with: .color(Color.accent), lineWidth: 2)
-        context.draw(Text(snapshot.meName ?? "나").font(.scaled(12, weight: .semibold)).foregroundStyle(Color.ink),
+        context.draw(Text(snapshot.meName ?? "나").font(.scaledCapped(12, weight: .semibold)).foregroundStyle(Color.ink),
                      at: CGPoint(x: me.x, y: me.y + 22), anchor: .center)
     }
 

@@ -34,6 +34,7 @@ struct ChoiceChips: View {
                         customText = ""
                     } label: {
                         Chip(text: option, selected: selection == option)
+                            .tapTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(selection == option ? .isSelected : [])
@@ -46,6 +47,7 @@ struct ChoiceChips: View {
                     }
                 } label: {
                     Chip(text: customPrompt, selected: isCustomSelected || showingCustom)
+                        .tapTarget()
                 }
                 .buttonStyle(.plain)
             }
