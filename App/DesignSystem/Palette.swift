@@ -14,7 +14,7 @@ extension Color {
 
     static let ink = Color(light: 0x14181D, dark: 0xF2F4F6)        // 제목 · 이름
     static let bodyText = Color(light: 0x33414F, dark: 0xC5CED6)   // 본문
-    static let muted = Color(light: 0x68747F, dark: 0x939EA9)      // 보조 · 라벨
+    static let muted = Color(light: 0x5F6B76, dark: 0x939EA9)      // 보조 · 라벨
     static let faint = Color(light: 0x98A3AC, dark: 0x6F7A85)      // 희미함
     static let rule = Color(light: 0xE3E8EB, dark: 0x272E35)       // 괘선
 

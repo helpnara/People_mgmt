@@ -9,6 +9,8 @@ struct LaunchArguments: Sendable {
 
     /// 인메모리 저장소에 견본 자료를 채운다. **진짜 저장소에는 손대지 않는다.**
     let seedSampleData: Bool
+    /// 견본에 사람 5,000명 · 기록 50,000건을 더 채운다 — 화면 시간을 재려고 (요구사항 8.5). `-seedSampleData` 와 함께.
+    let largeSample: Bool
     /// 목록의 첫 사람 상세를 바로 연다.
     let openFirstPerson: Bool
     /// 이 이름의 사람 상세를 바로 연다 (`-openPerson 김하늘`). 첫 인연 · 소개 관계가 있는 사람을 찍으려고.
@@ -26,6 +28,7 @@ struct LaunchArguments: Sendable {
 
     init(_ arguments: [String]) {
         seedSampleData = arguments.contains("-seedSampleData")
+        largeSample = arguments.contains("-seedLargeSample")
         openFirstPerson = arguments.contains("-openFirstPerson")
         addPerson = arguments.contains("-addPerson")
         openRecord = arguments.contains("-openRecord")

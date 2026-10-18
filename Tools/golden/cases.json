@@ -391,5 +391,42 @@
         }
       ]
     }
+  ],
+  "recencySort": [
+    {
+      "name": "최근 기록 먼저 · 없는 사람은 뒤에 이름순 · 같은 날은 이름순",
+      "people": [
+        {
+          "name": "홍길동",
+          "createdAt": 1,
+          "lastRecordAt": 500
+        },
+        {
+          "name": "김하늘",
+          "createdAt": 2,
+          "lastRecordAt": null
+        },
+        {
+          "name": "박서연",
+          "createdAt": 3,
+          "lastRecordAt": 900
+        },
+        {
+          "name": "alice",
+          "createdAt": 4,
+          "lastRecordAt": null
+        },
+        {
+          "name": "최민준",
+          "createdAt": 5,
+          "lastRecordAt": 500
+        },
+        {
+          "name": "이도윤",
+          "createdAt": 6,
+          "lastRecordAt": 100
+        }
+      ]
+    }
   ]
 }

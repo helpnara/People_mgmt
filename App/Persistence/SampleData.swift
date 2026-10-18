@@ -106,5 +106,68 @@ enum SampleData {
         record("contact", day(2026, 10, 1), title: "안부 전화", note: nil, with: [jiwoo])
 
         try? context.save()
+        if LaunchArguments.current.largeSample { seedLarge(into: context) }
+    }
+
+    /// **큰 견본** — 사람 5,000명 · 기록 50,000건 (요구사항 8.5 를 하루 10명 입력 기준으로 올린 규모).
+    /// 이름은 음절을 조합해 만든다 — 실제 사람이 아니다. 시드를 고정해 매번 같은 자료가 나온다.
+    @MainActor
+    static func seedLarge(into context: ModelContext) {
+        let started = Date()
+        var generator = SeededGenerator(seed: 20_261_017)
+        let surnames = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임", "한", "오", "서", "신", "권"]
+        let given = ["하늘", "도윤", "서연", "민준", "유진", "지우", "서아", "예준", "수빈", "지호", "다은", "현우", "시우", "채원", "준서", "하린"]
+        let organizations = ["청림소프트", "한빛대학교", "마루디자인", "나비랩스", "푸른물류", "온새미로", "다온전자", "해솔병원", "별무리출판", "들꽃식품"]
+        let types = RelationshipPresets.relationshipTypes
+        let paths = RelationshipPresets.metThroughOptions
+        let tagPool = ["멘토", "독서모임", "등산", "프로젝트A", "대학", "동네", "운동", "스터디"]
+        let recordTypes = RecordType.all.map(\.key)
+        let calendar = Calendar.current
+        let today = DayNormalizer.noon(of: Date(), calendar: calendar)
+
+        var people: [Person] = []
+        people.reserveCapacity(5_000)
+        for index in 0..<5_000 {
+            let person = Person(name: surnames[Int(generator.next() % 15)] + given[Int(generator.next() % 16)] + (index < 100 ? "" : String(index)))
+            person.organization = organizations[Int(generator.next() % 10)]
+            person.relationshipType = types[Int(generator.next() % UInt64(types.count))]
+            person.metThrough = paths[Int(generator.next() % UInt64(paths.count))]
+            if generator.next() % 3 == 0 { person.tags = [tagPool[Int(generator.next() % 8)]] }
+            if generator.next() % 2 == 0 {
+                person.firstMetDate = calendar.date(byAdding: .day, value: -Int(generator.next() % 3_000), to: today)
+                person.firstNote = "견본 첫 인연 메모 \(index)"
+            }
+            context.insert(person)
+            people.append(person)
+        }
+        for index in 0..<50_000 {
+            let anchor = people[Int(generator.next() % 5_000)]
+            let record = Record(recordType: recordTypes[Int(generator.next() % UInt64(recordTypes.count))],
+                                occurredAt: calendar.date(byAdding: .day, value: -Int(generator.next() % 1_500), to: today) ?? today,
+                                title: index % 4 == 0 ? nil : "견본 기록 \(index)",
+                                note: "견본 메모 \(index). 성능 측정용 자료다.")
+            context.insert(record)
+            if generator.next() % 5 == 0 {
+                record.participants = [anchor, people[Int(generator.next() % 5_000)]]
+            } else {
+                record.participants = [anchor]
+            }
+        }
+        try? context.save()
+        let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+        print("⏱ 큰 견본 채우기 \(elapsed)ms (사람 5,000 · 기록 50,000)")
+    }
+
+    /// 시드 고정 난수 (SplitMix64). 같은 입력에 같은 견본 — CI 에서 수치를 비교할 수 있게.
+    struct SeededGenerator {
+        private var state: UInt64
+        init(seed: UInt64) { state = seed }
+        mutating func next() -> UInt64 {
+            state &+= 0x9E37_79B9_7F4A_7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            return z ^ (z >> 31)
+        }
     }
 }

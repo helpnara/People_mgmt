@@ -15,6 +15,8 @@ final class GoldenTests: XCTestCase {
         struct TitleCase: Decodable { let name: String; let title: String?; let note: String?; let expected: String }
         struct SortPerson: Decodable { let name: String; let createdAt: Double }
         struct SortCase: Decodable { let name: String; let people: [SortPerson]; let expected: [String] }
+        struct RecencyPerson: Decodable { let name: String; let createdAt: Double; let lastRecordAt: Double? }
+        struct RecencyCase: Decodable { let name: String; let people: [RecencyPerson]; let expected: [String] }
         struct TimelineRecord: Decodable { let id: String; let occurredAt: Double; let createdAt: Double }
         struct TimelineCase: Decodable { let name: String; let records: [TimelineRecord]; let expected: [String] }
         struct ValidationCase: Decodable { let name: String; let expected: String? }
@@ -29,7 +31,7 @@ final class GoldenTests: XCTestCase {
             let role: String?; let relationshipType: String?; let metThrough: String?
             let firstNote: String?; let tags: [String]; let records: [Record]
         }
-        struct Hit: Decodable { let personID: UUID; let kind: String; let evidence: String }
+        struct Hit: Decodable { let personID: UUID; let kind: String; let evidence: String; let recordID: UUID? }
         struct Query: Decodable { let query: String; let expected: [Hit] }
         struct Search: Decodable { let people: [Person]; let queries: [Query] }
         struct JosaExpected: Decodable { let eulReul: String; let gwaWa: String; let iGa: String }
@@ -39,6 +41,7 @@ final class GoldenTests: XCTestCase {
         let tagSplit: [SplitCase]
         let displayTitle: [TitleCase]
         let nameSort: [SortCase]
+        let recencySort: [RecencyCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
         let recordSave: [RecordSaveCase]
@@ -83,6 +86,17 @@ final class GoldenTests: XCTestCase {
         for c in try Self.loadGolden().nameSort {
             let people = c.people.map { (name: $0.name, createdAt: Date(timeIntervalSince1970: $0.createdAt)) }
             let sorted = people.sorted(by: NameSort.areInIncreasingOrder).map(\.name)
+            XCTAssertEqual(sorted, c.expected, c.name)
+        }
+    }
+
+    func testRecencySort() throws {
+        for c in try Self.loadGolden().recencySort {
+            let sorted = c.people.sorted {
+                RecencySort.areInIncreasingOrder(
+                    (lastRecordAt: $0.lastRecordAt.map { Date(timeIntervalSince1970: $0) }, name: $0.name, createdAt: Date(timeIntervalSince1970: $0.createdAt)),
+                    (lastRecordAt: $1.lastRecordAt.map { Date(timeIntervalSince1970: $0) }, name: $1.name, createdAt: Date(timeIntervalSince1970: $1.createdAt)))
+            }.map(\.name)
             XCTAssertEqual(sorted, c.expected, c.name)
         }
     }
@@ -136,8 +150,8 @@ final class GoldenTests: XCTestCase {
         }
         for q in golden.search.queries {
             let hits = SearchMatcher.hits(SearchQuery(parsing: q.query), in: people)
-            let got = hits.map { "\($0.personID.uuidString.lowercased())|\($0.kind.label)|\($0.evidence)" }
-            let want = q.expected.map { "\($0.personID.uuidString.lowercased())|\($0.kind)|\($0.evidence)" }
+            let got = hits.map { "\($0.personID.uuidString.lowercased())|\($0.kind.label)|\($0.evidence)|\($0.recordID?.uuidString.lowercased() ?? "-")" }
+            let want = q.expected.map { "\($0.personID.uuidString.lowercased())|\($0.kind)|\($0.evidence)|\($0.recordID?.uuidString.lowercased() ?? "-")" }
             XCTAssertEqual(got, want, "검색어 '\(q.query)'")
         }
     }

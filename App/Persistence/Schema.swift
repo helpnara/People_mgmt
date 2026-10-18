@@ -110,4 +110,9 @@ extension SchemaV1.Person {
     var hasFirstEncounter: Bool {
         firstMetDate != nil || !(firstNote ?? "").isEmpty
     }
+
+    /// 마지막 기록일 (FR-040). 저장하지 않고 기록에서 센다.
+    var lastRecordAt: Date? {
+        (records ?? []).map(\.occurredAt).max()
+    }
 }

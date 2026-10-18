@@ -23,11 +23,27 @@ enum Persistence {
             // CloudKit 스키마 배포 절차가 함께 온다 (docs/06-ci.md).
             cloudKitDatabase: ModelConfiguration.CloudKitDatabase.none
         )
-        return try ModelContainer(
+        let container = try ModelContainer(
             for: schema,
             migrationPlan: SlowConnectionMigrationPlan.self,
             configurations: [configuration]
         )
+        if !inMemory { protectStoreFiles(at: configuration.url) }
+        return container
+    }
+
+    /// 저장 파일에 **완전 보호** 등급을 건다 (요구사항 8.4). 잠금 중에는 파일을 읽을 수 없다 —
+    /// 이 앱은 백그라운드 작업이 없어 제약이 없다. SQLite 의 `-wal` · `-shm` 도 함께.
+    /// 실패해도 앱은 돈다 — 보호 등급은 덤이지 저장의 조건이 아니다.
+    private static func protectStoreFiles(at url: URL) {
+        let manager = FileManager.default
+        for path in [url.path, url.path + "-wal", url.path + "-shm"] where manager.fileExists(atPath: path) {
+            do {
+                try manager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: path)
+            } catch {
+                print("⚠️ 파일 보호 등급을 못 걸었습니다: \(path) — \(error)")
+            }
+        }
     }
 
     static func open(arguments: LaunchArguments) -> Opened {

@@ -7,10 +7,12 @@ struct SlowConnectionApp: App {
     private let arguments = LaunchArguments.current
 
     init() {
+        _ = LaunchTiming.start
         let opened = Persistence.open(arguments: LaunchArguments.current)
         self.opened = opened
         if LaunchArguments.current.seedSampleData, opened.failure == nil {
             SampleData.seed(into: opened.container.mainContext)
+            LaunchTiming.mark("저장소 열기 · 견본 채우기")
         }
     }
 

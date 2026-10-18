@@ -15,6 +15,8 @@ on:
       - "Tools/golden/**"
       - "Tools/privacy/**"
       - "App/PrivacyInfo.xcprivacy"
+      - "App/DesignSystem/Palette.swift"
+      - "Tools/contrast.py"
       - ".github/workflows/core-test.yml"
   pull_request:
     paths:
@@ -43,6 +45,10 @@ jobs:
       # 애플 서버가 올린 뒤 메일로만 알려 주는 종류(ITMS-91056)를 올리기 전에 잡는다.
       - name: 개인정보 명세의 키와 값이 Xcode 정의와 맞는지
         run: python3 -I Tools/privacy/check-privacy-manifest.py
+
+      # **글자 색 대비** (요구사항 8.6). 색을 고친 푸시마다 센다 — 첫 실행에서 muted 가 4.28 로 걸렸다.
+      - name: 글자 색 대비가 4.5 를 넘는가
+        run: python3 -I Tools/contrast.py
 
   swift:
     name: swift test
