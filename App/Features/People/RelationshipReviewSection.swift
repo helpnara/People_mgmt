@@ -1,0 +1,113 @@
+import Core
+import SwiftUI
+
+/// 사람 상세의 **관계 돌아보기** (FR-044 · 요구사항 5.5 이인 지표).
+///
+/// "내가 이 인연을 어떻게 돌보고 있는가" 에만 답한다 — 점수 · 순위가 없다 (ADR-0004).
+/// 줄마다 누르면 근거가 된 기록이 나온다 (원칙 2). 기록이 모자라면 값 대신 몇 건부터 보이는지 말한다 (원칙 4).
+struct RelationshipReviewSection: View {
+    let person: Person
+
+    var body: some View {
+        let records = person.records ?? []
+        let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
+        let metrics = DyadMetricsCalculator.compute(
+            records: records.map { MetricRecord(id: $0.uuid, day: DayIndex.of($0.occurredAt), type: $0.recordType) },
+            firstMetDay: person.firstMetDate.map { DayIndex.of($0) },
+            today: DayIndex.of(Date()))
+        let pick: ([UUID]) -> [Record] = { ids in ids.compactMap { byID[$0] } }
+
+        Section {
+            if metrics.total == 0 {
+                Text("기록이 쌓이면 이 인연을 돌아볼 수 있습니다.")
+                    .font(.scaled(15))
+                    .foregroundStyle(Color.muted)
+            } else {
+                row("기록", value: "\(metrics.total)건 · 최근 12개월 \(metrics.lastYear)건",
+                    evidence: pick(metrics.pastIDs), title: "기록 \(metrics.total)건")
+                if let days = metrics.daysSinceLast {
+                    row("마지막 기록", value: RelativeDay.phrase(days: days),
+                        evidence: pick(metrics.lastID.map { [$0] } ?? []), title: "마지막 기록")
+                }
+                if let span = metrics.spanDays {
+                    row("인연 기간", value: MetricText.span(days: span) + (metrics.spanFromFirstMeeting ? " · 처음 만난 날부터" : " · 첫 기록부터"),
+                        evidence: pick([metrics.lastID, metrics.firstID].compactMap { $0 }.uniqued()), title: "처음과 마지막 기록")
+                }
+                row("만남 빈도",
+                    value: metrics.perMonth.map(MetricText.frequency(perMonth:)) ?? "기록 \(DyadMetricsCalculator.frequencyMinimum)건부터 보입니다",
+                    evidence: metrics.perMonth == nil ? [] : pick(metrics.pastIDs), title: "만남 빈도의 근거")
+                row("흐름",
+                    value: metrics.trend.map { "\(MetricText.trend($0)) · 최근 6개월 \(metrics.recentHalf)건 · 그 전 6개월 \(metrics.previousHalf)건" }
+                        ?? "기록 \(DyadMetricsCalculator.trendMinimum)건부터 보입니다",
+                    evidence: metrics.trend == nil ? [] : pick(metrics.recentHalfIDs + metrics.previousHalfIDs), title: "최근 12개월 기록")
+                row("함께한 일",
+                    value: metrics.diversityClass.map { "\(MetricText.diversity($0)) · " + typeSummary(metrics.typeCounts) }
+                        ?? "기록 \(DyadMetricsCalculator.diversityMinimum)건부터 보입니다",
+                    evidence: metrics.diversityClass == nil ? [] : pick(metrics.pastIDs), title: "함께한 일")
+            }
+        } header: {
+            Text("관계 돌아보기")
+        } footer: {
+            Text("내가 기록한 범위 기준입니다. 적지 않은 만남은 계산되지 않습니다.")
+        }
+        .id(RelationshipReviewSection.anchor)
+    }
+
+    /// CI 스크린샷이 이 구역으로 내려오려고 쓰는 자리 이름.
+    static let anchor = "relationshipReview"
+
+    private func typeSummary(_ counts: [DyadMetrics.TypeCount]) -> String {
+        counts.prefix(3).map { "\(RecordType.named($0.type).label) \($0.count)" }.joined(separator: " · ")
+    }
+
+    @ViewBuilder
+    private func row(_ label: String, value: String, evidence: [Record], title: String) -> some View {
+        let content = VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.scaled(13)).foregroundStyle(Color.muted)
+            Text(value).font(.scaled(16)).foregroundStyle(evidence.isEmpty ? Color.muted : Color.ink)
+        }
+        .accessibilityElement(children: .combine)
+        if evidence.isEmpty {
+            content
+        } else {
+            NavigationLink {
+                EvidenceRecordsView(title: title, records: evidence, viewer: person)
+            } label: {
+                content
+            }
+        }
+    }
+}
+
+/// 지표의 근거가 된 기록들 — 최근 것부터 (원칙 2).
+struct EvidenceRecordsView: View {
+    let title: String
+    let records: [Record]
+    let viewer: Person
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(records.filter { !$0.isGone }) { record in
+                    NavigationLink(value: record) {
+                        TimelineRow(record: record, viewer: viewer)
+                    }
+                }
+            } header: {
+                Text("\(records.count)건")
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.ground)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private extension Array where Element: Hashable {
+    func uniqued() -> [Element] {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
+    }
+}

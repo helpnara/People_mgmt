@@ -31,6 +31,7 @@ struct PersonDetailView: View {
     }
 
     private var content: some View {
+        ScrollViewReader { proxy in
         List {
             headerSection
             if let card = person.businessCard {
@@ -46,6 +47,7 @@ struct PersonDetailView: View {
             // 나는 첫 인연 · 소개 · 기록이 없다 — 모든 기록에 나는 늘 있다 (이슈 12).
             if !person.isMe {
                 firstEncounterSection
+                RelationshipReviewSection(person: person)
                 if let introduced = person.introduced, !introduced.isEmpty {
                     introducedSection(introduced)
                 }
@@ -55,6 +57,13 @@ struct PersonDetailView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
+        .task {
+            // CI 스크린샷: 관계 돌아보기 구역까지 내린다.
+            guard LaunchArguments.current.scrollToReview, !person.isMe else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            proxy.scrollTo(RelationshipReviewSection.anchor, anchor: .top)
+        }
+        }
         // 자주 쓰는 `기록 추가` 는 한 손이 닿는 아래에 — 키보드 툴바가 아니라 화면 안의 띠로 (CLAUDE.md).
         .safeAreaInset(edge: .bottom) {
             if !person.isMe {

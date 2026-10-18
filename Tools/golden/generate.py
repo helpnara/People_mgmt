@@ -176,6 +176,178 @@ def contact_note(phones: list[str], emails: list[str]) -> str:
     return " · ".join(parts)[:500]
 
 
+# ── 관계 지표 (DyadMetrics · NetworkOverview · TraitDistribution · RelationGraph) ─
+
+import math
+
+DAYS_PER_MONTH = 30.4375
+
+
+def dyad_metrics(records: list[dict], first_met, today: int, type_count: int = 9) -> dict:
+    past = sorted([r for r in records if r["day"] <= today], key=lambda r: (-r["day"], r["id"].upper()))
+    last_year = [r for r in past if today - r["day"] <= 364]
+    recent = [r for r in past if today - r["day"] <= 181]
+    previous = [r for r in past if 182 <= today - r["day"] <= 364]
+    out = {
+        "total": len(past), "lastYear": len(last_year), "daysSinceLast": None, "spanDays": None,
+        "spanFromFirstMeeting": first_met is not None, "perMonthTenths": None, "frequencyText": None,
+        "trend": None, "recentHalf": len(recent), "previousHalf": len(previous),
+        "diversityClass": None, "typeCounts": [],
+        "pastIDs": [r["id"] for r in past], "lastYearIDs": [r["id"] for r in last_year],
+        "recentHalfIDs": [r["id"] for r in recent], "previousHalfIDs": [r["id"] for r in previous],
+        "firstID": past[-1]["id"] if past else None, "lastID": past[0]["id"] if past else None,
+        "spanText": None,
+    }
+    if not past:
+        return out
+    last, first = past[0], past[-1]
+    out["daysSinceLast"] = today - last["day"]
+    out["spanDays"] = max(0, last["day"] - (first_met if first_met is not None else first["day"]))
+    out["spanText"] = span_text(out["spanDays"])
+    if len(past) >= 3:
+        days = max(float(today - first["day"]), DAYS_PER_MONTH)
+        per_month = float(len(past)) * DAYS_PER_MONTH / days
+        out["perMonthTenths"] = math.floor(per_month * 10 + 0.5)
+        out["frequencyText"] = frequency_text(per_month)
+    if len(past) >= 4:
+        diff = len(recent) - len(previous)
+        out["trend"] = "rising" if diff >= 2 else ("falling" if diff <= -2 else "steady")
+    counts: dict = {}
+    for r in past:
+        counts[r["type"]] = counts.get(r["type"], 0) + 1
+    out["typeCounts"] = [{"type": t, "count": c} for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    if len(past) >= 3 and type_count > 1:
+        n = float(len(past))
+        entropy = 0.0
+        for item in out["typeCounts"]:
+            p_ = item["count"] / n
+            entropy -= p_ * math.log(p_)
+        normalized_ = entropy / math.log(float(type_count))
+        out["diversityClass"] = "mostlyOne" if normalized_ < 0.25 else ("several" if normalized_ < 0.6 else "even")
+    return out
+
+
+def span_text(days: int) -> str:
+    days = max(0, days)
+    if days < 30:
+        return f"{days}일"
+    years = days // 365
+    months = min((days % 365) // 30, 11)
+    if years > 0 and months > 0:
+        return f"{years}년 {months}개월"
+    if years > 0:
+        return f"{years}년"
+    return f"{months}개월"
+
+
+def frequency_text(per_month: float) -> str:
+    tenths = math.floor(per_month * 10 + 0.5)
+    if tenths >= 10:
+        if tenths % 10 == 0:
+            return f"한 달에 약 {tenths // 10}번"
+        return f"한 달에 약 {tenths // 10}.{tenths % 10}번"
+    per_year = math.floor(per_month * 12 + 0.5)
+    if per_year >= 1:
+        return f"1년에 약 {per_year}번"
+    return "1년에 1번 미만"
+
+
+def network_overview(people: list[dict], today: int, year_start: int, year_end: int, neglect_days: int) -> dict:
+    def by_name(p):
+        return (folded(p["name"]), p["id"].upper())
+    active = [p for p in people if p["lastDay"] is not None and today - p["lastDay"] <= 364]
+    new = sorted([p for p in people if p["firstMetDay"] is not None and year_start <= p["firstMetDay"] <= year_end],
+                 key=lambda p: (-p["firstMetDay"],) + by_name(p))
+    quiet = sorted([p for p in people if p["lastDay"] is not None and today - p["lastDay"] >= neglect_days],
+                   key=lambda p: (p["lastDay"],) + by_name(p))
+    none = sorted([p for p in people if p["lastDay"] is None], key=by_name)
+    return {"total": len(people), "activeCount": len(active), "newThisYearIDs": [p["id"] for p in new],
+            "quietIDs": [p["id"] for p in quiet], "noRecordIDs": [p["id"] for p in none]}
+
+
+def trait_buckets(items: list[dict], limit: int = 8) -> list[dict]:
+    labels, members, order, unspecified = {}, {}, [], []
+    for item in items:
+        seen = set()
+        for raw in item["values"]:
+            value = normalized(raw)
+            if not value:
+                continue
+            key = folded(value)
+            if key in seen:
+                continue
+            seen.add(key)
+            if key not in labels:
+                labels[key] = value
+                order.append(key)
+            members.setdefault(key, []).append(item["id"])
+        if not seen:
+            unspecified.append(item["id"])
+    ordered = sorted(order, key=lambda k: (-len(members[k]), k))
+    keep = max(limit - 1, 0) if len(ordered) > limit else len(ordered)
+    out = [{"label": labels[k], "count": len(members[k]), "ids": members[k], "isUnspecified": False, "isRest": False}
+           for k in ordered[:keep]]
+    if len(ordered) > keep:
+        rest = set(ordered[keep:])
+        ids, seen_ids = [], set()
+        for item in items:
+            keys = [folded(normalized(v)) for v in item["values"]]
+            if any(k in rest for k in keys) and item["id"] not in seen_ids:
+                seen_ids.add(item["id"])
+                ids.append(item["id"])
+        out.append({"label": f"그 밖에 {len(rest)}가지", "count": len(ids), "ids": ids, "isUnspecified": False, "isRest": True})
+    if unspecified:
+        out.append({"label": "미지정", "count": len(unspecified), "ids": unspecified, "isUnspecified": True, "isRest": False})
+    return out
+
+
+def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int = 12) -> list[dict]:
+    known = {p["id"].upper() for p in people}
+    edges: dict = {}
+
+    def touch(x, y, field):
+        x, y = x.upper(), y.upper()
+        if x == y or x not in known or y not in known:
+            return
+        a, b = (x, y) if x < y else (y, x)
+        e = edges.setdefault((a, b), {"a": a, "b": b, "together": 0, "introduced": False, "sameOrganization": False})
+        if field == "together":
+            e["together"] += 1
+        else:
+            e[field] = True
+
+    for participants in records:
+        seen, unique = set(), []
+        for pid in participants:
+            u = pid.upper()
+            if u in known and u not in seen:
+                seen.add(u)
+                unique.append(u)
+        for i in range(len(unique)):
+            for j in range(i + 1, len(unique)):
+                touch(unique[i], unique[j], "together")
+    for p in people:
+        if p.get("introducedBy"):
+            touch(p["id"], p["introducedBy"], "introduced")
+    groups: dict = {}
+    for p in people:
+        key = folded(p.get("organization") or "")
+        if key:
+            groups.setdefault(key, []).append(p)
+    for key in sorted(groups):
+        members = sorted(groups[key], key=lambda p: (folded(p["name"]), p["id"].upper()))
+        if len(members) < 2:
+            continue
+        if len(members) <= clique_limit:
+            for i in range(len(members)):
+                for j in range(i + 1, len(members)):
+                    touch(members[i]["id"], members[j]["id"], "sameOrganization")
+        else:
+            for i in range(len(members)):
+                touch(members[i]["id"], members[(i + 1) % len(members)]["id"], "sameOrganization")
+    return [edges[k] for k in sorted(edges)]
+
+
 # ── 관계 유형 · 알게 된 경로 선택지 (RelationshipPresets.choices) ───────────
 
 def preset_choices(presets: list[str], used: list[str]) -> list[str]:
@@ -551,6 +723,18 @@ def build() -> dict:
                           for c in cases["contactName"]]
     out["contactNote"] = [{"phones": c["phones"], "emails": c["emails"], "expected": contact_note(c["phones"], c["emails"])}
                           for c in cases["contactNote"]]
+    out["dyadMetrics"] = [{"name": c["name"], "records": c["records"], "firstMetDay": c.get("firstMetDay"),
+                           "today": c["today"], "expected": dyad_metrics(c["records"], c.get("firstMetDay"), c["today"])}
+                          for c in cases["dyadMetrics"]]
+    out["spanText"] = [{"days": d, "expected": span_text(d)} for d in cases["spanText"]]
+    out["networkOverview"] = [{"name": c["name"], "people": c["people"], "today": c["today"], "yearStart": c["yearStart"],
+                               "yearEnd": c["yearEnd"], "neglectDays": c["neglectDays"],
+                               "expected": network_overview(c["people"], c["today"], c["yearStart"], c["yearEnd"], c["neglectDays"])}
+                              for c in cases["networkOverview"]]
+    out["traitBuckets"] = [{"name": c["name"], "items": c["items"], "limit": c["limit"],
+                            "expected": trait_buckets(c["items"], c["limit"])} for c in cases["traitBuckets"]]
+    out["graphEdges"] = [{"name": c["name"], "people": c["people"], "records": c["records"], "cliqueLimit": c["cliqueLimit"],
+                          "expected": graph_edges(c["people"], c["records"], c["cliqueLimit"])} for c in cases["graphEdges"]]
     out["presetChoices"] = [{"name": c["name"], "presets": c["presets"], "used": c["used"],
                              "expected": preset_choices(c["presets"], c["used"])}
                             for c in cases["presetChoices"]]

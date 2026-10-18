@@ -27,6 +27,10 @@ struct LaunchArguments: Sendable {
     let editPerson: Bool
     /// 연 사람의 명함 크게 보기를 바로 연다 (이슈 14).
     let viewCard: Bool
+    /// 연 사람 상세를 관계 돌아보기 구역까지 내린다 (6번째 묶음).
+    let scrollToReview: Bool
+    /// 내 인맥을 이 보기로 바로 연다 (`-openNetwork graph|traits|overview`).
+    let openNetwork: String?
     /// 수정 시트에서 명함 글자를 바로 읽어 제안 화면을 띄운다.
     let readCard: Bool
     /// 사람 추가 · 수정 시트에서 사진첩 고르기 창을 바로 띄운다 — 그 길에서 앱이 멈추지 않는지 CI 가 본다 (이슈 10).
@@ -46,6 +50,7 @@ struct LaunchArguments: Sendable {
         addRecord = arguments.contains("-addRecord")
         editPerson = arguments.contains("-editPerson")
         viewCard = arguments.contains("-viewCard")
+        scrollToReview = arguments.contains("-scrollToReview")
         readCard = arguments.contains("-readCard")
         pickCardPhoto = arguments.contains("-pickCardPhoto")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")
@@ -55,5 +60,6 @@ struct LaunchArguments: Sendable {
         }
         search = value(after: "-search")
         openPerson = value(after: "-openPerson")
+        openNetwork = value(after: "-openNetwork")
     }
 }
