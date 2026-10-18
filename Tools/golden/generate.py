@@ -42,7 +42,10 @@ def normalized(text: str) -> str:
 
 
 def folded(text: str) -> str:
-    return normalized(text).lower()
+    # 발음 구별 기호(Mn)를 빼고 다시 합친 뒤 소문자 — Swift `TextNormalization.folded` 와 같은 차례.
+    decomposed = unicodedata.normalize("NFD", normalized(text))
+    stripped = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+    return unicodedata.normalize("NFC", stripped).lower()
 
 
 def collapsed_spaces(text: str) -> str:
@@ -969,10 +972,10 @@ def can_save_record(title, note) -> bool:
 # ── 날짜 (DayNormalizer) ─────────────────────────────────────────────────────
 
 def noon_epoch(iso: str, zone: str) -> float:
+    # 연 · 월 · 일은 그 시간대에서 읽고, 그 날의 12:00 UTC (이슈 20).
     instant = datetime.fromisoformat(iso)
     local = instant.astimezone(ZoneInfo(zone))
-    noon = local.replace(hour=12, minute=0, second=0, microsecond=0)
-    return noon.timestamp()
+    return datetime(local.year, local.month, local.day, 12, tzinfo=timezone.utc).timestamp()
 
 
 # ── 조사 (Josa) ──────────────────────────────────────────────────────────────
@@ -1142,6 +1145,7 @@ def build() -> dict:
                        "expectedEpoch": noon_epoch(c["iso"], c["timeZone"])}
                       for c in cases["dayNoon"]]
     out["josa"] = [{"text": t, "expected": josa(t)} for t in cases["josa"]]
+    out["folded"] = [{"input": t, "expected": folded(t)} for t in cases["folded"]]
     people = cases["search"]["people"]
     out["search"] = {
         "people": people,

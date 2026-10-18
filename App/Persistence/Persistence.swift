@@ -48,6 +48,7 @@ enum Persistence {
         }
     }
 
+    @MainActor
     static func open(arguments: LaunchArguments) -> Opened {
         if arguments.simulateStoreFailure {
             return fallback(reason: "실행 인자로 일부러 실패시켰습니다 (-simulateStoreFailure)")
@@ -61,7 +62,10 @@ enum Persistence {
             }
         }
         do {
-            return Opened(container: try makeContainer(inMemory: false), isInMemory: false, failure: nil)
+            let container = try makeContainer(inMemory: false)
+            // 날짜 칸을 UTC 정오로 한 번 옮긴다 (이슈 20) — 진짜 저장소에만. 깃발이 이 저장소를 가리키게.
+            DateConvention.migrateIfNeeded(container.mainContext)
+            return Opened(container: container, isInMemory: false, failure: nil)
         } catch {
             return fallback(reason: "\(error)")
         }

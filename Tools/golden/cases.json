@@ -208,6 +208,18 @@
     {
       "iso": "2025-12-31T23:59:59+09:00",
       "timeZone": "Asia/Seoul"
+    },
+    {
+      "iso": "2026-03-08T00:30:00+09:00",
+      "timeZone": "America/Los_Angeles"
+    },
+    {
+      "iso": "2026-03-08T12:00:00+00:00",
+      "timeZone": "Pacific/Auckland"
+    },
+    {
+      "iso": "2026-07-01T00:10:00-07:00",
+      "timeZone": "America/Los_Angeles"
     }
   ],
   "search": {
@@ -315,6 +327,15 @@
             "tags": []
           }
         ]
+      },
+      {
+        "id": "99999999-9999-9999-9999-999999999999",
+        "name": "Zoé Martin",
+        "organization": "Café Lumière",
+        "tags": [
+          "Mentor"
+        ],
+        "records": []
       }
     ],
     "queries": [
@@ -343,7 +364,10 @@
       "Alice",
       "alice park",
       "park nabi",
-      "하늘"
+      "하늘",
+      "cafe",
+      "zoe",
+      "CAFÉ"
     ]
   },
   "josa": [
@@ -2631,5 +2655,17 @@
         100
       ]
     }
+  ],
+  "folded": [
+    "café",
+    "CAFE",
+    "Ångström",
+    "Zoé",
+    "naïve",
+    "김하늘",
+    "이도윤 ",
+    "한지우",
+    "각 NFD 한글",
+    "Alice Park"
   ]
 }
