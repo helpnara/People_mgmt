@@ -17,7 +17,12 @@ struct PersonDraft: Equatable {
     var hasFirstMetDate = false
     var firstMetDate = Date()
     var firstNote = ""
+    /// 연락 수단 기타 (FR-032). 네 칸에 들지 않는 번호 · 메일 · 메모.
     var contactNote = ""
+    var mobilePhone = ""
+    var officePhone = ""
+    var faxNumber = ""
+    var email = ""
     var tags: [String] = []
     /// 명함 사진 (FR-050). JPEG.
     var businessCard: Data?
@@ -36,8 +41,21 @@ struct PersonDraft: Equatable {
         firstMetDate = person.firstMetDate ?? Date()
         firstNote = person.firstNote ?? ""
         contactNote = person.contactNote ?? ""
+        mobilePhone = person.mobilePhone ?? ""
+        officePhone = person.officePhone ?? ""
+        faxNumber = person.faxNumber ?? ""
+        email = person.email ?? ""
         tags = person.tags
         businessCard = person.businessCard
+    }
+
+    /// 다섯 칸을 한꺼번에 — 명함 · 연락처에서 가져온 값을 넣을 때. 빈 칸은 덮지 않는다.
+    mutating func fill(_ fields: ContactFields) {
+        if !fields.mobile.isEmpty { mobilePhone = String(fields.mobile.prefix(Limits.phone)) }
+        if !fields.office.isEmpty { officePhone = String(fields.office.prefix(Limits.phone)) }
+        if !fields.fax.isEmpty { faxNumber = String(fields.fax.prefix(Limits.phone)) }
+        if !fields.email.isEmpty { email = String(fields.email.prefix(Limits.email)) }
+        if !fields.other.isEmpty { contactNote = String(fields.other.prefix(Limits.contactNote)) }
     }
 
     var nameProblem: String? { PersonValidation.nameProblem(name) }
@@ -67,8 +85,16 @@ struct PersonStore {
 
     // MARK: 읽기
 
+    /// 나를 뺀 사람 전원. 나는 사람 수 · 검색 · 정렬 · 고르기에 들지 않는다 (이슈 12).
     func allPeople() throws -> [Person] {
-        try context.fetch(FetchDescriptor<Person>())
+        try context.fetch(FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == false }))
+    }
+
+    /// 나. 없으면 `nil`.
+    func me() throws -> Person? {
+        var descriptor = FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == true })
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
     }
 
     /// 이름순 (요구사항 6.7). 정렬 규칙은 `Core.NameSort` 한 곳이다.
@@ -100,8 +126,14 @@ struct PersonStore {
 
     // MARK: 쓰기
 
-    func create(_ draft: PersonDraft) throws -> Person {
+    /// `isMe` 면 **나**로 만든다 (이슈 12). 나는 하나뿐이다 — 이미 있으면 그 사람을 고친다.
+    func create(_ draft: PersonDraft, isMe: Bool = false) throws -> Person {
+        if isMe, let existing = try me() {
+            try apply(draft, to: existing)
+            return existing
+        }
         let person = Person(name: TextNormalization.normalized(draft.name))
+        person.isMe = isMe
         context.insert(person)
         fill(person, from: draft)
         try context.save()
@@ -131,6 +163,10 @@ struct PersonStore {
         person.firstMetDate = draft.hasFirstMetDate ? DayNormalizer.noon(of: draft.firstMetDate, calendar: .current) : nil
         person.firstNote = clipped(draft.firstNote, Limits.firstNote)
         person.contactNote = clipped(draft.contactNote, Limits.contactNote)
+        person.mobilePhone = clipped(draft.mobilePhone, Limits.phone)
+        person.officePhone = clipped(draft.officePhone, Limits.phone)
+        person.faxNumber = clipped(draft.faxNumber, Limits.phone)
+        person.email = clipped(draft.email, Limits.email)
         person.tags = TagNormalizer.normalizeList(draft.tags)
         // 같은 사진이면 다시 쓰지 않는다 — 바깥 파일을 매번 새로 쓰지 않게.
         if person.businessCard != draft.businessCard { person.businessCard = draft.businessCard }

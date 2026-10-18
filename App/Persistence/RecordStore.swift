@@ -89,7 +89,7 @@ struct RecordStore {
     }
 }
 
-extension SchemaV2.Record {
+extension SchemaV3.Record {
     /// 목록에 보일 이름 (요구사항 6.2). 규칙은 `Core.DisplayTitle` 하나다.
     var displayTitle: String { DisplayTitle.make(title: title, note: note) }
 

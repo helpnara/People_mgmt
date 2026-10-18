@@ -17,6 +17,15 @@ enum SampleData {
             return DayNormalizer.noon(of: calendar.date(from: components) ?? Date(), calendar: calendar)
         }
 
+        // 나 (이슈 12) — 지어낸 사람이다. 목록 맨 위에 선다.
+        let me = Person(name: "윤다온")
+        me.isMe = true
+        me.organization = "청림소프트"
+        me.role = "서비스 기획"
+        me.mobilePhone = "010-5555-0000"
+        me.email = "daon@example.com"
+        context.insert(me)
+
         let haneul = Person(name: "김하늘")
         haneul.organization = "청림소프트"
         haneul.role = "팀장"
@@ -25,7 +34,9 @@ enum SampleData {
         haneul.firstMetDate = day(2019, 3, 4)
         haneul.firstNote = "입사 첫날 옆자리에 앉았다. 점심을 같이 먹으며 팀 분위기를 알려 주었다."
         haneul.tags = ["멘토", "독서모임"]
-        haneul.contactNote = "010-1234-5678 · haneul@example.com"
+        haneul.mobilePhone = "010-1234-5678"
+        haneul.officePhone = "02-555-0101"
+        haneul.email = "haneul@example.com"
         haneul.businessCard = renderCard(organization: "청림소프트 주식회사", name: "김하늘", role: "개발팀 팀장",
                                          phone: "010-1234-5678", email: "haneul@example.com")
 

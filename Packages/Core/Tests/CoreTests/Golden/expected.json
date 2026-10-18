@@ -2,6 +2,13 @@
   "cardParse": [
     {
       "expected": {
+        "contact": {
+          "email": "haneul@example.com",
+          "fax": "",
+          "mobile": "010-1234-5678",
+          "office": "",
+          "other": ""
+        },
         "emails": [
           "haneul@example.com"
         ],
@@ -50,6 +57,13 @@
     },
     {
       "expected": {
+        "contact": {
+          "email": "",
+          "fax": "02-555-0102",
+          "mobile": "",
+          "office": "02-555-0101",
+          "other": "www.maru.example"
+        },
         "emails": [],
         "lines": [
           "마루디자인㈜",
@@ -87,6 +101,13 @@
     },
     {
       "expected": {
+        "contact": {
+          "email": "doyun.lee@example.ac.kr",
+          "fax": "",
+          "mobile": "",
+          "office": "",
+          "other": ""
+        },
         "emails": [
           "doyun.lee@example.ac.kr"
         ],
@@ -118,6 +139,13 @@
     },
     {
       "expected": {
+        "contact": {
+          "email": "ALICE@nabi.example",
+          "fax": "",
+          "mobile": "+82 10-9876-5432",
+          "office": "",
+          "other": ""
+        },
         "emails": [
           "alice@nabi.example"
         ],
@@ -161,6 +189,13 @@
     },
     {
       "expected": {
+        "contact": {
+          "email": "",
+          "fax": "",
+          "mobile": "",
+          "office": "",
+          "other": ""
+        },
         "emails": [],
         "lines": [
           "홍보",
@@ -190,6 +225,13 @@
     },
     {
       "expected": {
+        "contact": {
+          "email": "",
+          "fax": "",
+          "mobile": "",
+          "office": "",
+          "other": ""
+        },
         "emails": [],
         "lines": [
           "12345"
@@ -217,6 +259,13 @@
     },
     {
       "expected": {
+        "contact": {
+          "email": "",
+          "fax": "02-777-8888",
+          "mobile": "010-2222-3333",
+          "office": "",
+          "other": "02-777-9999"
+        },
         "emails": [],
         "lines": [
           "정유진",
@@ -253,6 +302,13 @@
     },
     {
       "expected": {
+        "contact": {
+          "email": "",
+          "fax": "",
+          "mobile": "",
+          "office": "",
+          "other": ""
+        },
         "emails": [],
         "lines": [
           "개발팀",
@@ -282,6 +338,13 @@
     },
     {
       "expected": {
+        "contact": {
+          "email": "",
+          "fax": "",
+          "mobile": "",
+          "office": "",
+          "other": ""
+        },
         "emails": [],
         "lines": [
           "한지우",
@@ -308,6 +371,193 @@
         ]
       ],
       "name": "NFD 자모와 연속 빈칸"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "seoyeon@example.com",
+          "fax": "02-555-0102",
+          "mobile": "010-7777-8888",
+          "office": "02-555-0101",
+          "other": "www.example.com"
+        },
+        "emails": [
+          "seoyeon@example.com"
+        ],
+        "lines": [
+          "마루디자인 주식회사",
+          "박서연",
+          "대표",
+          "T. 02-555-0101 F. 02-555-0102",
+          "M. 010-7777-8888",
+          "E. seoyeon@example.com · www.example.com"
+        ],
+        "name": "박서연",
+        "organization": "마루디자인 주식회사",
+        "phones": [
+          "02-555-0101",
+          "02-555-0102",
+          "010-7777-8888"
+        ],
+        "role": "대표"
+      },
+      "lines": [
+        [
+          "마루디자인 주식회사",
+          0.05
+        ],
+        [
+          "박서연",
+          0.11
+        ],
+        [
+          "대표",
+          0.04
+        ],
+        [
+          "T. 02-555-0101 F. 02-555-0102",
+          0.03
+        ],
+        [
+          "M. 010-7777-8888",
+          0.03
+        ],
+        [
+          "E. seoyeon@example.com · www.example.com",
+          0.03
+        ]
+      ],
+      "name": "대표 · 팩스가 한 줄"
+    }
+  ],
+  "contactFromContact": [
+    {
+      "emails": [
+        "haneul@example.com",
+        "h2@example.com"
+      ],
+      "expected": {
+        "email": "haneul@example.com",
+        "fax": "02-555-0102",
+        "mobile": "010-1234-5678",
+        "office": "02-555-0101",
+        "other": "h2@example.com"
+      },
+      "phones": [
+        {
+          "label": "_$!<Mobile>!$_",
+          "value": "010-1234-5678"
+        },
+        {
+          "label": "_$!<Work>!$_",
+          "value": "02-555-0101"
+        },
+        {
+          "label": "_$!<WorkFAX>!$_",
+          "value": "02-555-0102"
+        }
+      ]
+    },
+    {
+      "emails": [],
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "010-1234-5678",
+        "office": "",
+        "other": "010-2222-3333"
+      },
+      "phones": [
+        {
+          "label": "iPhone",
+          "value": "010-1234-5678"
+        },
+        {
+          "label": "_$!<Mobile>!$_",
+          "value": "010-2222-3333"
+        }
+      ]
+    },
+    {
+      "emails": [],
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "010-1234-5678",
+        "office": "02-555-0101",
+        "other": ""
+      },
+      "phones": [
+        {
+          "label": "",
+          "value": "010-1234-5678"
+        },
+        {
+          "label": "",
+          "value": "02-555-0101"
+        }
+      ]
+    },
+    {
+      "emails": [],
+      "expected": {
+        "email": "",
+        "fax": "02-111-2223",
+        "mobile": "",
+        "office": "1588-1234",
+        "other": "02-111-2222 · 031-123-4567"
+      },
+      "phones": [
+        {
+          "label": "_$!<Home>!$_",
+          "value": "02-111-2222"
+        },
+        {
+          "label": "본가",
+          "value": "031-123-4567"
+        },
+        {
+          "label": "_$!<Main>!$_",
+          "value": "1588-1234"
+        },
+        {
+          "label": "_$!<HomeFAX>!$_",
+          "value": "02-111-2223"
+        }
+      ]
+    },
+    {
+      "emails": [
+        " x@example.com "
+      ],
+      "expected": {
+        "email": "x@example.com",
+        "fax": "",
+        "mobile": "+82 10-1234-5678",
+        "office": "02 555 0101",
+        "other": ""
+      },
+      "phones": [
+        {
+          "label": "회사",
+          "value": "02 555 0101"
+        },
+        {
+          "label": "휴대폰",
+          "value": "+82 10-1234-5678"
+        }
+      ]
+    },
+    {
+      "emails": [],
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": ""
+      },
+      "phones": []
     }
   ],
   "contactName": [
@@ -384,6 +634,188 @@
       "phones": [
         "02-555-0101"
       ]
+    }
+  ],
+  "contactSplit": [
+    {
+      "expected": {
+        "email": "haneul@example.com",
+        "fax": "",
+        "mobile": "010-1234-5678",
+        "office": "",
+        "other": ""
+      },
+      "text": "010-1234-5678 · haneul@example.com"
+    },
+    {
+      "expected": {
+        "email": "a@example.com",
+        "fax": "",
+        "mobile": "010-1234-5678",
+        "office": "02-555-0101",
+        "other": "b@example.com"
+      },
+      "text": "010-1234-5678 · 02-555-0101 · a@example.com · b@example.com"
+    },
+    {
+      "expected": {
+        "email": "kim@example.com",
+        "fax": "02-555-0102",
+        "mobile": "010-2222-3333",
+        "office": "02-555-0101",
+        "other": ""
+      },
+      "text": "M. 010-2222-3333\nT. 02-555-0101 F. 02-555-0102\nE. kim@example.com"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "02-555-0102",
+        "mobile": "",
+        "office": "02-555-0101",
+        "other": ""
+      },
+      "text": "Tel: 02-555-0101, Fax: 02-555-0102"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "010-3333-4444",
+        "office": "02-777-8888",
+        "other": ""
+      },
+      "text": "휴대폰 010-3333-4444 / 사무실 02-777-8888"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": "010-1234-5678 (개인)"
+      },
+      "text": "010-1234-5678 (개인)"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": "본가 031-123-4567"
+      },
+      "text": "본가 031-123-4567"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": "www.example.com"
+      },
+      "text": "www.example.com"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "+82 10-1234-5678",
+        "office": "",
+        "other": ""
+      },
+      "text": "+82 10-1234-5678"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": ""
+      },
+      "text": ""
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "02-333-4444",
+        "other": "02-111-2222"
+      },
+      "text": "자택 02-111-2222 · 직통 02-333-4444"
+    },
+    {
+      "expected": {
+        "email": "b@example.com",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": "메모"
+      },
+      "text": "메모\r\nb@example.com"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "1588-1234",
+        "other": ""
+      },
+      "text": "1588-1234"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "010-1234-5678",
+        "office": "",
+        "other": ""
+      },
+      "text": "010-1234-5678 · 010-1234-5678"
+    },
+    {
+      "expected": {
+        "email": "x@example.com",
+        "fax": "",
+        "mobile": "010-9999-8888",
+        "office": "1588-0000",
+        "other": ""
+      },
+      "text": "H.P 010-9999-8888 · 대표 1588-0000 · E-mail: x@example.com"
+    },
+    {
+      "expected": {
+        "email": "kim01012345678@example.com",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": ""
+      },
+      "text": "kim01012345678@example.com"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "010-4444-5555",
+        "office": "",
+        "other": "010-6666-7777"
+      },
+      "text": "Tel 010-4444-5555 · Mobile 010-6666-7777"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "02-555-0102",
+        "mobile": "",
+        "office": "",
+        "other": "02-555-0103"
+      },
+      "text": "팩스 02-555-0102 · 팩스 02-555-0103"
     }
   ],
   "dayNoon": [
@@ -585,6 +1017,175 @@
           "createdAt": 150,
           "name": "김하늘"
         }
+      ]
+    }
+  ],
+  "presetChoices": [
+    {
+      "expected": [
+        "동료",
+        "상사",
+        "후배",
+        "고객",
+        "협력사",
+        "멘토",
+        "멘티",
+        "친구",
+        "가족",
+        "지인"
+      ],
+      "name": "쓴 값 없음",
+      "presets": [
+        "동료",
+        "상사",
+        "후배",
+        "고객",
+        "협력사",
+        "멘토",
+        "멘티",
+        "친구",
+        "가족",
+        "지인"
+      ],
+      "used": [
+        "동료",
+        "친구",
+        "",
+        ""
+      ]
+    },
+    {
+      "expected": [
+        "동료",
+        "상사",
+        "후배",
+        "고객",
+        "협력사",
+        "멘토",
+        "멘티",
+        "친구",
+        "가족",
+        "지인",
+        "거래처",
+        "은사",
+        "선배"
+      ],
+      "name": "직접 입력이 붙는다 — 많이 쓴 것부터",
+      "presets": [
+        "동료",
+        "상사",
+        "후배",
+        "고객",
+        "협력사",
+        "멘토",
+        "멘티",
+        "친구",
+        "가족",
+        "지인"
+      ],
+      "used": [
+        "거래처",
+        "동료",
+        "거래처",
+        " 은사 ",
+        "거래처",
+        "은사",
+        "선배"
+      ]
+    },
+    {
+      "expected": [
+        "직장",
+        "프로젝트",
+        "소개",
+        "행사·교육",
+        "학교",
+        "온라인",
+        "가족·친척",
+        "동호회·모임",
+        "Meetup",
+        "meetup",
+        "교회"
+      ],
+      "name": "같은 횟수는 이름 순 · 대소문자",
+      "presets": [
+        "직장",
+        "프로젝트",
+        "소개",
+        "행사·교육",
+        "학교",
+        "온라인",
+        "가족·친척",
+        "동호회·모임"
+      ],
+      "used": [
+        "Meetup",
+        "교회",
+        "meetup",
+        "교회",
+        "Meetup",
+        "meetup"
+      ]
+    },
+    {
+      "expected": [
+        "동료",
+        "상사",
+        "후배",
+        "고객",
+        "협력사",
+        "멘토",
+        "멘티",
+        "친구",
+        "가족",
+        "지인",
+        "기타"
+      ],
+      "name": "빌드 6 까지의 기타가 선택지로",
+      "presets": [
+        "동료",
+        "상사",
+        "후배",
+        "고객",
+        "협력사",
+        "멘토",
+        "멘티",
+        "친구",
+        "가족",
+        "지인"
+      ],
+      "used": [
+        "기타",
+        "동료",
+        "기타"
+      ]
+    },
+    {
+      "expected": [
+        "직장",
+        "프로젝트",
+        "소개",
+        "행사·교육",
+        "학교",
+        "온라인",
+        "가족·친척",
+        "동호회·모임",
+        "교회"
+      ],
+      "name": "NFD 로 들어온 한글",
+      "presets": [
+        "직장",
+        "프로젝트",
+        "소개",
+        "행사·교육",
+        "학교",
+        "온라인",
+        "가족·친척",
+        "동호회·모임"
+      ],
+      "used": [
+        "교회",
+        "교회"
       ]
     }
   ],
