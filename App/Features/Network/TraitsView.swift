@@ -8,6 +8,7 @@ struct TraitsView: View {
 
     fileprivate struct Trait: Identifiable {
         let title: String
+        let field: FillField
         let buckets: [TraitBucket]
         var id: String { title }
     }
@@ -20,9 +21,11 @@ struct TraitsView: View {
                 Section {
                     let maximum = max(trait.buckets.map(\.count).max() ?? 1, 1)
                     ForEach(Array(trait.buckets.enumerated()), id: \.offset) { _, bucket in
-                        NavigationLink {
-                            PeopleByIDsView(title: "\(trait.title) · \(bucket.label)", people: snapshot.peopleByName(bucket.ids))
-                        } label: {
+                        // 값으로 연다 (이슈 16). 미지정 칸은 누르면 바로 편집 — 채울 것 목록이다.
+                        NavigationLink(value: PeopleListRoute(
+                            title: "\(trait.title) · \(bucket.label)",
+                            ids: snapshot.peopleByName(bucket.ids).map(\.id),
+                            fill: bucket.isUnspecified ? trait.field : nil)) {
                             BucketRow(bucket: bucket, maximum: maximum, total: snapshot.people.count)
                         }
                     }
@@ -42,10 +45,10 @@ struct TraitsView: View {
         .task(id: snapshot.people.count) {
             let people = snapshot.people
             traits = [
-                Trait(title: "관계 유형", buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.relationshipType ?? ""]) })),
-                Trait(title: "알게 된 경로", buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.metThrough ?? ""]) })),
-                Trait(title: "소속", buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.organization ?? ""]) })),
-                Trait(title: "태그", buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: $0.tags) })),
+                Trait(title: "관계 유형", field: .relationshipType, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.relationshipType ?? ""]) })),
+                Trait(title: "알게 된 경로", field: .metThrough, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.metThrough ?? ""]) })),
+                Trait(title: "소속", field: .organization, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: [$0.organization ?? ""]) })),
+                Trait(title: "태그", field: .tags, buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: $0.tags) })),
             ]
         }
     }
