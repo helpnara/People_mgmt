@@ -18,9 +18,18 @@ final class GoldenTests: XCTestCase {
         struct DayCase: Decodable { let from: String; let to: String; let expected: String }
         struct ContactNameCase: Decodable { let given: String; let family: String; let expected: String }
         struct ContactNoteCase: Decodable { let phones: [String]; let emails: [String]; let expected: String }
+        struct FieldsExpected: Decodable {
+            let mobile: String; let office: String; let fax: String; let email: String; let other: String
+            var fields: ContactFields { ContactFields(mobile: mobile, office: office, fax: fax, email: email, other: other) }
+        }
+        struct PresetChoicesCase: Decodable { let name: String; let presets: [String]; let used: [String]; let expected: [String] }
+        struct ContactSplitCase: Decodable { let text: String; let expected: FieldsExpected }
+        struct LabeledRaw: Decodable { let label: String; let value: String }
+        struct ContactFromContactCase: Decodable { let phones: [LabeledRaw]; let emails: [String]; let expected: FieldsExpected }
         struct CardExpected: Decodable {
             let name: String?; let organization: String?; let role: String?
             let phones: [String]; let emails: [String]; let lines: [String]
+            let contact: FieldsExpected
         }
         struct CardLineRaw: Decodable {
             let text: String; let height: Double
@@ -61,6 +70,9 @@ final class GoldenTests: XCTestCase {
         let relativeDay: [DayCase]
         let contactName: [ContactNameCase]
         let contactNote: [ContactNoteCase]
+        let contactSplit: [ContactSplitCase]
+        let contactFromContact: [ContactFromContactCase]
+        let presetChoices: [PresetChoicesCase]
         let cardParse: [CardCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
@@ -160,6 +172,27 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.phones, c.expected.phones, "\(c.name) — 전화")
             XCTAssertEqual(got.emails, c.expected.emails, "\(c.name) — 메일")
             XCTAssertEqual(got.lines, c.expected.lines, "\(c.name) — 줄")
+            XCTAssertEqual(got.contact, c.expected.contact.fields, "\(c.name) — 연락 수단 칸")
+        }
+    }
+
+    func testPresetChoices() throws {
+        for c in try Self.loadGolden().presetChoices {
+            XCTAssertEqual(RelationshipPresets.choices(presets: c.presets, used: c.used), c.expected, c.name)
+        }
+    }
+
+    func testContactSplit() throws {
+        for c in try Self.loadGolden().contactSplit {
+            XCTAssertEqual(ContactSorter.split(c.text), c.expected.fields, "\(c.text.debugDescription)")
+        }
+    }
+
+    func testContactFromContact() throws {
+        for c in try Self.loadGolden().contactFromContact {
+            let phones = c.phones.map { ContactSorter.LabeledValue(label: $0.label, value: $0.value) }
+            XCTAssertEqual(ContactSorter.fromContact(phones: phones, emails: c.emails), c.expected.fields,
+                           "\(c.phones.map(\.label))")
         }
     }
 

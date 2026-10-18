@@ -43,17 +43,21 @@ struct PersonDetailView: View {
                     .buttonStyle(.plain)
                 }
             }
-            firstEncounterSection
-            if let introduced = person.introduced, !introduced.isEmpty {
-                introducedSection(introduced)
+            // 나는 첫 인연 · 소개 · 기록이 없다 — 모든 기록에 나는 늘 있다 (이슈 12).
+            if !person.isMe {
+                firstEncounterSection
+                if let introduced = person.introduced, !introduced.isEmpty {
+                    introducedSection(introduced)
+                }
+                timelineSection
             }
-            timelineSection
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
         // 자주 쓰는 `기록 추가` 는 한 손이 닿는 아래에 — 키보드 툴바가 아니라 화면 안의 띠로 (CLAUDE.md).
         .safeAreaInset(edge: .bottom) {
+            if !person.isMe {
             HStack {
                 Spacer()
                 Button {
@@ -69,8 +73,9 @@ struct PersonDetailView: View {
                 .padding(.trailing, 16)
                 .padding(.bottom, 8)
             }
+            }
         }
-        .navigationTitle(person.name)
+        .navigationTitle(person.isMe ? "나" : person.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -156,12 +161,7 @@ struct PersonDetailView: View {
                         Chip(text: "#\(tag)")
                     }
                 }
-                if let contact = person.contactNote, !contact.isEmpty {
-                    Label(contact, systemImage: "phone")
-                        .font(.scaled(15))
-                        .foregroundStyle(Color.bodyText)
-                        .textSelection(.enabled)
-                }
+                ContactRows(person: person)
                 if let introducer = person.introducedBy, !introducer.isGone {
                     NavigationLink(value: introducer) {
                         Label("\(introducer.name)의 소개로", systemImage: "arrow.turn.down.right")

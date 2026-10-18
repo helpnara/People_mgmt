@@ -18,11 +18,13 @@ public struct CardSuggestion: Sendable, Equatable {
     public var role: String?
     public var phones: [String]
     public var emails: [String]
+    /// 연락 줄을 다섯 칸(휴대전화 · 사무실 · 팩스 · 이메일 · 기타)으로 가른 것 (이슈 11). `M.` · `T.` · `F.` · `E.` 를 읽는다.
+    public var contact: ContactFields = ContactFields()
     /// 정리한 모든 줄 (위에서 아래 순서). 제안이 틀렸을 때 사용자가 직접 고르는 재료다.
     public var lines: [String]
 
     public var hasSuggestion: Bool {
-        name != nil || organization != nil || role != nil || !phones.isEmpty || !emails.isEmpty
+        name != nil || organization != nil || role != nil || !phones.isEmpty || !emails.isEmpty || !contact.isEmpty
     }
 }
 
@@ -57,6 +59,7 @@ public enum BusinessCardParser {
     public static func parse(_ raw: [CardLine]) -> CardSuggestion {
         var suggestion = CardSuggestion(name: nil, organization: nil, role: nil, phones: [], emails: [], lines: [])
         var nameCandidate: (text: String, height: Double)?
+        var contactLines: [String] = []
 
         func offer(name: String, height: Double) {
             if let current = nameCandidate, current.height >= height { return }
@@ -73,6 +76,7 @@ public enum BusinessCardParser {
             let emails = matches(emailPattern, in: text)
             let phones = matches(phonePattern, in: text)
             if !emails.isEmpty || !phones.isEmpty || lower.contains("www.") || lower.contains("http") {
+                contactLines.append(text)
                 for email in emails.map({ $0.lowercased() }) where !suggestion.emails.contains(email) {
                     suggestion.emails.append(email)
                 }
@@ -112,6 +116,7 @@ public enum BusinessCardParser {
             }
         }
         suggestion.name = nameCandidate?.text
+        suggestion.contact = ContactSorter.split(contactLines.joined(separator: "\n"))
         return suggestion
     }
 

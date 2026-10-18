@@ -17,6 +17,8 @@ struct LaunchArguments: Sendable {
     let openPerson: String?
     /// 사람 추가 시트를 바로 연다.
     let addPerson: Bool
+    /// 나(이슈 12)의 상세를 바로 연다.
+    let openMe: Bool
     /// 연 사람의 가장 최근 기록 상세까지 연다.
     let openRecord: Bool
     /// 연 사람의 기록 추가 시트를 바로 연다.
@@ -37,6 +39,7 @@ struct LaunchArguments: Sendable {
         largeSample = arguments.contains("-seedLargeSample")
         openFirstPerson = arguments.contains("-openFirstPerson")
         addPerson = arguments.contains("-addPerson")
+        openMe = arguments.contains("-openMe")
         openRecord = arguments.contains("-openRecord")
         addRecord = arguments.contains("-addRecord")
         editPerson = arguments.contains("-editPerson")

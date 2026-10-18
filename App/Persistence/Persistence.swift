@@ -13,10 +13,10 @@ enum Persistence {
         let failure: String?
     }
 
-    /// 지금 판(2판) 저장소를 연다. 옛 판 저장소면 `SlowConnectionMigrationPlan` 으로 옮긴다.
+    /// 지금 판(3판) 저장소를 연다. 옛 판 저장소면 `SlowConnectionMigrationPlan` 으로 옮긴다.
     /// `url` 은 시험용 — 앱은 이름(`storeName`)으로 기본 자리를 쓴다.
     static func makeContainer(inMemory: Bool, url: URL? = nil) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: SchemaV2.self)
+        let schema = Schema(versionedSchema: SchemaV3.self)
         // 동기화는 켜지 않는다 (D-1). 켤 때는 `.private("iCloud.com.helpnara.slow.connection")` 과
         // CloudKit 스키마 배포 절차가 함께 온다 (docs/06-ci.md).
         let configuration: ModelConfiguration

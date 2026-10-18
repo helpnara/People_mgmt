@@ -2,6 +2,7 @@ import Core
 import PhotosUI
 import SwiftData
 import SwiftUI
+import UIKit
 
 /// 사람 추가 · 수정 (요구사항 4.2.2). 모달 시트. 취소 시 변경 사항이 있으면 버릴지 묻는다 (FR-022).
 ///
@@ -10,6 +11,8 @@ import SwiftUI
 struct PersonEditView: View {
     enum Mode {
         case create
+        /// **나** 를 처음 적는다 (이슈 12). 관계 유형 · 알게 된 경로 · 첫 인연 · 이어서 등록은 없다.
+        case createMe
         case edit(Person)
     }
 
@@ -18,7 +21,8 @@ struct PersonEditView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query private var everyone: [Person]
+    /// 나는 빠진다 — 기록의 참여자 · 소개자가 되지 않는다 (이슈 12).
+    @Query(filter: #Predicate<Person> { $0.isMe == false }) private var everyone: [Person]
 
     @State private var draft: PersonDraft
     @State private var original: PersonDraft
@@ -39,12 +43,17 @@ struct PersonEditView: View {
     @State private var savedInRow: [String] = []
     @State private var appliedArguments = false
 
+    /// 관계 유형 · 알게 된 경로 선택지 — 기본값 + 직접 입력해 쓴 값 (이슈 13).
+    /// **본문에서 세지 않는다** — 화면을 열 때와 이어서 등록할 때 한 번 센다 (CLAUDE.md · 이슈 10).
+    @State private var relationshipChoices = RelationshipPresets.relationshipTypes
+    @State private var metThroughChoices = RelationshipPresets.metThroughOptions
+
     init(mode: Mode, onSaved: @escaping (Person) -> Void) {
         self.mode = mode
         self.onSaved = onSaved
         let draft: PersonDraft
         switch mode {
-        case .create: draft = PersonDraft()
+        case .create, .createMe: draft = PersonDraft()
         case .edit(let person): draft = PersonDraft(person: person)
         }
         _draft = State(initialValue: draft)
@@ -57,6 +66,15 @@ struct PersonEditView: View {
     }
 
     private var isCreate: Bool { editingPerson == nil }
+    /// 나를 적는 중인가 — 새로 적든 고치든.
+    private var isMe: Bool {
+        if case .createMe = mode { return true }
+        return editingPerson?.isMe ?? false
+    }
+    private var title: String {
+        if isMe { return isCreate ? "내 정보" : "내 정보 수정" }
+        return isCreate ? "사람 추가" : "사람 수정"
+    }
     private var hasChanges: Bool { draft != original }
     private var store: PersonStore { PersonStore(context: context) }
 
@@ -84,45 +102,12 @@ struct PersonEditView: View {
                         .limited($draft.role, to: Limits.role)
                 }
                 cardSection
-                Section {
-                    TextField("전화 · 메일", text: $draft.contactNote, axis: .vertical)
-                        .lineLimit(1...4)
-                        .limited($draft.contactNote, to: Limits.contactNote)
-                } header: {
-                    Text("연락 수단")
-                } footer: {
-                    Text("명함이나 연락처에서 가져오면 여기 채워집니다. 형식은 자유입니다.")
-                }
-                Section("관계 유형") {
-                    ChoiceChips(options: RelationshipPresets.relationshipTypes,
-                                selection: $draft.relationshipType,
-                                maxLength: Limits.relationshipType)
-                }
-                Section("알게 된 경로") {
-                    ChoiceChips(options: RelationshipPresets.metThroughOptions,
-                                selection: $draft.metThrough,
-                                maxLength: Limits.metThrough)
-                    if draft.metThrough == RelationshipPresets.introducedLabel {
-                        NavigationLink {
-                            PersonPickerView(people: introducerCandidates, selection: $draft.introducedBy)
-                        } label: {
-                            LabeledContent("소개한 사람", value: draft.introducedBy?.name ?? "선택 안 함")
-                        }
-                    }
-                }
-                Section("첫 인연") {
-                    Toggle("처음 만난 날짜", isOn: $draft.hasFirstMetDate)
-                    if draft.hasFirstMetDate {
-                        DatePicker("날짜", selection: $draft.firstMetDate, displayedComponents: .date)
-                    }
-                    TextField("어떤 계기로 알게 되었나요?", text: $draft.firstNote, axis: .vertical)
-                        .lineLimit(3...8)
-                        .limited($draft.firstNote, to: Limits.firstNote)
-                }
+                contactSection
+                if !isMe { relationshipSections }
                 Section("태그") {
                     TagEditor(tags: $draft.tags)
                 }
-                if isCreate {
+                if isCreate && !isMe {
                     Section {
                         Button(action: saveAndContinue) {
                             Label("저장하고 다음 사람 추가", systemImage: "person.badge.plus")
@@ -135,7 +120,7 @@ struct PersonEditView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(isCreate ? "사람 추가" : "사람 수정")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -192,6 +177,79 @@ struct PersonEditView: View {
         }
     }
 
+    /// 관계 유형 · 알게 된 경로 · 첫 인연 — 나에게는 없다 (이슈 12).
+    @ViewBuilder
+    private var relationshipSections: some View {
+        Section("관계 유형") {
+            ChoiceChips(options: relationshipChoices,
+                        selection: $draft.relationshipType,
+                        maxLength: Limits.relationshipType)
+        }
+        Section("알게 된 경로") {
+            ChoiceChips(options: metThroughChoices,
+                        selection: $draft.metThrough,
+                        maxLength: Limits.metThrough)
+            if draft.metThrough == RelationshipPresets.introducedLabel {
+                NavigationLink {
+                    PersonPickerView(people: introducerCandidates, selection: $draft.introducedBy)
+                } label: {
+                    LabeledContent("소개한 사람", value: draft.introducedBy?.name ?? "선택 안 함")
+                }
+            }
+        }
+        Section("첫 인연") {
+            Toggle("처음 만난 날짜", isOn: $draft.hasFirstMetDate)
+            if draft.hasFirstMetDate {
+                DatePicker("날짜", selection: $draft.firstMetDate, displayedComponents: .date)
+            }
+            TextField("어떤 계기로 알게 되었나요?", text: $draft.firstNote, axis: .vertical)
+                .lineLimit(3...8)
+                .limited($draft.firstNote, to: Limits.firstNote)
+        }
+    }
+
+    /// 연락 수단 다섯 칸 (FR-032 · 이슈 11). 칸 이름이 왼쪽에 늘 보인다 — 채운 뒤에도 무슨 칸인지 알게.
+    private var contactSection: some View {
+        Section {
+            contactField("휴대전화", text: $draft.mobilePhone, prompt: "010-0000-0000", limit: Limits.phone, keyboard: .phonePad)
+            contactField("사무실", text: $draft.officePhone, prompt: "02-000-0000", limit: Limits.phone, keyboard: .phonePad)
+            contactField("팩스", text: $draft.faxNumber, prompt: "02-000-0000", limit: Limits.phone, keyboard: .phonePad)
+            contactField("이메일", text: $draft.email, prompt: "name@example.com", limit: Limits.email, keyboard: .emailAddress)
+            LabeledContent {
+                TextField("다른 번호 · 메모", text: $draft.contactNote, axis: .vertical)
+                    .lineLimit(1...4)
+                    .limited($draft.contactNote, to: Limits.contactNote)
+            } label: {
+                Text("기타").font(.scaled(15)).foregroundStyle(Color.muted)
+            }
+        } header: {
+            Text("연락 수단")
+        } footer: {
+            Text("명함이나 연락처에서 가져오면 칸을 나눠 채웁니다. 칸에 들지 않는 번호는 기타로 갑니다.")
+        }
+    }
+
+    private func contactField(_ label: String, text: Binding<String>, prompt: String, limit: Int, keyboard: UIKeyboardType) -> some View {
+        LabeledContent {
+            TextField(prompt, text: text)
+                .keyboardType(keyboard)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .limited(text, to: limit)
+        } label: {
+            Text(label).font(.scaled(15)).foregroundStyle(Color.muted)
+        }
+    }
+
+    /// 직접 입력해 쓴 값을 선택지로 (이슈 13). 저장소를 읽으므로 **동작에서만** 부른다.
+    private func refreshChoices() {
+        let people = (try? store.allPeople()) ?? []
+        relationshipChoices = RelationshipPresets.choices(presets: RelationshipPresets.relationshipTypes,
+                                                          used: people.compactMap(\.relationshipType))
+        metThroughChoices = RelationshipPresets.choices(presets: RelationshipPresets.metThroughOptions,
+                                                        used: people.compactMap(\.metThrough))
+    }
+
     private var importSection: some View {
         Section {
             Button(action: importContact) {
@@ -212,7 +270,7 @@ struct PersonEditView: View {
             if let problem = draft.nameProblem, !TextNormalization.normalized(draft.name).isEmpty {
                 Text(problem).font(.scaled(13)).foregroundStyle(Color.danger)
             }
-            if !duplicates.isEmpty {
+            if !isMe && !duplicates.isEmpty {
                 Label(duplicateText, systemImage: "person.2")
                     .font(.scaled(13))
                     .foregroundStyle(Color.muted)
@@ -325,8 +383,8 @@ struct PersonEditView: View {
                 .filter { !$0.isEmpty }
                 .joined(separator: " ")
             if !role.isEmpty { draft.role = String(role.prefix(Limits.role)) }
-            let note = ContactNote.compose(phones: picked.phones, emails: picked.emails)
-            if !note.isEmpty { draft.contactNote = note }
+            // 번호마다 붙은 이름표(휴대전화 · 직장 · 직장 팩스 …)로 칸을 나눈다 (이슈 11).
+            draft.fill(ContactSorter.fromContact(phones: picked.phones, emails: picked.emails))
         }
     }
 
@@ -336,6 +394,8 @@ struct PersonEditView: View {
             switch mode {
             case .create:
                 person = try store.create(draft)
+            case .createMe:
+                person = try store.create(draft, isMe: true)
             case .edit(let existing):
                 try store.apply(draft, to: existing)
                 person = existing
@@ -355,6 +415,8 @@ struct PersonEditView: View {
             draft = PersonDraft()
             original = draft
             nameFocused = true
+            // 방금 직접 입력한 유형 · 경로가 다음 사람의 선택지에 바로 붙는다 (이슈 13).
+            refreshChoices()
         } catch {
             saveError = error.localizedDescription
         }
@@ -363,6 +425,7 @@ struct PersonEditView: View {
     private func applyArgumentsOnce() {
         guard !appliedArguments else { return }
         appliedArguments = true
+        refreshChoices()
         let arguments = LaunchArguments.current
         // CI 스크린샷(-addPerson)에서는 포커스를 주지 않는다 — 시뮬레이터가 키보드 안내 팝업을 띄워 화면을 가린다.
         if isCreate && !arguments.addPerson { nameFocused = true }

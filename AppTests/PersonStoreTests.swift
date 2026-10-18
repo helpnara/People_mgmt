@@ -155,4 +155,53 @@ final class PersonStoreTests: XCTestCase {
         try fixture.store.apply(draft, to: person)
         XCTAssertTrue(person.introducedBy === introducer)
     }
+
+    /// 연락 수단 네 칸이 저장되고, 빈칸으로 고치면 비워진다 (이슈 11).
+    func testContactFieldsAreSavedTrimmedAndCleared() throws {
+        let fixture = try makeFixture()
+        var draft = PersonDraft()
+        draft.name = "연락 칸"
+        draft.mobilePhone = " 010-1111-2222 "
+        draft.officePhone = "02-333-4444"
+        draft.faxNumber = "02-333-4445"
+        draft.email = " a@example.com"
+        let person = try fixture.store.create(draft)
+        XCTAssertEqual(person.mobilePhone, "010-1111-2222")
+        XCTAssertEqual(person.officePhone, "02-333-4444")
+        XCTAssertEqual(person.faxNumber, "02-333-4445")
+        XCTAssertEqual(person.email, "a@example.com")
+
+        var edit = PersonDraft(person: person)
+        XCTAssertEqual(edit.mobilePhone, "010-1111-2222", "수정 화면이 저장된 값을 읽는다")
+        edit.mobilePhone = " "
+        edit.email = ""
+        try fixture.store.apply(edit, to: person)
+        XCTAssertNil(person.mobilePhone)
+        XCTAssertNil(person.email)
+        XCTAssertEqual(person.officePhone, "02-333-4444", "건드리지 않은 칸은 그대로")
+    }
+
+    /// **나** 는 하나뿐이고, 사람 목록 · 같은 이름 안내에서 빠진다 (이슈 12).
+    func testMeIsSingleAndLeftOutOfPeople() throws {
+        let fixture = try makeFixture()
+        var mine = PersonDraft()
+        mine.name = "나의 이름"
+        let me = try fixture.store.create(mine, isMe: true)
+        XCTAssertTrue(me.isMe)
+
+        mine.name = "고친 내 이름"
+        let again = try fixture.store.create(mine, isMe: true)
+        XCTAssertTrue(again === me, "나를 또 만들면 있던 나를 고친다")
+        XCTAssertEqual(me.name, "고친 내 이름")
+
+        var other = PersonDraft()
+        other.name = "고친 내 이름"
+        _ = try fixture.store.create(other)
+
+        XCTAssertTrue(try fixture.store.me() === me)
+        XCTAssertEqual(try fixture.store.allPeople().count, 1, "나는 사람 수에 들지 않는다")
+        XCTAssertEqual(try fixture.store.sortedPeople().map(\.isMe), [false])
+        XCTAssertEqual(fixture.store.sameName(as: "고친 내 이름").count, 1, "같은 이름 안내에 나는 없다")
+    }
 }
+

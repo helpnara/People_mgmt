@@ -271,7 +271,8 @@ jobs:
               xcrun simctl io "$UDID" screenshot "screenshots/$file"
               size=$(stat -f%z "screenshots/$file")
               # (2) 홈 화면은 벽지 때문에 PNG 가 유난히 크다 (3MB 안팎).
-              if [ "$size" -ge 2000000 ]; then
+              # 사진이 가득한 화면(사진첩 창)은 홈 화면이 아니어도 크다 — 그 화면만 SHOOT_MAX 로 문턱을 올린다.
+              if [ "$size" -ge "${SHOOT_MAX:-2000000}" ]; then
                 echo "  홈 화면 같습니다 ($size 바이트). 다시 ($attempt/${SHOOT_ATTEMPTS:-3})"
                 sleep 5
                 continue
@@ -320,8 +321,11 @@ jobs:
           # 시뮬레이터에는 카메라가 없어 `명함 촬영` 단추는 안 보이는 것이 맞다.
           shoot 11-edit-card.png -seedSampleData -openPerson 김하늘 -editPerson
           shoot 12-card-reading.png -seedSampleData -openPerson 김하늘 -editPerson -readCard
+          # **나** (이슈 12) — 목록 맨 위 칸에서 연다. 첫 인연 · 타임라인 · 기록 추가가 없어야 한다.
+          shoot 14-me.png -seedSampleData -openMe
           # **사진첩 고르기 창** (이슈 10). 빌드 4 · 5 실기기에서 이 길로 주 스레드가 쉬지 않고 돌다 꺼졌다.
-          shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto
+          # 시뮬레이터 사진첩의 견본 사진이 뜨면 PNG 가 2MB 를 넘는다 (빌드 7 CI 에서 잡힘 — 홈 화면으로 잘못 봤다).
+          SHOOT_MAX=6000000 shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto
           # 시뮬레이터는 멈춘 앱을 끄지 않는다 — 스크린샷은 찍힌다. 그래서 **CPU 로 본다.**
           # 창을 띄우고 기다린 뒤에도 앱이 코어 하나를 거의 다 쓰면 무엇인가 쉬지 않고 돈다.
           busy_check() {
