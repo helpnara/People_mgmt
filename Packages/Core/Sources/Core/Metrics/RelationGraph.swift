@@ -27,9 +27,11 @@ public struct GraphEdge: Sendable, Equatable {
     public var introduced: Bool
     /// 같은 소속(대소문자 · 공백 무시).
     public var sameOrganization: Bool
+    /// 서로 아는 사이로 이었다 (D-30).
+    public var acquainted: Bool = false
 
-    /// 진한 선인가 — 함께한 기록이나 소개.
-    public var isStrong: Bool { together > 0 || introduced }
+    /// 진한 선인가 — 함께한 기록 · 소개 · 아는 사이.
+    public var isStrong: Bool { together > 0 || introduced || acquainted }
 }
 
 public enum RelationGraph {
@@ -38,7 +40,9 @@ public enum RelationGraph {
 
     /// - Parameters:
     ///   - records: 기록마다 참여자들. `people` 에 없는 사람(나 · 지운 사람)은 무시한다.
-    public static func edges(people: [GraphPerson], records: [[UUID]], organizationCliqueLimit: Int = organizationCliqueLimit) -> [GraphEdge] {
+    ///   - ties: 아는 사이 연결 (D-30). 방향이 없다.
+    public static func edges(people: [GraphPerson], records: [[UUID]], ties: [(UUID, UUID)] = [],
+                             organizationCliqueLimit: Int = organizationCliqueLimit) -> [GraphEdge] {
         let known = Set(people.map(\.id))
         var edges: [String: GraphEdge] = [:]
 
@@ -65,6 +69,10 @@ public enum RelationGraph {
             if let introducer = person.introducedBy {
                 touch(person.id, introducer) { $0.introduced = true }
             }
+        }
+
+        for (x, y) in ties {
+            touch(x, y) { $0.acquainted = true }
         }
 
         var groups: [String: [GraphPerson]] = [:]

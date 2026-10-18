@@ -120,6 +120,14 @@ enum SampleData {
         record("help", day(2026, 2, 3), title: "이력서 봐 주기", note: "포트폴리오 구성 조언.", with: [yujin])
         record("contact", day(2026, 10, 1), title: "안부 전화", note: nil, with: [jiwoo])
 
+        // 아는 사이 (D-30) — 기록 없이 서로 아는 두 쌍.
+        for (a, b) in [(doyun, minjun), (jiwoo, alice)] {
+            let tie = Tie()
+            context.insert(tie)
+            tie.first = a
+            tie.second = b
+        }
+
         try? context.save()
         if LaunchArguments.current.largeSample { seedLarge(into: context) }
     }

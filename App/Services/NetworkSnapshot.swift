@@ -2,12 +2,15 @@ import Core
 import Foundation
 import SwiftData
 
-/// 날 번호 — 지표는 날 수로만 센다 (Core `MetricRecord`). 기준일은 2001-01-01, 사용자 달력의 날로 센다.
+/// 날 번호 — 지표는 날 수로만 센다 (Core `MetricRecord`). 2001-01-01 부터 사용자 시간대의 날로 센다.
+///
+/// **산수로 센다 (이슈 15).** 빌드 9 는 `Calendar.dateComponents` 로 기록마다 셌다 — 50,000건이면 무겁다.
+/// 그 시각의 시간대 차이(서머타임 포함)를 더해 하루 길이로 나누면 같은 날 번호가 나온다. 지표는 날 번호의
+/// **차이**만 쓰므로(오늘 − 그날), 같은 함수로 센 값끼리면 기준일이 하루 어긋나는 시간대에서도 답이 같다.
 enum DayIndex {
-    static let reference = Date(timeIntervalSinceReferenceDate: 0)
-
     static func of(_ date: Date, calendar: Calendar = .current) -> Int {
-        RelativeDay.days(from: reference, to: date, calendar: calendar)
+        let seconds = date.timeIntervalSinceReferenceDate + Double(calendar.timeZone.secondsFromGMT(for: date))
+        return Int((seconds / 86_400).rounded(.down))
     }
 }
 
@@ -56,9 +59,30 @@ enum NetworkSnapshotBuilder {
     private static func make(container: ModelContainer, now: Date) -> NetworkSnapshot {
         let calendar = Calendar.current
         let context = ModelContext(container)
-        let others = (try? context.fetch(FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == false }))) ?? []
+        // 단계마다 시간을 찍는다 (이슈 15) — 어디가 무거운지 로그로 보고 고친다. 큰 견본에서만 찍힌다.
+        var started = Date()
+        func lap(_ label: String) {
+            LaunchTiming.log("  인맥 · \(label)", since: started)
+            started = Date()
+        }
+
+        // 관계를 미리 읽는다 — 사람마다 · 기록마다 따로 읽으면 5,000 · 50,000 번이다 (이슈 15).
+        var peopleDescriptor = FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == false })
+        peopleDescriptor.relationshipKeyPathsForPrefetching = [\.introducedBy]
+        let others = (try? context.fetch(peopleDescriptor)) ?? []
         let me = (try? context.fetch(FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == true })))?.first
-        let records = (try? context.fetch(FetchDescriptor<Record>())) ?? []
+        lap("사람 읽기 \(others.count)명")
+        var recordDescriptor = FetchDescriptor<Record>()
+        recordDescriptor.relationshipKeyPathsForPrefetching = [\.participants]
+        let records = (try? context.fetch(recordDescriptor)) ?? []
+        lap("기록 읽기 \(records.count)건")
+        var tieDescriptor = FetchDescriptor<Tie>()
+        tieDescriptor.relationshipKeyPathsForPrefetching = [\.first, \.second]
+        let ties = ((try? context.fetch(tieDescriptor)) ?? []).compactMap { tie -> (UUID, UUID)? in
+            guard let a = tie.first, let b = tie.second, !a.isMe, !b.isMe else { return nil }
+            return (a.uuid, b.uuid)
+        }
+        lap("아는 사이 읽기 \(ties.count)줄")
 
         let today = DayIndex.of(now, calendar: calendar)
         let year = calendar.dateInterval(of: .year, for: now)
@@ -76,6 +100,7 @@ enum NetworkSnapshotBuilder {
             guard day <= today else { continue }
             for id in ids where (lastDay[id] ?? Int.min) < day { lastDay[id] = day }
         }
+        lap("기록 돌기 (참여자 · 날)")
 
         let people = others.map { person in
             NetworkSnapshot.PersonInfo(
@@ -88,7 +113,9 @@ enum NetworkSnapshotBuilder {
         let graphPeople = others.map {
             GraphPerson(id: $0.uuid, name: $0.name, organization: $0.organization, introducedBy: $0.introducedBy?.uuid)
         }
-        let edges = RelationGraph.edges(people: graphPeople, records: participantLists)
+        lap("사람 값 만들기")
+        let edges = RelationGraph.edges(people: graphPeople, records: participantLists, ties: ties)
+        lap("선 \(edges.count)개")
 
         var index: [UUID: Int] = [:]
         for (i, person) in people.enumerated() { index[person.id] = i }
@@ -99,6 +126,7 @@ enum NetworkSnapshotBuilder {
             return GraphLayout.Link(i: i, j: j, weight: weight)
         }
         let positions = GraphLayout.layout(nodeCount: people.count + 1, center: people.count, links: links)
+        lap("자리 잡기")
 
         return NetworkSnapshot(people: people, meName: me?.name, today: today, yearStart: yearStart, yearEnd: yearEnd,
                                edges: edges, positions: positions)

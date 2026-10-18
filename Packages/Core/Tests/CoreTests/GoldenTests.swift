@@ -44,9 +44,9 @@ final class GoldenTests: XCTestCase {
         struct TraitExpected: Decodable { let label: String; let count: Int; let ids: [UUID]; let isUnspecified: Bool; let isRest: Bool }
         struct TraitCase: Decodable { let name: String; let items: [TraitItemRaw]; let limit: Int; let expected: [TraitExpected] }
         struct GraphPersonRaw: Decodable { let id: UUID; let name: String; let organization: String?; let introducedBy: UUID? }
-        struct GraphEdgeRaw: Decodable { let a: UUID; let b: UUID; let together: Int; let introduced: Bool; let sameOrganization: Bool }
+        struct GraphEdgeRaw: Decodable { let a: UUID; let b: UUID; let together: Int; let introduced: Bool; let sameOrganization: Bool; let acquainted: Bool }
         struct GraphCase: Decodable {
-            let name: String; let people: [GraphPersonRaw]; let records: [[UUID]]; let cliqueLimit: Int; let expected: [GraphEdgeRaw]
+            let name: String; let people: [GraphPersonRaw]; let records: [[UUID]]; let ties: [[UUID]]; let cliqueLimit: Int; let expected: [GraphEdgeRaw]
         }
         struct PresetChoicesCase: Decodable { let name: String; let presets: [String]; let used: [String]; let expected: [String] }
         struct ContactSplitCase: Decodable { let text: String; let expected: FieldsExpected }
@@ -267,12 +267,14 @@ final class GoldenTests: XCTestCase {
     func testGraphEdges() throws {
         for c in try Self.loadGolden().graphEdges {
             let people = c.people.map { GraphPerson(id: $0.id, name: $0.name, organization: $0.organization, introducedBy: $0.introducedBy) }
-            let got = RelationGraph.edges(people: people, records: c.records, organizationCliqueLimit: c.cliqueLimit)
+            let ties = c.ties.compactMap { pair in pair.count == 2 ? (pair[0], pair[1]) : nil }
+            let got = RelationGraph.edges(people: people, records: c.records, ties: ties, organizationCliqueLimit: c.cliqueLimit)
             XCTAssertEqual(got.map(\.a), c.expected.map(\.a), c.name)
             XCTAssertEqual(got.map(\.b), c.expected.map(\.b), c.name)
             XCTAssertEqual(got.map(\.together), c.expected.map(\.together), c.name)
             XCTAssertEqual(got.map(\.introduced), c.expected.map(\.introduced), c.name)
             XCTAssertEqual(got.map(\.sameOrganization), c.expected.map(\.sameOrganization), c.name)
+            XCTAssertEqual(got.map(\.acquainted), c.expected.map(\.acquainted), "\(c.name) — 아는 사이")
         }
     }
 

@@ -301,7 +301,7 @@ def trait_buckets(items: list[dict], limit: int = 8) -> list[dict]:
     return out
 
 
-def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int = 12) -> list[dict]:
+def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int = 12, ties=None) -> list[dict]:
     known = {p["id"].upper() for p in people}
     edges: dict = {}
 
@@ -310,7 +310,7 @@ def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int 
         if x == y or x not in known or y not in known:
             return
         a, b = (x, y) if x < y else (y, x)
-        e = edges.setdefault((a, b), {"a": a, "b": b, "together": 0, "introduced": False, "sameOrganization": False})
+        e = edges.setdefault((a, b), {"a": a, "b": b, "together": 0, "introduced": False, "sameOrganization": False, "acquainted": False})
         if field == "together":
             e["together"] += 1
         else:
@@ -329,6 +329,8 @@ def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int 
     for p in people:
         if p.get("introducedBy"):
             touch(p["id"], p["introducedBy"], "introduced")
+    for x, y in (ties or []):
+        touch(x, y, "acquainted")
     groups: dict = {}
     for p in people:
         key = folded(p.get("organization") or "")
@@ -734,7 +736,8 @@ def build() -> dict:
     out["traitBuckets"] = [{"name": c["name"], "items": c["items"], "limit": c["limit"],
                             "expected": trait_buckets(c["items"], c["limit"])} for c in cases["traitBuckets"]]
     out["graphEdges"] = [{"name": c["name"], "people": c["people"], "records": c["records"], "cliqueLimit": c["cliqueLimit"],
-                          "expected": graph_edges(c["people"], c["records"], c["cliqueLimit"])} for c in cases["graphEdges"]]
+                          "ties": c.get("ties", []),
+                          "expected": graph_edges(c["people"], c["records"], c["cliqueLimit"], c.get("ties", []))} for c in cases["graphEdges"]]
     out["presetChoices"] = [{"name": c["name"], "presets": c["presets"], "used": c["used"],
                              "expected": preset_choices(c["presets"], c["used"])}
                             for c in cases["presetChoices"]]
