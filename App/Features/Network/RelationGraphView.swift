@@ -22,6 +22,9 @@ struct RelationGraphView: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// 관계도 설명 시트 — 큰 글씨에서 설명 글을 관계도 밖으로 옮긴다 (이슈 26).
+    @State private var showsGuide = false
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
     @State private var offset: CGSize = .zero
@@ -54,6 +57,9 @@ struct RelationGraphView: View {
     /// 시점마다 셈해 둔 자리 — 다시 고르면 바로 그린다.
     @State private var slicePositions: [Int: [GraphLayout.Point]] = [:]
 
+    /// 접근성 크기 글씨 (AX1~5) — 칩 줄 · 켜기 · 설명 글이 화면을 다 차지해 관계도가 0 높이가 되었다 (빌드 14 · 이슈 26).
+    /// 이때는 거르기를 차림표 하나로 접고 설명은 시트로 옮겨, **관계도 칸이 먼저** 자리를 갖는다.
+    private var compact: Bool { typeSize.isAccessibilitySize }
     private var meIndex: Int { snapshot.people.count }
     private var timeline: NetworkSnapshot.Timeline { snapshot.timeline }
     private var slice: NetworkSnapshot.Timeline.Slice? {
@@ -66,7 +72,11 @@ struct RelationGraphView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            controls
+            if compact {
+                compactControls
+            } else {
+                controls
+            }
             GeometryReader { proxy in
                 let size = proxy.size
                 Canvas { context, canvasSize in
@@ -99,12 +109,17 @@ struct RelationGraphView: View {
                 .accessibilityElement()
                 .accessibilityLabel("관계도 \(slice?.label ?? "지금") — 사람 \(snapshot.people.count)명. 위의 특성 · 돌아보기 칸에서 목록으로 볼 수 있습니다.")
             }
+            // 큰 글씨에서도 관계도 칸은 줄어 없어지지 않는다 (이슈 26). 둘레는 위에서 짧게 접었다.
+            .frame(minHeight: compact ? 240 : 0)
             .clipped()
             .background(Color.raised)
             if !timeline.slices.isEmpty {
                 timeBar
             }
             footer
+        }
+        .sheet(isPresented: $showsGuide) {
+            guide
         }
         .task(id: snapshot.generation) {
             let buckets = TraitDistribution.buckets(snapshot.people.map { (id: $0.id, values: [$0.relationshipType ?? ""]) }, limit: 8)
@@ -163,15 +178,11 @@ struct RelationGraphView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     chip("전체", selected: highlight == nil && highlightCommunity == nil) {
-                        highlight = nil
-                        highlightKey = nil
-                        highlightCommunity = nil
+                        showAll()
                     }
                     ForEach(typeChips, id: \.self) { type in
                         chip(type, selected: highlight == type) {
-                            highlight = highlight == type ? nil : type
-                            highlightKey = highlight.map { NameSort.key($0) }
-                            highlightCommunity = nil
+                            toggleType(type)
                         }
                     }
                 }
@@ -183,9 +194,7 @@ struct RelationGraphView: View {
                         Text("모임").font(.scaled(13, weight: .semibold)).foregroundStyle(Color.muted)
                         ForEach(activeCommunities) { community in
                             chip("\(community.name) \(community.memberIDs.count)", selected: highlightCommunity == community.id) {
-                                highlightCommunity = highlightCommunity == community.id ? nil : community.id
-                                highlight = nil
-                                highlightKey = nil
+                                toggleCommunity(community.id)
                             }
                         }
                     }
@@ -203,6 +212,91 @@ struct RelationGraphView: View {
         .padding(.bottom, 8)
     }
 
+    /// 큰 글씨의 위 줄 (이슈 26) — 관계 유형 · 모임 · 같은 소속 선을 차림표 하나로, 설명은 오른쪽 단추의 시트로.
+    private var compactControls: some View {
+        HStack(spacing: 12) {
+            Menu {
+                Section("관계 유형") {
+                    Button { showAll() } label: {
+                        menuLabel("전체", selected: highlight == nil && highlightCommunity == nil)
+                    }
+                    ForEach(typeChips, id: \.self) { type in
+                        Button { toggleType(type) } label: {
+                            menuLabel(type, selected: highlight == type)
+                        }
+                    }
+                }
+                if !activeCommunities.isEmpty {
+                    Section("모임") {
+                        ForEach(activeCommunities) { community in
+                            Button { toggleCommunity(community.id) } label: {
+                                menuLabel("\(community.name) \(community.memberIDs.count)명", selected: highlightCommunity == community.id)
+                            }
+                        }
+                    }
+                }
+                if sliceIndex == nil {
+                    Toggle("같은 소속도 옅은 선으로 잇기", isOn: $showsOrganization)
+                }
+            } label: {
+                Label(filterTitle, systemImage: "line.3.horizontal.decrease.circle")
+                    .font(.scaled(15, weight: .semibold))
+                    .foregroundStyle(Color.accent)
+                    .lineLimit(1)
+                    .tapTarget()
+            }
+            .accessibilityLabel("보기 거르기, 지금 \(filterTitle)")
+            Spacer(minLength: 0)
+            Button {
+                showsGuide = true
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.scaled(17))
+                    .foregroundStyle(Color.accent)
+                    .frame(minWidth: Font.scaledLength(44))
+                    .tapTarget()
+            }
+            .accessibilityLabel("관계도 설명")
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 4)
+    }
+
+    /// 차림표 단추에 비치는 지금 고른 것.
+    private var filterTitle: String {
+        if let id = highlightCommunity, let community = activeCommunities.first(where: { $0.id == id }) {
+            return "모임 " + community.name
+        }
+        return highlight ?? "전체"
+    }
+
+    @ViewBuilder
+    private func menuLabel(_ text: String, selected: Bool) -> some View {
+        if selected {
+            Label(text, systemImage: "checkmark")
+        } else {
+            Text(text)
+        }
+    }
+
+    private func showAll() {
+        highlight = nil
+        highlightKey = nil
+        highlightCommunity = nil
+    }
+
+    private func toggleType(_ type: String) {
+        highlight = highlight == type ? nil : type
+        highlightKey = highlight.map { NameSort.key($0) }
+        highlightCommunity = nil
+    }
+
+    private func toggleCommunity(_ id: Int) {
+        highlightCommunity = highlightCommunity == id ? nil : id
+        highlight = nil
+        highlightKey = nil
+    }
+
     /// 시점 막대 (D-32) — 분기 끝마다 · 맨 오른쪽이 지금.
     private var timeBar: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -210,27 +304,48 @@ struct RelationGraphView: View {
                 Text(slice?.label ?? "지금")
                     .font(.scaled(15, weight: .semibold))
                     .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 Spacer(minLength: 8)
                 if sliceIndex != nil {
-                    Button("지금으로") { sliderValue = Double(timeline.slices.count) }
-                        .font(.scaled(14))
+                    Button { sliderValue = Double(timeline.slices.count) } label: {
+                        // 큰 글씨에서는 글 대신 그림 하나 — 시점 이름이 한 줄에 남게 (이슈 26).
+                        if compact {
+                            Image(systemName: "arrow.uturn.forward.circle")
+                                .frame(minWidth: Font.scaledLength(44))
+                                .tapTarget()
+                        } else {
+                            Text("지금으로")
+                        }
+                    }
+                    .font(.scaled(14))
+                    .accessibilityLabel("지금으로")
                 }
             }
-            Slider(value: $sliderValue, in: 0...Double(timeline.slices.count), step: 1) {
-                Text("시점")
-            } minimumValueLabel: {
-                Text(timeline.slices.first?.label ?? "").font(.scaled(11)).foregroundStyle(Color.muted)
-            } maximumValueLabel: {
-                Text("지금").font(.scaled(11)).foregroundStyle(Color.muted)
+            if compact {
+                // 양 끝 이름표는 큰 글씨에서 막대를 밀어낸다 — 고른 시점은 위 이름이 말한다.
+                Slider(value: $sliderValue, in: 0...Double(timeline.slices.count), step: 1) {
+                    Text("시점")
+                }
+                .tint(Color.accent)
+                .accessibilityValue(slice?.label ?? "지금")
+            } else {
+                Slider(value: $sliderValue, in: 0...Double(timeline.slices.count), step: 1) {
+                    Text("시점")
+                } minimumValueLabel: {
+                    Text(timeline.slices.first?.label ?? "").font(.scaled(11)).foregroundStyle(Color.muted)
+                } maximumValueLabel: {
+                    Text("지금").font(.scaled(11)).foregroundStyle(Color.muted)
+                }
+                .tint(Color.accent)
+                .accessibilityValue(slice?.label ?? "지금")
+                Text(timeLine)
+                    .font(.scaled(12))
+                    .foregroundStyle(Color.muted)
             }
-            .tint(Color.accent)
-            .accessibilityValue(slice?.label ?? "지금")
-            Text(timeLine)
-                .font(.scaled(12))
-                .foregroundStyle(Color.muted)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 10)
+        .padding(.top, compact ? 4 : 10)
     }
 
     /// 시점 막대 아래 한 줄 — 그 시점에 무엇을 보고 있나.
@@ -271,7 +386,8 @@ struct RelationGraphView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(person.name).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink)
-                            Text(selectedDetail).font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(2)
+                                .lineLimit(compact ? 1 : nil)
+                            Text(selectedDetail).font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(compact ? 1 : 2)
                         }
                         Spacer()
                         Image(systemName: "chevron.right").foregroundStyle(Color.muted)
@@ -280,17 +396,63 @@ struct RelationGraphView: View {
                     .background(Color.raised, in: RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
-            } else {
-                Text("점을 누르면 그 사람을 봅니다. 두 손가락으로 키우고 옮기고, 두 번 누르면 처음 크기로.")
+            } else if !compact {
+                Text(Self.hint)
                     .font(.scaled(13))
                     .foregroundStyle(Color.muted)
             }
-            if sliceIndex == nil {
-                readiness
+            // 큰 글씨에서는 설명 글을 시트로 (이슈 26) — 위 줄 오른쪽의 설명 단추.
+            if !compact {
+                if sliceIndex == nil {
+                    readiness
+                }
+                RecordedScopeNotice()
             }
-            RecordedScopeNotice()
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, compact ? 8 : 16)
+    }
+
+    private static let hint = "점을 누르면 그 사람을 봅니다. 두 손가락으로 키우고 옮기고, 두 번 누르면 처음 크기로."
+
+    /// 관계도 설명 시트 — 큰 글씨에서 관계도 아래에 두던 글을 그대로 모은다 (이슈 26).
+    private var guide: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(Self.hint)
+                        .font(.scaled(15))
+                        .foregroundStyle(Color.bodyText)
+                    Text("위의 거르기 단추로 관계 유형이나 모임 하나만 진하게 볼 수 있습니다.")
+                        .font(.scaled(15))
+                        .foregroundStyle(Color.bodyText)
+                    if !timeline.slices.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(slice?.label ?? "지금")
+                                .font(.scaled(15, weight: .semibold))
+                                .foregroundStyle(Color.ink)
+                            Text(timeLine)
+                                .font(.scaled(13))
+                                .foregroundStyle(Color.muted)
+                        }
+                    }
+                    if sliceIndex == nil {
+                        readiness
+                    }
+                    RecordedScopeNotice()
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Color.ground)
+            .navigationTitle("관계도 설명")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("닫기") { showsGuide = false }
+                }
+            }
+        }
     }
 
     /// 무엇이 선이 되는지와 지금 얼마나 이어졌는지 · 모임을 찾으려면 무엇이 더 있어야 하는지.
