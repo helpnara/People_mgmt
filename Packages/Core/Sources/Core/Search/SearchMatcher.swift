@@ -77,6 +77,8 @@ public struct SearchHit: Sendable, Equatable {
     public let evidence: String
     /// 정렬용 이름 열쇠.
     public let nameKey: String
+    /// 기록에서 일치했으면 그 기록 (FR-034 — 결과를 누르면 그 기록으로 바로 간다). 사람 칸에서 일치하면 `nil`.
+    public let recordID: UUID?
 }
 
 public enum SearchMatcher {
@@ -84,6 +86,7 @@ public enum SearchMatcher {
     private struct Match {
         let kind: MatchKind
         let evidence: String
+        var recordID: UUID? = nil
     }
 
     /// 사람 하나가 낱말 하나에 어디서 일치하는지 — **제일 앞서는 자리** 하나.
@@ -115,12 +118,12 @@ public enum SearchMatcher {
         }
         for record in person.records {
             if !term.tagOnly {
-                if has(record.title) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 제목 일치") }
-                if has(record.note) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 메모 일치") }
-                if has(record.location) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 장소 일치") }
+                if has(record.title) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 제목 일치", recordID: record.id) }
+                if has(record.note) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 메모 일치", recordID: record.id) }
+                if has(record.location) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 장소 일치", recordID: record.id) }
             }
             if let tag = record.tags.first(where: { has($0) }) {
-                return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 태그 #\(tag) 일치")
+                return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 태그 #\(tag) 일치", recordID: record.id)
             }
         }
         return nil
@@ -147,7 +150,8 @@ public enum SearchMatcher {
             }
             guard allMatched, let decisive = worst else { continue }
             hits.append(SearchHit(personID: person.id, kind: decisive.kind,
-                                  evidence: decisive.evidence, nameKey: NameSort.key(person.name)))
+                                  evidence: decisive.evidence, nameKey: NameSort.key(person.name),
+                                  recordID: decisive.recordID))
         }
         return hits.sorted { lhs, rhs in
             if lhs.kind != rhs.kind { return lhs.kind < rhs.kind }

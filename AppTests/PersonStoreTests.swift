@@ -99,6 +99,27 @@ final class PersonStoreTests: XCTestCase {
         XCTAssertTrue(fixture.store.sameName(as: "   ").isEmpty)
     }
 
+    func testRecentSortPutsLatestRecordFirstAndPeopleWithoutRecordsLast() throws {
+        let fixture = try makeFixture()
+        let context = fixture.store.context
+        let quiet = Person(name: "가만")
+        let old = Person(name: "옛날")
+        let fresh = Person(name: "최근")
+        for person in [quiet, old, fresh] { context.insert(person) }
+        let oldRecord = Record(recordType: "meal", occurredAt: Date(timeIntervalSince1970: 1_000_000), title: "옛 기록")
+        let freshRecord = Record(recordType: "meal", occurredAt: Date(timeIntervalSince1970: 2_000_000), title: "새 기록")
+        context.insert(oldRecord)
+        context.insert(freshRecord)
+        oldRecord.participants = [old]
+        freshRecord.participants = [fresh]
+        try context.save()
+
+        XCTAssertEqual(PersonStore.sorted([quiet, old, fresh], by: .recent).map(\.name), ["최근", "옛날", "가만"])
+        XCTAssertEqual(PersonStore.sorted([quiet, old, fresh], by: .name).map(\.name), ["가만", "옛날", "최근"])
+        XCTAssertEqual(fresh.lastRecordAt, Date(timeIntervalSince1970: 2_000_000))
+        XCTAssertNil(quiet.lastRecordAt)
+    }
+
     func testApplyDraftDropsIntroducerWhenPathIsNotIntroduction() throws {
         let fixture = try makeFixture()
         let context = fixture.store.context

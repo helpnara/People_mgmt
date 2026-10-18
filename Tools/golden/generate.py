@@ -114,6 +114,13 @@ def sort_people(people: list[dict]) -> list[str]:
     return [p["name"] for p in ordered]
 
 
+def sort_recency(people: list[dict]) -> list[str]:
+    def key(p):
+        last = p.get("lastRecordAt")
+        return (0, -last, folded(p["name"]), p["createdAt"]) if last is not None else (1, 0, folded(p["name"]), p["createdAt"])
+    return [p["name"] for p in sorted(people, key=key)]
+
+
 def sort_timeline(records: list[dict]) -> list[str]:
     ordered = sorted(records, key=lambda r: (-r["occurredAt"], -r["createdAt"]))
     return [r["id"] for r in ordered]
@@ -179,34 +186,35 @@ def parse_query(raw: str) -> list[tuple[str, bool]]:
 
 
 def best_match(term: tuple[str, bool], person: dict):
+    """(종류, 근거, 기록 id 또는 None)"""
     text, tag_only = term
 
     def has(value) -> bool:
         return value is not None and text in folded(value)
 
     if not tag_only and has(person["name"]):
-        return ("name", "이름 일치")
+        return ("name", "이름 일치", None)
     for tag in person.get("tags", []):
         if has(tag):
-            return ("tag", f"태그 #{tag} 일치")
+            return ("tag", f"태그 #{tag} 일치", None)
     if not tag_only:
         for field, evidence in (("nickname", "별명 일치"), ("organization", "소속 일치"),
                                 ("role", "직무 일치"), ("relationshipType", "관계 유형 일치"),
                                 ("metThrough", "알게 된 경로 일치"), ("firstNote", "첫 인연 메모 일치")):
             if has(person.get(field)):
-                return ("person", evidence)
+                return ("person", evidence, None)
     for record in person.get("records", []):
         shown = record["displayTitle"]
         if not tag_only:
             if has(record.get("title")):
-                return ("record", f"기록 '{shown}' 제목 일치")
+                return ("record", f"기록 '{shown}' 제목 일치", record["id"])
             if has(record.get("note")):
-                return ("record", f"기록 '{shown}' 메모 일치")
+                return ("record", f"기록 '{shown}' 메모 일치", record["id"])
             if has(record.get("location")):
-                return ("record", f"기록 '{shown}' 장소 일치")
+                return ("record", f"기록 '{shown}' 장소 일치", record["id"])
         for tag in record.get("tags", []):
             if has(tag):
-                return ("record", f"기록 '{shown}' 태그 #{tag} 일치")
+                return ("record", f"기록 '{shown}' 태그 #{tag} 일치", record["id"])
     return None
 
 
@@ -227,7 +235,7 @@ def search(query: str, people: list[dict]) -> list[dict]:
                 worst = match
         if not matched or worst is None:
             continue
-        hits.append({"personID": person["id"], "kind": worst[0], "evidence": worst[1],
+        hits.append({"personID": person["id"], "kind": worst[0], "evidence": worst[1], "recordID": worst[2],
                      "_sort": (KIND_RANK[worst[0]], folded(person["name"]), person["id"].upper())})
     hits.sort(key=lambda h: h["_sort"])
     for hit in hits:
@@ -251,6 +259,8 @@ def build() -> dict:
                            for c in cases["displayTitle"]]
     out["nameSort"] = [{"name": c["name"], "people": c["people"], "expected": sort_people(c["people"])}
                        for c in cases["nameSort"]]
+    out["recencySort"] = [{"name": c["name"], "people": c["people"], "expected": sort_recency(c["people"])}
+                          for c in cases["recencySort"]]
     out["timelineSort"] = [{"name": c["name"], "records": c["records"], "expected": sort_timeline(c["records"])}
                            for c in cases["timelineSort"]]
     out["validation"] = [{"name": c["name"], "expected": name_problem(c["name"])}

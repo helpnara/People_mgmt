@@ -13,6 +13,10 @@ struct PeopleListView: View {
 
     @State private var path = NavigationPath()
     @State private var searchText = ""
+    /// 300ms 디바운스된 검색어 (요구사항 5.3). 글자마다 전부 훑지 않는다.
+    @State private var debouncedSearch = ""
+    /// 목록 정렬 (FR-027). 기기 편의라 UserDefaults.
+    @AppStorage("people.sort") private var sortOption: PeopleSortOption = .name
     @State private var showingAdd = false
     @State private var pendingDelete: Person?
     @State private var errorMessage: String?
@@ -21,21 +25,22 @@ struct PeopleListView: View {
     private var store: PersonStore { PersonStore(context: context) }
 
     private var people: [Person] {
-        fetched.sorted {
-            NameSort.areInIncreasingOrder((name: $0.name, createdAt: $0.createdAt),
-                                          (name: $1.name, createdAt: $1.createdAt))
+        LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {
+            PersonStore.sorted(fetched, by: sortOption)
         }
     }
 
-    private var query: SearchQuery { SearchQuery(parsing: searchText) }
+    private var query: SearchQuery { SearchQuery(parsing: debouncedSearch) }
 
     private var hits: [(person: Person, hit: SearchHit)] {
         guard !query.isEmpty else { return [] }
-        var byID: [UUID: Person] = [:]
-        for person in fetched { byID[person.uuid] = person }
-        let searchable = fetched.map { SearchablePerson(person: $0) }
-        return SearchMatcher.hits(query, in: searchable).compactMap { hit in
-            byID[hit.personID].map { (person: $0, hit: hit) }
+        return LaunchTiming.measure("검색 '\(debouncedSearch)' (\(fetched.count)명)") {
+            var byID: [UUID: Person] = [:]
+            for person in fetched { byID[person.uuid] = person }
+            let searchable = fetched.map { SearchablePerson(person: $0) }
+            return SearchMatcher.hits(query, in: searchable).compactMap { hit in
+                byID[hit.personID].map { (person: $0, hit: hit) }
+            }
         }
     }
 
@@ -44,7 +49,7 @@ struct PeopleListView: View {
             Group {
                 if fetched.isEmpty && searchText.isEmpty {
                     EmptyPeopleView { showingAdd = true }
-                } else if !query.isEmpty && hits.isEmpty {
+                } else if !query.isEmpty && hits.isEmpty && debouncedSearch == searchText {
                     ContentUnavailableView.search(text: searchText)
                 } else {
                     list
@@ -54,6 +59,17 @@ struct PeopleListView: View {
             .navigationTitle("느린 인연")
             .searchable(text: $searchText, prompt: "이름, 소속, 메모, 태그")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Picker("정렬", selection: $sortOption) {
+                            ForEach(PeopleSortOption.allCases) { option in
+                                Text(option.label).tag(option)
+                            }
+                        }
+                    } label: {
+                        Label("정렬", systemImage: "arrow.up.arrow.down")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingAdd = true
@@ -61,6 +77,16 @@ struct PeopleListView: View {
                         Label("사람 추가", systemImage: "plus")
                     }
                 }
+            }
+            // 검색어가 멈춘 뒤 300ms 에 한 번만 센다 (요구사항 5.3).
+            .task(id: searchText) {
+                if searchText.isEmpty {
+                    debouncedSearch = ""
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+                debouncedSearch = searchText
             }
             .navigationDestination(for: Person.self) { person in
                 PersonDetailView(person: person)
@@ -106,7 +132,7 @@ struct PeopleListView: View {
                 Section {
                     ForEach(people) { person in
                         NavigationLink(value: person) {
-                            PersonRow(person: person, evidence: nil)
+                            PersonRow(person: person, evidence: nil, showsLastRecord: true)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             // 역할 없는 단추 — `role: .destructive` 는 확인 전에 줄을 먼저 접는다 (느린 부자 178~182).
@@ -119,14 +145,24 @@ struct PeopleListView: View {
                         }
                     }
                 } header: {
-                    Text("\(people.count)명")
+                    Text("\(people.count)명 · \(sortOption.label)")
                 }
             } else {
                 Section {
                     ForEach(hits, id: \.person.uuid) { item in
-                        NavigationLink(value: item.person) {
-                            PersonRow(person: item.person, evidence: item.hit.evidence)
+                        // 기록에서 일치했으면 그 기록 상세까지 바로 연다 (FR-034). 그래서 NavigationLink 가 아니라 Button 이다.
+                        Button {
+                            open(item.person, recordID: item.hit.recordID)
+                        } label: {
+                            HStack {
+                                PersonRow(person: item.person, evidence: item.hit.evidence)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.scaled(13, weight: .semibold))
+                                    .foregroundStyle(Color.faint)
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
                 } header: {
                     Text("\(hits.count)명")
@@ -135,6 +171,14 @@ struct PeopleListView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+    }
+
+    /// 사람 상세를 열고, 기록이 지정됐으면 그 기록 상세까지 연다.
+    private func open(_ person: Person, recordID: UUID?) {
+        path.append(person)
+        if let recordID, let record = (person.records ?? []).first(where: { $0.uuid == recordID }) {
+            path.append(record)
+        }
     }
 
     private func delete(_ person: Person) {
@@ -151,6 +195,7 @@ struct PeopleListView: View {
         guard !appliedArguments else { return }
         appliedArguments = true
         try? await Task.sleep(for: .milliseconds(300))
+        LaunchTiming.mark("목록 첫 표시 (\(fetched.count)명)")
         if let search = arguments.search { searchText = search }
         if arguments.addPerson { showingAdd = true }
         var opened: Person?
@@ -171,12 +216,23 @@ struct PeopleListView: View {
 struct PersonRow: View {
     let person: Person
     let evidence: String?
+    /// 목록에서만 마지막 기록일을 상대 시간으로 (FR-040). 선택기 · 검색 결과에서는 끈다.
+    var showsLastRecord = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(person.name)
-                .font(.scaled(17, weight: .semibold))
-                .foregroundStyle(Color.ink)
+            HStack(alignment: .firstTextBaseline) {
+                Text(person.name)
+                    .font(.scaled(17, weight: .semibold))
+                    .foregroundStyle(Color.ink)
+                if showsLastRecord {
+                    Spacer(minLength: 8)
+                    Text(lastRecordText)
+                        .font(.scaled(12))
+                        .foregroundStyle(Color.faint)
+                        .lineLimit(1)
+                }
+            }
             if let subtitle = person.subtitle {
                 Text(subtitle)
                     .font(.scaled(14))
@@ -192,5 +248,10 @@ struct PersonRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+    }
+
+    private var lastRecordText: String {
+        guard let last = person.lastRecordAt else { return "기록 없음" }
+        return "마지막 기록 " + last.formatted(.relative(presentation: .named))
     }
 }

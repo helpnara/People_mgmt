@@ -355,6 +355,22 @@ jobs:
           fi
           echo "전부 찍었습니다."
 
+      # **큰 견본으로 화면 시간** (요구사항 8.5 · 사람 5,000 · 기록 50,000). 로그에만 남긴다 — 막는 검사가 아니라
+      # "느린 곳만 고친다" 의 숫자를 모으는 자리다. 견본 채우기 자체가 수십 초라 넉넉히 기다린다.
+      - name: 큰 견본으로 화면 시간 재기 (로그만)
+        continue-on-error: true
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          for args in "-seedSampleData -seedLargeSample" "-seedSampleData -seedLargeSample -search 견본" "-seedSampleData -seedLargeSample -openPerson 김하늘"; do
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            echo "── $args ──"
+            # shellcheck disable=SC2086
+            perl -e 'alarm 150; exec @ARGV' \
+              xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" $args 2>&1 \
+              | grep --line-buffered "⏱" || echo "  (찍힌 시간 없음 — 150초 안에 못 띄웠거나 로그가 없다)"
+          done
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+
       # **아티팩트 업로드를 커밋보다 앞에** — 커밋이 실패하면 결과물을 못 받는다.
       - name: 빌드 산출물 보관
         if: always()

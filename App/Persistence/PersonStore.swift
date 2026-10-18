@@ -39,6 +39,21 @@ struct PersonDraft: Equatable {
     var canSave: Bool { nameProblem == nil }
 }
 
+/// 사람 목록 정렬 (FR-027). 기기 편의라 `UserDefaults` 에 두고 iCloud 로 보내지 않는다.
+enum PeopleSortOption: String, CaseIterable, Identifiable {
+    case name
+    case recent
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .name: return "이름순"
+        case .recent: return "최근 기록순"
+        }
+    }
+}
+
 /// 사람을 고치는 **유일한 문** (요구사항 8.1 아키텍처). 화면은 읽기만 `@Query` 로 하고 쓰기는 여기로 온다.
 /// 저장은 사용자가 `저장` 을 누른 그 자리에서 디스크에 닿는다 — 지연 저장으로 잃는 일이 없게.
 @MainActor
@@ -53,9 +68,23 @@ struct PersonStore {
 
     /// 이름순 (요구사항 6.7). 정렬 규칙은 `Core.NameSort` 한 곳이다.
     func sortedPeople() throws -> [Person] {
-        try allPeople().sorted {
-            NameSort.areInIncreasingOrder((name: $0.name, createdAt: $0.createdAt),
-                                          (name: $1.name, createdAt: $1.createdAt))
+        Self.sorted(try allPeople(), by: .name)
+    }
+
+    /// 목록 정렬 (FR-027). 규칙은 Core 의 `NameSort` · `RecencySort` 다 — 화면은 이것만 부른다.
+    static func sorted(_ people: [Person], by option: PeopleSortOption) -> [Person] {
+        switch option {
+        case .name:
+            return people.sorted {
+                NameSort.areInIncreasingOrder((name: $0.name, createdAt: $0.createdAt),
+                                              (name: $1.name, createdAt: $1.createdAt))
+            }
+        case .recent:
+            return people.sorted {
+                RecencySort.areInIncreasingOrder(
+                    (lastRecordAt: $0.lastRecordAt, name: $0.name, createdAt: $0.createdAt),
+                    (lastRecordAt: $1.lastRecordAt, name: $1.name, createdAt: $1.createdAt))
+            }
         }
     }
 
