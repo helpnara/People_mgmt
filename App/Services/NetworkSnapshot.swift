@@ -61,6 +61,42 @@ struct NetworkSnapshot: Sendable {
         var singleParticipantRecords: [UUID] = []
     }
 
+    /// **지난 시점의 관계도** (D-32) — 분기 끝마다 창 12개월로 다시 센 진한 선 · 모임, 그리고 모임이 어떻게 변했나.
+    /// 사람은 `people` 의 자리로 가리킨다. 자리(배치)는 화면이 시점을 고를 때 지금 자리에서 출발해 셈한다.
+    struct Timeline: Sendable {
+        struct Link: Sendable {
+            let i: Int
+            let j: Int
+            let weight: Double
+        }
+
+        struct Slice: Sendable, Identifiable {
+            let id: Int
+            /// `2025년 3분기`
+            let label: String
+            let day: Int
+            /// 앱을 쓰기 전 시기 — 적어 넣은 만큼만 되살아나므로 옅게 그린다.
+            let beforeUse: Bool
+            let status: TemporalNetwork.Status
+            let present: [Int]
+            let links: [Link]
+            let communities: [Community]
+        }
+
+        struct Change: Sendable, Identifiable {
+            let id: Int
+            let sliceLabel: String
+            let phrase: String
+            let name: String
+            let memberIDs: [UUID]
+            let beforeUse: Bool
+        }
+
+        var slices: [Slice] = []
+        /// 최근 것부터.
+        var changes: [Change] = []
+    }
+
     let people: [PersonInfo]
     let meName: String?
     let today: Int
@@ -74,6 +110,8 @@ struct NetworkSnapshot: Sendable {
     var readiness = ReadinessInput(people: 0, withFirstMet: 0, withRelationshipType: 0, withMetThrough: 0,
                                    withRecords: 0, strongEdges: 0, linkedPeople: 0)
     var gaps = Gaps()
+    /// 지난 시점의 관계도 · 모임의 변화 (8번째 묶음 · D-32). 자리 잡기를 하는 자료에만.
+    var timeline = Timeline()
     /// 만들 때마다 새 값 — 화면은 이것으로 다시 셀 때를 안다. 사람 수만 보면 칸을 채운 뒤 돌아와도 그대로다.
     let generation = UUID()
 
@@ -139,13 +177,17 @@ enum NetworkSnapshotBuilder {
         participantLists.reserveCapacity(records.count)
         var hasRecord = Set<UUID>()
         var singles: [(day: Int, id: UUID)] = []
+        var recordDays: [Int] = []
+        recordDays.reserveCapacity(records.count)
         for record in records {
             let day = DayIndex.of(record.occurredAt, calendar: calendar)
             let ids = (record.participants ?? []).filter { !$0.isMe }.map(\.uuid)
             participantLists.append(ids)
-            hasRecord.formUnion(ids)
+            recordDays.append(day)
             if ids.count == 1 { singles.append((day: day, id: record.uuid)) }
+            // 앞으로의 기록(예정)은 기록이 있다 · 마지막 기록일에 넣지 않는다 — 목록 · 돌아보기와 같은 기준 (이슈 20).
             guard day <= today else { continue }
+            hasRecord.formUnion(ids)
             for id in ids where (lastDay[id] ?? Int.min) < day { lastDay[id] = day }
         }
         lap("기록 돌기 (참여자 · 날)")
@@ -208,13 +250,121 @@ enum NetworkSnapshotBuilder {
                                                     readiness: readiness, nameOrder: byName.map(\.id))
         lap("모임 찾기 \(communities.count)개")
 
+        let usageStart = others.map(\.createdAt).min().map { DayIndex.of($0, calendar: calendar) } ?? today
+        let timeline = makeTimeline(people: people, nameOrder: byName.map(\.id), index: index,
+                                    introducedBy: Dictionary(others.compactMap { person in
+                                        person.introducedBy.map { (person.uuid, $0.uuid) }
+                                    }, uniquingKeysWith: { first, _ in first }),
+                                    recordDays: recordDays, participantLists: participantLists, ties: ties,
+                                    now: now, today: today, usageStart: usageStart, calendar: calendar)
+        lap("시점 \(timeline.slices.count)개 · 변화 \(timeline.changes.count)개")
+
         var result = NetworkSnapshot(people: people, meName: me?.name, today: today, yearStart: yearStart, yearEnd: yearEnd,
                                      edges: edges, positions: positions)
         result.readiness = readiness
         result.gaps = gaps
         result.communities = communities
         result.communityStatus = status
+        result.timeline = timeline
         return result
+    }
+
+    /// 분기 끝마다 지난 시점의 관계도를 센다 (D-32). 첫 기록의 분기부터 지난 분기까지, 많아야 40개(10년).
+    /// 번호는 **이름 순** — 점 차례가 늘 같게. 지난 시점의 모임 이름은 소속을 쓰지 않는다(소속에는 날짜가 없다).
+    private static func makeTimeline(people: [NetworkSnapshot.PersonInfo], nameOrder: [UUID], index: [UUID: Int],
+                                     introducedBy: [UUID: UUID], recordDays: [Int], participantLists: [[UUID]],
+                                     ties: [(UUID, UUID)], now: Date, today: Int, usageStart: Int,
+                                     calendar: Calendar) -> NetworkSnapshot.Timeline {
+        guard let firstDay = recordDays.min() else { return NetworkSnapshot.Timeline() }
+        // 분기 끝 날 — 오늘 이전에 끝난 분기만. `Calendar` 의 분기(.quarter)는 믿기 어려워 해 · 달로 센다.
+        var ends: [(day: Int, label: String)] = []
+        let firstDate = Date(timeIntervalSinceReferenceDate: Double(firstDay) * 86_400 + 43_200)
+        var year = calendar.component(.year, from: firstDate)
+        var number = (calendar.component(.month, from: firstDate) - 1) / 3 + 1
+        while ends.count < 400 {
+            // 다음 분기 첫날 0시 − 1초 = 이 분기의 마지막 순간.
+            let nextYear = number == 4 ? year + 1 : year
+            let nextMonth = number == 4 ? 1 : number * 3 + 1
+            guard let nextStart = calendar.date(from: DateComponents(year: nextYear, month: nextMonth, day: 1)),
+                  nextStart <= now else { break }
+            ends.append((DayIndex.of(nextStart.addingTimeInterval(-1), calendar: calendar), "\(year)년 \(number)분기"))
+            year = nextYear
+            number = number == 4 ? 1 : number + 1
+        }
+        ends = Array(ends.suffix(40))
+        guard !ends.isEmpty else { return NetworkSnapshot.Timeline() }
+
+        var node: [UUID: Int] = [:]
+        for (k, id) in nameOrder.enumerated() { node[id] = k }
+        let personAt = nameOrder.compactMap { index[$0] }   // 번호 → people 자리
+        let members = nameOrder.map { id -> TemporalNetwork.Member in
+            let info = index[id].map { people[$0] }
+            return TemporalNetwork.Member(firstMetDay: info?.firstMetDay, introducedBy: introducedBy[id].flatMap { node[$0] })
+        }
+        let meetings = zip(recordDays, participantLists).map { pair in
+            TemporalNetwork.Meeting(day: pair.0, participants: pair.1.compactMap { node[$0] })
+        }
+        let tieNodes = ties.compactMap { pair -> (Int, Int)? in
+            guard let x = node[pair.0], let y = node[pair.1] else { return nil }
+            return (x, y)
+        }
+        let computed = TemporalNetwork.slices(members: members, meetings: meetings, ties: tieNodes, sliceDays: ends.map(\.day))
+
+        func name(_ group: [Int], _ used: inout Set<String>, _ unnamed: inout Int) -> String {
+            let suggested = CommunityNaming.suggest(group.map {
+                CommunityNaming.Member(organization: nil, tags: people[personAt[$0]].tags, metThrough: people[personAt[$0]].metThrough)
+            })
+            var result: String
+            if let suggested {
+                result = suggested
+            } else {
+                unnamed += 1
+                result = "묶음 \(unnamed)"
+            }
+            if used.contains(result) {
+                unnamed += 1
+                result += " · 묶음 \(unnamed)"
+            }
+            used.insert(result)
+            return result
+        }
+
+        var slices: [NetworkSnapshot.Timeline.Slice] = []
+        var namesBySlice: [[String]] = []
+        for (k, slice) in computed.enumerated() {
+            var used = Set<String>()
+            var unnamed = 0
+            var groups: [NetworkSnapshot.Community] = []
+            var names: [String] = []
+            for group in slice.communities {
+                let title = name(group, &used, &unnamed)
+                names.append(title)
+                let indices = group.map { personAt[$0] }
+                groups.append(NetworkSnapshot.Community(id: groups.count, name: title,
+                                                        memberIDs: indices.map { people[$0].id }, memberIndices: indices))
+            }
+            namesBySlice.append(names)
+            slices.append(NetworkSnapshot.Timeline.Slice(
+                id: k, label: ends[k].label, day: slice.day, beforeUse: slice.day < usageStart, status: slice.status,
+                present: slice.present.map { personAt[$0] },
+                links: slice.edges.map { NetworkSnapshot.Timeline.Link(i: personAt[$0.a], j: personAt[$0.b], weight: $0.weight) },
+                communities: groups))
+        }
+
+        var changes: [NetworkSnapshot.Timeline.Change] = []
+        for change in TemporalNetwork.changes(computed) {
+            // 이름은 그 모임이 보인 시점의 이름 — 나뉨 · 최근 기록 없음은 앞 시점의 모임이다.
+            let at = (change.kind == .split || change.kind == .faded) ? change.slice - 1 : change.slice
+            let position = computed[at].communities.firstIndex(of: change.members)
+            let title = position.map { namesBySlice[at][$0] } ?? "모임"
+            changes.append(NetworkSnapshot.Timeline.Change(
+                id: changes.count, sliceLabel: ends[change.slice].label, phrase: change.kind.phrase, name: title,
+                memberIDs: change.members.map { people[personAt[$0]].id }, beforeUse: computed[change.slice].day < usageStart))
+        }
+        var timeline = NetworkSnapshot.Timeline()
+        timeline.slices = slices
+        timeline.changes = changes.reversed()
+        return timeline
     }
 
     /// 모임 찾기 (D-30) — **진한 선만** 쓴다. 무게는 함께한 기록 수 + 소개 1 + 아는 사이 1. 같은 소속은 넣지 않는다

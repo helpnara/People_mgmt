@@ -333,6 +333,10 @@ jobs:
           # **입력 상태 · 모임** (빌드 10 · D-30 · D-31). 모임 견본(15명 · 아는 사이)을 더하면 관계도에 모임 테두리 넷이 그려져야 한다.
           shoot 20-network-readiness.png -seedSampleData -openNetwork readiness
           shoot 21-network-groups.png -seedSampleData -seedCommunitySample -openNetwork graph
+          # **지난 시점의 관계도 · 모임의 변화** (빌드 12 · D-32). 모임 견본의 2025년 3분기(시점 9) — 독서 · 등산 모임이 보이고
+          # 프로젝트 모임 사람들은 아직 없다. 돌아보기 아래에 모임의 변화(새로 생긴 모임 · 최근 기록 없음)가 보여야 한다.
+          shoot 22-network-timeline.png -seedSampleData -seedCommunitySample -openNetwork graph -timeSlice 9
+          shoot 23-network-changes.png -seedSampleData -seedCommunitySample -openNetwork overview
           # **사진첩 고르기 창** (이슈 10). 빌드 4 · 5 실기기에서 이 길로 주 스레드가 쉬지 않고 돌다 꺼졌다.
           # 시뮬레이터 사진첩의 견본 사진이 뜨면 PNG 가 2MB 를 넘는다 (빌드 7 CI 에서 잡힘 — 홈 화면으로 잘못 봤다).
           SHOOT_MAX=6000000 shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto
@@ -343,7 +347,8 @@ jobs:
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
             local pid
             pid=$(xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@" | awk '{print $NF}')
-            sleep 15
+            # 큰 견본은 채우기(15초) · 목록 · 입력 상태 · 검색 색인을 뒤에서 만드는 데 1분 남짓 걸린다 — 그만큼 기다린다.
+            sleep "${BUSY_WAIT:-15}"
             local samples=""
             for _ in 1 2 3 4 5; do
               samples="$samples $(ps -o %cpu= -p "$pid" 2>/dev/null || echo 0)"
@@ -353,7 +358,7 @@ jobs:
             average=$(echo "$samples" | awk '{s=0; for (i=1;i<=NF;i++) s+=$i; printf "%d", (NF ? s/NF : 0)}')
             echo "CPU ($label):$samples → 평균 ${average}%"
             if [ "$average" -ge "${BUSY_LIMIT:-60}" ]; then
-              echo "::error::$label — 창을 띄우고 15초가 지나도 앱이 CPU ${average}% 를 쓴다. 실기기라면 10초 워치독에 꺼진다 (이슈 10)."
+              echo "::error::$label — 창을 띄우고 ${BUSY_WAIT:-15}초가 지나도 앱이 CPU ${average}% 를 쓴다. 실기기라면 10초 워치독에 꺼진다 (이슈 10)."
               # 그때 화면을 남긴다 — 실패 목록은 파일 이름만 받는다 (아래 `못 찍은 사진을 브랜치에`).
               xcrun simctl io "$UDID" screenshot "screenshots/busy-$label.png" >/dev/null 2>&1 || true
               echo "busy-$label.png" >> /tmp/shoot-failures
@@ -362,6 +367,10 @@ jobs:
           busy_check 사진첩-고르기 -seedSampleData -addPerson -pickCardPhoto
           busy_check 사람-목록 -seedSampleData
           busy_check 인맥-관계도 -seedSampleData -openNetwork graph
+          # 입력 시트를 사람 5,000명으로 (전수조사 이슈 18) — 빌드 11 까지 두 시트는 본문에서 사람 전원을 정렬했다.
+          # 글자를 쳐 볼 수는 없으니, 시트가 떠 있는 동안 다시 그리기가 쉬지 않고 도는지만 본다.
+          BUSY_WAIT=90 busy_check 사람-추가-큰견본 -seedSampleData -seedLargeSample -addPerson
+          BUSY_WAIT=90 busy_check 기록-추가-큰견본 -seedSampleData -seedLargeSample -openPerson 김하늘 -addRecord
           # 저장소를 끝내 못 열었을 때의 안내 화면 — 죽지 않고 이 화면이 뜨는지, 지우기 단추가 없는지.
           shoot 08-store-failure.png -simulateStoreFailure
 

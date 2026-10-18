@@ -59,6 +59,16 @@ final class GoldenTests: XCTestCase {
             let withRecords: Int; let strongEdges: Int; let linkedPeople: Int
         }
         struct ReadinessItemRaw: Decodable { let feature: String; let level: String; let progress: Double; let current: String; let hint: String }
+        struct TemporalMemberRaw: Decodable { let firstMetDay: Int?; let introducedBy: Int? }
+        struct TemporalMeetingRaw: Decodable { let day: Int; let participants: [Int] }
+        struct TemporalSliceRaw: Decodable {
+            let day: Int; let present: [Int]; let linked: [Int]; let status: String; let edges: [[Double]]; let communities: [[Int]]
+        }
+        struct TemporalChangeRaw: Decodable { let slice: Int; let kind: String; let members: [Int] }
+        struct TemporalCase: Decodable {
+            let name: String; let people: [TemporalMemberRaw]; let records: [TemporalMeetingRaw]; let ties: [[Int]]
+            let sliceDays: [Int]; let slices: [TemporalSliceRaw]; let changes: [TemporalChangeRaw]
+        }
         struct ReadinessCase: Decodable { let name: String; let input: ReadinessInputRaw; let expected: [ReadinessItemRaw]; let summary: String }
         struct PresetChoicesCase: Decodable { let name: String; let presets: [String]; let used: [String]; let expected: [String] }
         struct ContactSplitCase: Decodable { let text: String; let expected: FieldsExpected }
@@ -115,6 +125,7 @@ final class GoldenTests: XCTestCase {
         let splitConnected: [ComponentSplitCase]
         let communityName: [NamingCase]
         let inputReadiness: [ReadinessCase]
+        let temporal: [TemporalCase]
         let dyadMetrics: [DyadCase]
         let spanText: [SpanCase]
         let networkOverview: [OverviewCase]
@@ -331,6 +342,33 @@ final class GoldenTests: XCTestCase {
                 XCTAssertEqual(g.progress, e.progress, accuracy: 1e-9, "\(c.name) — \(e.feature) 막대")
             }
             XCTAssertEqual(InputReadiness.summary(got), c.summary, "\(c.name) — 한 줄")
+        }
+    }
+
+    func testTemporalNetwork() throws {
+        for c in try Self.loadGolden().temporal {
+            let slices = TemporalNetwork.slices(
+                members: c.people.map { TemporalNetwork.Member(firstMetDay: $0.firstMetDay, introducedBy: $0.introducedBy) },
+                meetings: c.records.map { TemporalNetwork.Meeting(day: $0.day, participants: $0.participants) },
+                ties: c.ties.map { ($0[0], $0[1]) },
+                sliceDays: c.sliceDays)
+            XCTAssertEqual(slices.count, c.slices.count, c.name)
+            for (got, want) in zip(slices, c.slices) {
+                let at = "\(c.name) — 시점 \(want.day)"
+                XCTAssertEqual(got.day, want.day, at)
+                XCTAssertEqual(got.present, want.present, "\(at) 있던 사람")
+                XCTAssertEqual(got.linked, want.linked, "\(at) 이어진 사람")
+                XCTAssertEqual(got.status.rawValue, want.status, "\(at) 상태")
+                XCTAssertEqual(got.communities, want.communities, "\(at) 모임")
+                XCTAssertEqual(got.edges.map { [$0.a, $0.b] }, want.edges.map { [Int($0[0]), Int($0[1])] }, "\(at) 선")
+                for (g, w) in zip(got.edges, want.edges) {
+                    XCTAssertEqual(g.weight, w[2], accuracy: 1e-9, "\(at) 무게 \(g.a)-\(g.b)")
+                }
+            }
+            let changes = TemporalNetwork.changes(slices)
+            XCTAssertEqual(changes.map(\.slice), c.changes.map(\.slice), "\(c.name) — 변화 시점")
+            XCTAssertEqual(changes.map(\.kind.rawValue), c.changes.map(\.kind), "\(c.name) — 변화 종류")
+            XCTAssertEqual(changes.map(\.members), c.changes.map(\.members), "\(c.name) — 변화 구성원")
         }
     }
 

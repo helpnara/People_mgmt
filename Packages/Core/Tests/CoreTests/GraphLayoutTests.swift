@@ -103,4 +103,16 @@ final class GraphLayoutTests: XCTestCase {
         }
         XCTAssertGreaterThan(closest, 0.003, "겹치지 않는다")
     }
+
+    /// 지난 시점의 관계도는 지금 자리에서 출발한다 (D-32) — 낮은 온도면 사람들이 처음 자리 가까이에 머문다.
+    /// 한 번에 움직이는 거리는 온도(0.004 + 0.002)를 넘지 않으므로 반복 40번이면 처음 자리에서 0.24 넘게 벗어날 수 없다 — 셈으로 정해지는 성질.
+    func testInitialPositionsKeepPeopleNearby() {
+        let start = GraphLayout.layout(nodeCount: 7, center: 6, links: twoClumps)
+        let again = GraphLayout.layout(nodeCount: 7, center: 6, links: twoClumps, iterations: 40,
+                                       initial: start, startTemperature: 0.004)
+        for i in 0..<7 {
+            XCTAssertLessThan(distance(start[i], again[i]), 0.25, "사람 \(i) 이 처음 자리 가까이")
+        }
+        XCTAssertEqual(again[6], GraphLayout.Point(x: 0.5, y: 0.5), "나는 가운데")
+    }
 }

@@ -76,3 +76,20 @@ enum Persistence {
         }
     }
 }
+
+/// **저장 실패 모사** (AC-29 · 전수조사 이슈 19). `-failSaves` 로 켜면 `PersonStore` · `RecordStore` 의 모든 저장이
+/// 실패하고, 실패한 저장은 되돌린다 — 저장 실패 알림 · 입력 유지 · `다시 시도` 를 실기기 · 시험에서 본다.
+/// 앱 시험은 `isOn` 을 직접 켜고 끈다.
+@MainActor
+enum SaveFailure {
+    static var isOn = LaunchArguments.current.failSaves
+
+    struct Simulated: LocalizedError {
+        var errorDescription: String? { "저장 실패 시험 중입니다." }
+    }
+
+    /// 켜져 있으면 저장 전에 실패를 던진다.
+    static func check() throws {
+        if isOn { throw Simulated() }
+    }
+}

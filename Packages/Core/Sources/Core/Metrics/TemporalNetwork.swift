@@ -1,0 +1,209 @@
+import Foundation
+
+/// **시점에 따른 관계 변화** (8번째 묶음 · D-32 · docs/community-detection-review.md 5-1 · 9절).
+///
+/// 같은 사람들이라도 3년 전의 묶음과 지금의 묶음은 다르다. 기록마다 날짜가 있어 지난 시점의 관계도를 되살린다.
+/// - **시점 t 의 진한 선**: 창(t 이전 365일) 안의 함께한 기록을 반감기 182.625일(6개월)로 줄여 더한다.
+///   소개 · 아는 사이는 날짜가 없으므로 **두 사람이 그 시점에 있으면** 1 씩 더한다.
+/// - **그 시점에 있던 사람**: 처음 만난 날과 첫 기록일 중 이른 날이 t 이전. 둘 다 없으면 그리지 않는다.
+/// - **모임**: 진한 선이 10개 이상일 때 Louvain(지금의 모임 찾기와 같은 문턱 — 모듈성 0.3 · 3명 이상).
+/// - **변화**: 앞 시점의 모임과 구성원 겹침(Jaccard 0.3 이상)으로 짝짓고 중립적인 말로 판정한다 (원칙 5).
+///
+/// 사람 · 기록 · 아는 사이는 **번호**로 받는다 — 부르는 쪽이 이름 순으로 번호를 매긴다(점 차례가 늘 같게).
+/// 같은 소속은 넣지 않는다 — 소속에는 날짜가 없어 틀린 과거를 그리게 된다.
+/// 파이썬 정답표(`Tools/golden` 의 `temporal`)와 같은 셈이다.
+public enum TemporalNetwork {
+    public static let windowDays = 365
+    public static let halfLifeDays = 182.625
+    public static let minimumStrongEdges = 10
+    public static let matchThreshold = 0.3
+    public static let sizeChange = 0.3
+
+    public struct Member: Sendable, Equatable {
+        public let firstMetDay: Int?
+        /// 이 사람을 소개한 사람의 번호.
+        public let introducedBy: Int?
+        public init(firstMetDay: Int?, introducedBy: Int?) {
+            self.firstMetDay = firstMetDay
+            self.introducedBy = introducedBy
+        }
+    }
+
+    public struct Meeting: Sendable, Equatable {
+        public let day: Int
+        public let participants: [Int]
+        public init(day: Int, participants: [Int]) {
+            self.day = day
+            self.participants = participants
+        }
+    }
+
+    public struct Edge: Sendable, Equatable {
+        public let a: Int
+        public let b: Int
+        public let weight: Double
+    }
+
+    public enum Status: String, Sendable {
+        /// 진한 선이 모자라다 — `이 시기는 기록이 적습니다`.
+        case sparse
+        /// 선은 넉넉하지만 뚜렷하게 나뉘지 않는다.
+        case unclear
+        case shown
+    }
+
+    public struct Slice: Sendable {
+        public let day: Int
+        /// 그 시점에 있던 사람 (번호 오름차순).
+        public let present: [Int]
+        /// 진한 선이 하나라도 있는 사람.
+        public let linked: [Int]
+        public let status: Status
+        /// (a < b) 차례.
+        public let edges: [Edge]
+        /// 큰 모임부터. 모임마다 번호 오름차순.
+        public let communities: [[Int]]
+    }
+
+    public enum ChangeKind: String, Sendable {
+        case new, grew, shrank, merged, split, faded
+
+        /// 보여 줄 말 — 판단하지 않는다 (`사라졌다` · `끊겼다` 대신 `최근 기록 없음`).
+        public var phrase: String {
+            switch self {
+            case .new: return "새로 생긴 모임"
+            case .grew: return "사람이 늘었습니다"
+            case .shrank: return "사람이 줄었습니다"
+            case .merged: return "두 모임이 이어졌습니다"
+            case .split: return "한 모임이 나뉘었습니다"
+            case .faded: return "최근 기록 없음"
+            }
+        }
+    }
+
+    public struct Change: Sendable, Equatable {
+        /// 이 변화가 보인 시점 (`slices` 의 자리). 늘 1 이상 — 앞 시점과 견준다.
+        public let slice: Int
+        public let kind: ChangeKind
+        /// 나뉨 · 최근 기록 없음은 앞 시점의 모임, 나머지는 이 시점의 모임.
+        public let members: [Int]
+    }
+
+    private struct Pair: Hashable, Comparable {
+        let a: Int
+        let b: Int
+        init(_ x: Int, _ y: Int) {
+            a = min(x, y)
+            b = max(x, y)
+        }
+        static func < (l: Pair, r: Pair) -> Bool { l.a != r.a ? l.a < r.a : l.b < r.b }
+    }
+
+    public static func slices(members: [Member], meetings: [Meeting], ties: [(Int, Int)], sliceDays: [Int]) -> [Slice] {
+        let n = members.count
+        var firstRecord = [Int?](repeating: nil, count: n)
+        for meeting in meetings {
+            for x in Set(meeting.participants) where x >= 0 && x < n {
+                if firstRecord[x].map({ meeting.day < $0 }) ?? true { firstRecord[x] = meeting.day }
+            }
+        }
+        let known: [Int?] = (0..<n).map { i in
+            [members[i].firstMetDay, firstRecord[i]].compactMap { $0 }.min()
+        }
+        var introduced = Set<Pair>()
+        for (i, member) in members.enumerated() {
+            if let j = member.introducedBy, j >= 0, j < n, j != i { introduced.insert(Pair(i, j)) }
+        }
+        var acquainted = Set<Pair>()
+        for (a, b) in ties where a != b && a >= 0 && a < n && b >= 0 && b < n {
+            acquainted.insert(Pair(a, b))
+        }
+        let timeless = introduced.union(acquainted).sorted()
+
+        return sliceDays.map { t in
+            let present = (0..<n).filter { i in known[i].map { $0 <= t } ?? false }
+            let isPresent = Set(present)
+            var weight: [Pair: Double] = [:]
+            for meeting in meetings {
+                let d = meeting.day
+                guard d <= t, d > t - windowDays else { continue }
+                let w = pow(0.5, Double(t - d) / halfLifeDays)
+                let ps = Set(meeting.participants.filter { isPresent.contains($0) }).sorted()
+                for x in 0..<ps.count {
+                    for y in (x + 1)..<ps.count {
+                        weight[Pair(ps[x], ps[y]), default: 0] += w
+                    }
+                }
+            }
+            for pair in timeless where isPresent.contains(pair.a) && isPresent.contains(pair.b) {
+                let add = (introduced.contains(pair) ? 1.0 : 0) + (acquainted.contains(pair) ? 1.0 : 0)
+                weight[pair, default: 0] += add
+            }
+            let pairs = weight.keys.sorted()
+            let edges = pairs.map { Edge(a: $0.a, b: $0.b, weight: weight[$0] ?? 0) }
+            let linked = Set(pairs.flatMap { [$0.a, $0.b] }).sorted()
+
+            var status = Status.sparse
+            var communities: [[Int]] = []
+            if edges.count >= minimumStrongEdges {
+                var node: [Int: Int] = [:]
+                for (k, p) in present.enumerated() { node[p] = k }
+                let links = edges.compactMap { edge -> CommunityDetection.Link? in
+                    guard let i = node[edge.a], let j = node[edge.b] else { return nil }
+                    return CommunityDetection.Link(i: i, j: j, weight: edge.weight)
+                }
+                let found = CommunityDetection.louvain(nodeCount: present.count, links: links)
+                let groups = found.communities
+                    .filter { $0.count >= CommunityDetection.minimumGroupSize }
+                    .map { $0.map { present[$0] } }
+                if found.modularity >= CommunityDetection.minimumModularity && !groups.isEmpty {
+                    status = .shown
+                    communities = groups
+                } else {
+                    status = .unclear
+                }
+            }
+            return Slice(day: t, present: present, linked: linked, status: status, edges: edges, communities: communities)
+        }
+    }
+
+    public static func changes(_ slices: [Slice]) -> [Change] {
+        func jaccard(_ x: [Int], _ y: [Int]) -> Double {
+            let a = Set(x), b = Set(y)
+            let union = a.union(b).count
+            return union > 0 ? Double(a.intersection(b).count) / Double(union) : 0
+        }
+        var events: [Change] = []
+        for s in slices.indices.dropFirst() {
+            let previous = slices[s - 1].communities
+            let current = slices[s].communities
+            let successors = previous.map { p in current.indices.filter { jaccard(p, current[$0]) >= matchThreshold } }
+            let predecessors = current.map { c in previous.indices.filter { jaccard(previous[$0], c) >= matchThreshold } }
+            for (c, group) in current.enumerated() {
+                let pred = predecessors[c]
+                if pred.isEmpty {
+                    events.append(Change(slice: s, kind: .new, members: group))
+                } else if pred.count >= 2 {
+                    events.append(Change(slice: s, kind: .merged, members: group))
+                } else {
+                    let p = pred[0]
+                    guard successors[p].count < 2 else { continue }
+                    let ratio = Double(group.count - previous[p].count) / Double(previous[p].count)
+                    if ratio > sizeChange {
+                        events.append(Change(slice: s, kind: .grew, members: group))
+                    } else if ratio < -sizeChange {
+                        events.append(Change(slice: s, kind: .shrank, members: group))
+                    }
+                }
+            }
+            for (p, group) in previous.enumerated() {
+                if successors[p].isEmpty {
+                    events.append(Change(slice: s, kind: .faded, members: group))
+                } else if successors[p].count >= 2 {
+                    events.append(Change(slice: s, kind: .split, members: group))
+                }
+            }
+        }
+        return events
+    }
+}

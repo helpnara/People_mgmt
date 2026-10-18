@@ -197,7 +197,13 @@ extension SchemaV4.Person {
     }
 
     /// 마지막 기록일 (FR-040). 저장하지 않고 기록에서 센다.
+    ///
+    /// **오늘까지의 기록만** 본다 (전수조사 이슈 20). 예정된 만남(앞날짜 기록, D-11)을 넣으면 목록은
+    /// `마지막 기록 5일 후` 라고 쓰면서 돌아보기 · 관계 돌아보기(오늘까지만 셈)는 `6개월 넘게 기록 없음` 이라 해
+    /// 같은 사람을 두고 말이 달랐다. 앞날짜 기록만 있는 사람은 아직 기록이 없는 사람으로 본다.
     var lastRecordAt: Date? {
-        (records ?? []).map(\.occurredAt).max()
+        let calendar = Calendar.current
+        let endOfToday = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
+        return (records ?? []).map(\.occurredAt).filter { $0 < endOfToday }.max()
     }
 }

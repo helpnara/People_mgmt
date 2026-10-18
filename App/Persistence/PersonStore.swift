@@ -134,6 +134,7 @@ struct PersonStore {
     /// 바뀐 값이 남았다가 다음 저장 때 디스크에 들어간다. 입력은 초안(`PersonDraft`)에 그대로 있어 다시 시도할 수 있다.
     private func commit() throws {
         do {
+            try SaveFailure.check()
             try context.save()
         } catch {
             context.rollback()
@@ -247,6 +248,10 @@ struct PersonStore {
         }
         if summary.shared == 0 {
             return "'\(name)'\(Josa.gwaWa(name)) 기록 \(summary.sole)건을 모두 삭제하시겠습니까? 되돌릴 수 없습니다."
+        }
+        if summary.sole == 0 {
+            // 혼자 참여한 기록이 없으면 `기록 0건이 삭제되고` 를 말하지 않는다 (전수조사 이슈 19).
+            return "'\(name)'\(Josa.eulReul(name)) 삭제하시겠습니까? 다른 사람과 함께한 기록 \(summary.shared)건에서 이 사람만 빠지고, 기록은 남습니다. 되돌릴 수 없습니다."
         }
         return "'\(name)'\(Josa.eulReul(name)) 삭제하시겠습니까? 기록 \(summary.sole)건이 삭제되고, 다른 사람과 함께한 기록 \(summary.shared)건에서는 이 사람만 빠집니다. 되돌릴 수 없습니다."
     }

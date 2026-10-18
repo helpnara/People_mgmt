@@ -2,9 +2,19 @@ import Core
 import SwiftUI
 
 /// 태그 입력 (요구사항 4.2.2 · 7.2). 줄바꿈 · 쉼표로 넣고, 칩의 ⓧ 로 뺀다. 정리 규칙은 `Core.TagNormalizer` 하나다.
+///
+/// **치던 글자는 부르는 쪽이 쥔다** (전수조사 이슈 19). 태그를 치다가 줄바꿈 없이 바로 `저장` 을 누르면 그 태그가
+/// 조용히 버려졌다. 입력 칸 글자(`input`)를 바인딩으로 올려, 저장할 때 `TagEditor.merged(_:pending:)` 로 넣는다.
 struct TagEditor: View {
     @Binding var tags: [String]
-    @State private var input = ""
+    @Binding var input: String
+
+    /// 저장할 때 — 아직 칩이 되지 않은 글자까지 넣은 태그 목록.
+    static func merged(_ tags: [String], pending: String) -> [String] {
+        let parsed = TagNormalizer.parse(pending)
+        guard !parsed.isEmpty else { return tags }
+        return TagNormalizer.normalizeList(tags + parsed)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -40,8 +50,7 @@ struct TagEditor: View {
     }
 
     private func commit() {
-        let parsed = TagNormalizer.parse(input)
-        tags = TagNormalizer.normalizeList(tags + parsed)
+        tags = Self.merged(tags, pending: input)
         input = ""
     }
 }

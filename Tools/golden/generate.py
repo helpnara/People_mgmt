@@ -551,6 +551,107 @@ def community_name(members):
     return top([[m.get("metThrough") or ""] for m in members])
 
 
+# ── 시점에 따른 관계 변화 (TemporalNetwork · D-32) ───────────────────────────
+# 사람 · 기록 · 아는 사이는 번호로 받는다 (번호 차례 = 이름 순). 시점마다 창(365일) 안의 함께한 기록을
+# 반감기 182.625일로 줄여 더하고, 소개 · 아는 사이는 두 사람이 그 시점에 있으면 1 을 더한다.
+
+TEMPORAL_WINDOW = 365
+TEMPORAL_HALF_LIFE = 182.625
+TEMPORAL_MIN_EDGES = 10
+TEMPORAL_MIN_MODULARITY = 0.3
+TEMPORAL_MIN_GROUP = 3
+TEMPORAL_MATCH = 0.3
+TEMPORAL_SIZE_CHANGE = 0.3
+
+
+def temporal_slices(people, records, ties, slice_days):
+    n = len(people)
+    first_record = [None] * n
+    for r in records:
+        for x in set(r["participants"]):
+            if 0 <= x < n and (first_record[x] is None or r["day"] < first_record[x]):
+                first_record[x] = r["day"]
+    known = []
+    for i, p in enumerate(people):
+        days = [d for d in (p.get("firstMetDay"), first_record[i]) if d is not None]
+        known.append(min(days) if days else None)
+    pair_sets = []
+    intro = set()
+    for i, p in enumerate(people):
+        j = p.get("introducedBy")
+        if j is not None and 0 <= j < n and j != i:
+            intro.add((min(i, j), max(i, j)))
+    tie = set()
+    for a, b in ties:
+        if a != b and 0 <= a < n and 0 <= b < n:
+            tie.add((min(a, b), max(a, b)))
+    out = []
+    for t in slice_days:
+        present = [i for i in range(n) if known[i] is not None and known[i] <= t]
+        pres = set(present)
+        weight = {}
+        for r in records:
+            d = r["day"]
+            if d > t or d <= t - TEMPORAL_WINDOW:
+                continue
+            w = 0.5 ** ((t - d) / TEMPORAL_HALF_LIFE)
+            ps = sorted(set(x for x in r["participants"] if x in pres))
+            for a in range(len(ps)):
+                for b in range(a + 1, len(ps)):
+                    key = (ps[a], ps[b])
+                    weight[key] = weight.get(key, 0.0) + w
+        for key in sorted(intro | tie):
+            if key[0] in pres and key[1] in pres:
+                add = (1.0 if key in intro else 0.0) + (1.0 if key in tie else 0.0)
+                weight[key] = weight.get(key, 0.0) + add
+        edges = sorted(weight.items())
+        linked = sorted(set(i for (a, b), _ in edges for i in (a, b)))
+        status, communities = "sparse", []
+        if len(edges) >= TEMPORAL_MIN_EDGES:
+            node = {p: k for k, p in enumerate(present)}
+            links = [{"i": node[a], "j": node[b], "weight": w} for (a, b), w in edges]
+            found = louvain(len(present), links)
+            groups = [[present[k] for k in c] for c in found["communities"] if len(c) >= TEMPORAL_MIN_GROUP]
+            if found["modularity"] >= TEMPORAL_MIN_MODULARITY and groups:
+                status, communities = "shown", groups
+            else:
+                status = "unclear"
+        out.append({"day": t, "present": present, "linked": linked, "status": status,
+                    "edges": [[a, b, w] for (a, b), w in edges], "communities": communities})
+    return out
+
+
+def temporal_changes(slices):
+    def jaccard(x, y):
+        a, b = set(x), set(y)
+        return len(a & b) / len(a | b) if a | b else 0.0
+    events = []
+    for s in range(1, len(slices)):
+        prev, cur = slices[s - 1]["communities"], slices[s]["communities"]
+        succ = [[c for c in range(len(cur)) if jaccard(prev[p], cur[c]) >= TEMPORAL_MATCH] for p in range(len(prev))]
+        pred = [[p for p in range(len(prev)) if jaccard(prev[p], cur[c]) >= TEMPORAL_MATCH] for c in range(len(cur))]
+        for c, group in enumerate(cur):
+            if not pred[c]:
+                events.append({"slice": s, "kind": "new", "members": group})
+            elif len(pred[c]) >= 2:
+                events.append({"slice": s, "kind": "merged", "members": group})
+            else:
+                p = pred[c][0]
+                if len(succ[p]) >= 2:
+                    continue
+                ratio = (len(group) - len(prev[p])) / len(prev[p])
+                if ratio > TEMPORAL_SIZE_CHANGE:
+                    events.append({"slice": s, "kind": "grew", "members": group})
+                elif ratio < -TEMPORAL_SIZE_CHANGE:
+                    events.append({"slice": s, "kind": "shrank", "members": group})
+        for p, group in enumerate(prev):
+            if not succ[p]:
+                events.append({"slice": s, "kind": "faded", "members": group})
+            elif len(succ[p]) >= 2:
+                events.append({"slice": s, "kind": "split", "members": group})
+    return events
+
+
 # ── 입력 상태 (InputReadiness) ───────────────────────────────────────────────
 
 READINESS_TITLES = {"traits": "특성 분포", "firstMet": "올해 처음 만남", "review": "돌아보기", "graph": "관계도", "groups": "모임 찾기"}
@@ -1011,6 +1112,12 @@ def build() -> dict:
                               "expected": split_connected(c["communities"], c["nodeCount"], c["links"])} for c in cases["splitConnected"]]
     out["communityName"] = [{"name": c["name"], "members": c["members"], "expected": community_name(c["members"])}
                             for c in cases["communityName"]]
+    out["temporal"] = []
+    for c in cases["temporal"]:
+        sl = temporal_slices(c["people"], c["records"], c.get("ties", []), c["sliceDays"])
+        out["temporal"].append({"name": c["name"], "people": c["people"], "records": c["records"],
+                                "ties": c.get("ties", []), "sliceDays": c["sliceDays"],
+                                "slices": sl, "changes": temporal_changes(sl)})
     out["inputReadiness"] = [{"name": c["name"], "input": c["input"], "expected": input_readiness(c["input"]),
                               "summary": readiness_summary(input_readiness(c["input"]))} for c in cases["inputReadiness"]]
     out["presetChoices"] = [{"name": c["name"], "presets": c["presets"], "used": c["used"],

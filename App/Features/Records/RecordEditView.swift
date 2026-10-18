@@ -21,6 +21,11 @@ struct RecordEditView: View {
     @State private var original: RecordDraft
     @State private var confirmingDiscard = false
     @State private var saveError: String?
+    /// 함께한 사람 후보 — 이름 순. **본문에서 정렬하지 않는다** (전수조사 이슈 18): 빌드 11 까지는 메모를 한 글자
+    /// 칠 때마다 사람 전원을 비교마다 열쇠를 만드는 방식으로 정렬했다(이슈 6 의 0.6초). 사람 수가 바뀔 때만 만든다.
+    @State private var candidates: [Person] = []
+    /// 태그 칸에 치던 글자 — 저장할 때 태그로 넣는다 (이슈 19).
+    @State private var pendingTag = ""
 
     init(mode: Mode, onSaved: @escaping (Record) -> Void) {
         self.mode = mode
@@ -42,13 +47,6 @@ struct RecordEditView: View {
     private var isCreate: Bool { anchor != nil }
     private var hasChanges: Bool { draft != original }
     private var store: RecordStore { RecordStore(context: context) }
-
-    private var candidates: [Person] {
-        everyone.sorted {
-            NameSort.areInIncreasingOrder((name: $0.name, createdAt: $0.createdAt),
-                                          (name: $1.name, createdAt: $1.createdAt))
-        }
-    }
 
     var body: some View {
         NavigationStack {
@@ -92,7 +90,7 @@ struct RecordEditView: View {
                     }
                 }
                 Section("태그") {
-                    TagEditor(tags: $draft.tags)
+                    TagEditor(tags: $draft.tags, input: $pendingTag)
                 }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -121,6 +119,9 @@ struct RecordEditView: View {
             }
         }
         .interactiveDismissDisabled(hasChanges)
+        .task(id: everyone.count) {
+            candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
+        }
     }
 
     private var participantSummary: String {
@@ -134,6 +135,9 @@ struct RecordEditView: View {
     }
 
     private func save() {
+        // 태그 칸에 치다 만 글자도 넣는다 — 저장할 때 버려지지 않게 (이슈 19).
+        draft.tags = TagEditor.merged(draft.tags, pending: pendingTag)
+        pendingTag = ""
         do {
             let record: Record
             switch mode {

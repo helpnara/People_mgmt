@@ -1980,5 +1980,656 @@
         ]
       ]
     }
+  ],
+  "temporal": [
+    {
+      "name": "두 묶음이 이어진다",
+      "people": [
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        }
+      ],
+      "records": [
+        {
+          "day": 100,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 103,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 105,
+          "participants": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "day": 200,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 203,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 205,
+          "participants": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "day": 290,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 293,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 295,
+          "participants": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "day": 500,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 505,
+          "participants": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "day": 600,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 605,
+          "participants": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "day": 690,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 695,
+          "participants": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        }
+      ],
+      "ties": [],
+      "sliceDays": [
+        300,
+        700
+      ]
+    },
+    {
+      "name": "나뉘고 · 새 사람 · 기록이 끊긴 묶음 · 모자란 시점",
+      "people": [
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 10
+        },
+        {
+          "firstMetDay": 450,
+          "introducedBy": 0
+        },
+        {}
+      ],
+      "records": [
+        {
+          "day": 100,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "day": 107,
+          "participants": [
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "day": 180,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "day": 187,
+          "participants": [
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "day": 260,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "day": 267,
+          "participants": [
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "day": 520,
+          "participants": [
+            0,
+            1,
+            2,
+            9
+          ]
+        },
+        {
+          "day": 524,
+          "participants": [
+            3,
+            4,
+            5,
+            10
+          ]
+        },
+        {
+          "day": 610,
+          "participants": [
+            0,
+            1,
+            2,
+            9
+          ]
+        },
+        {
+          "day": 614,
+          "participants": [
+            3,
+            4,
+            5,
+            10
+          ]
+        },
+        {
+          "day": 700,
+          "participants": [
+            0,
+            1,
+            2,
+            9
+          ]
+        },
+        {
+          "day": 704,
+          "participants": [
+            3,
+            4,
+            5,
+            10
+          ]
+        }
+      ],
+      "ties": [
+        [
+          6,
+          7
+        ]
+      ],
+      "sliceDays": [
+        50,
+        300,
+        720,
+        1500
+      ]
+    },
+    {
+      "name": "있었던 사람만 · 줄어드는 무게",
+      "people": [
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 200
+        },
+        {},
+        {
+          "firstMetDay": 0,
+          "introducedBy": 1
+        }
+      ],
+      "records": [
+        {
+          "day": 50,
+          "participants": [
+            0,
+            1
+          ]
+        },
+        {
+          "day": 300,
+          "participants": [
+            3,
+            0
+          ]
+        },
+        {
+          "day": 310,
+          "participants": [
+            0,
+            1,
+            2
+          ]
+        }
+      ],
+      "ties": [
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "sliceDays": [
+        100,
+        250,
+        320
+      ]
+    },
+    {
+      "name": "한 묶음은 늘고 한 묶음은 줄었다",
+      "people": [
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        }
+      ],
+      "records": [
+        {
+          "day": 100,
+          "participants": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "day": 102,
+          "participants": [
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "day": 200,
+          "participants": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "day": 202,
+          "participants": [
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "day": 290,
+          "participants": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "day": 292,
+          "participants": [
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "day": 500,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "day": 502,
+          "participants": [
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 600,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "day": 602,
+          "participants": [
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 690,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "day": 692,
+          "participants": [
+            5,
+            6,
+            7
+          ]
+        }
+      ],
+      "ties": [],
+      "sliceDays": [
+        300,
+        700
+      ]
+    },
+    {
+      "name": "한 덩어리뿐이면 묶지 않는다",
+      "people": [
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        }
+      ],
+      "records": [
+        {
+          "day": 10,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "day": 40,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "day": 80,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        }
+      ],
+      "ties": [],
+      "sliceDays": [
+        100
+      ]
+    }
   ]
 }

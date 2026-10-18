@@ -83,6 +83,9 @@ struct PeopleRouteView: View {
     let route: PeopleListRoute
     @Query private var found: [Person]
     @State private var editing: Person?
+    /// 받은 차례대로 맞춘 사람들. **본문에서 만들지 않는다** (전수조사 이슈 18) — `관계 유형이 빈 사람` 은 사람 전원일
+    /// 수 있다. 찾은 수가 바뀔 때만 다시 맞추고, 지운 사람은 그려지는 줄에서만 거른다 (이슈 10 의 교훈).
+    @State private var people: [Person] = []
 
     init(route: PeopleListRoute) {
         self.route = route
@@ -91,12 +94,12 @@ struct PeopleRouteView: View {
     }
 
     var body: some View {
-        let byID = Dictionary(found.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
-        let people = route.ids.compactMap { byID[$0] }.filter { !$0.isGone }
         List {
             Section {
                 ForEach(people) { person in
-                    if let fill = route.fill {
+                    if person.isGone {
+                        EmptyView()
+                    } else if let fill = route.fill {
                         // 채울 것 목록 — 누르면 바로 편집.
                         Button {
                             editing = person
@@ -128,6 +131,9 @@ struct PeopleRouteView: View {
         .background(Color.ground)
         .navigationTitle(route.title)
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: found.count) {
+            people = orderedByIDs(route.ids, found, id: { $0.uuid })
+        }
         .sheet(item: $editing) { person in
             if route.fill == .record {
                 RecordEditView(mode: .create(anchor: person)) { _ in }
@@ -172,11 +178,20 @@ struct PeopleRouteView: View {
     }
 }
 
+/// 받은 id 차례대로 — 찾지 못한(지운) 것은 뺀다. 화면의 `.task` 에서만 부른다.
+private func orderedByIDs<T>(_ ids: [UUID], _ items: [T], id: (T) -> UUID) -> [T] {
+    var byID: [UUID: T] = [:]
+    for item in items where byID[id(item)] == nil { byID[id(item)] = item }
+    return ids.compactMap { byID[$0] }
+}
+
 /// `EvidenceRoute` 의 목적지 — 근거가 된 기록들, 받은 차례(최근 것부터).
 struct EvidenceRouteView: View {
     let route: EvidenceRoute
     @Query private var records: [Record]
     @Query private var viewers: [Person]
+    /// 받은 차례대로 맞춘 기록 — 본문에서 만들지 않는다 (이슈 18).
+    @State private var ordered: [Record] = []
 
     init(route: EvidenceRoute) {
         self.route = route
@@ -187,14 +202,14 @@ struct EvidenceRouteView: View {
     }
 
     var body: some View {
-        let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
-        let ordered = route.recordIDs.compactMap { byID[$0] }.filter { !$0.isGone }
         List {
             Section {
                 if let viewer = viewers.first {
                     ForEach(ordered) { record in
-                        NavigationLink(value: record) {
-                            TimelineRow(record: record, viewer: viewer)
+                        if !record.isGone {
+                            NavigationLink(value: record) {
+                                TimelineRow(record: record, viewer: viewer)
+                            }
                         }
                     }
                 }
@@ -207,6 +222,9 @@ struct EvidenceRouteView: View {
         .background(Color.ground)
         .navigationTitle(route.title)
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: records.count) {
+            ordered = orderedByIDs(route.recordIDs, records, id: { $0.uuid })
+        }
     }
 }
 
@@ -215,6 +233,8 @@ struct RecordFillRouteView: View {
     let route: RecordFillRoute
     @Query private var records: [Record]
     @State private var editing: Record?
+    /// 받은 차례대로 맞춘 기록 — 수만 건일 수 있어 본문에서 만들지 않는다 (이슈 18).
+    @State private var ordered: [Record] = []
 
     init(route: RecordFillRoute) {
         self.route = route
@@ -223,17 +243,17 @@ struct RecordFillRouteView: View {
     }
 
     var body: some View {
-        let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
-        let ordered = route.recordIDs.compactMap { byID[$0] }.filter { !$0.isGone }
         List {
             Section {
                 ForEach(ordered) { record in
-                    Button {
-                        editing = record
-                    } label: {
-                        row(record)
+                    if !record.isGone {
+                        Button {
+                            editing = record
+                        } label: {
+                            row(record)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             } header: {
                 Text("\(ordered.count)건")
@@ -246,6 +266,9 @@ struct RecordFillRouteView: View {
         .background(Color.ground)
         .navigationTitle(route.title)
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: records.count) {
+            ordered = orderedByIDs(route.recordIDs, records, id: { $0.uuid })
+        }
         .sheet(item: $editing) { record in
             RecordEditView(mode: .edit(record)) { _ in }
         }
