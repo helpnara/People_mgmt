@@ -84,6 +84,13 @@ struct PersonEditView: View {
         PersonStore.sameName(as: draft.name, in: everyone, excluding: editingPerson)
     }
 
+    private var acquaintanceSummary: String {
+        let names = draft.acquaintances.prefix(2).map(\.name)
+        if draft.acquaintances.isEmpty { return "고르지 않음" }
+        let rest = draft.acquaintances.count - names.count
+        return names.joined(separator: ", ") + (rest > 0 ? " 외 \(rest)명" : "")
+    }
+
     /// 소개자 후보 — 자기 자신은 뺀다.
     private var introducerCandidates: [Person] {
         PersonStore.sorted(everyone.filter { $0 !== editingPerson }, by: .name)
@@ -196,6 +203,17 @@ struct PersonEditView: View {
                     LabeledContent("소개한 사람", value: draft.introducedBy?.name ?? "선택 안 함")
                 }
             }
+        }
+        Section {
+            NavigationLink {
+                PeopleMultiPickerView(people: introducerCandidates, selection: $draft.acquaintances, title: "아는 사람")
+            } label: {
+                LabeledContent("아는 사람", value: acquaintanceSummary)
+            }
+        } header: {
+            Text("아는 사이")
+        } footer: {
+            Text("서로 아는 사람을 고르면 기록이 없어도 관계도에 선이 생기고, 모임(그룹)을 찾는 바탕이 됩니다.")
         }
         Section("첫 인연") {
             Toggle("처음 만난 날짜", isOn: $draft.hasFirstMetDate)

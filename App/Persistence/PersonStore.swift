@@ -26,6 +26,8 @@ struct PersonDraft: Equatable {
     var tags: [String] = []
     /// 명함 사진 (FR-050). JPEG.
     var businessCard: Data?
+    /// 아는 사이 (D-30) — 기록 없이 서로 아는 사람.
+    var acquaintances: [Person] = []
 
     init() {}
 
@@ -47,6 +49,7 @@ struct PersonDraft: Equatable {
         email = person.email ?? ""
         tags = person.tags
         businessCard = person.businessCard
+        acquaintances = person.acquaintances
     }
 
     /// 다섯 칸을 한꺼번에 — 명함 · 연락처에서 가져온 값을 넣을 때. 빈 칸은 덮지 않는다.
@@ -170,6 +173,34 @@ struct PersonStore {
         person.tags = TagNormalizer.normalizeList(draft.tags)
         // 같은 사진이면 다시 쓰지 않는다 — 바깥 파일을 매번 새로 쓰지 않게.
         if person.businessCard != draft.businessCard { person.businessCard = draft.businessCard }
+        // 나는 아는 사이를 두지 않는다 — 나는 모두를 안다.
+        if !person.isMe { syncTies(of: person, to: draft.acquaintances) }
+    }
+
+    /// 아는 사이를 고른 대로 맞춘다 (D-30) — 빠진 연결은 지우고 새 연결은 만든다. 같은 두 사람은 한 줄.
+    private func syncTies(of person: Person, to wanted: [Person]) {
+        var wantedByID: [PersistentIdentifier: Person] = [:]
+        for other in wanted where other !== person && !other.isGone && !other.isMe {
+            wantedByID[other.persistentModelID] = other
+        }
+        var existing: [PersistentIdentifier: Tie] = [:]
+        for tie in person.tiesAsFirst ?? [] {
+            guard let other = tie.second else { continue }
+            if existing[other.persistentModelID] != nil { context.delete(tie) } else { existing[other.persistentModelID] = tie }
+        }
+        for tie in person.tiesAsSecond ?? [] {
+            guard let other = tie.first else { continue }
+            if existing[other.persistentModelID] != nil { context.delete(tie) } else { existing[other.persistentModelID] = tie }
+        }
+        for (id, tie) in existing where wantedByID[id] == nil {
+            context.delete(tie)
+        }
+        for (id, other) in wantedByID where existing[id] == nil {
+            let tie = Tie()
+            context.insert(tie)
+            tie.first = person
+            tie.second = other
+        }
     }
 
     private func clipped(_ text: String, _ limit: Int) -> String? {

@@ -2,7 +2,7 @@ import SwiftData
 import XCTest
 @testable import SlowConnection
 
-/// **옛 판 저장소가 지금 판(3판)으로 그대로 옮겨지는가** — 빌드 2 · 3(1판), 빌드 4 ~ 6(2판)을 쓰던 기기가 업데이트하는 길이다.
+/// **옛 판 저장소가 지금 판(4판)으로 그대로 옮겨지는가** — 빌드 2 · 3(1판), 빌드 4 ~ 6(2판), 빌드 7 ~ 9(3판)을 쓰던 기기가 업데이트하는 길이다.
 /// 자료 유실은 이 앱에서 가장 비싼 실패라, 디스크에 진짜 1판 저장소를 만들어 지금 판으로 연다.
 @MainActor
 final class MigrationTests: XCTestCase {
@@ -34,7 +34,7 @@ final class MigrationTests: XCTestCase {
             try context.save()
         }
 
-        // 지금 판(3판)으로 연다 — 앱이 업데이트 뒤 하는 일과 같은 길.
+        // 지금 판(4판)으로 연다 — 앱이 업데이트 뒤 하는 일과 같은 길.
         let container = try Persistence.makeContainer(inMemory: false, url: url)
         let context = container.mainContext
         let people = try context.fetch(FetchDescriptor<Person>())
@@ -106,6 +106,54 @@ final class MigrationTests: XCTestCase {
         let card = try XCTUnwrap(people.first { $0.name == "명함 사람" })
         XCTAssertEqual(card.businessCard, Data([0xFF, 0xD8, 0xFF]), "명함 사진이 남는다")
         XCTAssertTrue(people.allSatisfy { !$0.isMe }, "옛 판 사람은 나가 아니다")
+    }
+
+    /// **3판 → 4판** (D-30). 나 · 연락 칸 · 기록 · 소개가 그대로 남고, 아는 사이 연결을 새로 만들 수 있다.
+    func testVersionThreeStoreOpensAndAcceptsTies() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("v3.store")
+
+        do {
+            let schema = Schema(versionedSchema: SchemaV3.self)
+            let configuration = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
+            let container = try ModelContainer(for: schema, configurations: [configuration])
+            let context = container.mainContext
+            let me = SchemaV3.Person(name: "3판의 나")
+            me.isMe = true
+            let friend = SchemaV3.Person(name: "3판 친구")
+            friend.mobilePhone = "010-1111-2222"
+            let other = SchemaV3.Person(name: "3판 동료")
+            context.insert(me)
+            context.insert(friend)
+            context.insert(other)
+            other.metThrough = "소개"
+            other.introducedBy = friend
+            let record = SchemaV3.Record(recordType: "meal", title: "3판 점심")
+            context.insert(record)
+            record.participants = [friend, other]
+            try context.save()
+        }
+
+        let container = try Persistence.makeContainer(inMemory: false, url: url)
+        let context = container.mainContext
+        let people = try context.fetch(FetchDescriptor<Person>())
+        XCTAssertEqual(people.count, 3)
+        let me = try XCTUnwrap(people.first { $0.isMe }, "나가 남는다")
+        XCTAssertEqual(me.name, "3판의 나")
+        let friend = try XCTUnwrap(people.first { $0.name == "3판 친구" })
+        let other = try XCTUnwrap(people.first { $0.name == "3판 동료" })
+        XCTAssertEqual(friend.mobilePhone, "010-1111-2222", "연락 칸이 남는다")
+        XCTAssertTrue(other.introducedBy === friend, "소개가 남는다")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Record>()).first?.participants?.count, 2, "기록 참여자가 남는다")
+        XCTAssertTrue(friend.acquaintances.isEmpty, "옮긴 직후에는 아는 사이가 없다")
+
+        let store = PersonStore(context: context)
+        var edit = PersonDraft(person: friend)
+        edit.acquaintances = [other]
+        try store.apply(edit, to: friend)
+        XCTAssertEqual(other.acquaintances.map(\.name), ["3판 친구"], "4판에서 아는 사이를 만들 수 있다")
     }
 }
 

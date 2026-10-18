@@ -6,6 +6,8 @@ struct PeopleMultiPickerView: View {
     let people: [Person]
     @Binding var selection: [Person]
     var locked: Person?
+    /// 제목 앞말 — 기록에서는 `함께한 사람`, 사람 편집에서는 `아는 사람` (D-30).
+    var title = "함께한 사람"
 
     @State private var searchText = ""
 
@@ -53,7 +55,7 @@ struct PeopleMultiPickerView: View {
             }
         }
         .searchable(text: $searchText, prompt: "이름")
-        .navigationTitle("함께한 사람 \(selection.count)명")
+        .navigationTitle("\(title) \(selection.count)명")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -51,6 +51,7 @@ struct PersonDetailView: View {
                 if let introduced = person.introduced, !introduced.isEmpty {
                     introducedSection(introduced)
                 }
+                acquaintanceSection
                 timelineSection
             }
         }
@@ -205,6 +206,21 @@ struct PersonDetailView: View {
                     Label("첫 인연을 기록해 보세요 — 어떤 계기로 알게 되었나요?", systemImage: "sparkles")
                         .font(.scaled(15))
                         .foregroundStyle(Color.accent)
+                }
+            }
+        }
+    }
+
+    /// 아는 사이 (D-30). 없으면 그리지 않는다 — 편집에서 고른다.
+    @ViewBuilder
+    private var acquaintanceSection: some View {
+        let known = person.acquaintances
+        if !known.isEmpty {
+            Section("아는 사이 \(known.count)명") {
+                ForEach(NameSort.sorted(known, name: \.name, createdAt: \.createdAt)) { other in
+                    NavigationLink(value: other) {
+                        PersonRow(person: other, evidence: nil)
+                    }
                 }
             }
         }

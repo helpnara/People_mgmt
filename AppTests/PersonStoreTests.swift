@@ -203,5 +203,37 @@ final class PersonStoreTests: XCTestCase {
         XCTAssertEqual(try fixture.store.sortedPeople().map(\.isMe), [false])
         XCTAssertEqual(fixture.store.sameName(as: "고친 내 이름").count, 1, "같은 이름 안내에 나는 없다")
     }
+
+    /// **아는 사이** (D-30) — 고른 대로 연결이 생기고 빠지며, 양쪽에서 보이고, 사람을 지우면 연결만 지워진다.
+    func testAcquaintancesAreSymmetricAndFollowTheDraft() throws {
+        let fixture = try makeFixture()
+        var draftA = PersonDraft()
+        draftA.name = "가"
+        let a = try fixture.store.create(draftA)
+        var draftB = PersonDraft()
+        draftB.name = "나"
+        let b = try fixture.store.create(draftB)
+        var draftC = PersonDraft()
+        draftC.name = "다"
+        let c = try fixture.store.create(draftC)
+
+        var edit = PersonDraft(person: a)
+        edit.acquaintances = [b, c, b, a]
+        try fixture.store.apply(edit, to: a)
+        XCTAssertEqual(Set(a.acquaintances.map(\.name)), ["나", "다"], "겹침 · 자기 자신은 빠진다")
+        XCTAssertEqual(b.acquaintances.map(\.name), ["가"], "상대 쪽에서도 보인다")
+
+        var again = PersonDraft(person: b)
+        XCTAssertEqual(again.acquaintances.map(\.name), ["가"])
+        again.acquaintances = []
+        try fixture.store.apply(again, to: b)
+        XCTAssertEqual(a.acquaintances.map(\.name), ["다"], "한쪽에서 빼면 연결이 지워진다")
+
+        try fixture.store.delete(c)
+        XCTAssertTrue(a.acquaintances.isEmpty, "사람을 지우면 그 사람의 연결도 지워진다")
+        XCTAssertFalse(a.isGone, "상대 사람은 남는다")
+        let ties = try fixture.container.mainContext.fetch(FetchDescriptor<Tie>())
+        XCTAssertTrue(ties.isEmpty, "남은 연결이 없다")
+    }
 }
 

@@ -2,15 +2,15 @@ import Core
 import Foundation
 import SwiftData
 
-/// 스키마 **3판** — 지금 쓰는 판 (요구사항 6절 · FR-032 · 이슈 11 · 12).
+/// 스키마 **4판** — 지금 쓰는 판 (요구사항 6절 · D-30 · 빌드 10).
 ///
-/// 2판에서 **연락 수단 네 칸**(휴대전화 · 사무실 전화 · 팩스 · 이메일)과 **나 표시(`isMe`)** 를 더했다.
-/// 나머지는 2판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV4` 를 더하고 이 판은 얼린다.
+/// 3판에서 **아는 사이 연결(`Tie`)** 과 사람 쪽 관계 둘(`tiesAsFirst` · `tiesAsSecond`)을 더했다.
+/// 나머지는 3판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV5` 를 더하고 이 판은 얼린다.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
-enum SchemaV3: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(3, 0, 0) }
-    static var models: [any PersistentModel.Type] { [Person.self, Record.self] }
+enum SchemaV4: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(4, 0, 0) }
+    static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self] }
 
     /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
     @Model
@@ -54,6 +54,12 @@ enum SchemaV3: VersionedSchema {
         /// 참여한 기록 — `Record.participants` 의 역방향 (N:M, FR-042).
         @Relationship(inverse: \Record.participants)
         var records: [Record]? = []
+        /// **아는 사이** (4판 · D-30) — 기록 없이 서로 아는 사람. 이 사람이 `first` 인 연결과 `second` 인 연결.
+        /// 사람을 지우면 그 사람의 연결도 지운다(cascade) — 상대 사람은 남는다.
+        @Relationship(deleteRule: .cascade, inverse: \Tie.first)
+        var tiesAsFirst: [Tie]? = []
+        @Relationship(deleteRule: .cascade, inverse: \Tie.second)
+        var tiesAsSecond: [Tie]? = []
 
         init(name: String) {
             self.uuid = UUID()
@@ -65,7 +71,7 @@ enum SchemaV3: VersionedSchema {
         }
     }
 
-    /// 관계 기록 (요구사항 6.2). 참여자 1명 이상에 속한다. 1 · 2판과 같다.
+    /// 관계 기록 (요구사항 6.2). 참여자 1명 이상에 속한다. 1 ~ 3판과 같다.
     @Model
     final class Record {
         var uuid: UUID = UUID()
@@ -93,25 +99,49 @@ enum SchemaV3: VersionedSchema {
             self.tags = []
         }
     }
+
+    /// **아는 사이 한 줄** (4판 · D-30) — 두 사람이 서로 안다. 방향이 없다(`first` · `second` 는 저장 자리일 뿐).
+    /// 사람 ↔ 사람을 바로 잇지 않고 이 객체를 두는 까닭: 다음 묶음(시점에 따른 변화)이 `언제부터 알았나` 를
+    /// 연결마다 적는다 — 바로 이으면 그 칸을 둘 곳이 없어 저장 형식을 또 바꿔야 한다.
+    @Model
+    final class Tie {
+        var uuid: UUID = UUID()
+        /// 언제부터 알았나 (선택 · 다음 묶음에서 화면에 연다). 비우면 두 사람 중 늦게 만난 날을 쓴다.
+        var since: Date?
+        var createdAt: Date = Date()
+        var first: Person?
+        var second: Person?
+
+        /// 관계는 저장소에 넣은 **뒤에** 잇는다 — 넣기 전에 이으면 SwiftData 가 다른 문맥의 객체로 볼 수 있다.
+        init(since: Date? = nil) {
+            self.uuid = UUID()
+            self.createdAt = Date()
+            self.since = since
+        }
+    }
 }
 
-typealias Person = SchemaV3.Person
-typealias Record = SchemaV3.Record
+typealias Person = SchemaV4.Person
+typealias Record = SchemaV4.Record
+typealias Tie = SchemaV4.Tie
 
 /// 판 사이의 이사 계획.
 /// - 1판 → 2판: 칸 하나를 더하는 **가벼운 옮기기**
+/// - 3판 → 4판: 아는 사이 연결을 더하는 가벼운 옮기기 (D-30)
 /// - 2판 → 3판: 칸을 더하고(가벼운 옮기기와 같다), 옮긴 뒤 **한 칸에 들어 있던 연락 수단을 네 칸으로 나눈다** (이슈 11).
 ///   나누지 못한 글은 기타(`contactNote`)에 그대로 남는다 — 잃는 글이 없다. 이미 네 칸 중 하나라도 찬 사람은 건드리지 않는다.
 ///
 /// 실제 옮겨지는지는 `AppTests/MigrationTests.swift` 가 1판 · 2판 저장소를 디스크에 만들어 연다.
 enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self] }
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self),
             .custom(fromVersion: SchemaV2.self, toVersion: SchemaV3.self, willMigrate: nil, didMigrate: { context in
                 ContactMigration.splitContactNotes(in: context)
             }),
+            // 3판 → 4판: 연결 객체와 관계를 더할 뿐 — 가벼운 옮기기.
+            .lightweight(fromVersion: SchemaV3.self, toVersion: SchemaV4.self),
         ]
     }
 }
@@ -146,7 +176,7 @@ extension PersistentModel {
     var isGone: Bool { isDeleted || modelContext == nil }
 }
 
-extension SchemaV3.Person {
+extension SchemaV4.Person {
     /// 목록 보조 정보 (요구사항 6.1 `subtitle`): 소속 · 직무, 둘 다 없으면 관계 유형.
     var subtitle: String? {
         let parts = [organization, role].compactMap { $0 }.filter { !$0.isEmpty }
@@ -157,6 +187,13 @@ extension SchemaV3.Person {
 
     var hasFirstEncounter: Bool {
         firstMetDate != nil || !(firstNote ?? "").isEmpty
+    }
+
+    /// 아는 사이 (D-30) — 두 방향의 연결을 합친 사람들. 지운 사람 · 겹침은 뺀다.
+    var acquaintances: [Person] {
+        var seen = Set<PersistentIdentifier>()
+        let others = (tiesAsFirst ?? []).compactMap(\.second) + (tiesAsSecond ?? []).compactMap(\.first)
+        return others.filter { !$0.isGone && $0 !== self && seen.insert($0.persistentModelID).inserted }
     }
 
     /// 마지막 기록일 (FR-040). 저장하지 않고 기록에서 센다.
