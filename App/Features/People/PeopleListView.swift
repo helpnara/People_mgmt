@@ -170,6 +170,10 @@ struct PeopleListView: View {
             let input = await NetworkSnapshotBuilder.readiness(container: context.container)
             guard !Task.isCancelled else { return }
             readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
+            // 검색 색인도 미리 만들어 둔다 (이슈 8) — 첫 검색이 기다리지 않게.
+            if !fetched.isEmpty, indexVersion != dataVersion {
+                await rebuildIndex()
+            }
         }
         .task { await applyArgumentsOnce() }
     }
@@ -292,10 +296,8 @@ struct PeopleListView: View {
         guard !Task.isCancelled else { return }
 
         if searchIndex == nil || indexVersion != dataVersion {
-            searchIndex = LaunchTiming.measure("검색 색인 만들기 (\(fetched.count)명)") {
-                SearchIndex(fetched.filter { !$0.isGone }.map { SearchablePerson(person: $0) })
-            }
-            indexVersion = dataVersion
+            await rebuildIndex()
+            guard !Task.isCancelled else { return }
         }
         guard let index = searchIndex else { return }
         let started = Date()
@@ -307,6 +309,16 @@ struct PeopleListView: View {
         for person in fetched { byID[person.uuid] = person }
         searchRows = hits.compactMap { hit in byID[hit.personID].map { SearchRow(person: $0, hit: hit) } }
         searchedText = text
+    }
+
+    /// 색인을 따로 연 문맥에서 만든다 (이슈 8) — 주 스레드는 기다리기만 한다.
+    private func rebuildIndex() async {
+        let version = dataVersion
+        let index = await SearchIndexBuilder.build(container: context.container)
+        // 만드는 사이 저장이 또 있었으면 이 색인은 옛것이다 — 다음 검색 · 다음 미리 만들기가 다시 만든다.
+        guard version == dataVersion else { return }
+        searchIndex = index
+        indexVersion = version
     }
 
     /// 사람 상세를 열고, 기록이 지정됐으면 그 기록 상세까지 연다.

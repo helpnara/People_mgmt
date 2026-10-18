@@ -55,4 +55,52 @@ final class GraphLayoutTests: XCTestCase {
         XCTAssertTrue(GraphLayout.layout(nodeCount: 0, center: nil, links: []).isEmpty)
         XCTAssertEqual(GraphLayout.layout(nodeCount: 1, center: 0, links: []), [GraphLayout.Point(x: 0.5, y: 0.5)])
     }
+
+    /// 먼 칸을 무게중심 하나로 보는 셈(이슈 15)이 모두와 하나씩 센 값과 크게 다르지 않다.
+    /// 파이썬으로 같은 300명을 셌을 때 평균 1.4% 차이 — 문턱은 두 배 남짓.
+    func testFarCellsApproximateExactRepulsion() {
+        let n = 300
+        let points = (0..<n).map { i in
+            GraphLayout.Point(x: 0.05 + 0.9 * (Double(i) * 0.6180339887498949).truncatingRemainder(dividingBy: 1),
+                              y: 0.05 + 0.9 * (Double(i) * 0.41421356237309515).truncatingRemainder(dividingBy: 1))
+        }
+        let k2 = 0.36 / Double(n)
+        let tree = GraphLayout.QuadTree(points)
+        var stack: [Int] = []
+        var total = 0.0
+        for i in 0..<n {
+            let approx = tree.repulsion(on: i, positions: points, k2: k2, stack: &stack)
+            var ex = 0.0
+            var ey = 0.0
+            for j in 0..<n where j != i {
+                let dx = points[i].x - points[j].x
+                let dy = points[i].y - points[j].y
+                let d = max((dx * dx + dy * dy).squareRoot(), 1e-4)
+                ex += dx / d * k2 / d
+                ey += dy / d * k2 / d
+            }
+            let error = ((approx.x - ex) * (approx.x - ex) + (approx.y - ey) * (approx.y - ey)).squareRoot()
+            total += error / (ex * ex + ey * ey).squareRoot()
+        }
+        XCTAssertLessThan(total / Double(n), 0.03, "평균 상대 차이")
+    }
+
+    /// 사람이 많고 먼 사람끼리도 이어져 있으면 빌드 10 까지는 가운데로 뭉쳤다(5,000명 반지름 0.07 · 이슈 15).
+    /// 600명 고리 + 건너뛰는 선 — 파이썬으로 같은 셈을 돌리면 가운데에서 반지름 중앙값 0.30, 가장 가까운 두 사람 0.0098.
+    func testManyLinkedPeopleSpreadInsteadOfCollapsing() {
+        let m = 600
+        var links: [GraphLayout.Link] = (0..<m).map { .init(i: $0, j: ($0 + 1) % m, weight: 1) }
+        links += (0..<m).compactMap { i in
+            let j = (i * 37 + 11) % m
+            return j == i ? nil : .init(i: i, j: j, weight: 1)
+        }
+        let p = GraphLayout.layout(nodeCount: m + 1, center: m, links: links)
+        let radii = p.map { ((($0.x - 0.5) * ($0.x - 0.5)) + (($0.y - 0.5) * ($0.y - 0.5))).squareRoot() }.sorted()
+        XCTAssertGreaterThan(radii[radii.count / 2], 0.15, "가운데로 뭉치지 않는다")
+        var closest = Double.infinity
+        for i in 0..<p.count {
+            for j in (i + 1)..<p.count { closest = min(closest, distance(p[i], p[j])) }
+        }
+        XCTAssertGreaterThan(closest, 0.003, "겹치지 않는다")
+    }
 }
