@@ -32,7 +32,7 @@
 · 원·테두리 iOS 가 이미 모서리를 깎는다. 안에 원을 그리면 귀퉁이가 어중간해진다
 · 저작물     실존하는 책 표지·로고가 알아볼 수 있게 들어가면 상표 문제가 된다
 
-`python3 Tools/preview-icon.py` 로 실제 크기(180·120·60px)를 미리 볼 수 있다.
+바탕까지 그린 아이콘(네 귀퉁이가 같은 색 · 순백 아님)은 1·2번을 건너뛴다.
 """
 
 from pathlib import Path
@@ -52,6 +52,12 @@ FILL_BLUR = 6
 
 def trim_and_fill(image: Image.Image) -> Image.Image:
     """흰 여백을 잘라내고, 테두리와 이어진 흰 모서리를 가장자리 색으로 메운다."""
+    # 네 귀퉁이가 같은 색이고 순백이 아니면 바탕까지 그린 아이콘이다 — 그대로 둔다.
+    # 크림색(247,242,232) 같은 옅은 바탕은 흰색 문턱 안이라 여백으로 잘려 나갔다 (빌드 15 아이콘).
+    corners = {image.getpixel(p) for p in ((0, 0), (image.width - 1, 0),
+                                           (0, image.height - 1), (image.width - 1, image.height - 1))}
+    if len(corners) == 1 and min(next(iter(corners))) < 250:
+        return image
     white = Image.new("RGB", image.size, (255, 255, 255))
     ink = ImageChops.difference(image, white).convert("L")
     box = ink.point(lambda v: 255 if v > WHITE_THRESHOLD else 0).getbbox()
