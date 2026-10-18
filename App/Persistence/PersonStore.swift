@@ -88,10 +88,14 @@ struct PersonStore {
 
     /// 같은 이름(공백 · 대소문자 무시)인 사람들. 동명이인 안내(FR-021)에 쓴다. 등록을 막지는 않는다.
     func sameName(as name: String, excluding: Person? = nil) -> [Person] {
+        Self.sameName(as: name, in: (try? allPeople()) ?? [], excluding: excluding)
+    }
+
+    /// 이미 받아 둔 목록에서 같은 이름을 찾는다. **화면 본문에서는 이것을 쓴다** — 본문에서 저장소를 다시 읽지 않는다 (이슈 10).
+    static func sameName(as name: String, in people: [Person], excluding: Person? = nil) -> [Person] {
         let key = NameSort.key(name)
         guard !key.isEmpty else { return [] }
-        let all = (try? allPeople()) ?? []
-        return all.filter { NameSort.key($0.name) == key && $0 !== excluding }
+        return people.filter { $0 !== excluding && !$0.isGone && NameSort.key($0.name) == key }
     }
 
     // MARK: 쓰기
