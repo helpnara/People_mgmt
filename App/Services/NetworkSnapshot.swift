@@ -81,6 +81,8 @@ struct NetworkSnapshot: Sendable {
             let present: [Int]
             let links: [Link]
             let communities: [Community]
+            /// 앞 분기와 같은 모임 수 (`그대로` · 빌드 16) — 변화 목록에는 넣지 않고 시점 설명에 쓴다.
+            var steady = 0
         }
 
         struct Change: Sendable, Identifiable {
@@ -240,7 +242,7 @@ enum NetworkSnapshotBuilder {
         let links = edges.compactMap { edge -> GraphLayout.Link? in
             guard let i = index[edge.a], let j = index[edge.b] else { return nil }
             // 진한 선은 함께한 기록이 많을수록 조금 더 당긴다(로그). 같은 소속만이면 약하게.
-            let weight = edge.isStrong ? 1 + log(1 + Double(edge.together)) : 0.3
+            let weight = edge.isStrong ? 1 + log(1 + edge.togetherWeight) : 0.3
             return GraphLayout.Link(i: i, j: j, weight: weight)
         }
         let positions = GraphLayout.layout(nodeCount: people.count + 1, center: people.count, links: links)
@@ -353,6 +355,11 @@ enum NetworkSnapshotBuilder {
 
         var changes: [NetworkSnapshot.Timeline.Change] = []
         for change in TemporalNetwork.changes(computed) {
+            // 그대로는 변화가 아니다 — 목록에 넣지 않고 그 시점의 설명에 수로만 (빌드 16 · 조사 보고서 지금 2).
+            if change.kind == .steady {
+                slices[change.slice].steady += 1
+                continue
+            }
             // 이름은 그 모임이 보인 시점의 이름 — 나뉨 · 최근 기록 없음은 앞 시점의 모임이다.
             let at = (change.kind == .split || change.kind == .faded) ? change.slice - 1 : change.slice
             let position = computed[at].communities.firstIndex(of: change.members)
@@ -367,7 +374,7 @@ enum NetworkSnapshotBuilder {
         return timeline
     }
 
-    /// 모임 찾기 (D-30) — **진한 선만** 쓴다. 무게는 함께한 기록 수 + 소개 1 + 아는 사이 1. 같은 소속은 넣지 않는다
+    /// 모임 찾기 (D-30) — **진한 선만** 쓴다. 무게는 함께한 기록 무게(n명 기록은 쌍마다 1/(n−1)) + 소개 1 + 아는 사이 1. 같은 소속은 넣지 않는다
     /// (소속으로 묶으면 이미 아는 것을 다시 보여 줄 뿐이다). 조건에 못 미치거나 뚜렷하게 나뉘지 않으면 묶지 않는다.
     private static func findCommunities(people: [NetworkSnapshot.PersonInfo], strong: [GraphEdge], index: [UUID: Int],
                                         readiness: ReadinessInput, nameOrder: [UUID])
@@ -384,7 +391,8 @@ enum NetworkSnapshotBuilder {
         }
         let links = strong.compactMap { edge -> CommunityDetection.Link? in
             guard let i = index[edge.a].flatMap({ nodeOf[$0] }), let j = index[edge.b].flatMap({ nodeOf[$0] }) else { return nil }
-            let weight = Double(edge.together) + (edge.introduced ? 1 : 0) + (edge.acquainted ? 1 : 0)
+            // 함께한 기록은 n명 기록의 쌍마다 1/(n−1) (빌드 16) — 큰 회식 하나가 모임을 덮지 않게.
+            let weight = edge.togetherWeight + (edge.introduced ? 1 : 0) + (edge.acquainted ? 1 : 0)
             return CommunityDetection.Link(i: i, j: j, weight: weight)
         }
         let found = CommunityDetection.louvain(nodeCount: personAt.count, links: links)

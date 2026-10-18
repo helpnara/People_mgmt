@@ -44,7 +44,7 @@ final class GoldenTests: XCTestCase {
         struct TraitExpected: Decodable { let label: String; let count: Int; let ids: [UUID]; let isUnspecified: Bool; let isRest: Bool }
         struct TraitCase: Decodable { let name: String; let items: [TraitItemRaw]; let limit: Int; let expected: [TraitExpected] }
         struct GraphPersonRaw: Decodable { let id: UUID; let name: String; let organization: String?; let introducedBy: UUID? }
-        struct GraphEdgeRaw: Decodable { let a: UUID; let b: UUID; let together: Int; let introduced: Bool; let sameOrganization: Bool; let acquainted: Bool }
+        struct GraphEdgeRaw: Decodable { let a: UUID; let b: UUID; let together: Int; let togetherWeight: Double; let introduced: Bool; let sameOrganization: Bool; let acquainted: Bool }
         struct GraphCase: Decodable {
             let name: String; let people: [GraphPersonRaw]; let records: [[UUID]]; let ties: [[UUID]]; let cliqueLimit: Int; let expected: [GraphEdgeRaw]
         }
@@ -65,9 +65,11 @@ final class GoldenTests: XCTestCase {
             let day: Int; let present: [Int]; let linked: [Int]; let status: String; let edges: [[Double]]; let communities: [[Int]]
         }
         struct TemporalChangeRaw: Decodable { let slice: Int; let kind: String; let members: [Int] }
+        struct TemporalThresholdRaw: Decodable { let threshold: Double; let changes: [TemporalChangeRaw] }
         struct TemporalCase: Decodable {
             let name: String; let people: [TemporalMemberRaw]; let records: [TemporalMeetingRaw]; let ties: [[Int]]
             let sliceDays: [Int]; let slices: [TemporalSliceRaw]; let changes: [TemporalChangeRaw]
+            let thresholdChanges: [TemporalThresholdRaw]
         }
         struct ReadinessCase: Decodable { let name: String; let input: ReadinessInputRaw; let expected: [ReadinessItemRaw]; let summary: String }
         struct PresetChoicesCase: Decodable { let name: String; let presets: [String]; let used: [String]; let expected: [String] }
@@ -304,6 +306,9 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.map(\.introduced), c.expected.map(\.introduced), c.name)
             XCTAssertEqual(got.map(\.sameOrganization), c.expected.map(\.sameOrganization), c.name)
             XCTAssertEqual(got.map(\.acquainted), c.expected.map(\.acquainted), "\(c.name) — 아는 사이")
+            for (g, e) in zip(got, c.expected) {
+                XCTAssertEqual(g.togetherWeight, e.togetherWeight, accuracy: 1e-9, "\(c.name) — 기록 무게 \(e.a)-\(e.b)")
+            }
         }
     }
 
@@ -371,6 +376,13 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(changes.map(\.slice), c.changes.map(\.slice), "\(c.name) — 변화 시점")
             XCTAssertEqual(changes.map(\.kind.rawValue), c.changes.map(\.kind), "\(c.name) — 변화 종류")
             XCTAssertEqual(changes.map(\.members), c.changes.map(\.members), "\(c.name) — 변화 구성원")
+            for t in c.thresholdChanges {
+                let other = TemporalNetwork.changes(slices, threshold: t.threshold)
+                let at = "\(c.name) — 문턱 \(t.threshold)"
+                XCTAssertEqual(other.map(\.slice), t.changes.map(\.slice), at)
+                XCTAssertEqual(other.map(\.kind.rawValue), t.changes.map(\.kind), at)
+                XCTAssertEqual(other.map(\.members), t.changes.map(\.members), at)
+            }
         }
     }
 
