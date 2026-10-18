@@ -66,10 +66,19 @@ struct RecordStore {
         return record
     }
 
+    /// 실패하면 옛 값을 되돌려 쓴다 — `PersonStore.apply` 와 같은 까닭 (`rollback()` 은 바뀐 칸을 되돌리지 않았다).
     func apply(_ draft: RecordDraft, to record: Record) throws {
+        let before = RecordDraft(record: record)
+        let updatedAt = record.updatedAt
         fill(record, from: draft)
         record.updatedAt = Date()
-        try commit()
+        do {
+            try commit()
+        } catch {
+            fill(record, from: before)
+            record.updatedAt = updatedAt
+            throw error
+        }
     }
 
     /// 기록만 지운다. 참여자는 남는다 (6.5).

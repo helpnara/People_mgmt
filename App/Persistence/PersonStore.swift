@@ -156,10 +156,20 @@ struct PersonStore {
         return person
     }
 
+    /// 실패하면 옛 값을 되돌려 쓴다 — `rollback()` 은 새로 넣은 것은 버리지만 **이미 있던 사람의 바뀐 칸은
+    /// 되돌리지 않았다** (빌드 12 CI · `AuditFixTests`). 그대로 두면 `버리기` 를 해도 바뀐 값이 남았다가 자동 저장에 실린다.
     func apply(_ draft: PersonDraft, to person: Person) throws {
+        let before = PersonDraft(person: person)
+        let updatedAt = person.updatedAt
         fill(person, from: draft)
         person.updatedAt = Date()
-        try commit()
+        do {
+            try commit()
+        } catch {
+            fill(person, from: before)
+            person.updatedAt = updatedAt
+            throw error
+        }
     }
 
     private func fill(_ person: Person, from draft: PersonDraft) {

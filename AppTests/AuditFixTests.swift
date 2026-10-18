@@ -49,6 +49,25 @@ final class AuditFixTests: XCTestCase {
         XCTAssertEqual(person.name, "그대로", "실패한 수정은 되돌린다")
     }
 
+    /// 기록 수정이 실패해도 마찬가지 — 옛 제목이 남는다.
+    func testFailedRecordEditKeepsTheSavedValues() throws {
+        let context = try makeContext()
+        var someone = PersonDraft()
+        someone.name = "기록 주인"
+        let person = try PersonStore(context: context).create(someone)
+        let records = RecordStore(context: context)
+        var draft = RecordDraft(anchor: person)
+        draft.title = "그대로"
+        let record = try records.create(draft)
+
+        var changed = RecordDraft(record: record)
+        changed.title = "바뀜"
+        SaveFailure.isOn = true
+        defer { SaveFailure.isOn = false }
+        XCTAssertThrowsError(try records.apply(changed, to: record))
+        XCTAssertEqual(record.title, "그대로", "실패한 수정은 되돌린다")
+    }
+
     /// 앞날짜(예정) 기록은 마지막 기록일이 아니다 — 목록 · 돌아보기 · 관계 돌아보기가 같은 말을 한다 (이슈 20).
     func testFutureRecordsAreNotTheLastRecord() throws {
         let context = try makeContext()
