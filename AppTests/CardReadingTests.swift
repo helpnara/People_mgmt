@@ -20,7 +20,9 @@ final class CardReadingTests: XCTestCase {
     @MainActor
     func testNormalizedCardKeepsSmallImagesAndShrinksLargeOnes() async throws {
         let data = try XCTUnwrap(SampleData.renderCard(organization: "A", name: "B", role: "C", phone: "010-0000-0000", email: "a@example.com"))
-        let normalized = try XCTUnwrap(await CardImaging.normalizedCard(from: data))
+        // XCTUnwrap 의 인자는 비동기 호출을 받지 못한다 — 먼저 받고 감싼다.
+        let result = await CardImaging.normalizedCard(from: data)
+        let normalized = try XCTUnwrap(result)
         let image = try XCTUnwrap(UIImage(data: normalized))
         XCTAssertLessThanOrEqual(max(image.size.width, image.size.height), CardImaging.maxLongSide)
         XCTAssertEqual(image.size.width, 1_050, accuracy: 1, "1,600px 보다 작으면 줄이지 않는다")
