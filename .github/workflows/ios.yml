@@ -322,6 +322,8 @@ jobs:
           shoot 26-ax5-detail.png -seedSampleData -openPerson 박서연 $AX5
           shoot 27-ax5-add-person.png -seedSampleData -addPerson $AX5
           shoot 28-ax5-overview.png -seedSampleData -openNetwork overview $AX5
+          # 관계도는 큰 글씨에서 둘레 글에 밀려 0 높이가 되었다 (빌드 14 · 이슈 26). 관계도 칸에 점 · 선이 보여야 한다.
+          shoot 29-ax5-graph.png -seedSampleData -seedCommunitySample -openNetwork graph $AX5
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
