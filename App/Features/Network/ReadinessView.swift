@@ -55,6 +55,15 @@ struct ReadinessView: View {
             fillLink("아직 기록이 없는 사람", ids: gaps.noRecord, field: .record)
         case .graph:
             fillLink("아직 아무와도 이어지지 않은 사람", ids: gaps.unlinked, field: .acquaintances)
+            // 아는 사이 후보 (빌드 16) — 같은 기록에 함께 나온 사람 · 같은 사람이 소개한 사람끼리.
+            if !snapshot.suggestions.isEmpty {
+                NavigationLink(value: AcquaintanceSuggestionRoute(items: snapshot.suggestions)) {
+                    LabeledContent("아는 사이 후보") {
+                        Text("\(snapshot.suggestions.count)쌍").monospacedDigit()
+                    }
+                    .font(.scaled(15))
+                }
+            }
             if !gaps.singleParticipantRecords.isEmpty {
                 NavigationLink(value: RecordFillRoute(title: "함께한 사람이 한 명뿐인 기록",
                                                       recordIDs: gaps.singleParticipantRecords)) {

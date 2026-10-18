@@ -40,6 +40,16 @@ struct PeopleListView: View {
     /// 입력 상태 한 줄 (D-31). 따로 연 문맥에서 자료가 바뀔 때만 센다 — 본문에서 세지 않는다.
     @State private var readinessLine: String?
 
+    // 단축어 (빌드 16) — 사람 추가 · 기록 추가 · 명함 찍기.
+    @ObservedObject private var shortcuts = ShortcutRequests.shared
+    /// 사람 추가를 열자마자 명함 촬영을 띄운다.
+    @State private var scanOnAdd = false
+    @State private var pickingRecordPerson = false
+    /// 고를 사람 — 고르기 창을 열 때 한 번 정렬한다 (본문에서 정렬하지 않는다).
+    @State private var recordCandidates: [Person] = []
+    @State private var recordPick: Person?
+    @State private var recordAnchor: Person?
+
     private var store: PersonStore { PersonStore(context: context) }
 
     /// 보여 줄 목록. 정렬이 끝나기 전(첫 화면 · 사람 수가 막 바뀐 때)에는 받은 차례 그대로.
@@ -142,8 +152,32 @@ struct PeopleListView: View {
             .navigationDestination(for: SettingsRoute.self) { _ in
                 SettingsView()
             }
-            .sheet(isPresented: $showingAdd) {
-                PersonEditView(mode: .create) { person in
+            .navigationDestination(for: AcquaintanceSuggestionRoute.self) { route in
+                AcquaintanceSuggestionsView(route: route)
+            }
+            .sheet(isPresented: $showingAdd, onDismiss: { scanOnAdd = false }) {
+                PersonEditView(mode: .create, startsScan: scanOnAdd) { person in
+                    path.append(person)
+                }
+            }
+            // 단축어 기록 추가 — 누구와의 기록인지 고르고, 고르기 창이 닫힌 뒤 기록 쓰기를 띄운다.
+            .sheet(isPresented: $pickingRecordPerson, onDismiss: {
+                if let person = recordPick {
+                    recordPick = nil
+                    recordAnchor = person
+                }
+            }) {
+                NavigationStack {
+                    PersonPickerView(people: recordCandidates, selection: $recordPick, title: "누구와의 기록인가요")
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("취소") { pickingRecordPerson = false }
+                            }
+                        }
+                }
+            }
+            .sheet(item: $recordAnchor) { person in
+                RecordEditView(mode: .create(anchor: person)) { _ in
                     path.append(person)
                 }
             }
@@ -191,6 +225,31 @@ struct PeopleListView: View {
             }
         }
         .task { await applyArgumentsOnce() }
+        .onChange(of: shortcuts.pending) { _, _ in handleShortcut() }
+        .onAppear(perform: handleShortcut)
+    }
+
+    /// 단축어가 남긴 요청을 한 번 처리한다 (빌드 16). 앱이 꺼져 있었으면 목록이 뜬 뒤에, 켜져 있었으면 바로.
+    private func handleShortcut() {
+        guard let request = shortcuts.pending else { return }
+        shortcuts.pending = nil
+        switch request {
+        case .addPerson:
+            scanOnAdd = false
+            showingAdd = true
+        case .scanCard:
+            scanOnAdd = true
+            showingAdd = true
+        case .addRecord:
+            // 사람이 없으면 기록을 붙일 곳이 없다 — 사람 추가부터.
+            guard !fetched.isEmpty else {
+                showingAdd = true
+                return
+            }
+            recordCandidates = PersonStore.sorted(fetched.filter { !$0.isGone }, by: .name)
+            recordPick = nil
+            pickingRecordPerson = true
+        }
     }
 
     private var list: some View {
@@ -362,6 +421,11 @@ struct PeopleListView: View {
         if let search = arguments.search { searchText = search }
         if arguments.openSettings {
             path.append(SettingsRoute())
+            return
+        }
+        if arguments.openSuggestions {
+            let snapshot = await NetworkSnapshotBuilder.build(container: context.container)
+            path.append(AcquaintanceSuggestionRoute(items: snapshot.suggestions))
             return
         }
         if let name = arguments.openNetwork {

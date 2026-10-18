@@ -48,6 +48,16 @@ final class GoldenTests: XCTestCase {
         struct GraphCase: Decodable {
             let name: String; let people: [GraphPersonRaw]; let records: [[UUID]]; let ties: [[UUID]]; let cliqueLimit: Int; let expected: [GraphEdgeRaw]
         }
+        struct SuggestionRaw: Decodable { let a: UUID; let b: UUID; let together: Int; let introducer: UUID? }
+        struct SuggestionCase: Decodable {
+            let name: String; let people: [GraphPersonRaw]; let records: [[UUID]]; let ties: [[UUID]]
+            let declined: [String]; let limit: Int; let expected: [SuggestionRaw]
+        }
+        struct CompanionRaw: Decodable { let id: UUID; let name: String }
+        struct CompanionRecordRaw: Decodable { let occurredAt: Double; let createdAt: Double; let participants: [CompanionRaw] }
+        struct RecentCompanionsCase: Decodable {
+            let name: String; let records: [CompanionRecordRaw]; let excluding: [UUID]; let limit: Int; let expected: [UUID]
+        }
         struct LinkRaw: Decodable { let i: Int; let j: Int; let weight: Double }
         struct LouvainExpected: Decodable { let communities: [[Int]]; let modularity: Double }
         struct LouvainCase: Decodable { let name: String; let nodeCount: Int; let links: [LinkRaw]; let resolution: Double; let expected: LouvainExpected }
@@ -134,6 +144,8 @@ final class GoldenTests: XCTestCase {
         let networkOverview: [OverviewCase]
         let traitBuckets: [TraitCase]
         let graphEdges: [GraphCase]
+        let acquaintanceSuggestions: [SuggestionCase]
+        let recentCompanions: [RecentCompanionsCase]
         let cardParse: [CardCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
@@ -309,6 +321,30 @@ final class GoldenTests: XCTestCase {
             for (g, e) in zip(got, c.expected) {
                 XCTAssertEqual(g.togetherWeight, e.togetherWeight, accuracy: 1e-9, "\(c.name) — 기록 무게 \(e.a)-\(e.b)")
             }
+        }
+    }
+
+    func testAcquaintanceSuggestions() throws {
+        for c in try Self.loadGolden().acquaintanceSuggestions {
+            let people = c.people.map { GraphPerson(id: $0.id, name: $0.name, organization: $0.organization, introducedBy: $0.introducedBy) }
+            let ties = c.ties.compactMap { pair in pair.count == 2 ? (pair[0], pair[1]) : nil }
+            let edges = RelationGraph.edges(people: people, records: c.records, ties: ties)
+            let got = AcquaintanceSuggestions.suggest(people: people, edges: edges, declined: c.declined, limit: c.limit)
+            XCTAssertEqual(got.map(\.a), c.expected.map(\.a), c.name)
+            XCTAssertEqual(got.map(\.b), c.expected.map(\.b), c.name)
+            XCTAssertEqual(got.map(\.together), c.expected.map(\.together), "\(c.name) — 함께한 기록")
+            XCTAssertEqual(got.map(\.introducer), c.expected.map(\.introducer), "\(c.name) — 소개한 사람")
+        }
+    }
+
+    func testRecentCompanions() throws {
+        for c in try Self.loadGolden().recentCompanions {
+            let entries = c.records.map { record in
+                RecentCompanions.Entry(occurredAt: Date(timeIntervalSince1970: record.occurredAt),
+                                       createdAt: Date(timeIntervalSince1970: record.createdAt),
+                                       participants: record.participants.map { RecentCompanions.Participant(id: $0.id, name: $0.name) })
+            }
+            XCTAssertEqual(RecentCompanions.pick(entries, excluding: Set(c.excluding), limit: c.limit), c.expected, c.name)
         }
     }
 

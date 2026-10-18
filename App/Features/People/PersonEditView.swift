@@ -63,8 +63,12 @@ struct PersonEditView: View {
     /// 이름을 한 번이라도 쳤는가 — 쳤다가 지웠을 때만 `이름을 입력하세요` 를 보인다 (처음 열 때는 조르지 않는다 · 7.2).
     @State private var nameEverTyped = false
 
-    init(mode: Mode, onSaved: @escaping (Person) -> Void) {
+    /// 열자마자 명함 촬영을 띄운다 — 단축어 `명함 찍기` (빌드 16 · 조사 보고서 지금 6).
+    private let startsScan: Bool
+
+    init(mode: Mode, startsScan: Bool = false, onSaved: @escaping (Person) -> Void) {
         self.mode = mode
+        self.startsScan = startsScan
         self.onSaved = onSaved
         let draft: PersonDraft
         switch mode {
@@ -341,10 +345,7 @@ struct PersonEditView: View {
             }
             if DocumentScanner.isAvailable {
                 Button {
-                    DocumentScanner.shared.start { data in
-                        guard let data else { return }
-                        Task { await ingestCard(data, alreadyStraight: true) }
-                    }
+                    scanCard()
                 } label: {
                     Label(draft.businessCard == nil ? "명함 촬영" : "명함 다시 촬영", systemImage: "camera.viewfinder")
                 }
@@ -497,11 +498,26 @@ struct PersonEditView: View {
         }
     }
 
+    private func scanCard() {
+        DocumentScanner.shared.start { data in
+            guard let data else { return }
+            Task { await ingestCard(data, alreadyStraight: true) }
+        }
+    }
+
     private func applyArgumentsOnce() {
         guard !appliedArguments else { return }
         appliedArguments = true
         refreshChoices()
         let arguments = LaunchArguments.current
+        // 단축어 `명함 찍기` — 시트가 다 올라온 뒤 촬영을 띄운다. 카메라가 없으면(시뮬레이터) 이름 칸부터.
+        if startsScan && DocumentScanner.isAvailable {
+            Task {
+                try? await Task.sleep(for: .milliseconds(600))
+                scanCard()
+            }
+            return
+        }
         // CI 스크린샷(-addPerson)에서는 포커스를 주지 않는다 — 시뮬레이터가 키보드 안내 팝업을 띄워 화면을 가린다.
         if isCreate && !arguments.addPerson { nameFocused = true }
         // CI 스크린샷: 견본 명함의 글자를 바로 읽어 제안 화면을 띄운다.

@@ -129,6 +129,26 @@ def sort_timeline(records: list[dict]) -> list[str]:
     return [r["id"] for r in ordered]
 
 
+# ── 최근 함께한 사람 (RecentCompanions · 빌드 16 · 조사 보고서 지금 7) ─────────────────────
+# 최근 기록부터(타임라인 차례) 처음 보이는 사람을 모은다. 한 기록 안에서는 이름 순. 뺄 사람 · 개수 한도.
+
+def recent_companions(records, excluding, limit=8):
+    ordered = sorted(records, key=lambda r: (-r["occurredAt"], -r["createdAt"]))
+    seen = {x.upper() for x in excluding}
+    out = []
+    for r in ordered:
+        people = sorted(r["participants"], key=lambda p: (folded(p["name"]), p["id"].upper()))
+        for p in people:
+            pid = p["id"].upper()
+            if pid in seen:
+                continue
+            seen.add(pid)
+            out.append(pid)
+            if len(out) >= limit:
+                return out
+    return out
+
+
 # ── 날 수 (RelativeDay) ──────────────────────────────────────────────────────
 
 def relative_day(days: int) -> str:
@@ -355,6 +375,58 @@ def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int 
             for i in range(len(members)):
                 touch(members[i]["id"], members[(i + 1) % len(members)]["id"], "sameOrganization")
     return [edges[k] for k in sorted(edges)]
+
+
+# ── 아는 사이 후보 (AcquaintanceSuggestions · 빌드 16 · 조사 보고서 지금 5) ───────────────────
+# 사실만 근거로 — 같은 기록에 함께 나온 횟수, 같은 사람이 둘 다 소개함. 점수 · 퍼센트는 없다.
+# 이미 아는 사이 · 한쪽이 다른 쪽을 소개 · "아니요" 한 쌍은 빼고, 함께한 기록 수 → 같은 소개자 → 이름 순.
+
+SUGGESTION_LIMIT = 30
+SUGGESTION_INTRODUCER_GROUP = 12
+
+
+def pair_key(x, y):
+    x, y = x.upper(), y.upper()
+    return f"{x}|{y}" if x < y else f"{y}|{x}"
+
+
+def acquaintance_suggestions(people, records, ties, declined, limit=SUGGESTION_LIMIT):
+    by_id = {p["id"].upper(): p for p in people}
+    edges = {(e["a"], e["b"]): e for e in graph_edges(people, records, 12, ties)}
+    declined = {pair_key(*d.split("|")) for d in declined if d.count("|") == 1}   # 차례 · 대소문자와 상관없이
+    found = {}
+    for (a, b), e in edges.items():
+        if e["together"] > 0 and not e["acquainted"] and not e["introduced"]:
+            found[(a, b)] = {"together": e["together"], "introducer": None}
+    groups = {}
+    for p in people:
+        x = (p.get("introducedBy") or "").upper()
+        if x and x in by_id and x != p["id"].upper():
+            groups.setdefault(x, []).append(p["id"].upper())
+    for x in sorted(groups):
+        members = sorted(groups[x])
+        if len(members) < 2 or len(members) > SUGGESTION_INTRODUCER_GROUP:
+            continue
+        for i in range(len(members)):
+            for j in range(i + 1, len(members)):
+                key = (members[i], members[j])
+                e = edges.get(key)
+                if e and (e["acquainted"] or e["introduced"]):
+                    continue
+                item = found.setdefault(key, {"together": e["together"] if e else 0, "introducer": None})
+                item["introducer"] = x
+
+    def name_key(i):
+        return (folded(by_id[i]["name"]), i)
+
+    out = []
+    for (a, b), item in found.items():
+        if pair_key(a, b) in declined:
+            continue
+        first, second = sorted((a, b), key=name_key)
+        out.append({"a": first, "b": second, "together": item["together"], "introducer": item["introducer"]})
+    out.sort(key=lambda s: (-s["together"], 0 if s["introducer"] else 1, name_key(s["a"]), name_key(s["b"])))
+    return out[:limit]
 
 
 # ── 모임 찾기 (CommunityDetection · CommunityNaming) ─────────────────────────
@@ -1132,6 +1204,11 @@ def build() -> dict:
     out["graphEdges"] = [{"name": c["name"], "people": c["people"], "records": c["records"], "cliqueLimit": c["cliqueLimit"],
                           "ties": c.get("ties", []),
                           "expected": graph_edges(c["people"], c["records"], c["cliqueLimit"], c.get("ties", []))} for c in cases["graphEdges"]]
+    out["acquaintanceSuggestions"] = [{"name": c["name"], "people": c["people"], "records": c["records"], "ties": c.get("ties", []),
+                                       "declined": c.get("declined", []), "limit": c.get("limit", SUGGESTION_LIMIT),
+                                       "expected": acquaintance_suggestions(c["people"], c["records"], c.get("ties", []),
+                                                                            c.get("declined", []), c.get("limit", SUGGESTION_LIMIT))}
+                                      for c in cases["acquaintanceSuggestions"]]
     out["louvain"] = [{"name": c["name"], "nodeCount": c["nodeCount"], "links": c["links"],
                        "resolution": c.get("resolution", 1.0),
                        "expected": louvain(c["nodeCount"], c["links"], c.get("resolution", 1.0))} for c in cases["louvain"]]
@@ -1160,6 +1237,10 @@ def build() -> dict:
                         for c in cases["cardParse"]]
     out["recencySort"] = [{"name": c["name"], "people": c["people"], "expected": sort_recency(c["people"])}
                           for c in cases["recencySort"]]
+    out["recentCompanions"] = [{"name": c["name"], "records": c["records"], "excluding": c.get("excluding", []),
+                                "limit": c.get("limit", 8),
+                                "expected": recent_companions(c["records"], c.get("excluding", []), c.get("limit", 8))}
+                               for c in cases["recentCompanions"]]
     out["timelineSort"] = [{"name": c["name"], "records": c["records"], "expected": sort_timeline(c["records"])}
                            for c in cases["timelineSort"]]
     out["validation"] = [{"name": c["name"], "expected": name_problem(c["name"])}
