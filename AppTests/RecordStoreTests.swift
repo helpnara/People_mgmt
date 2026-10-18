@@ -81,9 +81,14 @@ final class RecordStoreTests: XCTestCase {
         var draft = RecordDraft(anchor: f.a)
         draft.note = "x"
         let record = try f.records.create(draft)
-        let components = Calendar.current.dateComponents([.hour, .minute], from: record.occurredAt)
-        XCTAssertEqual(components.hour, 12)
-        XCTAssertEqual(components.minute, 0)
+        // 고른 날(기기 달력)의 12:00 UTC 로 저장한다 (이슈 20 · Core.DayNormalizer).
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let picked = Calendar.current.dateComponents([.year, .month, .day], from: draft.occurredAt)
+        let saved = utc.dateComponents([.year, .month, .day, .hour, .minute], from: record.occurredAt)
+        XCTAssertEqual([saved.year, saved.month, saved.day], [picked.year, picked.month, picked.day], "고른 날 그대로")
+        XCTAssertEqual(saved.hour, 12)
+        XCTAssertEqual(saved.minute, 0)
     }
 
     func testDeletingRecordKeepsPeopleAndApplyUpdatesFields() throws {

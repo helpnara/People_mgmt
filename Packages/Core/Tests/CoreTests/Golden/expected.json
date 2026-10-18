@@ -904,7 +904,7 @@
   ],
   "dayNoon": [
     {
-      "expectedEpoch": 1772938800.0,
+      "expectedEpoch": 1772971200.0,
       "iso": "2026-03-08T23:30:00+09:00",
       "timeZone": "Asia/Seoul"
     },
@@ -914,14 +914,29 @@
       "timeZone": "UTC"
     },
     {
-      "expectedEpoch": 1767236400.0,
+      "expectedEpoch": 1767268800.0,
       "iso": "2026-01-01T00:00:00+09:00",
       "timeZone": "Asia/Seoul"
     },
     {
-      "expectedEpoch": 1767150000.0,
+      "expectedEpoch": 1767182400.0,
       "iso": "2025-12-31T23:59:59+09:00",
       "timeZone": "Asia/Seoul"
+    },
+    {
+      "expectedEpoch": 1772884800.0,
+      "iso": "2026-03-08T00:30:00+09:00",
+      "timeZone": "America/Los_Angeles"
+    },
+    {
+      "expectedEpoch": 1773057600.0,
+      "iso": "2026-03-08T12:00:00+00:00",
+      "timeZone": "Pacific/Auckland"
+    },
+    {
+      "expectedEpoch": 1782907200.0,
+      "iso": "2026-07-01T00:10:00-07:00",
+      "timeZone": "America/Los_Angeles"
     }
   ],
   "displayTitle": [
@@ -1609,6 +1624,48 @@
         }
       ],
       "today": 1000
+    }
+  ],
+  "folded": [
+    {
+      "expected": "cafe",
+      "input": "café"
+    },
+    {
+      "expected": "cafe",
+      "input": "CAFE"
+    },
+    {
+      "expected": "angstrom",
+      "input": "Ångström"
+    },
+    {
+      "expected": "zoe",
+      "input": "Zoé"
+    },
+    {
+      "expected": "naive",
+      "input": "naïve"
+    },
+    {
+      "expected": "김하늘",
+      "input": "김하늘"
+    },
+    {
+      "expected": "이도윤",
+      "input": "이도윤 "
+    },
+    {
+      "expected": "한지우",
+      "input": "한지우"
+    },
+    {
+      "expected": "각 nfd 한글",
+      "input": "각 NFD 한글"
+    },
+    {
+      "expected": "alice park",
+      "input": "Alice Park"
     }
   ],
   "graphEdges": [
@@ -3139,6 +3196,15 @@
         "relationshipType": "지인",
         "role": null,
         "tags": []
+      },
+      {
+        "id": "99999999-9999-9999-9999-999999999999",
+        "name": "Zoé Martin",
+        "organization": "Café Lumière",
+        "records": [],
+        "tags": [
+          "Mentor"
+        ]
       }
     ],
     "queries": [
@@ -3217,6 +3283,12 @@
             "kind": "tag",
             "personID": "44444444-4444-4444-4444-444444444444",
             "recordID": null
+          },
+          {
+            "evidence": "태그 #Mentor 일치",
+            "kind": "tag",
+            "personID": "99999999-9999-9999-9999-999999999999",
+            "recordID": null
           }
         ],
         "query": "mentor"
@@ -3227,6 +3299,12 @@
             "evidence": "태그 #Mentor 일치",
             "kind": "tag",
             "personID": "44444444-4444-4444-4444-444444444444",
+            "recordID": null
+          },
+          {
+            "evidence": "태그 #Mentor 일치",
+            "kind": "tag",
+            "personID": "99999999-9999-9999-9999-999999999999",
             "recordID": null
           }
         ],
@@ -3436,6 +3514,39 @@
           }
         ],
         "query": "하늘"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "소속 일치",
+            "kind": "person",
+            "personID": "99999999-9999-9999-9999-999999999999",
+            "recordID": null
+          }
+        ],
+        "query": "cafe"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "이름 일치",
+            "kind": "name",
+            "personID": "99999999-9999-9999-9999-999999999999",
+            "recordID": null
+          }
+        ],
+        "query": "zoe"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "소속 일치",
+            "kind": "person",
+            "personID": "99999999-9999-9999-9999-999999999999",
+            "recordID": null
+          }
+        ],
+        "query": "CAFÉ"
       }
     ]
   },

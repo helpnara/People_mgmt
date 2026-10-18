@@ -36,9 +36,14 @@ final class PersonStoreTests: XCTestCase {
         draft.firstMetDate = Date(timeIntervalSince1970: 1_772_922_600) // 2026-03-08 08:30 KST 쯤 — 시간대는 기기 것
         let person = try fixture.store.create(draft)
         let stored = try XCTUnwrap(person.firstMetDate)
-        let components = Calendar.current.dateComponents([.hour, .minute], from: stored)
-        XCTAssertEqual(components.hour, 12)
-        XCTAssertEqual(components.minute, 0)
+        // 고른 날(기기 달력)의 12:00 UTC 로 저장한다 (이슈 20 · Core.DayNormalizer).
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let picked = Calendar.current.dateComponents([.year, .month, .day], from: draft.firstMetDate)
+        let saved = utc.dateComponents([.year, .month, .day, .hour, .minute], from: stored)
+        XCTAssertEqual([saved.year, saved.month, saved.day], [picked.year, picked.month, picked.day], "고른 날 그대로")
+        XCTAssertEqual(saved.hour, 12)
+        XCTAssertEqual(saved.minute, 0)
     }
 
     func testDeleteRemovesSoleRecordsAndLeavesSharedOnes() throws {

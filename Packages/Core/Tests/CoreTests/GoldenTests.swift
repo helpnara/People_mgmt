@@ -109,6 +109,7 @@ final class GoldenTests: XCTestCase {
         struct Search: Decodable { let people: [Person]; let queries: [Query] }
         struct JosaExpected: Decodable { let eulReul: String; let gwaWa: String; let iGa: String }
         struct JosaCase: Decodable { let text: String; let expected: JosaExpected }
+        struct FoldedCase: Decodable { let input: String; let expected: String }
 
         let tags: [TagCase]
         let tagSplit: [SplitCase]
@@ -138,6 +139,7 @@ final class GoldenTests: XCTestCase {
         let dayNoon: [NoonCase]
         let search: Search
         let josa: [JosaCase]
+        let folded: [FoldedCase]
     }
 
     /// `Bundle.module` 대신 소스 위치에서 직접 읽는다 — 리눅스에서 더 단순하고 확실하다.
@@ -435,6 +437,13 @@ final class GoldenTests: XCTestCase {
             calendar.timeZone = try XCTUnwrap(TimeZone(identifier: c.timeZone), c.timeZone)
             let noon = DayNormalizer.noon(of: date, calendar: calendar)
             XCTAssertEqual(noon.timeIntervalSince1970, c.expectedEpoch, accuracy: 0.5, "\(c.iso) in \(c.timeZone)")
+        }
+    }
+
+    /// 비교 · 검색 열쇠 — 발음 구별 기호를 빼고(이슈 22), 한글은 그대로.
+    func testFolded() throws {
+        for c in try Self.loadGolden().folded {
+            XCTAssertEqual(TextNormalization.folded(c.input), c.expected, c.input.debugDescription)
         }
     }
 
