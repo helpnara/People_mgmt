@@ -132,6 +132,7 @@ struct PersonDetailView: View {
                 appliedArguments = true
                 if LaunchArguments.current.addRecord { addingRecord = true }
                 if LaunchArguments.current.editPerson { editing = true }
+                if LaunchArguments.current.viewCard, person.businessCard != nil { viewingCard = true }
             }
         }
     }

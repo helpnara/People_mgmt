@@ -25,6 +25,8 @@ struct LaunchArguments: Sendable {
     let addRecord: Bool
     /// 연 사람의 수정 시트를 바로 연다.
     let editPerson: Bool
+    /// 연 사람의 명함 크게 보기를 바로 연다 (이슈 14).
+    let viewCard: Bool
     /// 수정 시트에서 명함 글자를 바로 읽어 제안 화면을 띄운다.
     let readCard: Bool
     /// 사람 추가 · 수정 시트에서 사진첩 고르기 창을 바로 띄운다 — 그 길에서 앱이 멈추지 않는지 CI 가 본다 (이슈 10).
@@ -43,6 +45,7 @@ struct LaunchArguments: Sendable {
         openRecord = arguments.contains("-openRecord")
         addRecord = arguments.contains("-addRecord")
         editPerson = arguments.contains("-editPerson")
+        viewCard = arguments.contains("-viewCard")
         readCard = arguments.contains("-readCard")
         pickCardPhoto = arguments.contains("-pickCardPhoto")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")

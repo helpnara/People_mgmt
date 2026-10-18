@@ -34,6 +34,10 @@ struct BusinessCardThumbnail: View {
 }
 
 /// 명함 크게 보기. 두 손가락으로 키우고, 닫기로 나간다.
+///
+/// **바깥 틀은 늘 있는 `ZStack` 이다 (이슈 14).** 빌드 5 ~ 7 은 `Group { if let image { … } }` 이었다 —
+/// 그림을 풀기 전에는 `Group` 이 비고, SwiftUI 는 빈 `Group` 에 붙은 수식어(`.task` · `.toolbar`)를 붙일 곳이 없어 버린다.
+/// 그래서 그림을 푸는 일도 `닫기` 도 사라져 빈 화면에 갇혔다. 조건만 있는 `Group` 에 수식어를 붙이지 않는다.
 struct BusinessCardViewer: View {
     let data: Data
     @Environment(\.dismiss) private var dismiss
@@ -41,10 +45,12 @@ struct BusinessCardViewer: View {
     @State private var lastScale: CGFloat = 1
     /// 크게 볼 때도 원본 크기로 풀지 않는다 — 화면 두 배면 넉넉하다 (이슈 10).
     @State private var image: UIImage?
+    @State private var failed = false
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                Color.ground.ignoresSafeArea()
                 if let image {
                     Image(uiImage: image)
                         .resizable()
@@ -60,12 +66,18 @@ struct BusinessCardViewer: View {
                             lastScale = scale
                         }
                         .padding()
+                        .accessibilityLabel("명함 사진")
+                } else if failed {
+                    ContentUnavailableView("명함 사진을 열지 못했습니다", systemImage: "photo",
+                                           description: Text("편집에서 명함을 다시 고르거나 촬영해 주세요."))
+                } else {
+                    ProgressView()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.ground)
             .task(id: data) {
-                image = CardImaging.thumbnail(data, maxPixel: 2_400).map { UIImage(cgImage: $0) }
+                let decoded = CardImaging.thumbnail(data, maxPixel: 2_400).map { UIImage(cgImage: $0) }
+                image = decoded
+                failed = decoded == nil
             }
             .navigationTitle("명함")
             .navigationBarTitleDisplayMode(.inline)

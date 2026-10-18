@@ -323,6 +323,8 @@ jobs:
           shoot 12-card-reading.png -seedSampleData -openPerson 김하늘 -editPerson -readCard
           # **나** (이슈 12) — 목록 맨 위 칸에서 연다. 첫 인연 · 타임라인 · 기록 추가가 없어야 한다.
           shoot 14-me.png -seedSampleData -openMe
+          # **명함 크게 보기** (이슈 14) — 빌드 7 까지 빈 화면에 갇혔다. 명함 자리가 비면 화소 검사(screens.txt)가 잡는다.
+          shoot 15-card-viewer.png -seedSampleData -openPerson 김하늘 -viewCard
           # **사진첩 고르기 창** (이슈 10). 빌드 4 · 5 실기기에서 이 길로 주 스레드가 쉬지 않고 돌다 꺼졌다.
           # 시뮬레이터 사진첩의 견본 사진이 뜨면 PNG 가 2MB 를 넘는다 (빌드 7 CI 에서 잡힘 — 홈 화면으로 잘못 봤다).
           SHOOT_MAX=6000000 shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto
