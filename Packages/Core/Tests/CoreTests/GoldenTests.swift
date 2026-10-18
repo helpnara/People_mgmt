@@ -51,7 +51,7 @@ final class GoldenTests: XCTestCase {
         struct LinkRaw: Decodable { let i: Int; let j: Int; let weight: Double }
         struct LouvainExpected: Decodable { let communities: [[Int]]; let modularity: Double }
         struct LouvainCase: Decodable { let name: String; let nodeCount: Int; let links: [LinkRaw]; let resolution: Double; let expected: LouvainExpected }
-        struct SplitCase: Decodable { let name: String; let nodeCount: Int; let links: [LinkRaw]; let communities: [[Int]]; let expected: [[Int]] }
+        struct ComponentSplitCase: Decodable { let name: String; let nodeCount: Int; let links: [LinkRaw]; let communities: [[Int]]; let expected: [[Int]] }
         struct NamingMemberRaw: Decodable { let organization: String?; let tags: [String]?; let metThrough: String? }
         struct NamingCase: Decodable { let name: String; let members: [NamingMemberRaw]; let expected: String? }
         struct ReadinessInputRaw: Decodable {
@@ -112,7 +112,7 @@ final class GoldenTests: XCTestCase {
         let contactFromContact: [ContactFromContactCase]
         let presetChoices: [PresetChoicesCase]
         let louvain: [LouvainCase]
-        let splitConnected: [SplitCase]
+        let splitConnected: [ComponentSplitCase]
         let communityName: [NamingCase]
         let inputReadiness: [ReadinessCase]
         let dyadMetrics: [DyadCase]
