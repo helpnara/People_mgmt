@@ -37,6 +37,8 @@ struct PeopleListView: View {
     @State private var searchRows: [SearchRow] = []
     /// `searchRows` 가 어느 검색어의 결과인가 — 아직 찾는 중인지 가르려고.
     @State private var searchedText = ""
+    /// 입력 상태 한 줄 (D-31). 따로 연 문맥에서 자료가 바뀔 때만 센다 — 본문에서 세지 않는다.
+    @State private var readinessLine: String?
 
     private var store: PersonStore { PersonStore(context: context) }
 
@@ -122,6 +124,9 @@ struct PeopleListView: View {
             .navigationDestination(for: EvidenceRoute.self) { route in
                 EvidenceRouteView(route: route)
             }
+            .navigationDestination(for: RecordFillRoute.self) { route in
+                RecordFillRouteView(route: route)
+            }
             .sheet(isPresented: $showingAdd) {
                 PersonEditView(mode: .create) { person in
                     path.append(person)
@@ -158,6 +163,14 @@ struct PeopleListView: View {
         .task(id: SearchKey(text: searchText, version: dataVersion)) {
             await runSearch()
         }
+        .task(id: dataVersion) {
+            // 저장이 이어지면(하루 10명 입력) 마지막 저장 뒤 한 번만 센다.
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            let input = await NetworkSnapshotBuilder.readiness(container: context.container)
+            guard !Task.isCancelled else { return }
+            readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
+        }
         .task { await applyArgumentsOnce() }
     }
 
@@ -172,6 +185,21 @@ struct PeopleListView: View {
             }
             if !isQuerying {
                 meSection
+                if let readinessLine, !fetched.isEmpty {
+                    Section {
+                        // 입력 상태 (D-31) — 무엇을 더 적으면 무엇이 보이는지. 내 인맥의 입력 상태 칸으로 간다.
+                        NavigationLink(value: NetworkRoute(tab: .readiness)) {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("입력 상태").font(.scaled(15, weight: .semibold)).foregroundStyle(Color.ink)
+                                    Text(readinessLine).font(.scaled(13)).foregroundStyle(Color.muted)
+                                }
+                            } icon: {
+                                Image(systemName: "checklist").foregroundStyle(Color.accent)
+                            }
+                        }
+                    }
+                }
                 Section {
                     ForEach(displayedPeople) { person in
                         if !person.isGone {

@@ -15,17 +15,18 @@ struct PersonID: Hashable {
 
 /// **내 인맥** (6번째 묶음 · FR-045 · 047 · 048). 목록 위 단추로 연다 (2026-10-18 사용자 결정).
 ///
-/// 관계도 · 특성 · 돌아보기 셋. 자료는 따로 연 문맥에서 값으로 만들어 그린다 — 주 스레드를 막지 않는다.
+/// 관계도 · 특성 · 돌아보기 · 입력 상태 넷. 자료는 따로 연 문맥에서 값으로 만들어 그린다 — 주 스레드를 막지 않는다.
 /// **사람을 점수화하지 않는다** (ADR-0004) — 순위 · 점수가 없고, 모든 칸은 눌러서 그 사람들을 본다.
 struct NetworkView: View {
     enum Tab: String, CaseIterable, Identifiable {
-        case graph, traits, overview
+        case graph, traits, overview, readiness
         var id: String { rawValue }
         var label: String {
             switch self {
             case .graph: return "관계도"
             case .traits: return "특성"
             case .overview: return "돌아보기"
+            case .readiness: return "입력 상태"
             }
         }
     }
@@ -61,6 +62,7 @@ struct NetworkView: View {
                         case .graph: RelationGraphView(snapshot: snapshot)
                         case .traits: TraitsView(snapshot: snapshot)
                         case .overview: OverviewView(snapshot: snapshot)
+                        case .readiness: ReadinessView(snapshot: snapshot)
                         }
                     }
                 } else {

@@ -129,7 +129,52 @@ enum SampleData {
         }
 
         try? context.save()
+        if LaunchArguments.current.communitySample { seedCommunities(into: context, doyun: doyun, jiwoo: jiwoo, alice: alice) }
         if LaunchArguments.current.largeSample { seedLarge(into: context) }
+    }
+
+    /// **모임 견본** (D-30) — 지어낸 15명을 다섯씩 세 모임으로, 모임 안은 아는 사이로 촘촘히, 모임 사이는 한 줄씩.
+    /// 진한 선 20개 · 이어진 사람 10명을 넘겨 관계도에 모임 테두리가 그려지는지 찍는다.
+    @MainActor
+    static func seedCommunities(into context: ModelContext, doyun: Person, jiwoo: Person, alice: Person) {
+        func make(_ names: [String], configure: (Person) -> Void) -> [Person] {
+            names.map { name in
+                let person = Person(name: name)
+                configure(person)
+                context.insert(person)
+                return person
+            }
+        }
+        let reading = make(["서지호", "문채원", "오하린", "신태오", "장윤슬"]) {
+            $0.relationshipType = "지인"
+            $0.metThrough = "동호회·모임"
+            $0.tags = ["독서모임"]
+        }
+        let hiking = make(["배준서", "노은채", "류시온", "임도하", "홍지안"]) {
+            $0.relationshipType = "친구"
+            $0.metThrough = "동호회·모임"
+            $0.tags = ["등산"]
+        }
+        let project = make(["송예준", "권나윤", "황서진", "안지후", "조이안"]) {
+            $0.relationshipType = "고객"
+            $0.metThrough = "프로젝트"
+            $0.organization = "나비랩스"
+        }
+        // 다섯 명마다 고리 + 대각선 둘 = 7줄. 모임 사이는 한 줄씩.
+        var pairs: [(Person, Person)] = []
+        for group in [reading, hiking, project] {
+            for i in 0..<5 { pairs.append((group[i], group[(i + 1) % 5])) }
+            pairs.append((group[0], group[2]))
+            pairs.append((group[1], group[3]))
+        }
+        pairs += [(hiking[0], doyun), (project[0], jiwoo), (project[1], alice), (reading[0], hiking[1])]
+        for (a, b) in pairs {
+            let tie = Tie()
+            context.insert(tie)
+            tie.first = a
+            tie.second = b
+        }
+        try? context.save()
     }
 
     /// **큰 견본** — 사람 5,000명 · 기록 50,000건 (요구사항 8.5 를 하루 10명 입력 기준으로 올린 규모).
