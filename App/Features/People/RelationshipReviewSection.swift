@@ -34,23 +34,29 @@ struct RelationshipReviewSection: View {
                         evidence: pick([metrics.lastID, metrics.firstID].compactMap { $0 }.uniqued()), title: "처음과 마지막 기록")
                 }
                 row("만남 빈도",
-                    value: metrics.perMonth.map(MetricText.frequency(perMonth:)) ?? "기록 \(DyadMetricsCalculator.frequencyMinimum)건부터 보입니다",
+                    value: metrics.perMonth.map(MetricText.frequency(perMonth:)) ?? waiting(DyadMetricsCalculator.frequencyMinimum, have: metrics.total),
                     evidence: metrics.perMonth == nil ? [] : pick(metrics.pastIDs), title: "만남 빈도의 근거")
                 row("흐름",
                     value: metrics.trend.map { "\(MetricText.trend($0)) · 최근 6개월 \(metrics.recentHalf)건 · 그 전 6개월 \(metrics.previousHalf)건" }
-                        ?? "기록 \(DyadMetricsCalculator.trendMinimum)건부터 보입니다",
+                        ?? waiting(DyadMetricsCalculator.trendMinimum, have: metrics.total),
                     evidence: metrics.trend == nil ? [] : pick(metrics.recentHalfIDs + metrics.previousHalfIDs), title: "최근 12개월 기록")
                 row("함께한 일",
                     value: metrics.diversityClass.map { "\(MetricText.diversity($0)) · " + typeSummary(metrics.typeCounts) }
-                        ?? "기록 \(DyadMetricsCalculator.diversityMinimum)건부터 보입니다",
+                        ?? waiting(DyadMetricsCalculator.diversityMinimum, have: metrics.total),
                     evidence: metrics.diversityClass == nil ? [] : pick(metrics.pastIDs), title: "함께한 일")
             }
         } header: {
             Text("관계 돌아보기")
         } footer: {
-            Text("내가 기록한 범위 기준입니다. 적지 않은 만남은 계산되지 않습니다.")
+            // 무엇을 얼마나 적으면 무엇이 보이는지 — 앱이 알려 줄 수 있는 것의 조건 (사용자 요청 · 2026-10-18).
+            Text("내가 기록한 범위 기준입니다. 적지 않은 만남은 계산되지 않습니다. 이 사람과의 기록이 쌓이면 만남 빈도(\(DyadMetricsCalculator.frequencyMinimum)건) · 흐름(\(DyadMetricsCalculator.trendMinimum)건) · 함께한 일(\(DyadMetricsCalculator.diversityMinimum)건)이 차례로 열립니다. 처음 만난 날을 적으면 인연 기간이 그날부터 셉니다.")
         }
         .id(RelationshipReviewSection.anchor)
+    }
+
+    /// 문턱 아래 — 몇 건부터 보이고, 지금 몇 건이며, 몇 건 더 적으면 되는지 (원칙 4 · 사용자 요청).
+    private func waiting(_ minimum: Int, have: Int) -> String {
+        "기록 \(minimum)건부터 보입니다 · 지금 \(have)건, \(max(minimum - have, 1))건 더"
     }
 
     /// CI 스크린샷이 이 구역으로 내려오려고 쓰는 자리 이름.

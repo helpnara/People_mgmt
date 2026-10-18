@@ -6,7 +6,7 @@ import SwiftUI
 struct TraitsView: View {
     let snapshot: NetworkSnapshot
 
-    private struct Trait: Identifiable {
+    fileprivate struct Trait: Identifiable {
         let title: String
         let buckets: [TraitBucket]
         var id: String { title }
@@ -17,7 +17,7 @@ struct TraitsView: View {
     var body: some View {
         List {
             ForEach(traits) { trait in
-                Section(trait.title) {
+                Section {
                     let maximum = max(trait.buckets.map(\.count).max() ?? 1, 1)
                     ForEach(Array(trait.buckets.enumerated()), id: \.offset) { _, bucket in
                         NavigationLink {
@@ -26,6 +26,10 @@ struct TraitsView: View {
                             BucketRow(bucket: bucket, maximum: maximum, total: snapshot.people.count)
                         }
                     }
+                } header: {
+                    Text(trait.title)
+                } footer: {
+                    Text(coverage(trait))
                 }
             }
             Section {
@@ -44,6 +48,17 @@ struct TraitsView: View {
                 Trait(title: "태그", buckets: TraitDistribution.buckets(people.map { (id: $0.id, values: $0.tags) })),
             ]
         }
+    }
+}
+
+private extension TraitsView {
+    /// 이 칸을 적은 사람이 몇 명인가 — 분포가 얼마나 믿을 만한지의 조건 (사용자 요청 · 2026-10-18).
+    func coverage(_ trait: Trait) -> String {
+        let total = snapshot.people.count
+        let missing = trait.buckets.first(where: \.isUnspecified)?.count ?? 0
+        let filled = total - missing
+        if missing == 0 { return "\(total)명 모두 적었습니다." }
+        return "적은 사람 \(filled)명 / \(total)명. 미지정 \(missing)명을 사람 편집에서 채우면 분포가 정확해집니다."
     }
 }
 
