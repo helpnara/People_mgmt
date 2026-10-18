@@ -308,14 +308,16 @@ def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int 
     known = {p["id"].upper() for p in people}
     edges: dict = {}
 
-    def touch(x, y, field):
+    def touch(x, y, field, share=0.0):
         x, y = x.upper(), y.upper()
         if x == y or x not in known or y not in known:
             return
         a, b = (x, y) if x < y else (y, x)
-        e = edges.setdefault((a, b), {"a": a, "b": b, "together": 0, "introduced": False, "sameOrganization": False, "acquainted": False})
+        e = edges.setdefault((a, b), {"a": a, "b": b, "together": 0, "togetherWeight": 0.0, "introduced": False,
+                                      "sameOrganization": False, "acquainted": False})
         if field == "together":
             e["together"] += 1
+            e["togetherWeight"] += share
         else:
             e[field] = True
 
@@ -326,9 +328,11 @@ def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int 
             if u in known and u not in seen:
                 seen.add(u)
                 unique.append(u)
+        # 큰 기록의 무게 낮추기 (빌드 16 · 조사 보고서 지금 4) — n명 기록의 각 쌍에 1/(n−1).
+        share = 1.0 / (len(unique) - 1) if len(unique) > 1 else 0.0
         for i in range(len(unique)):
             for j in range(i + 1, len(unique)):
-                touch(unique[i], unique[j], "together")
+                touch(unique[i], unique[j], "together", share)
     for p in people:
         if p.get("introducedBy"):
             touch(p["id"], p["introducedBy"], "introduced")
@@ -565,6 +569,7 @@ TEMPORAL_MIN_MODULARITY = 0.3
 TEMPORAL_MIN_GROUP = 3
 TEMPORAL_MATCH = 0.3
 TEMPORAL_SIZE_CHANGE = 0.3
+TEMPORAL_INCLUSION = 0.5
 
 
 def temporal_slices(people, records, ties, slice_days):
@@ -597,8 +602,10 @@ def temporal_slices(people, records, ties, slice_days):
             d = r["day"]
             if d > t or d <= t - TEMPORAL_WINDOW:
                 continue
-            w = 0.5 ** ((t - d) / TEMPORAL_HALF_LIFE)
             ps = sorted(set(x for x in r["participants"] if x in pres))
+            if len(ps) < 2:
+                continue
+            w = 0.5 ** ((t - d) / TEMPORAL_HALF_LIFE) / (len(ps) - 1)
             for a in range(len(ps)):
                 for b in range(a + 1, len(ps)):
                     key = (ps[a], ps[b])
@@ -624,18 +631,31 @@ def temporal_slices(people, records, ties, slice_days):
     return out
 
 
-def temporal_changes(slices):
-    def jaccard(x, y):
-        a, b = set(x), set(y)
-        return len(a & b) / len(a | b) if a | b else 0.0
+def temporal_match(x, y, threshold=TEMPORAL_MATCH):
+    """두 모임을 같은 모임의 앞뒤로 볼까 — Jaccard 가 문턱 이상이거나, 작은 쪽의 절반 이상이 큰 쪽에 들어 있다 (GED 포함도)."""
+    a, b = set(x), set(y)
+    if not a or not b:
+        return False
+    both = len(a & b)
+    return both / len(a | b) >= threshold or both / min(len(a), len(b)) >= TEMPORAL_INCLUSION
+
+
+def temporal_changes(slices, threshold=TEMPORAL_MATCH):
     events = []
+    dormant = []   # 앞에서 최근 기록 없음이 된 모임 — 다시 보이면 다시 모임 (빌드 16 · 조사 보고서 지금 2)
     for s in range(1, len(slices)):
         prev, cur = slices[s - 1]["communities"], slices[s]["communities"]
-        succ = [[c for c in range(len(cur)) if jaccard(prev[p], cur[c]) >= TEMPORAL_MATCH] for p in range(len(prev))]
-        pred = [[p for p in range(len(prev)) if jaccard(prev[p], cur[c]) >= TEMPORAL_MATCH] for c in range(len(cur))]
+        succ = [[c for c in range(len(cur)) if temporal_match(prev[p], cur[c], threshold)] for p in range(len(prev))]
+        pred = [[p for p in range(len(prev)) if temporal_match(prev[p], cur[c], threshold)] for c in range(len(cur))]
+        woke = []
         for c, group in enumerate(cur):
             if not pred[c]:
-                events.append({"slice": s, "kind": "new", "members": group})
+                back = next((k for k in range(len(dormant) - 1, -1, -1) if temporal_match(dormant[k], group, threshold)), None)
+                if back is None:
+                    events.append({"slice": s, "kind": "new", "members": group})
+                else:
+                    woke.append(back)
+                    events.append({"slice": s, "kind": "returned", "members": group})
             elif len(pred[c]) >= 2:
                 events.append({"slice": s, "kind": "merged", "members": group})
             else:
@@ -647,9 +667,13 @@ def temporal_changes(slices):
                     events.append({"slice": s, "kind": "grew", "members": group})
                 elif ratio < -TEMPORAL_SIZE_CHANGE:
                     events.append({"slice": s, "kind": "shrank", "members": group})
+                else:
+                    events.append({"slice": s, "kind": "steady", "members": group})
+        dormant = [d for k, d in enumerate(dormant) if k not in woke]
         for p, group in enumerate(prev):
             if not succ[p]:
                 events.append({"slice": s, "kind": "faded", "members": group})
+                dormant.append(group)
             elif len(succ[p]) >= 2:
                 events.append({"slice": s, "kind": "split", "members": group})
     return events
@@ -1120,7 +1144,9 @@ def build() -> dict:
         sl = temporal_slices(c["people"], c["records"], c.get("ties", []), c["sliceDays"])
         out["temporal"].append({"name": c["name"], "people": c["people"], "records": c["records"],
                                 "ties": c.get("ties", []), "sliceDays": c["sliceDays"],
-                                "slices": sl, "changes": temporal_changes(sl)})
+                                "slices": sl, "changes": temporal_changes(sl),
+                                # 짝짓기 문턱 비교 (빌드 16 · 조사 보고서 지금 3) — 0.1 · 0.2 에서의 판정도 Swift 와 대조한다.
+                                "thresholdChanges": [{"threshold": th, "changes": temporal_changes(sl, th)} for th in (0.1, 0.2)]})
     out["inputReadiness"] = [{"name": c["name"], "input": c["input"], "expected": input_readiness(c["input"]),
                               "summary": readiness_summary(input_readiness(c["input"]))} for c in cases["inputReadiness"]]
     out["presetChoices"] = [{"name": c["name"], "presets": c["presets"], "used": c["used"],

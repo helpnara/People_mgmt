@@ -2654,6 +2654,944 @@
       "sliceDays": [
         100
       ]
+    },
+    {
+      "name": "작은 모임이 큰 모임에 들어갔다 (포함도)",
+      "people": [
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        }
+      ],
+      "records": [
+        {
+          "day": 100,
+          "participants": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "day": 200,
+          "participants": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "day": 290,
+          "participants": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "day": 110,
+          "participants": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 210,
+          "participants": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 280,
+          "participants": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 120,
+          "participants": [
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "day": 220,
+          "participants": [
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "day": 285,
+          "participants": [
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "day": 500,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 600,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 690,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 510,
+          "participants": [
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "day": 610,
+          "participants": [
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "day": 680,
+          "participants": [
+            12,
+            13,
+            14,
+            15
+          ]
+        }
+      ],
+      "ties": [],
+      "sliceDays": [
+        300,
+        700
+      ]
+    },
+    {
+      "name": "쉬었다가 다시 모인 모임 · 그대로인 모임",
+      "people": [
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        }
+      ],
+      "records": [
+        {
+          "day": 100,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 200,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 250,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 110,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 210,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 290,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 400,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 500,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 600,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 640,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 760,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 860,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 960,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 990,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 120,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 220,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 295,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 410,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 510,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 610,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 645,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 770,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 870,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 970,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 995,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 900,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 950,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 980,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "ties": [],
+      "sliceDays": [
+        300,
+        650,
+        1000
+      ]
+    },
+    {
+      "name": "열두 명 회식 하나가 모임을 덮지 않는다",
+      "people": [
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        }
+      ],
+      "records": [
+        {
+          "day": 100,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 105,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 109,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 200,
+          "participants": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "day": 205,
+          "participants": [
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "day": 209,
+          "participants": [
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "day": 250,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ]
+        }
+      ],
+      "ties": [],
+      "sliceDays": [
+        300
+      ]
+    },
+    {
+      "name": "열 명 중 여섯이 바뀐 모임 (문턱에 따라 갈린다)",
+      "people": [
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        },
+        {
+          "firstMetDay": 0
+        }
+      ],
+      "records": [
+        {
+          "day": 100,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "day": 200,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "day": 290,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "day": 110,
+          "participants": [
+            18,
+            19,
+            20,
+            21
+          ]
+        },
+        {
+          "day": 210,
+          "participants": [
+            18,
+            19,
+            20,
+            21
+          ]
+        },
+        {
+          "day": 280,
+          "participants": [
+            18,
+            19,
+            20,
+            21
+          ]
+        },
+        {
+          "day": 115,
+          "participants": [
+            22,
+            23,
+            24,
+            25
+          ]
+        },
+        {
+          "day": 215,
+          "participants": [
+            22,
+            23,
+            24,
+            25
+          ]
+        },
+        {
+          "day": 285,
+          "participants": [
+            22,
+            23,
+            24,
+            25
+          ]
+        },
+        {
+          "day": 500,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ]
+        },
+        {
+          "day": 600,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ]
+        },
+        {
+          "day": 690,
+          "participants": [
+            0,
+            1,
+            2,
+            3,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ]
+        },
+        {
+          "day": 510,
+          "participants": [
+            18,
+            19,
+            20,
+            21
+          ]
+        },
+        {
+          "day": 610,
+          "participants": [
+            18,
+            19,
+            20,
+            21
+          ]
+        },
+        {
+          "day": 680,
+          "participants": [
+            18,
+            19,
+            20,
+            21
+          ]
+        },
+        {
+          "day": 515,
+          "participants": [
+            22,
+            23,
+            24,
+            25
+          ]
+        },
+        {
+          "day": 615,
+          "participants": [
+            22,
+            23,
+            24,
+            25
+          ]
+        },
+        {
+          "day": 685,
+          "participants": [
+            22,
+            23,
+            24,
+            25
+          ]
+        }
+      ],
+      "ties": [],
+      "sliceDays": [
+        300,
+        700
+      ]
     }
   ],
   "folded": [

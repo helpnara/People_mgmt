@@ -7,7 +7,11 @@ import Foundation
 ///   소개 · 아는 사이는 날짜가 없으므로 **두 사람이 그 시점에 있으면** 1 씩 더한다.
 /// - **그 시점에 있던 사람**: 처음 만난 날과 첫 기록일 중 이른 날이 t 이전. 둘 다 없으면 그리지 않는다.
 /// - **모임**: 진한 선이 10개 이상일 때 Louvain(지금의 모임 찾기와 같은 문턱 — 모듈성 0.3 · 3명 이상).
-/// - **변화**: 앞 시점의 모임과 구성원 겹침(Jaccard 0.3 이상)으로 짝짓고 중립적인 말로 판정한다 (원칙 5).
+/// - **함께한 기록의 무게**: n명 기록의 각 쌍에 1/(n−1) (빌드 16) — 큰 회식 하나가 모임을 덮지 않게.
+/// - **변화**: 앞 시점의 모임과 구성원 겹침으로 짝짓고 중립적인 말로 판정한다 (원칙 5). 겹침은 Jaccard 0.3 이상이거나
+///   **작은 쪽의 절반 이상이 큰 쪽에 들어 있으면** 같은 모임의 앞뒤로 본다 (GED 포함도 · 빌드 16) — 작은 모임이 큰 모임에
+///   들어간 것을 `최근 기록 없음 + 사람이 늘었습니다` 가 아니라 `두 모임이 이어졌습니다` 로.
+///   크기가 비슷하면 `그대로`, 앞에서 최근 기록 없음이 된 모임이 다시 보이면 `다시 모임`.
 ///
 /// 사람 · 기록 · 아는 사이는 **번호**로 받는다 — 부르는 쪽이 이름 순으로 번호를 매긴다(점 차례가 늘 같게).
 /// 같은 소속은 넣지 않는다 — 소속에는 날짜가 없어 틀린 과거를 그리게 된다.
@@ -18,6 +22,8 @@ public enum TemporalNetwork {
     public static let minimumStrongEdges = 10
     public static let matchThreshold = 0.3
     public static let sizeChange = 0.3
+    /// 작은 쪽이 큰 쪽에 이만큼 들어 있으면 짝짓는다 (GED 의 포함도 50% · 조사 보고서 지금 1).
+    public static let inclusionThreshold = 0.5
 
     public struct Member: Sendable, Equatable {
         public let firstMetDay: Int?
@@ -67,6 +73,10 @@ public enum TemporalNetwork {
 
     public enum ChangeKind: String, Sendable {
         case new, grew, shrank, merged, split, faded
+        /// 앞 시점과 같은 모임 · 크기도 비슷하다 — 변화 목록에는 넣지 않고 시점 설명에 수로만 쓴다 (빌드 16).
+        case steady
+        /// 앞에서 최근 기록 없음이 된 모임이 다시 보인다 (빌드 16 · 조사 보고서 지금 2).
+        case returned
 
         /// 보여 줄 말 — 판단하지 않는다 (`사라졌다` · `끊겼다` 대신 `최근 기록 없음`).
         public var phrase: String {
@@ -77,6 +87,8 @@ public enum TemporalNetwork {
             case .merged: return "두 모임이 이어졌습니다"
             case .split: return "한 모임이 나뉘었습니다"
             case .faded: return "최근 기록 없음"
+            case .steady: return "앞 분기와 같습니다"
+            case .returned: return "다시 함께한 기록이 생겼습니다"
             }
         }
     }
@@ -127,8 +139,9 @@ public enum TemporalNetwork {
             for meeting in meetings {
                 let d = meeting.day
                 guard d <= t, d > t - windowDays else { continue }
-                let w = pow(0.5, Double(t - d) / halfLifeDays)
                 let ps = Set(meeting.participants.filter { isPresent.contains($0) }).sorted()
+                guard ps.count > 1 else { continue }
+                let w = pow(0.5, Double(t - d) / halfLifeDays) / Double(ps.count - 1)
                 for x in 0..<ps.count {
                     for y in (x + 1)..<ps.count {
                         weight[Pair(ps[x], ps[y]), default: 0] += w
@@ -167,22 +180,34 @@ public enum TemporalNetwork {
         }
     }
 
-    public static func changes(_ slices: [Slice]) -> [Change] {
-        func jaccard(_ x: [Int], _ y: [Int]) -> Double {
-            let a = Set(x), b = Set(y)
-            let union = a.union(b).count
-            return union > 0 ? Double(a.intersection(b).count) / Double(union) : 0
-        }
+    /// 두 모임을 같은 모임의 앞뒤로 볼까 — Jaccard 가 문턱 이상이거나, 작은 쪽의 절반 이상이 큰 쪽에 들어 있다.
+    public static func matches(_ x: [Int], _ y: [Int], threshold: Double = matchThreshold) -> Bool {
+        let a = Set(x), b = Set(y)
+        guard !a.isEmpty, !b.isEmpty else { return false }
+        let both = Double(a.intersection(b).count)
+        return both / Double(a.union(b).count) >= threshold || both / Double(min(a.count, b.count)) >= inclusionThreshold
+    }
+
+    public static func changes(_ slices: [Slice], threshold: Double = matchThreshold) -> [Change] {
         var events: [Change] = []
+        /// 앞에서 최근 기록 없음이 된 모임 — 다시 보이면 `다시 모임`.
+        var dormant: [[Int]] = []
         for s in slices.indices.dropFirst() {
             let previous = slices[s - 1].communities
             let current = slices[s].communities
-            let successors = previous.map { p in current.indices.filter { jaccard(p, current[$0]) >= matchThreshold } }
-            let predecessors = current.map { c in previous.indices.filter { jaccard(previous[$0], c) >= matchThreshold } }
+            let successors = previous.map { p in current.indices.filter { matches(p, current[$0], threshold: threshold) } }
+            let predecessors = current.map { c in previous.indices.filter { matches(previous[$0], c, threshold: threshold) } }
+            var woke = Set<Int>()
             for (c, group) in current.enumerated() {
                 let pred = predecessors[c]
                 if pred.isEmpty {
-                    events.append(Change(slice: s, kind: .new, members: group))
+                    // 가장 최근에 쉰 모임부터 견준다.
+                    if let back = dormant.indices.reversed().first(where: { matches(dormant[$0], group, threshold: threshold) }) {
+                        woke.insert(back)
+                        events.append(Change(slice: s, kind: .returned, members: group))
+                    } else {
+                        events.append(Change(slice: s, kind: .new, members: group))
+                    }
                 } else if pred.count >= 2 {
                     events.append(Change(slice: s, kind: .merged, members: group))
                 } else {
@@ -193,12 +218,16 @@ public enum TemporalNetwork {
                         events.append(Change(slice: s, kind: .grew, members: group))
                     } else if ratio < -sizeChange {
                         events.append(Change(slice: s, kind: .shrank, members: group))
+                    } else {
+                        events.append(Change(slice: s, kind: .steady, members: group))
                     }
                 }
             }
+            dormant = dormant.indices.filter { !woke.contains($0) }.map { dormant[$0] }
             for (p, group) in previous.enumerated() {
                 if successors[p].isEmpty {
                     events.append(Change(slice: s, kind: .faded, members: group))
+                    dormant.append(group)
                 } else if successors[p].count >= 2 {
                     events.append(Change(slice: s, kind: .split, members: group))
                 }

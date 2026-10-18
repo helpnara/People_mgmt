@@ -23,6 +23,9 @@ public struct GraphEdge: Sendable, Equatable {
     public let b: UUID
     /// 둘이 함께 참여한 기록 수.
     public var together: Int
+    /// 함께한 기록의 무게 — n명 기록의 각 쌍에 1/(n−1) (빌드 16 · 조사 보고서 지금 4).
+    /// 30명 회식 하나가 435개 선을 모두 무게 1로 만들어 모임 찾기 · 자리 잡기를 끌고 가지 않게. 보이는 건수는 `together`.
+    public var togetherWeight: Double = 0
     /// 한쪽이 다른 쪽을 소개했다.
     public var introduced: Bool
     /// 같은 소속(대소문자 · 공백 무시).
@@ -58,9 +61,14 @@ public enum RelationGraph {
         for participants in records {
             var seen = Set<UUID>()
             let unique = participants.filter { known.contains($0) && seen.insert($0).inserted }
+            guard unique.count > 1 else { continue }
+            let share = 1.0 / Double(unique.count - 1)
             for i in unique.indices {
                 for j in unique.indices where j > i {
-                    touch(unique[i], unique[j]) { $0.together += 1 }
+                    touch(unique[i], unique[j]) {
+                        $0.together += 1
+                        $0.togetherWeight += share
+                    }
                 }
             }
         }

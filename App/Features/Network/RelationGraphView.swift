@@ -361,6 +361,7 @@ struct RelationGraphView: View {
             parts = ["진한 선 \(slice.links.count)개 · 뚜렷하게 나뉘는 모임은 없습니다"]
         case .shown:
             parts = ["모임 \(slice.communities.count)개 · 진한 선 \(slice.links.count)개"]
+            if slice.steady > 0 { parts.append("앞 분기와 같은 모임 \(slice.steady)개") }
         }
         parts.append("그 시점에 있던 사람 \(slice.present.count)명")
         var line = parts.joined(separator: " · ") + "."
