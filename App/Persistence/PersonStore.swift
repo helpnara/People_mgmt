@@ -69,6 +69,8 @@ struct PersonDraft: Equatable {
 enum PeopleSortOption: String, CaseIterable, Identifiable {
     case name
     case recent
+    /// 최근 등록순 (FR-027 · 전수조사 이슈 23) — 방금 적은 사람부터. 하루 10명 입력 뒤 확인하기 좋게.
+    case newest
 
     var id: String { rawValue }
 
@@ -76,6 +78,7 @@ enum PeopleSortOption: String, CaseIterable, Identifiable {
         switch self {
         case .name: return "이름순"
         case .recent: return "최근 기록순"
+        case .newest: return "최근 등록순"
         }
     }
 }
@@ -112,7 +115,23 @@ struct PersonStore {
             return NameSort.sorted(people, name: \.name, createdAt: \.createdAt)
         case .recent:
             return RecencySort.sorted(people, lastRecordAt: \.lastRecordAt, name: \.name, createdAt: \.createdAt)
+        case .newest:
+            // 등록 시각이 늦은 사람부터. 같으면 이름순 차례를 그대로 둔다 (먼저 이름순으로 줄 세우고 안정 정렬).
+            let byName = NameSort.sorted(people, name: \.name, createdAt: \.createdAt)
+            return byName.enumerated()
+                .sorted { lhs, rhs in
+                    lhs.element.createdAt != rhs.element.createdAt
+                        ? lhs.element.createdAt > rhs.element.createdAt
+                        : lhs.offset < rhs.offset
+                }
+                .map(\.element)
         }
+    }
+
+    /// 같은 이름을 가르는 열쇠 — **모든 공백을 지우고** 대소문자 · 조합을 무시한다 (FR-021 · 전수조사 이슈 22).
+    /// `홍 길동` 과 `홍길동` 은 같은 이름이다. 동명이인 안내는 이 열쇠 하나로만 견준다.
+    static func sameNameKey(_ name: String) -> String {
+        NameSort.key(String(name.filter { !$0.isWhitespace }))
     }
 
     /// 같은 이름(공백 · 대소문자 무시)인 사람들. 동명이인 안내(FR-021)에 쓴다. 등록을 막지는 않는다.
@@ -122,9 +141,9 @@ struct PersonStore {
 
     /// 이미 받아 둔 목록에서 같은 이름을 찾는다. **화면 본문에서는 이것을 쓴다** — 본문에서 저장소를 다시 읽지 않는다 (이슈 10).
     static func sameName(as name: String, in people: [Person], excluding: Person? = nil) -> [Person] {
-        let key = NameSort.key(name)
+        let key = sameNameKey(name)
         guard !key.isEmpty else { return [] }
-        return people.filter { $0 !== excluding && !$0.isGone && NameSort.key($0.name) == key }
+        return people.filter { $0 !== excluding && !$0.isGone && sameNameKey($0.name) == key }
     }
 
     // MARK: 쓰기

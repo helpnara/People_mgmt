@@ -20,3 +20,4 @@ ipad/02-people.png       0,0.12,1,0.85
 21-network-groups.png    0.05,0.30,0.95,0.75
 22-network-timeline.png  0.05,0.30,0.95,0.70
 23-network-changes.png   0,0.15,1,0.85
+24-settings.png          0,0.15,1,0.85

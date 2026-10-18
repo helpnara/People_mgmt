@@ -71,7 +71,13 @@ struct PeopleListView: View {
                 if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
                     EmptyPeopleView { showingAdd = true }
                 } else if isQuerying && searchRows.isEmpty && searchedText == searchText {
-                    ContentUnavailableView.search(text: searchText)
+                    // 요구사항 문구 그대로 — 시스템 기본 문구 대신 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
+                    let shown = TextNormalization.normalized(searchText)
+                    ContentUnavailableView {
+                        Label("'\(shown)'\(Josa.gwaWa(shown)) 일치하는 사람이 없습니다", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("이름 · 소속 · 메모 · 태그로 찾습니다. 태그만 찾으려면 #을 붙이세요.")
+                    }
                 } else {
                     list
                 }
@@ -95,6 +101,12 @@ struct PeopleListView: View {
                     // 내 인맥 (6번째 묶음) — 목록 위 단추 (2026-10-18 사용자 결정).
                     NavigationLink(value: NetworkRoute(tab: .graph)) {
                         Label("내 인맥", systemImage: "point.3.connected.trianglepath.dotted")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    // 설정 (FR-030 · D-34) — 백업 · 복원 · 개인정보 안내. 값으로 연다 (이슈 16).
+                    NavigationLink(value: SettingsRoute()) {
+                        Label("설정", systemImage: "gearshape")
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
@@ -126,6 +138,9 @@ struct PeopleListView: View {
             }
             .navigationDestination(for: RecordFillRoute.self) { route in
                 RecordFillRouteView(route: route)
+            }
+            .navigationDestination(for: SettingsRoute.self) { _ in
+                SettingsView()
             }
             .sheet(isPresented: $showingAdd) {
                 PersonEditView(mode: .create) { person in
@@ -345,6 +360,10 @@ struct PeopleListView: View {
         try? await Task.sleep(for: .milliseconds(300))
         LaunchTiming.mark("목록 첫 표시 (\(fetched.count)명)")
         if let search = arguments.search { searchText = search }
+        if arguments.openSettings {
+            path.append(SettingsRoute())
+            return
+        }
         if let name = arguments.openNetwork {
             path.append(NetworkRoute(tab: NetworkView.Tab(rawValue: name) ?? .graph))
             return
