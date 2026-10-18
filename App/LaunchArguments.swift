@@ -21,6 +21,10 @@ struct LaunchArguments: Sendable {
     let openRecord: Bool
     /// 연 사람의 기록 추가 시트를 바로 연다.
     let addRecord: Bool
+    /// 연 사람의 수정 시트를 바로 연다.
+    let editPerson: Bool
+    /// 수정 시트에서 명함 글자를 바로 읽어 제안 화면을 띄운다.
+    let readCard: Bool
     /// 검색창에 이 글자를 넣은 채로 연다.
     let search: String?
     /// 저장소를 일부러 못 열게 한다 — 안내 화면이 뜨는지 본다.
@@ -33,6 +37,8 @@ struct LaunchArguments: Sendable {
         addPerson = arguments.contains("-addPerson")
         openRecord = arguments.contains("-openRecord")
         addRecord = arguments.contains("-addRecord")
+        editPerson = arguments.contains("-editPerson")
+        readCard = arguments.contains("-readCard")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }

@@ -120,6 +120,25 @@ final class PersonStoreTests: XCTestCase {
         XCTAssertNil(quiet.lastRecordAt)
     }
 
+    func testCardAndContactNoteAreSavedAndCleared() throws {
+        let fixture = try makeFixture()
+        var draft = PersonDraft()
+        draft.name = "명함 있는 사람"
+        draft.contactNote = "  010-1111-2222 · a@example.com  "
+        draft.businessCard = Data([1, 2, 3])
+        let person = try fixture.store.create(draft)
+        XCTAssertEqual(person.contactNote, "010-1111-2222 · a@example.com")
+        XCTAssertEqual(person.businessCard, Data([1, 2, 3]))
+
+        var edit = PersonDraft(person: person)
+        XCTAssertEqual(edit.businessCard, Data([1, 2, 3]))
+        edit.businessCard = nil
+        edit.contactNote = " "
+        try fixture.store.apply(edit, to: person)
+        XCTAssertNil(person.businessCard)
+        XCTAssertNil(person.contactNote)
+    }
+
     func testApplyDraftDropsIntroducerWhenPathIsNotIntroduction() throws {
         let fixture = try makeFixture()
         let context = fixture.store.context

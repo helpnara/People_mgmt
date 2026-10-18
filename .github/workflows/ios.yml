@@ -316,6 +316,10 @@ jobs:
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
+          # **명함** (FR-050). 김하늘의 견본 명함이 수정 시트에 보이고, 글자를 읽어 제안 화면을 띄운다.
+          # 시뮬레이터에는 카메라가 없어 `명함 촬영` 단추는 안 보이는 것이 맞다.
+          shoot 11-edit-card.png -seedSampleData -openPerson 김하늘 -editPerson
+          shoot 12-card-reading.png -seedSampleData -openPerson 김하늘 -editPerson -readCard
           # 저장소를 끝내 못 열었을 때의 안내 화면 — 죽지 않고 이 화면이 뜨는지, 지우기 단추가 없는지.
           shoot 08-store-failure.png -simulateStoreFailure
 

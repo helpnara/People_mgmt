@@ -84,6 +84,9 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         # 앱 잠금(FR-029, P1)을 넣는 날 없으면 Face ID 가 그냥 실패한다 — 첫날 넣어 둔다 (느린 부자 4번).
         NSFaceIDUsageDescription: 인연 기록을 열 때 본인 확인에 씁니다.
+        # 명함 촬영 (FR-050). 문서 카메라가 테두리를 찾아 편다. 없으면 실기기에서 카메라가 조용히 거부된다.
+        # 사진첩은 시스템 선택기(PhotosPicker)라 권한 문구가 필요 없고, 연락처도 시스템 선택기라 필요 없다.
+        NSCameraUsageDescription: 명함을 촬영할 때 카메라를 씁니다. 사진과 읽은 글자는 기기 안에만 저장됩니다.
 
   # **앱 테스트** — 저장소를 쓰는 규칙(삭제 범위 · 소개자 비우기 · 같은 이름)을 인메모리 저장소로 시험한다.
   # 순수 셈은 Core 의 `swift test` 가 맡고, 여기는 SwiftData 가 있어야만 시험되는 것만 둔다.

@@ -17,7 +17,10 @@ struct PersonDraft: Equatable {
     var hasFirstMetDate = false
     var firstMetDate = Date()
     var firstNote = ""
+    var contactNote = ""
     var tags: [String] = []
+    /// 명함 사진 (FR-050). JPEG.
+    var businessCard: Data?
 
     init() {}
 
@@ -32,7 +35,9 @@ struct PersonDraft: Equatable {
         hasFirstMetDate = person.firstMetDate != nil
         firstMetDate = person.firstMetDate ?? Date()
         firstNote = person.firstNote ?? ""
+        contactNote = person.contactNote ?? ""
         tags = person.tags
+        businessCard = person.businessCard
     }
 
     var nameProblem: String? { PersonValidation.nameProblem(name) }
@@ -75,16 +80,9 @@ struct PersonStore {
     static func sorted(_ people: [Person], by option: PeopleSortOption) -> [Person] {
         switch option {
         case .name:
-            return people.sorted {
-                NameSort.areInIncreasingOrder((name: $0.name, createdAt: $0.createdAt),
-                                              (name: $1.name, createdAt: $1.createdAt))
-            }
+            return NameSort.sorted(people, name: \.name, createdAt: \.createdAt)
         case .recent:
-            return people.sorted {
-                RecencySort.areInIncreasingOrder(
-                    (lastRecordAt: $0.lastRecordAt, name: $0.name, createdAt: $0.createdAt),
-                    (lastRecordAt: $1.lastRecordAt, name: $1.name, createdAt: $1.createdAt))
-            }
+            return RecencySort.sorted(people, lastRecordAt: \.lastRecordAt, name: \.name, createdAt: \.createdAt)
         }
     }
 
@@ -128,7 +126,10 @@ struct PersonStore {
         }
         person.firstMetDate = draft.hasFirstMetDate ? DayNormalizer.noon(of: draft.firstMetDate, calendar: .current) : nil
         person.firstNote = clipped(draft.firstNote, Limits.firstNote)
+        person.contactNote = clipped(draft.contactNote, Limits.contactNote)
         person.tags = TagNormalizer.normalizeList(draft.tags)
+        // 같은 사진이면 다시 쓰지 않는다 — 바깥 파일을 매번 새로 쓰지 않게.
+        if person.businessCard != draft.businessCard { person.businessCard = draft.businessCard }
     }
 
     private func clipped(_ text: String, _ limit: Int) -> String? {

@@ -1,6 +1,7 @@
 import Core
 import Foundation
 import SwiftData
+import UIKit
 
 /// CI 스크린샷용 **견본 자료**. 전부 지어낸 사람 · 회사 · 메모다.
 ///
@@ -24,6 +25,9 @@ enum SampleData {
         haneul.firstMetDate = day(2019, 3, 4)
         haneul.firstNote = "입사 첫날 옆자리에 앉았다. 점심을 같이 먹으며 팀 분위기를 알려 주었다."
         haneul.tags = ["멘토", "독서모임"]
+        haneul.contactNote = "010-1234-5678 · haneul@example.com"
+        haneul.businessCard = renderCard(organization: "청림소프트 주식회사", name: "김하늘", role: "개발팀 팀장",
+                                         phone: "010-1234-5678", email: "haneul@example.com")
 
         let doyun = Person(name: "이도윤")
         doyun.nickname = "도윤 형"
@@ -156,6 +160,33 @@ enum SampleData {
         try? context.save()
         let elapsed = Int(Date().timeIntervalSince(started) * 1000)
         print("⏱ 큰 견본 채우기 \(elapsed)ms (사람 5,000 · 기록 50,000)")
+    }
+
+    /// 견본 명함 그림 — 지어낸 회사 · 사람 · 번호 · `example.com` 메일. CI 스크린샷과 글자 읽기 시험에 쓴다.
+    /// 그림을 그리는 자리라 색은 `UIColor` 로 직접 적는다 (화면의 색 토큰 규칙은 SwiftUI 화면에 대한 것이다).
+    static func renderCard(organization: String, name: String, role: String, phone: String, email: String) -> Data? {
+        let size = CGSize(width: 1_050, height: 600)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor(hex: 0xFBFAF6).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            UIColor(hex: 0x2F6B5E).setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 24, height: size.height))
+            func draw(_ text: String, size: CGFloat, weight: UIFont.Weight, color: UInt32, y: CGFloat) {
+                (text as NSString).draw(at: CGPoint(x: 90, y: y), withAttributes: [
+                    .font: UIFont.systemFont(ofSize: size, weight: weight),
+                    .foregroundColor: UIColor(hex: color),
+                ])
+            }
+            draw(organization, size: 40, weight: .semibold, color: 0x2F6B5E, y: 70)
+            draw(name, size: 88, weight: .bold, color: 0x14181D, y: 190)
+            draw(role, size: 40, weight: .regular, color: 0x33414F, y: 310)
+            draw("M. \(phone)", size: 36, weight: .regular, color: 0x33414F, y: 430)
+            draw("E. \(email)", size: 36, weight: .regular, color: 0x33414F, y: 490)
+        }
+        return image.jpegData(compressionQuality: 0.85)
     }
 
     /// 시드 고정 난수 (SplitMix64). 같은 입력에 같은 견본 — CI 에서 수치를 비교할 수 있게.

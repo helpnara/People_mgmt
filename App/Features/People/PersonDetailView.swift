@@ -14,6 +14,7 @@ struct PersonDetailView: View {
     @State private var pendingRecordDelete: Record?
     @State private var errorMessage: String?
     @State private var appliedArguments = false
+    @State private var viewingCard = false
 
     private var store: PersonStore { PersonStore(context: context) }
     private var timeline: [Record] { RecordStore.timeline(of: person) }
@@ -32,6 +33,16 @@ struct PersonDetailView: View {
     private var content: some View {
         List {
             headerSection
+            if let card = person.businessCard {
+                Section("명함") {
+                    Button {
+                        viewingCard = true
+                    } label: {
+                        BusinessCardThumbnail(data: card, maxHeight: 160)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             firstEncounterSection
             if let introduced = person.introduced, !introduced.isEmpty {
                 introducedSection(introduced)
@@ -85,6 +96,9 @@ struct PersonDetailView: View {
         .sheet(isPresented: $addingRecord) {
             RecordEditView(mode: .create(anchor: person)) { _ in }
         }
+        .fullScreenCover(isPresented: $viewingCard) {
+            if let card = person.businessCard { BusinessCardViewer(data: card) }
+        }
         .confirmationDialog("삭제", isPresented: $confirmingDelete, titleVisibility: .hidden) {
             Button("삭제", role: .destructive) { deletePerson() }
             Button("취소", role: .cancel) {}
@@ -112,6 +126,7 @@ struct PersonDetailView: View {
             if !appliedArguments {
                 appliedArguments = true
                 if LaunchArguments.current.addRecord { addingRecord = true }
+                if LaunchArguments.current.editPerson { editing = true }
             }
         }
     }
@@ -140,6 +155,12 @@ struct PersonDetailView: View {
                     ForEach(person.tags, id: \.self) { tag in
                         Chip(text: "#\(tag)")
                     }
+                }
+                if let contact = person.contactNote, !contact.isEmpty {
+                    Label(contact, systemImage: "phone")
+                        .font(.scaled(15))
+                        .foregroundStyle(Color.bodyText)
+                        .textSelection(.enabled)
                 }
                 if let introducer = person.introducedBy, !introducer.isGone {
                     NavigationLink(value: introducer) {
