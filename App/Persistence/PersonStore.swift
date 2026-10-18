@@ -129,6 +129,18 @@ struct PersonStore {
 
     // MARK: 쓰기
 
+    /// 저장하고, 실패하면 **이번에 바꾼 것을 모두 되돌린다** (전수조사 2026-10-18).
+    /// 되돌리지 않으면 넣은 사람이 문맥에 남아 `다시 시도` 가 같은 사람을 하나 더 만들고, 수정을 `버리기` 해도
+    /// 바뀐 값이 남았다가 다음 저장 때 디스크에 들어간다. 입력은 초안(`PersonDraft`)에 그대로 있어 다시 시도할 수 있다.
+    private func commit() throws {
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
     /// `isMe` 면 **나**로 만든다 (이슈 12). 나는 하나뿐이다 — 이미 있으면 그 사람을 고친다.
     func create(_ draft: PersonDraft, isMe: Bool = false) throws -> Person {
         if isMe, let existing = try me() {
@@ -139,14 +151,14 @@ struct PersonStore {
         person.isMe = isMe
         context.insert(person)
         fill(person, from: draft)
-        try context.save()
+        try commit()
         return person
     }
 
     func apply(_ draft: PersonDraft, to person: Person) throws {
         fill(person, from: draft)
         person.updatedAt = Date()
-        try context.save()
+        try commit()
     }
 
     private func fill(_ person: Person, from draft: PersonDraft) {
@@ -245,7 +257,7 @@ struct PersonStore {
             context.delete(record)
         }
         context.delete(person)
-        try context.save()
+        try commit()
     }
 }
 

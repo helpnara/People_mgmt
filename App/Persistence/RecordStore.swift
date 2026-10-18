@@ -47,24 +47,34 @@ struct RecordStore {
         }
     }
 
+    /// 저장하고, 실패하면 이번에 바꾼 것을 모두 되돌린다 — `PersonStore.commit` 과 같은 까닭 (전수조사 2026-10-18).
+    private func commit() throws {
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
     func create(_ draft: RecordDraft) throws -> Record {
         let record = Record(recordType: draft.recordType)
         context.insert(record)
         fill(record, from: draft)
-        try context.save()
+        try commit()
         return record
     }
 
     func apply(_ draft: RecordDraft, to record: Record) throws {
         fill(record, from: draft)
         record.updatedAt = Date()
-        try context.save()
+        try commit()
     }
 
     /// 기록만 지운다. 참여자는 남는다 (6.5).
     func delete(_ record: Record) throws {
         context.delete(record)
-        try context.save()
+        try commit()
     }
 
     private func fill(_ record: Record, from draft: RecordDraft) {
