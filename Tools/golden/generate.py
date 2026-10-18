@@ -350,6 +350,272 @@ def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int 
     return [edges[k] for k in sorted(edges)]
 
 
+# ── 모임 찾기 (CommunityDetection · CommunityNaming) ─────────────────────────
+# Swift 와 덧셈 차례까지 같게 쓴다 — 이웃은 번호 순, 무게는 들어온 차례로 더한다.
+
+def _graph_from_links(n, links):
+    merged = [dict() for _ in range(n)]
+    loops = [0.0] * n
+    for l in links:
+        i, j, w = l["i"], l["j"], l["weight"]
+        if not (w > 0 and i < n and j < n):
+            continue
+        if i == j:
+            loops[i] += w
+        else:
+            merged[i][j] = merged[i].get(j, 0.0) + w
+            merged[j][i] = merged[j].get(i, 0.0) + w
+    return _graph(_sorted_neighbors(merged), loops)
+
+
+def _sorted_neighbors(merged):
+    return [[(k, d[k]) for k in sorted(d)] for d in merged]
+
+
+def _graph(neighbors, loops):
+    degree, total = [], 0.0
+    for i in range(len(loops)):
+        k = 2 * loops[i]
+        for _, w in neighbors[i]:
+            k += w
+        degree.append(k)
+        total += loops[i]
+        for node, w in neighbors[i]:
+            if node > i:
+                total += w
+    return {"neighbors": neighbors, "loops": loops, "degree": degree, "total": total}
+
+
+def _local_moving(g, resolution, epsilon, max_passes):
+    n = len(g["loops"])
+    two_m = 2 * g["total"]
+    community = list(range(n))
+    total = list(g["degree"])
+    moved_any = False
+    for _ in range(max_passes):
+        moved = False
+        for i in range(n):
+            k = g["degree"][i]
+            current = community[i]
+            order, weight_to = [], {}
+            for node, w in g["neighbors"][i]:
+                c = community[node]
+                if c not in weight_to:
+                    order.append(c)
+                    weight_to[c] = 0.0
+                weight_to[c] += w
+            total[current] -= k
+            best = current
+            best_gain = weight_to.get(current, 0.0) - resolution * total[current] * k / two_m
+            for c in order:
+                if c == current:
+                    continue
+                gain = weight_to.get(c, 0.0) - resolution * total[c] * k / two_m
+                if gain > best_gain + epsilon:
+                    best, best_gain = c, gain
+            total[best] += k
+            if best != current:
+                community[i] = best
+                moved = moved_any = True
+        if not moved:
+            break
+    return community, moved_any
+
+
+def _renumber(community):
+    mapping, out = {}, []
+    for c in community:
+        if c not in mapping:
+            mapping[c] = len(mapping)
+        out.append(mapping[c])
+    return out, len(mapping)
+
+
+def _aggregate(g, community, count):
+    loops = [0.0] * count
+    merged = [dict() for _ in range(count)]
+    for i in range(len(g["loops"])):
+        loops[community[i]] += g["loops"][i]
+        for node, w in g["neighbors"][i]:
+            if node <= i:
+                continue
+            a, b = community[i], community[node]
+            if a == b:
+                loops[a] += w
+            else:
+                merged[a][b] = merged[a].get(b, 0.0) + w
+                merged[b][a] = merged[b].get(a, 0.0) + w
+    return _graph(_sorted_neighbors(merged), loops)
+
+
+def split_connected(communities, n, links):
+    neighbors = [[] for _ in range(n)]
+    for l in links:
+        if l["weight"] > 0 and l["i"] != l["j"] and l["i"] < n and l["j"] < n:
+            neighbors[l["i"]].append(l["j"])
+            neighbors[l["j"]].append(l["i"])
+    out = []
+    for community in communities:
+        members, seen = set(community), set()
+        for start in sorted(community):
+            if start in seen:
+                continue
+            component, queue, head = [], [start], 0
+            seen.add(start)
+            while head < len(queue):
+                node = queue[head]
+                head += 1
+                component.append(node)
+                for nxt in sorted(neighbors[node]):
+                    if nxt in members and nxt not in seen:
+                        seen.add(nxt)
+                        queue.append(nxt)
+            out.append(sorted(component))
+    return sorted(out, key=lambda c: (-len(c), c[0] if c else 0))
+
+
+def modularity(communities, n, links, resolution=1.0):
+    group = [-1] * n
+    for idx, c in enumerate(communities):
+        for node in c:
+            if node < n:
+                group[node] = idx
+    m = 0.0
+    inside = [0.0] * len(communities)
+    degree = [0.0] * len(communities)
+    for l in links:
+        if not (l["i"] < n and l["j"] < n and l["weight"] > 0):
+            continue
+        m += l["weight"]
+        gi, gj = group[l["i"]], group[l["j"]]
+        if gi >= 0:
+            degree[gi] += l["weight"]
+        if gj >= 0:
+            degree[gj] += l["weight"]
+        if gi == gj and gi >= 0:
+            inside[gi] += l["weight"]
+    if m <= 0:
+        return 0.0
+    q = 0.0
+    for c in range(len(communities)):
+        share = degree[c] / (2 * m)
+        q += inside[c] / m - resolution * share * share
+    return q
+
+
+def louvain(n, links, resolution=1.0, epsilon=1e-7, max_levels=10, max_passes=50):
+    if n <= 0:
+        return {"communities": [], "modularity": 0.0}
+    base = _graph_from_links(n, links)
+    if not base["total"] > 0:
+        return {"communities": [[i] for i in range(n)], "modularity": 0.0}
+    membership = list(range(n))
+    g = base
+    for _ in range(max_levels):
+        community, moved = _local_moving(g, resolution, epsilon, max_passes)
+        if not moved:
+            break
+        renumbered, count = _renumber(community)
+        membership = [renumbered[x] for x in membership]
+        g = _aggregate(g, renumbered, count)
+    groups = [[] for _ in range((max(membership) if membership else -1) + 1)]
+    for person, grp in enumerate(membership):
+        groups[grp].append(person)
+    split = split_connected([c for c in groups if c], n, links)
+    return {"communities": split, "modularity": modularity(split, n, links, resolution)}
+
+
+def community_name(members):
+    def top(values):
+        counts, labels = {}, {}
+        for person_values in values:
+            seen = set()
+            for raw in person_values:
+                v = normalized(raw or "")
+                if not v:
+                    continue
+                key = folded(v)
+                if key in seen:
+                    continue
+                seen.add(key)
+                counts[key] = counts.get(key, 0) + 1
+                labels.setdefault(key, v)
+        best = sorted([(k, c) for k, c in counts.items() if c >= 2], key=lambda kc: (-kc[1], kc[0]))
+        return labels[best[0][0]] if best else None
+    name = top([[m.get("organization") or ""] for m in members])
+    if name:
+        return name
+    name = top([m.get("tags", []) for m in members])
+    if name:
+        return "#" + name
+    return top([[m.get("metThrough") or ""] for m in members])
+
+
+# ── 입력 상태 (InputReadiness) ───────────────────────────────────────────────
+
+READINESS_TITLES = {"traits": "특성 분포", "firstMet": "올해 처음 만남", "review": "돌아보기", "graph": "관계도", "groups": "모임 찾기"}
+
+
+def input_readiness(i: dict) -> list[dict]:
+    n = i["people"]
+    def toward(count, pct):
+        return min(float(count * 100) / float(n * pct), 1.0) if n > 0 else 0.0
+    def percent(count):
+        return (count * 200 + n) // (2 * n) if n > 0 else 0
+    def need(count, pct):
+        return max((n * pct + 99) // 100 - count, 0)
+    def level(p):
+        return "ready" if p >= 1 else ("almost" if p >= 0.6 else "notYet")
+    items = []
+    empty = "사람을 적으면 시작합니다."
+    typed = min(i["withRelationshipType"], i["withMetThrough"])
+    tp = min(min(float(n) / 20.0, toward(typed, 80)), 1.0)
+    if n < 20:
+        th = f"사람을 {20 - n}명 더 적으면 분포가 뜻을 갖습니다."
+    elif need(typed, 80) > 0:
+        th = f"관계 유형 · 알게 된 경로를 {need(typed, 80)}명 더 채우면 분포가 정확해집니다."
+    else:
+        th = "내 인연의 구성이 믿을 만하게 보입니다."
+    items.append({"feature": "traits", "level": level(tp), "progress": tp,
+                  "current": f"사람 {n}명 · 관계 유형과 경로를 적은 사람 {percent(typed)}%", "hint": th})
+    fp = toward(i["withFirstMet"], 50); fn = need(i["withFirstMet"], 50)
+    items.append({"feature": "firstMet", "level": level(fp), "progress": fp,
+                  "current": f"처음 만난 날을 적은 사람 {i['withFirstMet']}명 / {n}명",
+                  "hint": empty if n == 0 else f"처음 만난 날을 {fn}명 더 적으면 올해 처음 만남과 인연 기간이 정확해집니다." if fn > 0
+                          else "올해 처음 만난 사람과 인연 기간이 정확하게 보입니다."})
+    rp = toward(i["withRecords"], 50); rn = need(i["withRecords"], 50)
+    items.append({"feature": "review", "level": level(rp), "progress": rp,
+                  "current": f"기록이 있는 사람 {i['withRecords']}명 / {n}명",
+                  "hint": empty if n == 0 else f"{rn}명과의 기록을 더 남기면 최근 기록 없음 · 관계 돌아보기가 뜻을 갖습니다." if rn > 0
+                          else "오래 기록이 없는 인연과 사람마다의 흐름이 보입니다."})
+    gp = toward(i["linkedPeople"], 30); gn = need(i["linkedPeople"], 30)
+    items.append({"feature": "graph", "level": level(gp), "progress": gp,
+                  "current": f"서로 이어진 사람 {i['linkedPeople']}명 / {n}명 ({percent(i['linkedPeople'])}%)",
+                  "hint": empty if n == 0 else f"{gn}명을 더 이으면 관계도에 모양이 드러납니다 — 아는 사이를 고르거나, 기록에 함께한 사람을 두 명 이상 넣으세요." if gn > 0
+                          else "사람들 사이의 연결이 관계도에 드러납니다."})
+    op = min(min(float(i["strongEdges"]) / 20.0, float(i["linkedPeople"]) / 10.0), 1.0)
+    es, ls = max(20 - i["strongEdges"], 0), max(10 - i["linkedPeople"], 0)
+    if es > 0 or ls > 0:
+        parts = []
+        if es > 0:
+            parts.append(f"진한 선 {es}개")
+        if ls > 0:
+            parts.append(f"이어진 사람 {ls}명")
+        oh = " · ".join(parts) + " 더 있으면 모임(그룹)을 찾아 관계도에 묶어 보여 줍니다."
+    else:
+        oh = "모임(그룹)을 찾을 만큼 연결이 쌓였습니다."
+    items.append({"feature": "groups", "level": level(op), "progress": op,
+                  "current": f"진한 선 {i['strongEdges']}개 · 이어진 사람 {i['linkedPeople']}명", "hint": oh})
+    return items
+
+
+def readiness_summary(items):
+    ready = sum(1 for x in items if x["level"] == "ready")
+    head = f"{len(items)}가지 중 {ready}가지 준비됨"
+    nxt = next((x for x in items if x["level"] != "ready"), None)
+    return head + " · 모두 준비됨" if nxt is None else head + " · 다음: " + READINESS_TITLES[nxt["feature"]]
+
+
 # ── 관계 유형 · 알게 된 경로 선택지 (RelationshipPresets.choices) ───────────
 
 def preset_choices(presets: list[str], used: list[str]) -> list[str]:
@@ -738,6 +1004,15 @@ def build() -> dict:
     out["graphEdges"] = [{"name": c["name"], "people": c["people"], "records": c["records"], "cliqueLimit": c["cliqueLimit"],
                           "ties": c.get("ties", []),
                           "expected": graph_edges(c["people"], c["records"], c["cliqueLimit"], c.get("ties", []))} for c in cases["graphEdges"]]
+    out["louvain"] = [{"name": c["name"], "nodeCount": c["nodeCount"], "links": c["links"],
+                       "resolution": c.get("resolution", 1.0),
+                       "expected": louvain(c["nodeCount"], c["links"], c.get("resolution", 1.0))} for c in cases["louvain"]]
+    out["splitConnected"] = [{"name": c["name"], "nodeCount": c["nodeCount"], "links": c["links"], "communities": c["communities"],
+                              "expected": split_connected(c["communities"], c["nodeCount"], c["links"])} for c in cases["splitConnected"]]
+    out["communityName"] = [{"name": c["name"], "members": c["members"], "expected": community_name(c["members"])}
+                            for c in cases["communityName"]]
+    out["inputReadiness"] = [{"name": c["name"], "input": c["input"], "expected": input_readiness(c["input"]),
+                              "summary": readiness_summary(input_readiness(c["input"]))} for c in cases["inputReadiness"]]
     out["presetChoices"] = [{"name": c["name"], "presets": c["presets"], "used": c["used"],
                              "expected": preset_choices(c["presets"], c["used"])}
                             for c in cases["presetChoices"]]
