@@ -6,8 +6,14 @@ import XCTest
 @MainActor
 final class AuditFixTests: XCTestCase {
 
+    /// 저장소를 시험 동안 붙잡아 둔다 — `makeContainer(...).mainContext` 만 돌려주면 그릇(`ModelContainer`)이
+    /// 바로 풀려 문맥이 죽은 그릇을 쓰다 시험 앱이 꺼진다 (빌드 12 첫 CI 에서 이 시험 넷이 그렇게 죽었다).
+    private var container: ModelContainer?
+
     private func makeContext() throws -> ModelContext {
-        try Persistence.makeContainer(inMemory: true).mainContext
+        let made = try Persistence.makeContainer(inMemory: true)
+        container = made
+        return made.mainContext
     }
 
     /// 저장이 실패하면 넣은 사람이 문맥에 남지 않는다 — `다시 시도` 가 같은 사람을 하나 더 만들지 않는다 (AC-29).
