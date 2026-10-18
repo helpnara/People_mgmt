@@ -73,7 +73,7 @@ private extension TraitsView {
         let missing = trait.buckets.first(where: \.isUnspecified)?.count ?? 0
         let filled = total - missing
         if missing == 0 { return "\(total)명 모두 적었습니다." }
-        return "적은 사람 \(filled)명 / \(total)명. 미지정 \(missing)명을 사람 편집에서 채우면 분포가 정확해집니다."
+        return "적은 사람 \(filled)명 / \(total)명. 미지정 \(missing)명을 사람 수정에서 채우면 분포가 정확해집니다."
     }
 }
 

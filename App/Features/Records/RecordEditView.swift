@@ -26,6 +26,8 @@ struct RecordEditView: View {
     @State private var candidates: [Person] = []
     /// 태그 칸에 치던 글자 — 저장할 때 태그로 넣는다 (이슈 19).
     @State private var pendingTag = ""
+    /// 새 기록이면 제목 칸에 바로 커서를 둔다 — 기록 30초(1.4 성공 기준) · 전수조사 이슈 22.
+    @FocusState private var titleFocused: Bool
 
     init(mode: Mode, onSaved: @escaping (Record) -> Void) {
         self.mode = mode
@@ -61,6 +63,7 @@ struct RecordEditView: View {
                 }
                 Section {
                     TextField("제목", text: $draft.title)
+                        .focused($titleFocused)
                         .font(.scaled(17, weight: .semibold))
                         .limited($draft.title, to: Limits.recordTitle)
                     TextField("함께한 일이나 나눈 이야기", text: $draft.note, axis: .vertical)
@@ -119,6 +122,9 @@ struct RecordEditView: View {
             }
         }
         .interactiveDismissDisabled(hasChanges)
+        .onAppear {
+            if isCreate { titleFocused = true }
+        }
         .task(id: everyone.count) {
             candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
         }

@@ -77,7 +77,10 @@ struct NetworkView: View {
             dataVersion += 1
         }
         .task(id: dataVersion) {
-            snapshot = await NetworkSnapshotBuilder.build(container: context.container)
+            let built = await NetworkSnapshotBuilder.build(container: context.container)
+            // 주 스레드 밖 계산은 취소돼도 끝까지 돈다 — 그 사이 다시 저장했으면 옛 결과로 새 결과를 덮지 않는다 (전수조사 이슈 24).
+            guard !Task.isCancelled else { return }
+            snapshot = built
         }
     }
 }

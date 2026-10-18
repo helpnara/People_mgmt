@@ -319,11 +319,11 @@ enum NetworkSnapshotBuilder {
                 result = suggested
             } else {
                 unnamed += 1
-                result = "묶음 \(unnamed)"
+                result = "모임 \(unnamed)"
             }
             if used.contains(result) {
                 unnamed += 1
-                result += " · 묶음 \(unnamed)"
+                result += " · 모임 \(unnamed)"
             }
             used.insert(result)
             return result
@@ -405,12 +405,12 @@ enum NetworkSnapshotBuilder {
                 name = suggested
             } else {
                 unnamed += 1
-                name = "묶음 \(unnamed)"
+                name = "모임 \(unnamed)"
             }
             // 같은 이름이 둘이면 뒤의 것에 번호를 붙인다.
             if used.contains(name) {
                 unnamed += 1
-                name += " · 묶음 \(unnamed)"
+                name += " · 모임 \(unnamed)"
             }
             used.insert(name)
             communities.append(NetworkSnapshot.Community(id: communities.count, name: name,

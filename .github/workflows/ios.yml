@@ -173,7 +173,8 @@ jobs:
             exit 1
           fi
 
-      # **앱 테스트** (인메모리 저장소) — 삭제 범위 · 소개자 비우기 · 같은 이름.
+      # **앱 테스트** (인메모리 저장소) — 삭제 범위 · 소개자 비우기 · 같은 이름 · 스키마 옮기기(1→4판) · 인맥 자료 ·
+      # 명함 읽기 · 저장 실패 되돌리기(-failSaves) · 검색 색인 · 채울 것 · 정렬.
       - name: 앱 테스트
         run: |
           status=0
@@ -337,6 +338,8 @@ jobs:
           # 프로젝트 모임 사람들은 아직 없다. 돌아보기 아래에 모임의 변화(새로 생긴 모임 · 최근 기록 없음)가 보여야 한다.
           shoot 22-network-timeline.png -seedSampleData -seedCommunitySample -openNetwork graph -timeSlice 9
           shoot 23-network-changes.png -seedSampleData -seedCommunitySample -openNetwork overview
+          # **설정** (빌드 13 · D-34) — 백업 · 복원 · 개인정보 안내 · 앱 버전.
+          shoot 24-settings.png -seedSampleData -openSettings
           # **사진첩 고르기 창** (이슈 10). 빌드 4 · 5 실기기에서 이 길로 주 스레드가 쉬지 않고 돌다 꺼졌다.
           # 시뮬레이터 사진첩의 견본 사진이 뜨면 PNG 가 2MB 를 넘는다 (빌드 7 CI 에서 잡힘 — 홈 화면으로 잘못 봤다).
           SHOOT_MAX=6000000 shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto

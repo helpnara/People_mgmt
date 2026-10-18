@@ -58,6 +58,10 @@ struct PersonEditView: View {
     @State private var pendingTag = ""
     /// 명함 사진을 읽지 못했다 (이슈 19) — 말없이 넘어가지 않는다.
     @State private var cardFailed = false
+    /// 명함 지우기 확인 (CLAUDE.md — 모든 삭제에 확인 · 전수조사 이슈 22).
+    @State private var confirmingCardRemoval = false
+    /// 이름을 한 번이라도 쳤는가 — 쳤다가 지웠을 때만 `이름을 입력하세요` 를 보인다 (처음 열 때는 조르지 않는다 · 7.2).
+    @State private var nameEverTyped = false
 
     init(mode: Mode, onSaved: @escaping (Person) -> Void) {
         self.mode = mode
@@ -144,6 +148,12 @@ struct PersonEditView: View {
                 Button("버리기", role: .destructive) { dismiss() }
                 Button("계속 편집", role: .cancel) {}
             }
+            .confirmationDialog("명함 사진을 지울까요?", isPresented: $confirmingCardRemoval, titleVisibility: .visible) {
+                Button("명함 지우기", role: .destructive) { draft.businessCard = nil }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("저장해야 실제로 지워집니다. 취소하고 버리면 그대로 남습니다.")
+            }
             .alert("명함 사진을 읽지 못했습니다", isPresented: $cardFailed) {
                 Button("닫기", role: .cancel) {}
             } message: {
@@ -178,7 +188,10 @@ struct PersonEditView: View {
         .onAppear(perform: applyArgumentsOnce)
         .onAppear(perform: rebuildPeopleIndex)
         .onChange(of: everyone.count) { _, _ in rebuildPeopleIndex() }
-        .onChange(of: draft.name) { _, _ in refreshDuplicates() }
+        .onChange(of: draft.name) { _, name in
+            if !name.isEmpty { nameEverTyped = true }
+            refreshDuplicates()
+        }
     }
 
     // MARK: - 구역
@@ -298,12 +311,17 @@ struct PersonEditView: View {
                 .limited($draft.name, to: Limits.name)
             if let problem = draft.nameProblem, !TextNormalization.normalized(draft.name).isEmpty {
                 Text(problem).font(.scaled(13)).foregroundStyle(Color.danger)
+            } else if nameEverTyped && TextNormalization.normalized(draft.name).isEmpty {
+                Text("이름을 입력하세요").font(.scaled(13)).foregroundStyle(Color.muted)
             }
             if !isMe && !duplicates.isEmpty {
                 Label(duplicateText, systemImage: "person.2")
                     .font(.scaled(13))
                     .foregroundStyle(Color.muted)
             }
+            // 별명 (FR-041) — 모델 · 검색 · 상세는 이미 받는다. 입력 칸만 없었다 (전수조사 이슈 23).
+            TextField("별명 (선택)", text: $draft.nickname)
+                .limited($draft.nickname, to: Limits.nickname)
         } header: {
             Text("이름")
         } footer: {
@@ -344,11 +362,13 @@ struct PersonEditView: View {
                     Label("명함 글자 읽기", systemImage: "text.viewfinder")
                 }
                 .disabled(readingCard)
-                Button(role: .destructive) {
-                    draft.businessCard = nil
+                // 역할 없는 단추 + 확인 창 — 확인 전에 지우지 않는다 (CLAUDE.md).
+                Button {
+                    confirmingCardRemoval = true
                 } label: {
                     Label("명함 지우기", systemImage: "trash")
                 }
+                .tint(Color.danger)
             }
             if readingCard {
                 HStack(spacing: 10) {
@@ -423,14 +443,14 @@ struct PersonEditView: View {
         let others = everyone.filter { $0 !== editingPerson && !$0.isGone }
         candidates = PersonStore.sorted(others, by: .name)
         var index: [String: [Person]] = [:]
-        for person in others { index[NameSort.key(person.name), default: []].append(person) }
+        for person in others { index[PersonStore.sameNameKey(person.name), default: []].append(person) }
         nameIndex = index
         refreshDuplicates()
     }
 
     /// 동명이인 (FR-021). 안내만 하고 막지 않는다. 이름이 바뀔 때만 사전에서 찾는다.
     private func refreshDuplicates() {
-        let key = NameSort.key(draft.name)
+        let key = PersonStore.sameNameKey(draft.name)
         duplicates = key.isEmpty ? [] : (nameIndex[key] ?? []).filter { !$0.isGone }
     }
 
@@ -468,6 +488,7 @@ struct PersonEditView: View {
             savedInRow.append(person.name)
             draft = PersonDraft()
             original = draft
+            nameEverTyped = false
             nameFocused = true
             // 방금 직접 입력한 유형 · 경로가 다음 사람의 선택지에 바로 붙는다 (이슈 13).
             refreshChoices()

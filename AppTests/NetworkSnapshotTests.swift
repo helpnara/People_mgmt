@@ -136,7 +136,7 @@ final class NetworkSnapshotTests: XCTestCase {
         let snapshot = await NetworkSnapshotBuilder.build(container: container)
         XCTAssertEqual(snapshot.readiness.strongEdges, 22)
         XCTAssertEqual(snapshot.communityStatus, .shown)
-        XCTAssertEqual(snapshot.communities.map(\.name), ["#독서모임", "나비랩스", "묶음 1"])
+        XCTAssertEqual(snapshot.communities.map(\.name), ["#독서모임", "나비랩스", "모임 1"])
         XCTAssertEqual(snapshot.communities.map { Set($0.memberIDs) }, groups.map { Set($0.map(\.uuid)) })
     }
 }

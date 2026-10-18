@@ -92,7 +92,7 @@ struct ReadinessView: View {
                     .font(.scaled(15))
                 }
             }
-            Text("진한 선으로 서로 많이 이어진 사람들을 묶었습니다. 이름은 묶음 안에서 가장 많은 소속 · 태그 · 알게 된 경로에서 제안합니다. 관계도에서 테두리로 보입니다.")
+            Text("진한 선으로 서로 많이 이어진 사람들을 묶었습니다. 이름은 모임 안에서 가장 많은 소속 · 태그 · 알게 된 경로에서 제안합니다. 관계도에서 테두리로 보입니다.")
                 .font(.scaled(12))
                 .foregroundStyle(Color.muted)
         case .noClearGroups:
