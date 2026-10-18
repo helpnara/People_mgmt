@@ -28,6 +28,9 @@ struct PersonEditView: View {
 
     // 명함
     @State private var cardItem: PhotosPickerItem?
+    /// 사진첩 고르기 창. **양식(Form) 줄 안에 `PhotosPicker` 뷰를 두지 않는다** — 단추는 이 값만 켜고,
+    /// 창은 시트 바깥쪽의 `.photosPicker` 수식어가 띄운다 (느린 여백과 같은 길 · 이슈 10).
+    @State private var pickingCardPhoto = false
     @State private var readingCard = false
     @State private var cardReading: CardReadingResult?
     @State private var viewingCard = false
@@ -161,6 +164,7 @@ struct PersonEditView: View {
             .fullScreenCover(isPresented: $viewingCard) {
                 if let data = draft.businessCard { BusinessCardViewer(data: data) }
             }
+            .photosPicker(isPresented: $pickingCardPhoto, selection: $cardItem, matching: .images)
             .onChange(of: cardItem) { _, item in
                 guard let item else { return }
                 cardItem = nil
@@ -240,9 +244,12 @@ struct PersonEditView: View {
                     Label(draft.businessCard == nil ? "명함 촬영" : "명함 다시 촬영", systemImage: "camera.viewfinder")
                 }
             }
-            PhotosPicker(selection: $cardItem, matching: .images) {
+            Button {
+                pickingCardPhoto = true
+            } label: {
                 Label("사진첩에서 명함 고르기", systemImage: "photo.on.rectangle")
             }
+            .disabled(readingCard)
             if draft.businessCard != nil {
                 Button {
                     Task { await readCard() }
@@ -362,6 +369,13 @@ struct PersonEditView: View {
         // CI 스크린샷: 견본 명함의 글자를 바로 읽어 제안 화면을 띄운다.
         if arguments.readCard, draft.businessCard != nil {
             Task { await readCard() }
+        }
+        // CI: 시트가 다 올라온 뒤 사진첩 고르기 창을 띄운다.
+        if arguments.pickCardPhoto {
+            Task {
+                try? await Task.sleep(for: .milliseconds(800))
+                pickingCardPhoto = true
+            }
         }
     }
 }

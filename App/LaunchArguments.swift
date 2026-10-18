@@ -25,6 +25,8 @@ struct LaunchArguments: Sendable {
     let editPerson: Bool
     /// 수정 시트에서 명함 글자를 바로 읽어 제안 화면을 띄운다.
     let readCard: Bool
+    /// 사람 추가 · 수정 시트에서 사진첩 고르기 창을 바로 띄운다 — 그 길에서 앱이 멈추지 않는지 CI 가 본다 (이슈 10).
+    let pickCardPhoto: Bool
     /// 검색창에 이 글자를 넣은 채로 연다.
     let search: String?
     /// 저장소를 일부러 못 열게 한다 — 안내 화면이 뜨는지 본다.
@@ -39,6 +41,7 @@ struct LaunchArguments: Sendable {
         addRecord = arguments.contains("-addRecord")
         editPerson = arguments.contains("-editPerson")
         readCard = arguments.contains("-readCard")
+        pickCardPhoto = arguments.contains("-pickCardPhoto")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
