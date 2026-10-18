@@ -14,7 +14,8 @@ struct RecordEditView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query private var everyone: [Person]
+    /// 나는 빠진다 — 기록의 참여자 · 소개자가 되지 않는다 (이슈 12).
+    @Query(filter: #Predicate<Person> { $0.isMe == false }) private var everyone: [Person]
 
     @State private var draft: RecordDraft
     @State private var original: RecordDraft
