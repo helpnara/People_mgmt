@@ -57,7 +57,7 @@ final class GraphLayoutTests: XCTestCase {
     }
 
     /// 먼 칸을 무게중심 하나로 보는 셈(이슈 15)이 모두와 하나씩 센 값과 크게 다르지 않다.
-    /// 파이썬으로 같은 300명을 셌을 때 평균 1.4% 차이 — 문턱은 두 배 남짓.
+    /// 파이썬으로 같은 300명을 셌을 때 평균 1.7% 차이 (θ 1.0) — 문턱은 두 배 가까이.
     func testFarCellsApproximateExactRepulsion() {
         let n = 300
         let points = (0..<n).map { i in
@@ -86,7 +86,7 @@ final class GraphLayoutTests: XCTestCase {
     }
 
     /// 사람이 많고 먼 사람끼리도 이어져 있으면 빌드 10 까지는 가운데로 뭉쳤다(5,000명 반지름 0.07 · 이슈 15).
-    /// 600명 고리 + 건너뛰는 선 — 파이썬으로 같은 셈을 돌리면 가운데에서 반지름 중앙값 0.30, 가장 가까운 두 사람 0.0098.
+    /// 600명 고리 + 건너뛰는 선 (반복 133번) — 파이썬으로 같은 셈을 돌리면 가운데에서 반지름 중앙값 0.30, 가장 가까운 두 사람 0.0105.
     func testManyLinkedPeopleSpreadInsteadOfCollapsing() {
         let m = 600
         var links: [GraphLayout.Link] = (0..<m).map { .init(i: $0, j: ($0 + 1) % m, weight: 1) }
