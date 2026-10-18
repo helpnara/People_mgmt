@@ -71,9 +71,6 @@ struct NetworkView: View {
         .background(Color.ground)
         .navigationTitle("내 인맥")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: PersonID.self) { ref in
-            PersonByIDView(id: ref.id)
-        }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             dataVersion += 1
         }
@@ -106,44 +103,6 @@ struct PersonByIDView: View {
         } else {
             ContentUnavailableView("찾을 수 없는 사람입니다", systemImage: "person.slash")
         }
-    }
-}
-
-/// 칸을 누르면 나오는 사람들 — 이름 순. 근거를 보여 주는 자리다 (원칙 2).
-struct PeopleByIDsView: View {
-    let title: String
-    let people: [NetworkSnapshot.PersonInfo]
-    /// 줄 오른쪽에 덧붙일 말 (예: 마지막 기록 언제).
-    var detail: ((NetworkSnapshot.PersonInfo) -> String?)?
-
-    var body: some View {
-        List {
-            Section {
-                ForEach(people) { person in
-                    NavigationLink(value: PersonID(id: person.id)) {
-                        HStack(alignment: .firstTextBaseline) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(person.name).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink)
-                                if let subtitle = person.subtitle {
-                                    Text(subtitle).font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(1)
-                                }
-                            }
-                            Spacer(minLength: 8)
-                            if let text = detail?(person) {
-                                Text(text).font(.scaled(12)).foregroundStyle(Color.faint).lineLimit(1)
-                            }
-                        }
-                    }
-                }
-            } header: {
-                Text("\(people.count)명")
-            }
-        }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(Color.ground)
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

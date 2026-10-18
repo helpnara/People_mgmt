@@ -27,13 +27,9 @@ struct OverviewView: View {
                     Text("최근 12개월은 기록 날짜로 셉니다 — 기록이 있는 사람 \(withRecords)명 / \(overview.total)명. 올해 처음 만남은 처음 만난 날을 적은 사람만 셉니다 — 적은 사람 \(withFirstMet)명 / \(overview.total)명.")
                 }
                 Section {
-                    link("올해 처음 만난 사람", ids: overview.newThisYearIDs, keepOrder: true) { person in
-                        person.firstMetDay.map { snapshot.phrase(forDay: $0) }
-                    }
-                    link("최근 \(quietMonths)개월 넘게 기록 없음", ids: overview.quietIDs, keepOrder: true) { person in
-                        person.lastDay.map { "마지막 기록 " + snapshot.phrase(forDay: $0) }
-                    }
-                    link("아직 기록이 없는 사람", ids: overview.noRecordIDs, keepOrder: true) { _ in nil }
+                    link("올해 처음 만난 사람", ids: overview.newThisYearIDs, detail: .firstMet)
+                    link("최근 \(quietMonths)개월 넘게 기록 없음", ids: overview.quietIDs, detail: .lastRecord)
+                    link("아직 기록이 없는 사람", ids: overview.noRecordIDs, detail: .none)
                 } footer: {
                     Menu {
                         Picker("기준", selection: $quietMonths) {
@@ -74,11 +70,9 @@ struct OverviewView: View {
         let today: Int
     }
 
-    private func link(_ title: String, ids: [UUID], keepOrder: Bool,
-                      detail: @escaping (NetworkSnapshot.PersonInfo) -> String?) -> some View {
-        NavigationLink {
-            PeopleByIDsView(title: title, people: keepOrder ? snapshot.people(ids) : snapshot.peopleByName(ids), detail: detail)
-        } label: {
+    private func link(_ title: String, ids: [UUID], detail: PeopleRowDetail) -> some View {
+        // 값으로 연다 (이슈 16) — 화면을 직접 밀면 그 안에서 사람을 열 때 목록이 빠진다.
+        NavigationLink(value: PeopleListRoute(title: title, ids: ids, fill: nil, detail: detail)) {
             LabeledContent(title) {
                 Text("\(ids.count)명").monospacedDigit()
             }

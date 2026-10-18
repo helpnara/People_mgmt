@@ -76,38 +76,11 @@ struct RelationshipReviewSection: View {
         if evidence.isEmpty {
             content
         } else {
-            NavigationLink {
-                EvidenceRecordsView(title: title, records: evidence, viewer: person)
-            } label: {
+            // 값으로 연다 (이슈 16).
+            NavigationLink(value: EvidenceRoute(title: title, recordIDs: evidence.map(\.uuid), viewerID: person.uuid)) {
                 content
             }
         }
-    }
-}
-
-/// 지표의 근거가 된 기록들 — 최근 것부터 (원칙 2).
-struct EvidenceRecordsView: View {
-    let title: String
-    let records: [Record]
-    let viewer: Person
-
-    var body: some View {
-        List {
-            Section {
-                ForEach(records.filter { !$0.isGone }) { record in
-                    NavigationLink(value: record) {
-                        TimelineRow(record: record, viewer: viewer)
-                    }
-                }
-            } header: {
-                Text("\(records.count)건")
-            }
-        }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(Color.ground)
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

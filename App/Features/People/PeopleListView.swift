@@ -112,6 +112,16 @@ struct PeopleListView: View {
             .navigationDestination(for: NetworkRoute.self) { route in
                 NetworkView(initialTab: route.tab)
             }
+            // 값으로 여는 목적지는 모두 뿌리 한 곳에 (이슈 16).
+            .navigationDestination(for: PersonID.self) { ref in
+                PersonByIDView(id: ref.id)
+            }
+            .navigationDestination(for: PeopleListRoute.self) { route in
+                PeopleRouteView(route: route)
+            }
+            .navigationDestination(for: EvidenceRoute.self) { route in
+                EvidenceRouteView(route: route)
+            }
             .sheet(isPresented: $showingAdd) {
                 PersonEditView(mode: .create) { person in
                     path.append(person)
