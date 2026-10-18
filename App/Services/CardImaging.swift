@@ -1,6 +1,7 @@
 import Core
 import CoreImage
 import Foundation
+import ImageIO
 import UIKit
 import Vision
 
@@ -11,9 +12,14 @@ import Vision
 /// - 글자 읽기: Vision 의 글자 인식(한국어 · 영어)으로 줄과 그 높이를 돌려준다 — 해석은 `Core.BusinessCardParser`
 ///
 /// 무거운 일은 `Task.detached` 에서 한다. 주고받는 것은 `Data` · 값뿐이다 (`Sendable`).
+///
+/// **사진은 원본 해상도로 풀지 않는다 (이슈 10).** 2,400만 화소 사진을 통째로 풀면 중간 그림 하나가 수백 MB 다 —
+/// iOS 가 메모리 초과로 앱을 끈다(느린 여백 181 과 같은 모양). ImageIO 로 **처음부터 줄여 읽는다**.
 enum CardImaging {
     /// 저장하는 사진의 긴 변. 명함 글자를 다시 읽기에 넉넉하고 저장소를 덜 먹는 크기.
     static let maxLongSide: CGFloat = 1_600
+    /// 테두리를 찾고 펼 때 쓰는 사진의 긴 변. 명함이 사진의 절반만 차지해도 편 뒤 긴 변이 1,600px 가까이 남는다.
+    static let workingLongSide: CGFloat = 3_200
 
     /// 사진첩 사진 → 테두리를 찾아 편 명함 JPEG.
     static func straightenedCard(from data: Data) async -> Data? {
@@ -23,7 +29,7 @@ enum CardImaging {
     /// 이미 편 사진(문서 카메라) → 줄인 JPEG.
     static func normalizedCard(from data: Data) async -> Data? {
         await Task.detached(priority: .userInitiated) {
-            UIImage(data: data).flatMap { jpeg(downscaled($0)) }
+            thumbnail(data, maxPixel: maxLongSide).flatMap { jpeg(UIImage(cgImage: $0)) }
         }.value
     }
 
@@ -35,9 +41,9 @@ enum CardImaging {
     // MARK: - 안쪽 (어느 스레드에서든)
 
     private static func straighten(_ data: Data) -> Data? {
-        guard let source = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
-            return UIImage(data: data).flatMap { jpeg(downscaled($0)) }
-        }
+        // 줄여 읽으면서 사진의 방향(세로로 찍은 사진)도 바로 세운다.
+        guard let working = thumbnail(data, maxPixel: workingLongSide) else { return nil }
+        let source = CIImage(cgImage: working)
         let request = VNDetectRectanglesRequest()
         // 명함은 짧은 변 / 긴 변이 0.55~0.6 쯤이다. 넉넉히 잡는다.
         request.minimumAspectRatio = 0.3
@@ -62,7 +68,8 @@ enum CardImaging {
             filter.setValue(point(rectangle.bottomRight), forKey: "inputBottomRight")
             if let corrected = filter.outputImage { output = corrected }
         }
-        let context = CIContext()
+        // 중간 그림을 붙들어 두지 않는다 — 한 번 쓰고 버리는 그림이다.
+        let context = CIContext(options: [.cacheIntermediates: false])
         guard let cgImage = context.createCGImage(output, from: output.extent) else { return nil }
         return jpeg(downscaled(UIImage(cgImage: cgImage)))
     }
@@ -88,6 +95,20 @@ enum CardImaging {
                     CardLine(text: $0.string, height: Double(observation.boundingBox.height))
                 }
             }
+    }
+
+    /// ImageIO 로 **풀기 전에** 줄인다. 원본 전체를 메모리에 올리지 않는다. 방향(EXIF)을 적용한 그림을 준다.
+    /// 원본이 `maxPixel` 보다 작으면 원본 크기 그대로.
+    static func thumbnail(_ data: Data, maxPixel: CGFloat) -> CGImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        let options = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+        ] as CFDictionary
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options)
     }
 
     private static func downscaled(_ image: UIImage) -> UIImage {
