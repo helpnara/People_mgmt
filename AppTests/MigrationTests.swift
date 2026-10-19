@@ -155,5 +155,58 @@ final class MigrationTests: XCTestCase {
         try store.apply(edit, to: friend)
         XCTAssertEqual(other.acquaintances.map(\.name), ["3판 친구"], "4판에서 아는 사이를 만들 수 있다")
     }
-}
 
+    /// 4판(빌드 10 ~ 17) 저장소가 5판으로 열리고, 새 칸(생일 · 연락 주기)은 비어 있다가 저장할 수 있다 (D-40).
+    func testVersionFourStoreOpensWithEmptyBirthdayAndCadence() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("v4.store")
+
+        do {
+            let schema = Schema(versionedSchema: SchemaV4.self)
+            let configuration = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
+            let container = try ModelContainer(for: schema, configurations: [configuration])
+            let context = container.mainContext
+            let friend = SchemaV4.Person(name: "4판 친구")
+            friend.mobilePhone = "010-3333-4444"
+            let other = SchemaV4.Person(name: "4판 동료")
+            context.insert(friend)
+            context.insert(other)
+            let tie = SchemaV4.Tie()
+            context.insert(tie)
+            tie.first = friend
+            tie.second = other
+            let record = SchemaV4.Record(recordType: "meal", title: "4판 점심")
+            context.insert(record)
+            record.participants = [friend, other]
+            try context.save()
+        }
+
+        let container = try Persistence.makeContainer(inMemory: false, url: url)
+        let context = container.mainContext
+        let people = try context.fetch(FetchDescriptor<Person>())
+        XCTAssertEqual(people.count, 2)
+        let friend = try XCTUnwrap(people.first { $0.name == "4판 친구" })
+        XCTAssertEqual(friend.mobilePhone, "010-3333-4444", "연락 칸이 남는다")
+        XCTAssertEqual(friend.acquaintances.map(\.name), ["4판 동료"], "아는 사이가 남는다")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Record>()).first?.participants?.count, 2, "기록 참여자가 남는다")
+        XCTAssertNil(friend.birthMonth, "옮긴 직후 생일은 비어 있다")
+        XCTAssertNil(friend.contactCadenceMonths)
+
+        var edit = PersonDraft(person: friend)
+        edit.hasBirthday = true
+        edit.birthMonth = 2
+        edit.birthDay = 29
+        edit.contactCadenceMonths = 6
+        try PersonStore(context: context).apply(edit, to: friend)
+        XCTAssertEqual(friend.birthMonth, 2)
+        XCTAssertEqual(friend.birthDay, 29, "연도를 모르면 2월 29일을 받는다")
+        XCTAssertNil(friend.birthYear)
+        XCTAssertEqual(friend.contactCadenceMonths, 6)
+
+        edit.birthYear = 2023   // 평년 — 2월 29일은 없는 날
+        try PersonStore(context: context).apply(edit, to: friend)
+        XCTAssertNil(friend.birthMonth, "없는 날은 저장하지 않는다")
+    }
+}

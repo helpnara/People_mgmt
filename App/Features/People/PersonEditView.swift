@@ -118,6 +118,7 @@ struct PersonEditView: View {
                 }
                 cardSection
                 contactSection
+                birthdaySection
                 if !isMe { relationshipSections }
                 Section("태그") {
                     TagEditor(tags: $draft.tags, input: $pendingTag)
@@ -243,6 +244,18 @@ struct PersonEditView: View {
         } footer: {
             Text("서로 아는 사람을 고르면 기록이 없어도 관계도에 선이 생기고, 모임(그룹)을 찾는 바탕이 됩니다.")
         }
+        Section {
+            Picker("연락 주기", selection: $draft.contactCadenceMonths) {
+                Text("없음").tag(Int?.none)
+                ForEach(Self.cadenceChoices, id: \.self) { months in
+                    Text("\(months)개월").tag(Int?.some(months))
+                }
+            }
+        } header: {
+            Text("연락 주기")
+        } footer: {
+            Text("고른 사람만, 마지막 기록에서 이만큼 지나면 한 번 알립니다. 설정 → 알림에서 연락 주기를 켰을 때만 옵니다.")
+        }
         Section("첫 인연") {
             Toggle("처음 만난 날짜", isOn: $draft.hasFirstMetDate)
             if draft.hasFirstMetDate {
@@ -253,6 +266,52 @@ struct PersonEditView: View {
                 .limited($draft.firstNote, to: Limits.firstNote)
         }
     }
+
+    static let cadenceChoices = [1, 3, 6, 12]
+
+    /// 생일 (5판 · D-40) — 월 · 일, 연도는 선택. 그 달에 없는 날은 고를 수 없다(2월은 29일까지).
+    @ViewBuilder
+    private var birthdaySection: some View {
+        Section {
+            Toggle("생일", isOn: $draft.hasBirthday)
+            if draft.hasBirthday {
+                Picker("월", selection: $draft.birthMonth) {
+                    ForEach(1...12, id: \.self) { Text("\($0)월").tag($0) }
+                }
+                Picker("일", selection: $draft.birthDay) {
+                    ForEach(1...birthDayLimit, id: \.self) { Text("\($0)일").tag($0) }
+                }
+                Picker("태어난 해", selection: $draft.birthYear) {
+                    Text("모름").tag(Int?.none)
+                    ForEach(Self.birthYears, id: \.self) { Text(String($0) + "년").tag(Int?.some($0)) }
+                }
+            }
+        } header: {
+            Text("생일")
+        } footer: {
+            if draft.hasBirthday {
+                Text("태어난 해는 몰라도 됩니다. 설정 → 알림에서 생일을 켜면 그날 아침에 알려 드립니다.")
+            }
+        }
+        .onChange(of: draft.birthMonth) { _, _ in clampBirthDay() }
+        .onChange(of: draft.birthYear) { _, _ in clampBirthDay() }
+    }
+
+    /// 그 달의 마지막 날 — 연도를 모르면 2월은 29일까지.
+    private var birthDayLimit: Int {
+        if let year = draft.birthYear { return CivilDate.daysIn(month: draft.birthMonth, year: year) }
+        return draft.birthMonth == 2 ? 29 : CivilDate.daysIn(month: draft.birthMonth, year: 2001)
+    }
+
+    private func clampBirthDay() {
+        if draft.birthDay > birthDayLimit { draft.birthDay = birthDayLimit }
+    }
+
+    /// 올해부터 1900년까지 — 화면을 열 때 한 번 만든다.
+    private static let birthYears: [Int] = {
+        let now = Calendar(identifier: .gregorian).component(.year, from: Date())
+        return Array(stride(from: now, through: 1900, by: -1))
+    }()
 
     /// 연락 수단 다섯 칸 (FR-032 · 이슈 11). 칸 이름이 왼쪽에 늘 보인다 — 채운 뒤에도 무슨 칸인지 알게.
     private var contactSection: some View {

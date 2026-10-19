@@ -219,6 +219,8 @@ struct PeopleListView: View {
             let input = await NetworkSnapshotBuilder.readiness(container: context.container)
             guard !Task.isCancelled else { return }
             readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
+            // 알림도 다시 건다 (D-40) — 생일 · 처음 만난 날 · 기록이 바뀌었을 수 있다. 켠 알림이 없으면 바로 끝난다.
+            await ReminderScheduler.refresh(container: context.container)
             // 검색 색인도 미리 만들어 둔다 (이슈 8) — 첫 검색이 기다리지 않게.
             if !fetched.isEmpty, indexVersion != dataVersion {
                 await rebuildIndex()

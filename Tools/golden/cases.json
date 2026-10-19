@@ -3975,5 +3975,502 @@
       ],
       "limit": 3
     }
+  ],
+  "birthdays": [
+    [
+      3,
+      14,
+      null
+    ],
+    [
+      2,
+      29,
+      null
+    ],
+    [
+      2,
+      29,
+      2023
+    ],
+    [
+      2,
+      29,
+      2024
+    ],
+    [
+      4,
+      31,
+      null
+    ],
+    [
+      13,
+      1,
+      null
+    ],
+    [
+      1,
+      0,
+      null
+    ],
+    [
+      12,
+      31,
+      1990
+    ]
+  ],
+  "reminders": [
+    {
+      "name": "셋 다 켬 — 오늘 생일 · 오늘 주년 · 지난 주기는 오늘로 · 윤일 · 달 끝",
+      "people": [
+        {
+          "id": "00000000-0000-0000-0000-000000000301",
+          "name": "가람",
+          "birthMonth": 3,
+          "birthDay": 14,
+          "firstMet": [
+            2020,
+            10,
+            25
+          ],
+          "lastRecord": [
+            2026,
+            9,
+            1
+          ],
+          "registered": [
+            2026,
+            10,
+            1
+          ],
+          "cadenceMonths": 3
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000302",
+          "name": "나래",
+          "birthMonth": 2,
+          "birthDay": 29,
+          "firstMet": null,
+          "lastRecord": null,
+          "registered": [
+            2026,
+            3,
+            31
+          ],
+          "cadenceMonths": 6
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000303",
+          "name": "다온",
+          "birthMonth": 10,
+          "birthDay": 19,
+          "firstMet": [
+            2025,
+            10,
+            19
+          ],
+          "lastRecord": [
+            2026,
+            1,
+            31
+          ],
+          "registered": [
+            2025,
+            10,
+            19
+          ],
+          "cadenceMonths": 1
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000304",
+          "name": "라온",
+          "birthMonth": null,
+          "birthDay": null,
+          "firstMet": [
+            2026,
+            10,
+            19
+          ],
+          "lastRecord": [
+            2026,
+            10,
+            10
+          ],
+          "registered": [
+            2026,
+            10,
+            19
+          ],
+          "cadenceMonths": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000305",
+          "name": "마루",
+          "birthMonth": 10,
+          "birthDay": 19,
+          "firstMet": [
+            2024,
+            2,
+            29
+          ],
+          "lastRecord": null,
+          "registered": [
+            2026,
+            1,
+            31
+          ],
+          "cadenceMonths": 12
+        }
+      ],
+      "today": [
+        2026,
+        10,
+        19
+      ],
+      "options": {
+        "birthdays": true,
+        "anniversaries": true,
+        "cadence": true
+      }
+    },
+    {
+      "name": "생일만",
+      "people": [
+        {
+          "id": "00000000-0000-0000-0000-000000000301",
+          "name": "가람",
+          "birthMonth": 3,
+          "birthDay": 14,
+          "firstMet": [
+            2020,
+            10,
+            25
+          ],
+          "lastRecord": [
+            2026,
+            9,
+            1
+          ],
+          "registered": [
+            2026,
+            10,
+            1
+          ],
+          "cadenceMonths": 3
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000302",
+          "name": "나래",
+          "birthMonth": 2,
+          "birthDay": 29,
+          "firstMet": null,
+          "lastRecord": null,
+          "registered": [
+            2026,
+            3,
+            31
+          ],
+          "cadenceMonths": 6
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000303",
+          "name": "다온",
+          "birthMonth": 10,
+          "birthDay": 19,
+          "firstMet": [
+            2025,
+            10,
+            19
+          ],
+          "lastRecord": [
+            2026,
+            1,
+            31
+          ],
+          "registered": [
+            2025,
+            10,
+            19
+          ],
+          "cadenceMonths": 1
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000304",
+          "name": "라온",
+          "birthMonth": null,
+          "birthDay": null,
+          "firstMet": [
+            2026,
+            10,
+            19
+          ],
+          "lastRecord": [
+            2026,
+            10,
+            10
+          ],
+          "registered": [
+            2026,
+            10,
+            19
+          ],
+          "cadenceMonths": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000305",
+          "name": "마루",
+          "birthMonth": 10,
+          "birthDay": 19,
+          "firstMet": [
+            2024,
+            2,
+            29
+          ],
+          "lastRecord": null,
+          "registered": [
+            2026,
+            1,
+            31
+          ],
+          "cadenceMonths": 12
+        }
+      ],
+      "today": [
+        2026,
+        10,
+        19
+      ],
+      "options": {
+        "birthdays": true,
+        "anniversaries": false,
+        "cadence": false
+      }
+    },
+    {
+      "name": "모두 끔",
+      "people": [
+        {
+          "id": "00000000-0000-0000-0000-000000000301",
+          "name": "가람",
+          "birthMonth": 3,
+          "birthDay": 14,
+          "firstMet": [
+            2020,
+            10,
+            25
+          ],
+          "lastRecord": [
+            2026,
+            9,
+            1
+          ],
+          "registered": [
+            2026,
+            10,
+            1
+          ],
+          "cadenceMonths": 3
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000302",
+          "name": "나래",
+          "birthMonth": 2,
+          "birthDay": 29,
+          "firstMet": null,
+          "lastRecord": null,
+          "registered": [
+            2026,
+            3,
+            31
+          ],
+          "cadenceMonths": 6
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000303",
+          "name": "다온",
+          "birthMonth": 10,
+          "birthDay": 19,
+          "firstMet": [
+            2025,
+            10,
+            19
+          ],
+          "lastRecord": [
+            2026,
+            1,
+            31
+          ],
+          "registered": [
+            2025,
+            10,
+            19
+          ],
+          "cadenceMonths": 1
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000304",
+          "name": "라온",
+          "birthMonth": null,
+          "birthDay": null,
+          "firstMet": [
+            2026,
+            10,
+            19
+          ],
+          "lastRecord": [
+            2026,
+            10,
+            10
+          ],
+          "registered": [
+            2026,
+            10,
+            19
+          ],
+          "cadenceMonths": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000305",
+          "name": "마루",
+          "birthMonth": 10,
+          "birthDay": 19,
+          "firstMet": [
+            2024,
+            2,
+            29
+          ],
+          "lastRecord": null,
+          "registered": [
+            2026,
+            1,
+            31
+          ],
+          "cadenceMonths": 12
+        }
+      ],
+      "today": [
+        2026,
+        10,
+        19
+      ],
+      "options": {
+        "birthdays": false,
+        "anniversaries": false,
+        "cadence": false
+      }
+    },
+    {
+      "name": "한도에서 자른다 · 윤년",
+      "people": [
+        {
+          "id": "00000000-0000-0000-0000-000000000301",
+          "name": "가람",
+          "birthMonth": 3,
+          "birthDay": 14,
+          "firstMet": [
+            2020,
+            10,
+            25
+          ],
+          "lastRecord": [
+            2026,
+            9,
+            1
+          ],
+          "registered": [
+            2026,
+            10,
+            1
+          ],
+          "cadenceMonths": 3
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000302",
+          "name": "나래",
+          "birthMonth": 2,
+          "birthDay": 29,
+          "firstMet": null,
+          "lastRecord": null,
+          "registered": [
+            2026,
+            3,
+            31
+          ],
+          "cadenceMonths": 6
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000303",
+          "name": "다온",
+          "birthMonth": 10,
+          "birthDay": 19,
+          "firstMet": [
+            2025,
+            10,
+            19
+          ],
+          "lastRecord": [
+            2026,
+            1,
+            31
+          ],
+          "registered": [
+            2025,
+            10,
+            19
+          ],
+          "cadenceMonths": 1
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000304",
+          "name": "라온",
+          "birthMonth": null,
+          "birthDay": null,
+          "firstMet": [
+            2026,
+            10,
+            19
+          ],
+          "lastRecord": [
+            2026,
+            10,
+            10
+          ],
+          "registered": [
+            2026,
+            10,
+            19
+          ],
+          "cadenceMonths": null
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000305",
+          "name": "마루",
+          "birthMonth": 10,
+          "birthDay": 19,
+          "firstMet": [
+            2024,
+            2,
+            29
+          ],
+          "lastRecord": null,
+          "registered": [
+            2026,
+            1,
+            31
+          ],
+          "cadenceMonths": 12
+        }
+      ],
+      "today": [
+        2028,
+        2,
+        1
+      ],
+      "options": {
+        "birthdays": true,
+        "anniversaries": true,
+        "cadence": true
+      },
+      "limit": 3
+    }
   ]
 }

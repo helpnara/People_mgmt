@@ -28,6 +28,13 @@ struct PersonDraft: Equatable {
     var businessCard: Data?
     /// 아는 사이 (D-30) — 기록 없이 서로 아는 사람.
     var acquaintances: [Person] = []
+    /// 생일 (5판 · D-40) — 켜면 월 · 일이 저장된다. 연도는 선택.
+    var hasBirthday = false
+    var birthMonth = 1
+    var birthDay = 1
+    var birthYear: Int?
+    /// 연락 주기(개월) — 고른 사람만 (5판 · D-40).
+    var contactCadenceMonths: Int?
 
     init() {}
 
@@ -50,6 +57,13 @@ struct PersonDraft: Equatable {
         tags = person.tags
         businessCard = person.businessCard
         acquaintances = person.acquaintances
+        if let month = person.birthMonth, let day = person.birthDay {
+            hasBirthday = true
+            birthMonth = month
+            birthDay = day
+        }
+        birthYear = person.birthYear
+        contactCadenceMonths = person.contactCadenceMonths
     }
 
     /// 다섯 칸을 한꺼번에 — 명함 · 연락처에서 가져온 값을 넣을 때. 빈 칸은 덮지 않는다.
@@ -215,6 +229,18 @@ struct PersonStore {
         person.tags = TagNormalizer.normalizeList(draft.tags)
         // 같은 사진이면 다시 쓰지 않는다 — 바깥 파일을 매번 새로 쓰지 않게.
         if person.businessCard != draft.businessCard { person.businessCard = draft.businessCard }
+        // 생일은 맞는 날일 때만 (2월 30일 · 4월 31일은 저장하지 않는다). 끄면 연도까지 비운다.
+        if draft.hasBirthday, BirthdayRule.isValid(month: draft.birthMonth, day: draft.birthDay, year: draft.birthYear) {
+            person.birthMonth = draft.birthMonth
+            person.birthDay = draft.birthDay
+            person.birthYear = draft.birthYear
+        } else {
+            person.birthMonth = nil
+            person.birthDay = nil
+            person.birthYear = nil
+        }
+        // 연락 주기는 나에게 없다 — 나와의 기록은 따로 없다.
+        person.contactCadenceMonths = person.isMe ? nil : draft.contactCadenceMonths.flatMap { $0 > 0 ? $0 : nil }
         // 나는 아는 사이를 두지 않는다 — 나는 모두를 안다.
         if !person.isMe { syncTies(of: person, to: draft.acquaintances) }
     }
