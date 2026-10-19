@@ -448,7 +448,8 @@ jobs:
           STORE="${{ steps.store.outputs.udid }}"
           if [ -n "$STORE" ]; then
             echo "── 스토어: ${{ steps.store.outputs.name }} ──"
-            SHOOT_WAIT=12; SHOOT_ATTEMPTS=4
+            # iPad 단계의 SHOOT_MIN(250,000)이 남으면 글이 적은 기록 상세(215,302 바이트)를 빈 화면으로 본다 (빌드 18 CI).
+            SHOOT_WAIT=12; SHOOT_ATTEMPTS=4; SHOOT_MIN=150000
             xcrun simctl boot "$STORE" || true
             xcrun simctl bootstatus "$STORE" -b
             status_bar "$STORE"
@@ -468,6 +469,7 @@ jobs:
           fi
           if [ -n "$IPAD" ]; then
             UDID="$IPAD"
+            SHOOT_MIN=250000
             shoot store/ipad-01-people.png -seedSampleData -storeShots
             shoot store/ipad-02-person-detail.png -seedSampleData -storeShots -openPerson 김하늘
             shoot store/ipad-03-network-graph.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph
