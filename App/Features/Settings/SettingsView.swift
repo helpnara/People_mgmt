@@ -19,6 +19,8 @@ struct SettingsView: View {
     @State private var showingImporter = false
     @State private var pendingRestore: BackupFile?
     @State private var message: (title: String, body: String)?
+    /// 모임 짝짓기 문턱 (D-39). 기본 0.3.
+    @AppStorage(GroupMatchSetting.key) private var groupMatch: GroupMatchSetting = .standard
 
     var body: some View {
         List {
@@ -55,6 +57,30 @@ struct SettingsView: View {
                         Text(working).font(.scaled(15)).foregroundStyle(Color.muted)
                     }
                 }
+            }
+
+            Section {
+                Picker(selection: $groupMatch) {
+                    ForEach(GroupMatchSetting.allCases) { option in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(option.title)
+                                .font(.scaled(16))
+                                .foregroundStyle(Color.ink)
+                            Text(option.detail)
+                                .font(.scaled(13))
+                                .foregroundStyle(Color.muted)
+                        }
+                        .tag(option)
+                    }
+                } label: {
+                    Text("같은 모임으로 볼 겹침")
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } header: {
+                Text("모임의 변화")
+            } footer: {
+                Text("분기마다 모임을 다시 찾고, 앞 분기 모임과 사람이 얼마나 겹치는지로 같은 모임인지 가립니다. 작은 쪽 모임의 절반 이상이 겹치면 이 설정과 상관없이 같은 모임입니다. 같은 모임이면 그대로 · 사람이 늘었습니다 · 사람이 줄었습니다로, 다른 모임이면 새로 생긴 모임과 최근 기록 없음 두 줄로 보입니다. 내 인맥 → 돌아보기 → 모임의 변화와 관계도 시점 막대의 설명에 반영되고, 내 인맥을 다시 열 때 바뀝니다.")
             }
 
             Section {

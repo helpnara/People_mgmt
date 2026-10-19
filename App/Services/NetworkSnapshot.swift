@@ -370,7 +370,7 @@ enum NetworkSnapshotBuilder {
         }
 
         var changes: [NetworkSnapshot.Timeline.Change] = []
-        for change in TemporalNetwork.changes(computed) {
+        for change in TemporalNetwork.changes(computed, threshold: GroupMatchSetting.current.threshold) {
             // 그대로는 변화가 아니다 — 목록에 넣지 않고 그 시점의 설명에 수로만 (빌드 16 · 조사 보고서 지금 2).
             if change.kind == .steady {
                 slices[change.slice].steady += 1
@@ -441,5 +441,48 @@ enum NetworkSnapshotBuilder {
                                                          memberIDs: members.map { people[$0].id }, memberIndices: members))
         }
         return (communities, communities.isEmpty ? .noClearGroups : .shown)
+    }
+}
+
+/// **모임 짝짓기 문턱** (설정 · D-39) — 앞 분기 모임과 이번 분기 모임을 같은 모임으로 볼 겹침 정도.
+///
+/// 작은 쪽의 절반 이상이 겹치면 이 설정과 상관없이 같은 모임이다(`TemporalNetwork.inclusionThreshold`). 이 설정은 겹침이
+/// 절반이 안 될 때만 판정을 바꾼다. 기본은 0.3 — 비교 표(`Tools/golden/compare-thresholds.py`)를 보고 사용자가 골랐다.
+/// 기기 편의라 UserDefaults. 내 인맥을 열 때마다 자료를 다시 만들므로 바꾸면 다음에 열 때 반영된다.
+enum GroupMatchSetting: String, CaseIterable, Identifiable, Sendable {
+    case standard
+    case loose
+    case looser
+
+    static let key = "network.groupMatch"
+
+    var id: String { rawValue }
+
+    var threshold: Double {
+        switch self {
+        case .standard: return TemporalNetwork.matchThreshold   // 0.3
+        case .loose: return 0.2
+        case .looser: return 0.1
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .standard: return "보통 (기본)"
+        case .loose: return "느슨하게"
+        case .looser: return "아주 느슨하게"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .standard: return "사람이 절반 넘게 바뀌면 다른 모임으로 봅니다. 열 명 모임이면 다섯 명 넘게 남아야 이어집니다."
+        case .loose: return "열 명 모임에서 네 명만 남아도 같은 모임으로 이어 줍니다."
+        case .looser: return "조금만 겹쳐도 이어 줍니다. 네 명 모임 둘이 한 사람만 겹쳐도 같은 모임으로 볼 수 있습니다."
+        }
+    }
+
+    static var current: GroupMatchSetting {
+        UserDefaults.standard.string(forKey: key).flatMap(GroupMatchSetting.init(rawValue:)) ?? .standard
     }
 }
