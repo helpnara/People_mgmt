@@ -442,6 +442,11 @@ struct PeopleListView: View {
             path.append(SettingsRoute())
             return
         }
+        if arguments.openFillFirstMet {
+            let snapshot = await NetworkSnapshotBuilder.build(container: context.container)
+            path.append(PeopleListRoute(title: "처음 만난 날이 빈 사람", ids: snapshot.gaps.noFirstMet, fill: .firstMet))
+            return
+        }
         if arguments.openSuggestions {
             let snapshot = await NetworkSnapshotBuilder.build(container: context.container)
             path.append(AcquaintanceSuggestionRoute(items: snapshot.suggestions))

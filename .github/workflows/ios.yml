@@ -355,6 +355,8 @@ jobs:
           shoot 29-ax5-graph.png -seedSampleData -seedCommunitySample -openNetwork graph $AX5
           # **아는 사이 후보** (빌드 16) — 같은 기록에 함께 나온 두 사람 · 근거(함께한 기록 n건) · 잇기 · 아니요.
           shoot 30-suggestions.png -seedSampleData -openSuggestions
+          # **채울 것 목록** (이슈 28) — 줄 사이 구분선이 왼쪽 끝부터 그어지는지 (오른쪽 채우기 글자 아래에만 짧게 보였다).
+          shoot 31-fill-first-met.png -seedSampleData -openFillFirstMet
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord

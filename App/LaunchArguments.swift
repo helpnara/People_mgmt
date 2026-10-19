@@ -50,6 +50,8 @@ struct LaunchArguments: Sendable {
     let openSettings: Bool
     /// 아는 사이 후보 화면을 바로 연다 (`-openSuggestions` · 빌드 16).
     let openSuggestions: Bool
+    /// 채울 것 목록 `처음 만난 날이 빈 사람` 을 바로 연다 (`-openFillFirstMet` · 이슈 28 — 줄 구분선을 스크린샷으로 본다).
+    let openFillFirstMet: Bool
     /// 스토어 스크린샷 (`-storeShots` · 빌드 18) — 견본 안내 띠를 숨긴다. 사람은 여전히 모두 지어낸 견본이다.
     let storeShots: Bool
 
@@ -71,6 +73,7 @@ struct LaunchArguments: Sendable {
         failSaves = arguments.contains("-failSaves")
         openSettings = arguments.contains("-openSettings")
         openSuggestions = arguments.contains("-openSuggestions")
+        openFillFirstMet = arguments.contains("-openFillFirstMet")
         storeShots = arguments.contains("-storeShots")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }

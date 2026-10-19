@@ -165,6 +165,9 @@ struct PeopleRouteView: View {
             }
         }
         .contentShape(Rectangle())
+        // 구분선은 줄 왼쪽 끝부터 (이슈 28). 정하지 않으면 SwiftUI 가 오른쪽 `Label` 의 글자 시작에 맞춰
+        // 구분선을 `처음 만난 날 채우기` 아래에만 짧게 그린다.
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
     }
 
     private func detailText(_ person: Person) -> String? {
@@ -296,5 +299,7 @@ struct RecordFillRouteView: View {
             .readableLineLimit(1)
         }
         .contentShape(Rectangle())
+        // 구분선은 줄 왼쪽 끝부터 (이슈 28) — 위 사람 줄과 같은 까닭.
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
     }
 }
