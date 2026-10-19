@@ -69,6 +69,16 @@ final class GoldenTests: XCTestCase {
             let name: String; let people: [ReminderPersonRaw]; let today: [Int]; let options: ReminderOptionsRaw
             let limit: Int; let expected: [ReminderRaw]
         }
+        struct VFieldsRaw: Decodable { let mobile: String; let office: String; let fax: String; let email: String; let other: String }
+        struct VPersonRaw: Decodable {
+            let name: String; let nickname: String?; let organization: String?; let role: String?; let fields: VFieldsRaw
+            let birthMonth: Int?; let birthDay: Int?; let birthYear: Int?
+        }
+        struct VEncodeCase: Decodable { let name: String; let people: [VPersonRaw]; let expected: String }
+        struct VParseCase: Decodable { let name: String; let text: String; let expected: [VPersonRaw] }
+        struct VExistingRaw: Decodable { let id: UUID; let name: String; let fields: VFieldsRaw }
+        struct VMatchRaw: Decodable { let verdict: String; let existingID: UUID? }
+        struct VMatchCase: Decodable { let name: String; let incoming: [VPersonRaw]; let existing: [VExistingRaw]; let expected: [VMatchRaw] }
         struct LinkRaw: Decodable { let i: Int; let j: Int; let weight: Double }
         struct LouvainExpected: Decodable { let communities: [[Int]]; let modularity: Double }
         struct LouvainCase: Decodable { let name: String; let nodeCount: Int; let links: [LinkRaw]; let resolution: Double; let expected: LouvainExpected }
@@ -159,6 +169,9 @@ final class GoldenTests: XCTestCase {
         let recentCompanions: [RecentCompanionsCase]
         let birthdays: [BirthdayCase]
         let reminders: [ReminderCase]
+        let vcardEncode: [VEncodeCase]
+        let vcardParse: [VParseCase]
+        let importMatch: [VMatchCase]
         let cardParse: [CardCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
@@ -388,6 +401,36 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.map { [$0.date.year, $0.date.month, $0.date.day] }, c.expected.map(\.date), "\(c.name) — 날짜")
             XCTAssertEqual(got.map(\.title), c.expected.map(\.title), "\(c.name) — 제목")
             XCTAssertEqual(got.map(\.body), c.expected.map(\.body), "\(c.name) — 본문")
+        }
+    }
+
+    private static func fields(_ f: VFieldsRaw) -> ContactFields {
+        ContactFields(mobile: f.mobile, office: f.office, fax: f.fax, email: f.email, other: f.other)
+    }
+
+    private static func person(_ p: VPersonRaw) -> VCardPerson {
+        VCardPerson(name: p.name, nickname: p.nickname ?? "", organization: p.organization ?? "", role: p.role ?? "",
+                    fields: fields(p.fields), birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear)
+    }
+
+    func testVCardEncode() throws {
+        for c in try Self.loadGolden().vcardEncode {
+            XCTAssertEqual(VCard.encode(c.people.map(Self.person)), c.expected, c.name)
+        }
+    }
+
+    func testVCardParse() throws {
+        for c in try Self.loadGolden().vcardParse {
+            XCTAssertEqual(VCard.parse(c.text), c.expected.map(Self.person), c.name)
+        }
+    }
+
+    func testImportMatch() throws {
+        for c in try Self.loadGolden().importMatch {
+            let existing = c.existing.map { ImportMatcher.Existing(id: $0.id, name: $0.name, fields: Self.fields($0.fields)) }
+            let got = ImportMatcher.classify(c.incoming.map(Self.person), existing: existing)
+            XCTAssertEqual(got.map(\.verdict.rawValue), c.expected.map(\.verdict), c.name)
+            XCTAssertEqual(got.map(\.existingID), c.expected.map(\.existingID), "\(c.name) — 누구와")
         }
     }
 

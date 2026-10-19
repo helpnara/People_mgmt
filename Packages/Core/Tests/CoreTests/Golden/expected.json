@@ -2327,6 +2327,134 @@
       ]
     }
   ],
+  "importMatch": [
+    {
+      "existing": [
+        {
+          "fields": {
+            "email": "garam@example.com",
+            "fax": "",
+            "mobile": "010-1234-5678",
+            "office": "",
+            "other": ""
+          },
+          "id": "00000000-0000-0000-0000-000000000401",
+          "name": "김가람"
+        },
+        {
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "010-9876-5432",
+            "office": "",
+            "other": ""
+          },
+          "id": "00000000-0000-0000-0000-000000000402",
+          "name": "박서연"
+        },
+        {
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "02-1234-5678",
+            "other": ""
+          },
+          "id": "00000000-0000-0000-0000-000000000403",
+          "name": "정유진"
+        }
+      ],
+      "expected": [
+        {
+          "existingID": "00000000-0000-0000-0000-000000000401",
+          "verdict": "duplicate"
+        },
+        {
+          "existingID": "00000000-0000-0000-0000-000000000401",
+          "verdict": "possibleSame"
+        },
+        {
+          "existingID": "00000000-0000-0000-0000-000000000402",
+          "verdict": "possibleSame"
+        },
+        {
+          "existingID": null,
+          "verdict": "new"
+        },
+        {
+          "existingID": "00000000-0000-0000-0000-000000000403",
+          "verdict": "duplicate"
+        },
+        {
+          "existingID": null,
+          "verdict": "new"
+        }
+      ],
+      "incoming": [
+        {
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "010 1234 5678",
+            "office": "",
+            "other": ""
+          },
+          "name": "김 가람"
+        },
+        {
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "010-1234-5678",
+            "office": "02-555-0101",
+            "other": ""
+          },
+          "name": "김가람"
+        },
+        {
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "+82 10-9876-5432",
+            "office": "",
+            "other": ""
+          },
+          "name": "박선영"
+        },
+        {
+          "fields": {
+            "email": "chaewon@example.com",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "문채원"
+        },
+        {
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "정유진"
+        },
+        {
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "1234",
+            "other": ""
+          },
+          "name": "한지우"
+        }
+      ],
+      "name": "이미 있음 · 같은 이름 새 번호 · 이름 달라도 번호 겹침 · 새 사람 · 짧은 번호는 안 견줌"
+    }
+  ],
   "inputReadiness": [
     {
       "expected": [
@@ -11082,6 +11210,184 @@
     {
       "expected": null,
       "name": "가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가"
+    }
+  ],
+  "vcardEncode": [
+    {
+      "expected": "BEGIN:VCARD\r\nVERSION:3.0\r\nN:;김가람;;;\r\nFN:김가람\r\nNICKNAME:람이\r\nORG:청림소프트\\; 개발본부\r\nTITLE:팀장\\, 개발\r\nTEL;TYPE=CELL:010-1234-5678\r\nTEL;TYPE=WORK,VOICE:02-555-0101\r\nTEL;TYPE=WORK,FAX:02-555-0102\r\nEMAIL;TYPE=INTERNET:garam@example.com\r\nBDAY:1990-03-14\r\nNOTE:집 031-111-2222 · 메모\\\\줄\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:3.0\r\nN:;Alice Park;;;\r\nFN:Alice Park\r\nEMAIL;TYPE=INTERNET:alice@example.com\r\nBDAY:--0229\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:3.0\r\nN:;나래;;;\r\nFN:나래\r\nEND:VCARD\r\n",
+      "name": "칸 전부 · 연도 있는 생일 · 이스케이프",
+      "people": [
+        {
+          "birthDay": 14,
+          "birthMonth": 3,
+          "birthYear": 1990,
+          "fields": {
+            "email": "garam@example.com",
+            "fax": "02-555-0102",
+            "mobile": "010-1234-5678",
+            "office": "02-555-0101",
+            "other": "집 031-111-2222 · 메모\\줄"
+          },
+          "name": "김가람",
+          "nickname": "람이",
+          "organization": "청림소프트; 개발본부",
+          "role": "팀장, 개발"
+        },
+        {
+          "birthDay": 29,
+          "birthMonth": 2,
+          "birthYear": null,
+          "fields": {
+            "email": "alice@example.com",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "Alice Park",
+          "nickname": "",
+          "organization": "",
+          "role": ""
+        },
+        {
+          "birthDay": null,
+          "birthMonth": null,
+          "birthYear": null,
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "나래",
+          "nickname": "",
+          "organization": "",
+          "role": ""
+        }
+      ]
+    }
+  ],
+  "vcardParse": [
+    {
+      "expected": [
+        {
+          "birthDay": 14,
+          "birthMonth": 3,
+          "birthYear": 1990,
+          "fields": {
+            "email": "garam@example.com",
+            "fax": "02-555-0102",
+            "mobile": "010-1234-5678",
+            "office": "02-555-0101",
+            "other": "집 031-111-2222 · 메모\\줄"
+          },
+          "name": "김가람",
+          "nickname": "람이",
+          "organization": "청림소프트; 개발본부",
+          "role": "팀장, 개발"
+        },
+        {
+          "birthDay": 29,
+          "birthMonth": 2,
+          "birthYear": null,
+          "fields": {
+            "email": "alice@example.com",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "Alice Park",
+          "nickname": "",
+          "organization": "",
+          "role": ""
+        },
+        {
+          "birthDay": null,
+          "birthMonth": null,
+          "birthYear": null,
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "나래",
+          "nickname": "",
+          "organization": "",
+          "role": ""
+        }
+      ],
+      "name": "우리가 만든 파일을 다시 읽는다",
+      "text": "BEGIN:VCARD\r\nVERSION:3.0\r\nN:;김가람;;;\r\nFN:김가람\r\nNICKNAME:람이\r\nORG:청림소프트\\; 개발본부\r\nTITLE:팀장\\, 개발\r\nTEL;TYPE=CELL:010-1234-5678\r\nTEL;TYPE=WORK,VOICE:02-555-0101\r\nTEL;TYPE=WORK,FAX:02-555-0102\r\nEMAIL;TYPE=INTERNET:garam@example.com\r\nBDAY:1990-03-14\r\nNOTE:집 031-111-2222 · 메모\\\\줄\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:3.0\r\nN:;Alice Park;;;\r\nFN:Alice Park\r\nEMAIL;TYPE=INTERNET:alice@example.com\r\nBDAY:--0229\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:3.0\r\nN:;나래;;;\r\nFN:나래\r\nEND:VCARD\r\n"
+    },
+    {
+      "expected": [
+        {
+          "birthDay": 21,
+          "birthMonth": 7,
+          "birthYear": null,
+          "fields": {
+            "email": "seoyeon@example.com",
+            "fax": "02-777-8888",
+            "mobile": "+82 10-9876-5432",
+            "office": "",
+            "other": "031-222-3333 · sy@example.org"
+          },
+          "name": "박서연",
+          "nickname": "",
+          "organization": "나비랩스",
+          "role": ""
+        }
+      ],
+      "name": "기기 연락처 3.0 — 묶음 이름표 · 접힌 줄 · 연도 뺀 생일 · 이름은 N 으로",
+      "text": "BEGIN:VCARD\r\nVERSION:3.0\r\nN:박;서연;;;\r\nORG:나비랩스;디자인팀\r\nitem1.TEL;type=CELL;type=VOICE;type=pref:+82 10-9876-5432\r\nitem2.TEL;type=WORK;type=FAX:02-777-\r\n 8888\r\nTEL;type=HOME;type=VOICE:031-222-3333\r\nEMAIL;type=INTERNET;type=WORK:seoyeon@example.com\r\nEMAIL;type=INTERNET;type=HOME:sy@example.org\r\nBDAY;X-APPLE-OMIT-YEAR=1604:1604-07-21\r\nEND:VCARD\r\n"
+    },
+    {
+      "expected": [
+        {
+          "birthDay": null,
+          "birthMonth": null,
+          "birthYear": null,
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "01022223333",
+            "office": "0212345678",
+            "other": "메모"
+          },
+          "name": "정유진",
+          "nickname": "",
+          "organization": "",
+          "role": ""
+        }
+      ],
+      "name": "2.1 쿼티드 프린터블 · 이름표 없는 번호는 모양으로 · 없는 생일은 버림",
+      "text": "BEGIN:VCARD\nVERSION:2.1\nN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:=EC=A0=95;=EC=9C=A0=EC=A7=84;;;\nFN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:=EC=A0=95=EC=9C=A0=\n=EC=A7=84\nTEL;CELL:01022223333\nTEL:0212345678\nBDAY:2023-02-29\nNOTE;ENCODING=QUOTED-PRINTABLE:=EB=A9=94=EB=AA=A8\nEND:VCARD\nBEGIN:VCARD\nVERSION:3.0\nTEL:010-0000-0000\nEND:VCARD\n"
+    },
+    {
+      "expected": [
+        {
+          "birthDay": 3,
+          "birthMonth": 11,
+          "birthYear": 1985,
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "+82-2-555-1234",
+            "other": ""
+          },
+          "name": "이 도윤",
+          "nickname": "",
+          "organization": "",
+          "role": ""
+        }
+      ],
+      "name": "4.0 · 이름 없는 카드는 건너뜀 · 시각 붙은 생일",
+      "text": "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:  이  도윤 \r\nTEL;TYPE=\"work,voice\";VALUE=uri:tel:+82-2-555-1234\r\nBDAY:19851103T000000Z\r\nEND:VCARD\r\n"
     }
   ]
 }

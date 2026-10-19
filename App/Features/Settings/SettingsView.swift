@@ -17,6 +17,10 @@ struct SettingsView: View {
     @State private var exportName = Backup.fileName()
     @State private var showingExporter = false
     @State private var showingImporter = false
+    /// 파일 내보내기 · 가져오기는 하나씩만 건다 — 같은 화면에 둘을 걸면 SwiftUI 가 하나만 띄운다. 무엇을 하는지는 이것으로.
+    @State private var fileKind: FileKind = .backup
+    /// vCard 가져오기 미리보기 (D-41).
+    @State private var importItems: [VCardTransfer.Item]?
     @State private var pendingRestore: BackupFile?
     @State private var message: (title: String, body: String)?
     /// 모임 짝짓기 문턱 (D-39). 기본 0.3.
@@ -45,6 +49,7 @@ struct SettingsView: View {
 
             Section {
                 Button {
+                    fileKind = .backup
                     showingImporter = true
                 } label: {
                     Label("백업에서 복원", systemImage: "square.and.arrow.down")
@@ -63,6 +68,26 @@ struct SettingsView: View {
                         Text(working).font(.scaled(15)).foregroundStyle(Color.muted)
                     }
                 }
+            }
+
+            Section {
+                Button {
+                    exportVCard()
+                } label: {
+                    Label("vCard 파일로 내보내기", systemImage: "person.crop.rectangle.stack")
+                }
+                .disabled(working != nil)
+                Button {
+                    fileKind = .vcard
+                    showingImporter = true
+                } label: {
+                    Label("vCard 파일 가져오기", systemImage: "person.badge.plus")
+                }
+                .disabled(working != nil)
+            } header: {
+                Text("연락처 파일 (vCard)")
+            } footer: {
+                Text("내보내기는 나를 뺀 사람의 이름 · 별명 · 소속 · 직무 · 연락 수단 · 생일을 .vcf 파일 하나로 만듭니다. 기록 · 첫 인연 · 태그 · 명함 사진은 들어가지 않습니다 — 그것은 백업 파일이 맡습니다. 가져오기는 넣기 전에 새 사람 · 같은 사람 후보 · 이미 있는 사람을 나눠 보여 주고, 고른 사람만 넣습니다.")
             }
 
             Section {
@@ -128,17 +153,29 @@ struct SettingsView: View {
         .background(Color.ground)
         .navigationTitle("설정")
         .navigationBarTitleDisplayMode(.inline)
-        .fileExporter(isPresented: $showingExporter, document: exportDocument, contentType: .json,
-                      defaultFilename: exportName) { result in
+        .fileExporter(isPresented: $showingExporter, document: exportDocument,
+                      contentType: fileKind == .vcard ? .vCard : .json, defaultFilename: exportName) { result in
             if case .failure(let error) = result {
-                message = ("백업 파일을 저장하지 못했습니다", error.localizedDescription)
+                message = (fileKind == .vcard ? "vCard 파일을 저장하지 못했습니다" : "백업 파일을 저장하지 못했습니다",
+                           error.localizedDescription)
             }
             exportDocument = nil
         }
-        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: fileKind == .vcard ? [.vCard] : [.json]) { result in
             switch result {
-            case .success(let url): readBackup(url)
+            case .success(let url):
+                if fileKind == .vcard { readVCard(url) } else { readBackup(url) }
             case .failure(let error): message = ("파일을 열지 못했습니다", error.localizedDescription)
+            }
+        }
+        .sheet(isPresented: Binding(get: { importItems != nil }, set: { if !$0 { importItems = nil } })) {
+            VCardImportView(items: importItems ?? []) { added in
+                importItems = nil
+                // 시트가 내려간 뒤에 알린다 — 내려가는 중에 띄우면 알림이 묻힌다.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    message = ("가져왔습니다", "사람 \(added)명을 넣었습니다.")
+                }
             }
         }
         .confirmationDialog("복원", isPresented: Binding(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } }),
@@ -197,12 +234,53 @@ struct SettingsView: View {
         return "\(short) (빌드 \(build))"
     }
 
+    enum FileKind {
+        case backup, vcard
+    }
+
+    private func exportVCard() {
+        working = "vCard 파일을 만드는 중…"
+        let container = context.container
+        Task {
+            let made = await VCardTransfer.export(container: container)
+            working = nil
+            guard made.count > 0 else {
+                message = ("내보낼 사람이 없습니다", "사람을 적은 뒤 다시 시도해 주세요.")
+                return
+            }
+            fileKind = .vcard
+            exportName = VCardTransfer.fileName()
+            exportDocument = BackupDocument(data: made.data)
+            showingExporter = true
+        }
+    }
+
+    private func readVCard(_ url: URL) {
+        working = "vCard 파일을 읽는 중…"
+        let container = context.container
+        Task {
+            do {
+                let items = try await VCardTransfer.preview(url: url, container: container)
+                working = nil
+                if items.isEmpty {
+                    message = ("가져올 사람이 없습니다", "이 파일에서 이름이 있는 연락처를 찾지 못했습니다.")
+                } else {
+                    importItems = items
+                }
+            } catch {
+                working = nil
+                message = ("파일을 열지 못했습니다", error.localizedDescription)
+            }
+        }
+    }
+
     private func makeBackup() {
         working = "백업 파일을 만드는 중…"
         let container = context.container
         Task {
             do {
                 let made = try await Backup.export(container: container)
+                fileKind = .backup
                 exportName = Backup.fileName()
                 exportDocument = BackupDocument(data: made.data)
                 working = nil
