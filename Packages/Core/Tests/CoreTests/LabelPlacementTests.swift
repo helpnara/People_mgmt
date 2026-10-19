@@ -25,7 +25,11 @@ final class LabelPlacementTests: XCTestCase {
     func testCrowdedLabelsNeverOverlapEachOtherOrDots() {
         // 사람 서른 명을 좁은 곳에 몰아 둔다 — 겹치는 이름은 비우고, 놓은 이름끼리는 겹치지 않는다.
         var anchors: [(Double, Double)] = []
-        for i in 0..<30 { anchors.append((100 + Double(i % 6) * 18, 100 + Double(i / 6) * 16)) }
+        for i in 0..<30 {
+            let x: Double = 100 + Double(i % 6) * 18
+            let y: Double = 100 + Double(i / 6) * 16
+            anchors.append((x, y))
+        }
         let dots = anchors.map { dot($0.0, $0.1) }
         let placed = LabelPlacement.place(anchors.map { request($0.0, $0.1) }, obstacles: dots)
         let boxes = placed.compactMap { $0 }
@@ -65,7 +69,13 @@ final class LabelPlacementTests: XCTestCase {
     }
 
     func testSameInputGivesSamePlacement() {
-        let anchors = (0..<20).map { (Double($0 * 13 % 97) + 50, Double($0 * 29 % 83) + 50) }
+        // 식을 나눠 쓴다 — 한 줄에 몰면 macOS 컴파일러가 타입을 제때 못 정한다 (CI 실행 53).
+        var anchors: [(Double, Double)] = []
+        for i in 0..<20 {
+            let x: Double = Double((i * 13) % 97) + 50
+            let y: Double = Double((i * 29) % 83) + 50
+            anchors.append((x, y))
+        }
         let requests = anchors.map { request($0.0, $0.1) }
         let dots = anchors.map { dot($0.0, $0.1) }
         XCTAssertEqual(LabelPlacement.place(requests, obstacles: dots), LabelPlacement.place(requests, obstacles: dots))
