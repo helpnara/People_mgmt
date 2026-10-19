@@ -31,9 +31,15 @@ struct SettingsView: View {
     @AppStorage(ReminderSettings.cadenceKey) private var remindCadence = false
     @AppStorage(ReminderSettings.hourKey) private var remindHour = ReminderSettings.defaultHour
     @AppStorage(ReminderSettings.minuteKey) private var remindMinute = 0
+    /// iCloud 동기화 (D-42 — 기본 켬). 바꾸면 앱을 다시 열 때 적용된다.
+    @AppStorage(CloudSync.enabledKey) private var syncWanted = true
+    @State private var schemaMessage = CloudSchema.message
+    @State private var preparingSchema = false
 
     var body: some View {
         List {
+            syncSection
+
             Section {
                 Button {
                     makeBackup()
@@ -54,11 +60,14 @@ struct SettingsView: View {
                 } label: {
                     Label("백업에서 복원", systemImage: "square.and.arrow.down")
                 }
-                .disabled(working != nil)
+                // 동기화 중에는 복원하지 않는다 (D-44).
+                .disabled(working != nil || CloudSync.isActive)
             } header: {
                 Text("복원")
             } footer: {
-                Text("앱에 사람이나 기록이 하나도 없을 때만 복원합니다 — 지금 자료와 섞이지 않게. 새 기기나 다시 설치한 뒤에 쓰세요.")
+                Text(CloudSync.isActive
+                     ? "iCloud 동기화가 켜져 있으면 복원하지 않습니다 — 복원한 사람과 iCloud 의 사람이 둘씩 생길 수 있습니다. 위에서 동기화를 끄고 앱을 다시 연 뒤 복원하세요."
+                     : "앱에 사람이나 기록이 하나도 없을 때만 복원합니다 — 지금 자료와 섞이지 않게. 새 기기나 다시 설치한 뒤에 쓰세요.")
             }
 
             if let working {
@@ -133,7 +142,9 @@ struct SettingsView: View {
             }
 
             Section {
-                Label("자료는 이 기기에만 저장됩니다. 앱은 인터넷으로 아무것도 보내지 않습니다.", systemImage: "lock")
+                Label(CloudSync.isActive
+                      ? "자료는 이 기기와 내 iCloud 의 비공개 영역에 저장됩니다. 앱은 자기 서버로 아무것도 보내지 않고, 개발자는 볼 수 없습니다."
+                      : "자료는 이 기기에만 저장됩니다. 앱은 인터넷으로 아무것도 보내지 않습니다.", systemImage: "lock")
                 Label("기기의 iCloud 백업을 켜 두었다면 이 앱의 자료도 그 백업에 함께 들어갑니다.", systemImage: "icloud")
                 Label("전화 · 메일 단추는 기기의 전화 · 메일 앱으로 넘겨 줄 뿐입니다.", systemImage: "phone")
             } header: {
@@ -232,6 +243,48 @@ struct SettingsView: View {
         let short = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
         return "\(short) (빌드 \(build))"
+    }
+
+    /// **iCloud 동기화** (D-42). 준비 판에서는 저장 형태 준비 상태를, 동기화 판에서는 켜고 끄기를 보인다.
+    @ViewBuilder
+    private var syncSection: some View {
+        Section {
+            if CloudSync.mainStoreSyncAvailable {
+                Toggle("iCloud 동기화", isOn: $syncWanted)
+                if syncWanted != CloudSync.isActive {
+                    Label("앱을 완전히 닫았다가 다시 열면 적용됩니다.", systemImage: "arrow.clockwise")
+                        .font(.scaled(14))
+                        .foregroundStyle(Color.accent)
+                }
+            } else {
+                LabeledContent("iCloud 준비") {
+                    Text(CloudSchema.isDone ? "끝" : (preparingSchema ? "준비 중…" : "아직"))
+                        .foregroundStyle(CloudSchema.isDone ? Color.accent : Color.muted)
+                }
+                if let schemaMessage {
+                    Text(schemaMessage)
+                        .font(.scaled(13))
+                        .foregroundStyle(Color.muted)
+                }
+                Button {
+                    preparingSchema = true
+                    Task {
+                        await CloudSchema.prepare(force: true)
+                        schemaMessage = CloudSchema.message
+                        preparingSchema = false
+                    }
+                } label: {
+                    Label("다시 준비", systemImage: "icloud.and.arrow.up")
+                }
+                .disabled(preparingSchema)
+            }
+        } header: {
+            Text("iCloud 동기화")
+        } footer: {
+            Text(CloudSync.mainStoreSyncAvailable
+                 ? "같은 Apple 계정으로 로그인한 아이폰 · 아이패드가 같은 사람 · 기록을 봅니다. 자료는 내 iCloud 의 비공개 영역에 저장되고 개발자는 볼 수 없습니다. 끄면 이 기기 안에만 둡니다."
+                 : "다음 판에서 아이폰 · 아이패드 동기화가 켜집니다. 지금은 iCloud 에 저장 형태만 준비합니다 — 사람 · 기록은 올라가지 않습니다. iCloud 에 로그인한 채 인터넷이 될 때 한 번 끝나면 됩니다.")
+        }
     }
 
     enum FileKind {

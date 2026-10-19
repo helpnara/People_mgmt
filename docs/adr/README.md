@@ -8,3 +8,4 @@
 | [0002](0002-core-package.md) | 순수 로직은 `Packages/Core` — Foundation 만, 리눅스에서 테스트 | 채택 |
 | [0003](0003-record-participants.md) | 기록은 참여자 N:M, 첫 인연은 사람의 속성 | 채택 |
 | [0004](0004-metrics-do-not-score-people.md) | 관계 지표는 사람을 점수화하지 않는다 | 채택 |
+| [0005](0005-icloud-sync.md) | 아이폰 ↔ 아이패드 동기화는 내 iCloud 비공개 영역으로 | 채택 (2026-10-19) |

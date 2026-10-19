@@ -189,6 +189,25 @@ struct PersonStore {
         return person
     }
 
+    /// **나가 둘 이상이면 먼저 만든 나만 남긴다** (iCloud 동기화 · D-43) — 두 기기에서 따로 나를 적은 뒤 이어지면 생긴다.
+    /// 나중 것은 지우지 않고 보통 사람으로 바꾼다(적은 내용을 잃지 않게). 바꾼 사람들의 이름을 돌려준다 — 화면이 한 번 알린다.
+    @discardableResult
+    func resolveDuplicateMe() throws -> [String] {
+        let mine = try context.fetch(FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == true }))
+            .filter { !$0.isGone }
+            .sorted { $0.createdAt != $1.createdAt ? $0.createdAt < $1.createdAt : $0.uuid.uuidString < $1.uuid.uuidString }
+        guard mine.count > 1 else { return [] }
+        let demoted = Array(mine.dropFirst())
+        for person in demoted { person.isMe = false }
+        try commit()
+        let names = demoted.map(\.name)
+        UserDefaults.standard.set(names, forKey: Self.demotedMeKey)
+        return names
+    }
+
+    /// 나에서 보통 사람으로 바꾼 이름들 — 목록이 한 번 알리고 지운다.
+    static let demotedMeKey = "sync.demotedMe"
+
     /// 여러 사람을 한 번에 저장한다 (vCard 가져오기 · D-41). 하나라도 실패하면 모두 되돌린다(`commit`).
     @discardableResult
     func createMany(_ drafts: [PersonDraft]) throws -> [Person] {

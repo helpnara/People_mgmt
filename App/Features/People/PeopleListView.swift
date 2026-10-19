@@ -1,3 +1,4 @@
+import CoreData
 import Combine
 import Core
 import SwiftData
@@ -49,6 +50,8 @@ struct PeopleListView: View {
     @State private var recordCandidates: [Person] = []
     @State private var recordPick: Person?
     @State private var recordAnchor: Person?
+    /// 나에서 보통 사람으로 바꾼 이름 (iCloud 동기화 · D-43) — 한 번 알린다.
+    @State private var demotedMe: [String] = UserDefaults.standard.stringArray(forKey: PersonStore.demotedMeKey) ?? []
 
     private var store: PersonStore { PersonStore(context: context) }
 
@@ -203,6 +206,19 @@ struct PeopleListView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             dataVersion += 1
+        }
+        // 다른 기기에서 바뀐 자료가 iCloud 로 들어왔을 때 (D-42) — 정렬 · 색인 · 요약을 다시 세고, 나가 둘이면 정리한다.
+        .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in
+            guard CloudSync.isActive else { return }
+            dataVersion += 1
+            if let names = try? store.resolveDuplicateMe(), !names.isEmpty { demotedMe = names }
+        }
+        .alert("나는 한 사람만 둡니다", isPresented: Binding(get: { !demotedMe.isEmpty }, set: { if !$0 { demotedMe = [] } })) {
+            Button("확인", role: .cancel) {
+                UserDefaults.standard.removeObject(forKey: PersonStore.demotedMeKey)
+            }
+        } message: {
+            Text("다른 기기에서도 나를 적어 두어 나가 둘이 되었습니다. 먼저 만든 나를 남기고 나머지는 보통 사람으로 바꿨습니다 — \(demotedMe.joined(separator: ", ")). 지우지는 않았습니다.")
         }
         .task(id: ListKey(version: dataVersion, sort: sortOption, count: fetched.count)) {
             sortedPeople = LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {

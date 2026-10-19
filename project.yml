@@ -44,6 +44,17 @@ targets:
     dependencies:
       - package: Core
         product: Core
+    # **iCloud 동기화** (D-42 · ADR-0005) — 내 iCloud 비공개 영역(CloudKit). 앱 소스 폴더 밖에 둔다 — App/ 안이면 리소스로 잡힌다.
+    # 푸시는 CloudKit 이 다른 기기의 변경을 조용히 알리는 데만 쓴다(사용자에게 보이는 원격 알림은 없다).
+    # 개발 · 배포 환경은 내보내기에서 정한다(testflight.yml 의 icloud_env) — 준비 판은 Development, 그 뒤는 Production.
+    entitlements:
+      path: Config/SlowConnection.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.helpnara.slow.connection
+        com.apple.developer.icloud-services:
+          - CloudKit
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.helpnara.slow.connection
@@ -80,6 +91,9 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        # iCloud 동기화 (D-42) — 다른 기기의 변경을 조용한 푸시로 받아 앱이 잠깐 깨어 내려받는다.
+        UIBackgroundModes:
+          - remote-notification
         # 암호화를 직접 쓰지 않는다. 없으면 TestFlight 에 올릴 때마다 수출 규정 질문에 손으로 답해야 한다.
         ITSAppUsesNonExemptEncryption: false
         # Face ID 문구는 앱 잠금(FR-029, P1)을 만드는 빌드에서 함께 넣는다 — 쓰지 않는 권한 문구는 심사에서
