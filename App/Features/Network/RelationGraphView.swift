@@ -56,6 +56,13 @@ struct RelationGraphView: View {
     @State private var slicePresent: [Bool] = []
     /// 시점마다 셈해 둔 자리 — 다시 고르면 바로 그린다.
     @State private var slicePositions: [Int: [GraphLayout.Point]] = [:]
+    /// 그리는 자리 (이슈 29). 시점을 옮기면 앞 자리(`fromPositions`)에서 새 자리(`shownPositions`)로 잠깐 옮겨 간다 —
+    /// 그 시점의 자리를 셈하는 동안에도 앞 그림을 그대로 둔다(지금 자리로 잠깐 돌아갔다가 툭 바뀌지 않게).
+    @State private var shownPositions: [GraphLayout.Point] = []
+    @State private var fromPositions: [GraphLayout.Point] = []
+    @State private var moveStart: Date?
+    /// 지금이나 어느 시점에든 모임이 있는가 — 모임 줄을 시점마다 넣었다 뺐다 하지 않는다 (이슈 29).
+    @State private var hasAnyCommunities = false
 
     /// 접근성 크기 글씨 (AX1~5) — 칩 줄 · 켜기 · 설명 글이 화면을 다 차지해 관계도가 0 높이가 되었다 (빌드 14 · 이슈 26).
     /// 이때는 거르기를 차림표 하나로 접고 설명은 시트로 옮겨, **관계도 칸이 먼저** 자리를 갖는다.
@@ -66,9 +73,11 @@ struct RelationGraphView: View {
         sliceIndex.flatMap { $0 < timeline.slices.count ? timeline.slices[$0] : nil }
     }
     private var activeCommunities: [NetworkSnapshot.Community] { slice?.communities ?? snapshot.communities }
+    /// 옮겨 가는 끝 자리 — 누른 곳 찾기는 이것으로.
     private var activePositions: [GraphLayout.Point] {
-        sliceIndex.flatMap { slicePositions[$0] } ?? snapshot.positions
+        shownPositions.isEmpty ? snapshot.positions : shownPositions
     }
+    private static let moveDuration = 0.35
 
     var body: some View {
         VStack(spacing: 0) {
@@ -79,8 +88,11 @@ struct RelationGraphView: View {
             }
             GeometryReader { proxy in
                 let size = proxy.size
-                Canvas { context, canvasSize in
-                    draw(in: &context, size: canvasSize)
+                // 옮겨 가는 동안만 프레임마다 다시 그린다 (이슈 29). 멈춰 있으면 쉰다.
+                TimelineView(.animation(minimumInterval: nil, paused: moveStart == nil)) { frame in
+                    Canvas { context, canvasSize in
+                        draw(in: &context, size: canvasSize, positions: displayedPositions(at: frame.date))
+                    }
                 }
                 .contentShape(Rectangle())
                 .gesture(
@@ -143,6 +155,9 @@ struct RelationGraphView: View {
             selected = nil
             sliceIndex = nil
             slicePositions = [:]
+            shownPositions = snapshot.positions
+            moveStart = nil
+            hasAnyCommunities = !snapshot.communities.isEmpty || timeline.slices.contains { !$0.communities.isEmpty }
             sliderValue = Double(timeline.slices.count)
             // CI 스크린샷 — 지난 시점의 관계도를 바로 연다 (`-timeSlice`).
             if let k = LaunchArguments.current.timeSlice, k < timeline.slices.count {
@@ -159,6 +174,12 @@ struct RelationGraphView: View {
             selected = nil
             prepareSlice()
             refreshMembership()
+            // 자리가 이미 있으면 바로 옮겨 가고, 없으면 셈이 끝날 때까지 앞 그림을 둔다.
+            if let next {
+                if let ready = slicePositions[next] { show(ready) }
+            } else {
+                show(snapshot.positions)
+            }
         }
         .task(id: sliceIndex) {
             // 막대를 끄는 동안은 셈하지 않는다 — 멈추고 0.25초 뒤 그 시점의 자리를 셈한다.
@@ -168,6 +189,14 @@ struct RelationGraphView: View {
             let positions = await Self.layout(slice: slice, peopleCount: snapshot.people.count, start: snapshot.positions)
             guard !Task.isCancelled else { return }
             slicePositions[k] = positions
+            if sliceIndex == k { show(positions) }
+        }
+        .task(id: moveStart) {
+            // 옮겨 가기가 끝나면 프레임마다 그리기를 멈춘다.
+            guard moveStart != nil else { return }
+            try? await Task.sleep(for: .seconds(Self.moveDuration + 0.05))
+            guard !Task.isCancelled else { return }
+            moveStart = nil
         }
     }
 
@@ -188,26 +217,31 @@ struct RelationGraphView: View {
                 }
                 .padding(.horizontal, 16)
             }
-            if !activeCommunities.isEmpty {
+            // 시점을 옮겨도 줄 수가 같게 (이슈 29) — 줄이 생기고 없어지면 관계도 칸 높이가 바뀌어 그림이 커졌다 작아졌다 했다.
+            if hasAnyCommunities {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Text("모임").font(.scaled(13, weight: .semibold)).foregroundStyle(Color.muted)
+                        if activeCommunities.isEmpty {
+                            Text("이 시점에는 묶인 모임이 없습니다").font(.scaled(13)).foregroundStyle(Color.muted)
+                        }
                         ForEach(activeCommunities) { community in
                             chip("\(community.name) \(community.memberIDs.count)", selected: highlightCommunity == community.id) {
                                 toggleCommunity(community.id)
                             }
                         }
                     }
+                    .frame(minHeight: Font.scaledLength(44))
                     .padding(.horizontal, 16)
                 }
             }
-            if sliceIndex == nil {
-                Toggle(isOn: $showsOrganization) {
-                    Text("같은 소속도 옅은 선으로 잇기").font(.scaled(14)).foregroundStyle(Color.bodyText)
-                }
-                .tint(Color.accent)
-                .padding(.horizontal, 16)
+            // 지난 시점에는 같은 소속 선을 그리지 않는다(소속에는 날짜가 없다) — 줄은 두고 흐리게.
+            Toggle(isOn: $showsOrganization) {
+                Text("같은 소속도 옅은 선으로 잇기").font(.scaled(14)).foregroundStyle(Color.bodyText)
             }
+            .tint(Color.accent)
+            .disabled(sliceIndex != nil)
+            .padding(.horizontal, 16)
         }
         .padding(.bottom, 8)
     }
@@ -342,6 +376,9 @@ struct RelationGraphView: View {
                 Text(timeLine)
                     .font(.scaled(12))
                     .foregroundStyle(Color.muted)
+                    // 시점마다 글 길이가 달라도 세 줄 자리를 늘 잡는다 (이슈 29).
+                    .lineLimit(3, reservesSpace: true)
+                    .minimumScaleFactor(0.8)
             }
         }
         .padding(.horizontal, 16)
@@ -381,37 +418,52 @@ struct RelationGraphView: View {
     @ViewBuilder
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let selected, selected < snapshot.people.count {
-                let person = snapshot.people[selected]
-                NavigationLink(value: PersonID(id: person.id)) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(person.name).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink)
-                                .lineLimit(compact ? 1 : nil)
-                            Text(selectedDetail).font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(compact ? 1 : 2)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right").foregroundStyle(Color.muted)
-                    }
-                    .padding(12)
-                    .background(Color.raised, in: RoundedRectangle(cornerRadius: 12))
+            // 누른 사람 칸과 안내 글이 같은 자리를 쓴다 — 사람 칸 높이를 늘 잡아 두어, 누르거나 시점을 옮겨도
+            // 관계도 칸 높이가 바뀌지 않게 (이슈 29).
+            ZStack(alignment: .topLeading) {
+                // 큰 글씨에서는 잡아 두지 않는다 — 관계도 칸이 먼저 자리를 갖는다 (이슈 26).
+                if !compact {
+                    personCard(name: " ", detail: " \n ")
+                        .hidden()
+                        .accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-            } else if !compact {
-                Text(Self.hint)
-                    .font(.scaled(13))
-                    .foregroundStyle(Color.muted)
+                if let selected, selected < snapshot.people.count {
+                    let person = snapshot.people[selected]
+                    NavigationLink(value: PersonID(id: person.id)) {
+                        personCard(name: person.name, detail: selectedDetail)
+                    }
+                    .buttonStyle(.plain)
+                } else if !compact {
+                    Text(Self.hint)
+                        .font(.scaled(13))
+                        .foregroundStyle(Color.muted)
+                }
             }
             // 큰 글씨에서는 설명 글을 시트로 (이슈 26) — 위 줄 오른쪽의 설명 단추.
             if !compact {
-                if sliceIndex == nil {
-                    readiness
-                }
+                // 지난 시점에는 지금의 숫자를 감추되 자리는 둔다 (이슈 29).
+                readiness
+                    .opacity(sliceIndex == nil ? 1 : 0)
+                    .accessibilityHidden(sliceIndex != nil)
                 RecordedScopeNotice()
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, compact ? 8 : 16)
+    }
+
+    private func personCard(name: String, detail: String) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink)
+                    .lineLimit(compact ? 1 : nil)
+                Text(detail).font(.scaled(13)).foregroundStyle(Color.muted).lineLimit(compact ? 1 : 2)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(Color.muted)
+        }
+        .padding(12)
+        .background(Color.raised, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private static let hint = "점을 누르면 그 사람을 봅니다. 두 손가락으로 키우고 옮기고, 두 번 누르면 처음 크기로."
@@ -544,8 +596,7 @@ struct RelationGraphView: View {
         sliceIndex == nil || (i < slicePresent.count && slicePresent[i])
     }
 
-    private func draw(in context: inout GraphicsContext, size: CGSize) {
-        let positions = activePositions
+    private func draw(in context: inout GraphicsContext, size: CGSize, positions: [GraphLayout.Point]) {
         guard positions.count == snapshot.people.count + 1 else { return }
         // 앱을 쓰기 전 시기는 옅게 (D-32).
         if slice?.beforeUse == true { context.opacity = 0.55 }
@@ -642,6 +693,31 @@ struct RelationGraphView: View {
             if d < 22, d < (best?.distance ?? .infinity) { best = (i, d) }
         }
         return best?.index
+    }
+
+    /// 그 순간 그릴 자리 — 옮겨 가는 중이면 앞 자리와 새 자리 사이 (처음 빠르고 끝에 느리게).
+    private func displayedPositions(at date: Date) -> [GraphLayout.Point] {
+        let target = activePositions
+        guard let start = moveStart, fromPositions.count == target.count else { return target }
+        let progress = min(max(date.timeIntervalSince(start) / Self.moveDuration, 0), 1)
+        guard progress < 1 else { return target }
+        let eased = 1 - pow(1 - progress, 3)
+        return zip(fromPositions, target).map { from, to in
+            GraphLayout.Point(x: from.x + (to.x - from.x) * eased, y: from.y + (to.y - from.y) * eased)
+        }
+    }
+
+    /// 새 자리로 옮겨 간다. 동작 줄이기를 켜 두었으면 바로 (요구사항 8.6 · D-33).
+    private func show(_ target: [GraphLayout.Point]) {
+        guard target != shownPositions else { return }
+        guard !reduceMotion, !shownPositions.isEmpty, shownPositions.count == target.count else {
+            moveStart = nil
+            shownPositions = target
+            return
+        }
+        fromPositions = displayedPositions(at: Date())
+        shownPositions = target
+        moveStart = Date()
     }
 
     /// 볼록 껍질 (단조 사슬). 점이 둘 이하이면 그대로 — 굵은 선이 감싼다.
