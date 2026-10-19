@@ -46,7 +46,7 @@ targets:
         product: Core
     # **iCloud 동기화** (D-42 · ADR-0005) — 내 iCloud 비공개 영역(CloudKit). 앱 소스 폴더 밖에 둔다 — App/ 안이면 리소스로 잡힌다.
     # 푸시는 CloudKit 이 다른 기기의 변경을 조용히 알리는 데만 쓴다(사용자에게 보이는 원격 알림은 없다).
-    # 개발 · 배포 환경은 내보내기에서 정한다(testflight.yml 의 icloud_env) — 준비 판은 Development, 그 뒤는 Production.
+    # 내보내는 판은 늘 iCloud 배포 환경(Production). 스키마는 CI(cloudkit-schema.yml)가 개발 환경에 올리고 사람이 배포한다 (ADR-0005).
     entitlements:
       path: Config/SlowConnection.entitlements
       properties:

@@ -13,6 +13,8 @@ on:
       - "**.md"
       - "Tools/golden/**"
       - "Tools/site/**"
+      - "Tools/cloudkit/**"
+      - ".github/workflows/cloudkit-schema.yml"
       - ".github/workflows/core-test.yml"
       - ".github/workflows/probe.yml"
       - ".github/workflows/site.yml"
