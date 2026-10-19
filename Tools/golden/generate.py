@@ -234,6 +234,243 @@ def reminder_plan(people, today, options, limit=REMINDER_LIMIT):
     return out[:limit]
 
 
+# ── vCard 만들기 · 읽기 · 같은 사람 판정 (VCard · ImportMatcher · 빌드 18 · D-41) ───────────────
+# 만들기는 3.0, 읽기는 2.1 · 3.0 · 4.0 을 너그럽게. 전화 종류는 연락처 가져오기 규칙(contact_from_contact)으로.
+
+def vcard_escape(text):
+    out = []
+    for ch in text:
+        out.append({"\\": "\\\\", "\n": "\\n", ",": "\\,", ";": "\\;"}.get(ch, ch))
+    return "".join(out)
+
+
+def vcard_encode(people):
+    out = ""
+    for p in people:
+        lines = ["BEGIN:VCARD", "VERSION:3.0", f"N:;{vcard_escape(p['name'])};;;", f"FN:{vcard_escape(p['name'])}"]
+        if p.get("nickname"):
+            lines.append(f"NICKNAME:{vcard_escape(p['nickname'])}")
+        if p.get("organization"):
+            lines.append(f"ORG:{vcard_escape(p['organization'])}")
+        if p.get("role"):
+            lines.append(f"TITLE:{vcard_escape(p['role'])}")
+        f = p["fields"]
+        if f["mobile"]:
+            lines.append(f"TEL;TYPE=CELL:{vcard_escape(f['mobile'])}")
+        if f["office"]:
+            lines.append(f"TEL;TYPE=WORK,VOICE:{vcard_escape(f['office'])}")
+        if f["fax"]:
+            lines.append(f"TEL;TYPE=WORK,FAX:{vcard_escape(f['fax'])}")
+        if f["email"]:
+            lines.append(f"EMAIL;TYPE=INTERNET:{vcard_escape(f['email'])}")
+        if p.get("birthMonth") is not None and p.get("birthDay") is not None:
+            if p.get("birthYear") is not None:
+                lines.append(f"BDAY:{p['birthYear']:04d}-{p['birthMonth']:02d}-{p['birthDay']:02d}")
+            else:
+                lines.append(f"BDAY:--{p['birthMonth']:02d}{p['birthDay']:02d}")
+        if f["other"]:
+            lines.append(f"NOTE:{vcard_escape(f['other'])}")
+        lines.append("END:VCARD")
+        out += "\r\n".join(lines) + "\r\n"
+    return out
+
+
+def _vcard_unescape(text):
+    out, escaped = [], False
+    for ch in text:
+        if escaped:
+            out.append("\n" if ch in "nN" else ch)
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        else:
+            out.append(ch)
+    if escaped:
+        out.append("\\")
+    return "".join(out)
+
+
+def _vcard_split(text):
+    parts, cur, escaped = [], [], False
+    for ch in text:
+        if escaped:
+            cur.append("\\" + ch)
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        elif ch == ";":
+            parts.append(_vcard_unescape("".join(cur)))
+            cur = []
+        else:
+            cur.append(ch)
+    if escaped:
+        cur.append("\\")
+    parts.append(_vcard_unescape("".join(cur)))
+    return parts
+
+
+def _vcard_is_qp(line):
+    if ":" not in line:
+        return False
+    return "QUOTED-PRINTABLE" in line.split(":", 1)[0].upper()
+
+
+def _vcard_qp(text):
+    data = text.encode("utf-8")
+    out, i = bytearray(), 0
+    hexd = "0123456789abcdefABCDEF"
+    while i < len(data):
+        if data[i] == 61 and i + 2 < len(data) and chr(data[i + 1]) in hexd and chr(data[i + 2]) in hexd:
+            out.append(int(chr(data[i + 1]) + chr(data[i + 2]), 16))
+            i += 3
+        else:
+            out.append(data[i])
+            i += 1
+    return out.decode("utf-8", errors="replace")
+
+
+def _ascii_digits(s):
+    return all("0" <= c <= "9" for c in s)
+
+
+def _vcard_birthday(raw, omit):
+    text = raw.strip(" ")
+    if "T" in text:
+        text = text[:text.index("T")]
+    year = None
+    if text.startswith("--"):
+        rest = text[2:]
+    else:
+        digits = text.replace("-", "")
+        if len(digits) != 8 or not _ascii_digits(digits):
+            return None
+        year = int(digits[:4])
+        rest = digits[4:]
+    rest = rest.replace("-", "")
+    if len(rest) != 4 or not _ascii_digits(rest):
+        return None
+    month, day = int(rest[:2]), int(rest[2:])
+    if year is not None and omit is not None and _ascii_digits(omit) and omit and int(omit) == year:
+        year = None
+    return (month, day, year) if birthday_valid(month, day, year) else None
+
+
+def vcard_parse(text):
+    raw = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines = []
+    for line in raw:
+        if lines:
+            if line.startswith(" ") or line.startswith("\t"):
+                lines[-1] += line[1:]
+                continue
+            if _vcard_is_qp(lines[-1]) and lines[-1].endswith("="):
+                lines[-1] = lines[-1][:-1] + line
+                continue
+        lines.append(line)
+    people, card = [], None
+    clean = lambda t: collapsed_spaces(normalized(t))
+    for line in lines:
+        if ":" not in line:
+            continue
+        head, value = line.split(":", 1)
+        head_parts = head.split(";")
+        name = head_parts.pop(0).upper()
+        if "." in name:
+            name = name[name.rindex(".") + 1:]
+        if name == "BEGIN" and value.upper() == "VCARD":
+            card = {"fn": "", "family": "", "given": "", "nickname": "", "org": "", "role": "", "phones": [], "emails": [], "note": "", "bday": None}
+            continue
+        if name == "END" and value.upper() == "VCARD":
+            if card is not None:
+                nm = clean(card["fn"]) or contact_name(card["given"], card["family"])
+                if nm:
+                    f = contact_from_contact(card["phones"], card["emails"])
+                    if card["note"]:
+                        contact_place(f, card["note"], "other")
+                    b = card["bday"]
+                    people.append({"name": nm, "nickname": clean(card["nickname"]), "organization": clean(card["org"]),
+                                   "role": clean(card["role"]), "fields": f,
+                                   "birthMonth": b[0] if b else None, "birthDay": b[1] if b else None, "birthYear": b[2] if b else None})
+            card = None
+            continue
+        if card is None:
+            continue
+        types, params = [], {}
+        for part in head_parts:
+            if "=" in part:
+                key, val = part.split("=", 1)
+                key = key.upper()
+                val = val.replace('"', "")   # 4.0 은 TYPE="work,voice" 처럼 따옴표를 친다
+                params[key] = val
+                if key == "TYPE":
+                    types += [t.upper() for t in val.split(",") if t]
+            else:
+                types.append(part.upper())
+        if params.get("ENCODING", "").upper() == "QUOTED-PRINTABLE" or "QUOTED-PRINTABLE" in types:
+            value = _vcard_qp(value)
+        if name == "FN":
+            card["fn"] = _vcard_unescape(value)
+        elif name == "N":
+            parts = _vcard_split(value)
+            card["family"] = parts[0] if parts else ""
+            card["given"] = parts[1] if len(parts) > 1 else ""
+        elif name == "NICKNAME":
+            card["nickname"] = _vcard_unescape(value)
+        elif name == "ORG":
+            card["org"] = _vcard_split(value)[0]
+        elif name == "TITLE":
+            card["role"] = _vcard_unescape(value)
+        elif name == "TEL":
+            label = ",".join(t for t in types if t not in ("VOICE", "PREF", "INTERNET", "QUOTED-PRINTABLE") and not t.startswith("CHARSET"))
+            number = _vcard_unescape(value)
+            if number.lower().startswith("tel:"):   # 4.0 의 VALUE=uri
+                number = number[4:]
+            card["phones"].append({"label": label, "value": number})
+        elif name == "EMAIL":
+            card["emails"].append(_vcard_unescape(value))
+        elif name == "NOTE":
+            card["note"] = _vcard_unescape(value)
+        elif name == "BDAY":
+            card["bday"] = _vcard_birthday(value, params.get("X-APPLE-OMIT-YEAR"))
+    return people
+
+
+def import_name_key(name):
+    return folded("".join(ch for ch in name if not ch.isspace()))
+
+
+def _phone_key(number):
+    digits = "".join(c for c in number if "0" <= c <= "9")
+    if "+" in number and digits.startswith("82"):
+        digits = "0" + digits[2:]
+    return digits if len(digits) >= 7 else None
+
+
+def _contact_keys(f):
+    out = {"t:" + k for k in (_phone_key(f["mobile"]), _phone_key(f["office"]), _phone_key(f["fax"])) if k}
+    email = f["email"].strip(" ").lower()
+    if email:
+        out.add("e:" + email)
+    return out
+
+
+def import_match(incoming, existing):
+    prepared = [(e, import_name_key(e["name"]), _contact_keys(e["fields"])) for e in existing]
+    out = []
+    for p in incoming:
+        name, wanted = import_name_key(p["name"]), _contact_keys(p["fields"])
+        same = [x for x in prepared if x[1] == name]
+        hit = next((x for x in same if wanted <= x[2]), None)
+        if hit:
+            out.append({"verdict": "duplicate", "existingID": hit[0]["id"].upper()})
+        elif same:
+            out.append({"verdict": "possibleSame", "existingID": same[0][0]["id"].upper()})
+        else:
+            hit = next((x for x in prepared if wanted and x[2] & wanted), None)
+            out.append({"verdict": "possibleSame", "existingID": hit[0]["id"].upper()} if hit else {"verdict": "new", "existingID": None})
+    return out
+
+
 # ── 날 수 (RelativeDay) ──────────────────────────────────────────────────────
 
 def relative_day(days: int) -> str:
@@ -1332,6 +1569,10 @@ def build() -> dict:
                          "limit": c.get("limit", REMINDER_LIMIT),
                          "expected": reminder_plan(c["people"], c["today"], c["options"], c.get("limit", REMINDER_LIMIT))}
                         for c in cases["reminders"]]
+    out["vcardEncode"] = [{"name": c["name"], "people": c["people"], "expected": vcard_encode(c["people"])} for c in cases["vcardEncode"]]
+    out["vcardParse"] = [{"name": c["name"], "text": c["text"], "expected": vcard_parse(c["text"])} for c in cases["vcardParse"]]
+    out["importMatch"] = [{"name": c["name"], "incoming": c["incoming"], "existing": c["existing"],
+                           "expected": import_match(c["incoming"], c["existing"])} for c in cases["importMatch"]]
     out["timelineSort"] = [{"name": c["name"], "records": c["records"], "expected": sort_timeline(c["records"])}
                            for c in cases["timelineSort"]]
     out["validation"] = [{"name": c["name"], "expected": name_problem(c["name"])}

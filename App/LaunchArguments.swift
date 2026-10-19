@@ -50,6 +50,8 @@ struct LaunchArguments: Sendable {
     let openSettings: Bool
     /// 아는 사이 후보 화면을 바로 연다 (`-openSuggestions` · 빌드 16).
     let openSuggestions: Bool
+    /// 스토어 스크린샷 (`-storeShots` · 빌드 18) — 견본 안내 띠를 숨긴다. 사람은 여전히 모두 지어낸 견본이다.
+    let storeShots: Bool
 
     init(_ arguments: [String]) {
         seedSampleData = arguments.contains("-seedSampleData")
@@ -69,6 +71,7 @@ struct LaunchArguments: Sendable {
         failSaves = arguments.contains("-failSaves")
         openSettings = arguments.contains("-openSettings")
         openSuggestions = arguments.contains("-openSuggestions")
+        storeShots = arguments.contains("-storeShots")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
             return arguments[index + 1]

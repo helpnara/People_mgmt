@@ -189,6 +189,19 @@ struct PersonStore {
         return person
     }
 
+    /// 여러 사람을 한 번에 저장한다 (vCard 가져오기 · D-41). 하나라도 실패하면 모두 되돌린다(`commit`).
+    @discardableResult
+    func createMany(_ drafts: [PersonDraft]) throws -> [Person] {
+        let people = drafts.map { draft -> Person in
+            let person = Person(name: TextNormalization.normalized(draft.name))
+            context.insert(person)
+            fill(person, from: draft)
+            return person
+        }
+        try commit()
+        return people
+    }
+
     /// 실패하면 옛 값을 되돌려 쓴다 — `rollback()` 은 새로 넣은 것은 버리지만 **이미 있던 사람의 바뀐 칸은
     /// 되돌리지 않았다** (빌드 12 CI · `AuditFixTests`). 그대로 두면 `버리기` 를 해도 바뀐 값이 남았다가 자동 저장에 실린다.
     func apply(_ draft: PersonDraft, to person: Person) throws {

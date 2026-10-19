@@ -35,6 +35,9 @@ enum SampleData {
         haneul.firstNote = "입사 첫날 옆자리에 앉았다. 점심을 같이 먹으며 팀 분위기를 알려 주었다."
         haneul.tags = ["멘토", "독서모임"]
         haneul.mobilePhone = "010-1234-5678"
+        haneul.birthMonth = 5   // 생일 · 연락 주기 (5판) — 지어낸 견본
+        haneul.birthDay = 21
+        haneul.contactCadenceMonths = 3
         haneul.officePhone = "02-555-0101"
         haneul.email = "haneul@example.com"
         haneul.businessCard = renderCard(organization: "청림소프트 주식회사", name: "김하늘", role: "개발팀 팀장",

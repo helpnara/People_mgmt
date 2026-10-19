@@ -278,8 +278,9 @@ enum Backup {
 }
 
 /// 파일 앱에 저장할 때 넘기는 문서 — 내용은 이미 만든 JSON 바이트.
+/// vCard 내보내기(빌드 18)도 같은 그릇을 쓴다 — 설정 화면 하나에 파일 내보내기를 둘 걸면 SwiftUI 가 하나만 띄운다.
 struct BackupDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
+    static var readableContentTypes: [UTType] { [.json, .vCard] }
 
     var data: Data
 

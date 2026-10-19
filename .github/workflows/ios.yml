@@ -125,6 +125,33 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "선택한 시뮬레이터: $NAME ($UDID)"
 
+      # **스토어용 6.9형 iPhone** (빌드 18 · 1.0 준비) — App Store Connect 가 받는 가장 큰 iPhone 크기(1320×2868).
+      - name: 스토어용 iPhone 고르기
+        id: store
+        run: |
+          read -r UDID NAME <<< "$(xcrun simctl list devices available -j | python3 -c "
+          import json, re, sys
+          data = json.load(sys.stdin)['devices']
+          best = None
+          for runtime, devices in data.items():
+              if 'iOS' not in runtime:
+                  continue
+              m = re.search(r'iOS-(\\d+)-(\\d+)', runtime)
+              version = (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+              for d in devices:
+                  name = d.get('name', '')
+                  n = re.match(r'iPhone (\\d+) Pro Max\$', name)
+                  if not d.get('isAvailable') or not n:
+                      continue
+                  key = (version, int(n.group(1)))
+                  if best is None or key > best[0]:
+                      best = (key, d['udid'], name)
+          print(*(best[1], best[2]) if best else ('', ''))
+          ")"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "스토어용 iPhone: ${NAME:-없음} ($UDID)"
+
       # **iPad 도 한 대 고른다** (D-19 유니버설). 넓은 화면에서 늘어지는 자리를 본다.
       - name: iPad 시뮬레이터 고르기
         id: ipad
@@ -417,7 +444,37 @@ jobs:
             echo "::warning::iPad 시뮬레이터가 없어 iPad 스크린샷을 건너뜁니다"
           fi
 
-          ls -la screenshots screenshots/dark screenshots/ipad 2>/dev/null || true
+          # ── 스토어용 (6.9형 iPhone · 13형 iPad) — 견본 안내 띠를 숨긴다(-storeShots). 사람은 모두 지어낸 견본이다. ──
+          STORE="${{ steps.store.outputs.udid }}"
+          if [ -n "$STORE" ]; then
+            echo "── 스토어: ${{ steps.store.outputs.name }} ──"
+            SHOOT_WAIT=12; SHOOT_ATTEMPTS=4
+            xcrun simctl boot "$STORE" || true
+            xcrun simctl bootstatus "$STORE" -b
+            status_bar "$STORE"
+            xcrun simctl install "$STORE" "$APP"
+            mkdir -p screenshots/store
+            UDID="$STORE"
+            shoot store/01-people.png -seedSampleData -storeShots
+            shoot store/02-person-detail.png -seedSampleData -storeShots -openPerson 김하늘
+            shoot store/03-record-detail.png -seedSampleData -storeShots -openPerson 김하늘 -openRecord
+            shoot store/04-network-graph.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph
+            shoot store/05-network-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
+            shoot store/06-readiness.png -seedSampleData -storeShots -openNetwork readiness
+            xcrun simctl shutdown "$STORE" || true
+            UDID="${{ steps.sim.outputs.udid }}"
+          else
+            echo "::warning::Pro Max 시뮬레이터가 없어 스토어용 스크린샷을 건너뜁니다"
+          fi
+          if [ -n "$IPAD" ]; then
+            UDID="$IPAD"
+            shoot store/ipad-01-people.png -seedSampleData -storeShots
+            shoot store/ipad-02-person-detail.png -seedSampleData -storeShots -openPerson 김하늘
+            shoot store/ipad-03-network-graph.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph
+            UDID="${{ steps.sim.outputs.udid }}"
+          fi
+
+          ls -la screenshots screenshots/dark screenshots/ipad screenshots/store 2>/dev/null || true
 
           # 한 장이라도 못 찍었으면 막는다. 스크린샷은 원격 세션에서 앱이 실제로 도는지 보는 유일한 창구다.
           if [ -s /tmp/shoot-failures ]; then

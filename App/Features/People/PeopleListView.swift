@@ -256,7 +256,7 @@ struct PeopleListView: View {
 
     private var list: some View {
         List {
-            if isSampleData {
+            if isSampleData && !arguments.storeShots {
                 Section {
                     Label("견본 자료입니다. 실제 인연이 아닙니다.", systemImage: "info.circle")
                         .font(.scaled(13))
@@ -335,8 +335,9 @@ struct PeopleListView: View {
             if let me = meList.first, !me.isGone {
                 NavigationLink(value: me) {
                     HStack(spacing: 12) {
+                        // 그림은 xxxLarge 에서 멈춘다 — 가장 큰 글씨에서 이름보다 커지지 않게 (빌드 18).
                         Image(systemName: "person.crop.circle.fill")
-                            .font(.scaled(30))
+                            .font(.scaledCapped(30))
                             .foregroundStyle(Color.accent)
                         PersonRow(person: me, evidence: nil)
                     }
