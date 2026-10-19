@@ -73,8 +73,13 @@ public enum AcquaintanceSuggestions {
             }
         }
 
+        // 이름 열쇠는 사람마다 한 번만 센다 — 줄 세우는 동안 견줄 때마다 세면 5,000명에서 수 초다 (D-47).
+        var nameKeys: [UUID: (String, String)] = [:]
         func nameKey(_ id: UUID) -> (String, String) {
-            (NameSort.key(byID[id]?.name ?? ""), id.uuidString)
+            if let known = nameKeys[id] { return known }
+            let key = (NameSort.key(byID[id]?.name ?? ""), id.uuidString)
+            nameKeys[id] = key
+            return key
         }
         func precedes(_ l: (String, String), _ r: (String, String)) -> Bool {
             l.0 != r.0 ? l.0 < r.0 : l.1 < r.1
