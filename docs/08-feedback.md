@@ -41,6 +41,7 @@
 - `testflight.yml` 을 `icloud_env = Development` 로 돌리자 내보내기가 `iCloudContainerEnvironment: value Development is not allowed` 로 죽었다 — App Store Connect 로 내보내는 판은 Production 만 받는다. 앱 안에서 스키마를 만드는 길(`initializeCloudKitSchema`)은 개발 환경에 붙은 판이 있어야 해서 맥 없이는 닫혔다.
 - **사용자 결정 (2026-10-19): 느린 부자 방식.** `Tools/cloudkit/generate-ckdb.py` 가 모델에서 `slowconnection.ckdb` 를 만들고, `cloudkit-schema.yml`(리눅스 · CKTool JS)이 개발 환경에 적용, 사용자가 콘솔에서 Production 으로 배포한다 (06-ci §7 · ADR-0005 개정). 앱의 임시 저장소 준비(`CloudSchema`)와 `icloud_env` 입력은 지웠다. 설정에는 마지막 동기화 때 · 실패를 보인다(`CloudSyncMonitor`).
 - 실행 번호 20 은 썼다 — 동기화 판은 빌드 21 이후.
+- 새 워크플로를 손으로 돌리려 하자 404 — 수동 실행 워크플로는 기본 브랜치(`main`)에 있어야 등록된다. **사용자 결정: 기본 브랜치를 작업 브랜치로** (느린 부자와 같음 · CLAUDE.md §5). 관리 토큰은 이 앱용으로 새로 만든다.
 
 ### 조사 (2026-10-18) — 인맥 분석 기법과 앱 벤치마킹
 
