@@ -12,8 +12,17 @@ enum Parallel {
             body(0..<count)
             return
         }
-        DispatchQueue.concurrentPerform(iterations: pieces) { k in
-            body((count * k / pieces)..<(count * (k + 1) / pieces))
+        // 리눅스의 `concurrentPerform` 은 넘기는 묶음에 `@Sendable` 을 요구한다. 덩어리마다 자기 자리에만 쓴다는 약속은
+        // 부르는 쪽이 지키므로(위 설명), 묶음을 상자에 담아 넘긴다. 상자는 이 함수가 끝나기 전에만 쓰인다.
+        withoutActuallyEscaping(body) { escapable in
+            let box = Unchecked(work: escapable)
+            DispatchQueue.concurrentPerform(iterations: pieces) { k in
+                box.work((count * k / pieces)..<(count * (k + 1) / pieces))
+            }
         }
+    }
+
+    private struct Unchecked: @unchecked Sendable {
+        let work: (Range<Int>) -> Void
     }
 }
