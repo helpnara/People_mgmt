@@ -174,6 +174,17 @@ struct PersonDetailView: View {
                     }
                 }
                 ContactRows(person: person)
+                // 생일 · 연락 주기 (5판 · D-40) — 적은 사람만.
+                if let month = person.birthMonth, let day = person.birthDay {
+                    Label("생일 " + BirthdayRule.text(month: month, day: day, year: person.birthYear), systemImage: "gift")
+                        .font(.scaled(15))
+                        .foregroundStyle(Color.bodyText)
+                }
+                if let months = person.contactCadenceMonths, !person.isMe {
+                    Label("연락 주기 \(months)개월", systemImage: "bell")
+                        .font(.scaled(15))
+                        .foregroundStyle(Color.bodyText)
+                }
                 if let introducer = person.introducedBy, !introducer.isGone {
                     NavigationLink(value: introducer) {
                         Label("\(introducer.name)의 소개로", systemImage: "arrow.turn.down.right")

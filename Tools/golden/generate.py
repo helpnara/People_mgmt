@@ -149,6 +149,91 @@ def recent_companions(records, excluding, limit=8):
     return out
 
 
+# ── 생일 · 알림 계획 (BirthdayRule · ReminderPlanner · 빌드 18 · D-40) ───────────────────────
+# 달력의 날만 센다(시간대 없음). 생일 당일 · 알게 된 지 n주년 · 연락 주기(고른 사람만, 지났으면 오늘로 한 번).
+# 오늘부터 366일 안, 날짜 → 종류(생일 · n주년 · 연락 주기) → 이름 순, 한도까지.
+
+import calendar as _calendar
+import datetime as _dt
+
+REMINDER_LIMIT = 60
+REMINDER_HORIZON = 366
+REMINDER_ORDER = {"birthday": 0, "anniversary": 1, "cadence": 2}
+
+
+def _days_in(month, year):
+    return _calendar.monthrange(year, month)[1]
+
+
+def _clamped(year, month, day):
+    return _dt.date(year, month, min(day, _days_in(month, year)))
+
+
+def _add_months(d, months):
+    index = d.year * 12 + (d.month - 1) + months
+    y, m = divmod(index, 12)
+    return _clamped(y, m + 1, d.day)
+
+
+def _next_occurrence(today, month, day):
+    this_year = _clamped(today.year, month, day)
+    return _clamped(today.year + 1, month, day) if this_year < today else this_year
+
+
+def birthday_valid(month, day, year):
+    if not (1 <= month <= 12) or day < 1:
+        return False
+    limit = _days_in(month, year) if year is not None else (29 if month == 2 else _days_in(month, 2001))
+    return day <= limit
+
+
+def birthday_text(month, day, year):
+    md = f"{month}월 {day}일"
+    return f"{year}년 {md}" if year is not None else md
+
+
+def _civil(d):
+    return None if d is None else _dt.date(d[0], d[1], d[2])
+
+
+def reminder_plan(people, today, options, limit=REMINDER_LIMIT):
+    if not any(options.values()):
+        return []
+    today = _civil(today)
+    horizon = today + _dt.timedelta(days=REMINDER_HORIZON)
+    out = []
+
+    def add(kind, p, date, title, body, named=None):
+        if date > horizon:
+            return
+        named = named or date   # 연락 주기는 기한 날로 이름을 붙인다 — 오늘로 당겨 와도 같은 이름
+        out.append({"id": f"{kind}|{p['id'].upper()}|{named.isoformat()}", "kind": kind, "personID": p["id"].upper(),
+                    "date": [date.year, date.month, date.day], "title": title, "body": body,
+                    "_key": (date, REMINDER_ORDER[kind], folded(p["name"]), p["id"].upper())})
+
+    for p in people:
+        bm, bd = p.get("birthMonth"), p.get("birthDay")
+        if options["birthdays"] and bm is not None and bd is not None and birthday_valid(bm, bd, None):
+            add("birthday", p, _next_occurrence(today, bm, bd), f"오늘은 {p['name']} 님 생일입니다", "축하 인사를 전해 보세요.")
+        met = _civil(p.get("firstMet"))
+        if options["anniversaries"] and met is not None:
+            nxt = _next_occurrence(today, met.month, met.day)
+            if nxt.year - met.year < 1:
+                nxt = _clamped(met.year + 1, met.month, met.day)
+            years = nxt.year - met.year
+            add("anniversary", p, nxt, f"{p['name']} 님과 알게 된 지 {years}년이 되었습니다",
+                "처음 만난 날 " + birthday_text(met.month, met.day, met.year))
+        months = p.get("cadenceMonths")
+        if options["cadence"] and months:
+            base = _civil(p.get("lastRecord")) or _civil(p["registered"])
+            due = _add_months(base, months)
+            add("cadence", p, max(due, today), f"{p['name']} 님과 {months}개월 동안 기록이 없습니다", "안부를 전하고 함께한 일을 남겨 보세요.", due)
+    out.sort(key=lambda r: r["_key"])
+    for r in out:
+        del r["_key"]
+    return out[:limit]
+
+
 # ── 날 수 (RelativeDay) ──────────────────────────────────────────────────────
 
 def relative_day(days: int) -> str:
@@ -1241,6 +1326,12 @@ def build() -> dict:
                                 "limit": c.get("limit", 8),
                                 "expected": recent_companions(c["records"], c.get("excluding", []), c.get("limit", 8))}
                                for c in cases["recentCompanions"]]
+    out["birthdays"] = [{"month": c[0], "day": c[1], "year": c[2], "valid": birthday_valid(c[0], c[1], c[2]),
+                         "text": birthday_text(c[0], c[1], c[2])} for c in cases["birthdays"]]
+    out["reminders"] = [{"name": c["name"], "people": c["people"], "today": c["today"], "options": c["options"],
+                         "limit": c.get("limit", REMINDER_LIMIT),
+                         "expected": reminder_plan(c["people"], c["today"], c["options"], c.get("limit", REMINDER_LIMIT))}
+                        for c in cases["reminders"]]
     out["timelineSort"] = [{"name": c["name"], "records": c["records"], "expected": sort_timeline(c["records"])}
                            for c in cases["timelineSort"]]
     out["validation"] = [{"name": c["name"], "expected": name_problem(c["name"])}

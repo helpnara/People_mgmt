@@ -58,6 +58,17 @@ final class GoldenTests: XCTestCase {
         struct RecentCompanionsCase: Decodable {
             let name: String; let records: [CompanionRecordRaw]; let excluding: [UUID]; let limit: Int; let expected: [UUID]
         }
+        struct BirthdayCase: Decodable { let month: Int; let day: Int; let year: Int?; let valid: Bool; let text: String }
+        struct ReminderPersonRaw: Decodable {
+            let id: UUID; let name: String; let birthMonth: Int?; let birthDay: Int?
+            let firstMet: [Int]?; let lastRecord: [Int]?; let registered: [Int]; let cadenceMonths: Int?
+        }
+        struct ReminderOptionsRaw: Decodable { let birthdays: Bool; let anniversaries: Bool; let cadence: Bool }
+        struct ReminderRaw: Decodable { let id: String; let kind: String; let personID: UUID; let date: [Int]; let title: String; let body: String }
+        struct ReminderCase: Decodable {
+            let name: String; let people: [ReminderPersonRaw]; let today: [Int]; let options: ReminderOptionsRaw
+            let limit: Int; let expected: [ReminderRaw]
+        }
         struct LinkRaw: Decodable { let i: Int; let j: Int; let weight: Double }
         struct LouvainExpected: Decodable { let communities: [[Int]]; let modularity: Double }
         struct LouvainCase: Decodable { let name: String; let nodeCount: Int; let links: [LinkRaw]; let resolution: Double; let expected: LouvainExpected }
@@ -146,6 +157,8 @@ final class GoldenTests: XCTestCase {
         let graphEdges: [GraphCase]
         let acquaintanceSuggestions: [SuggestionCase]
         let recentCompanions: [RecentCompanionsCase]
+        let birthdays: [BirthdayCase]
+        let reminders: [ReminderCase]
         let cardParse: [CardCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
@@ -345,6 +358,36 @@ final class GoldenTests: XCTestCase {
                                        participants: record.participants.map { RecentCompanions.Participant(id: $0.id, name: $0.name) })
             }
             XCTAssertEqual(RecentCompanions.pick(entries, excluding: Set(c.excluding), limit: c.limit), c.expected, c.name)
+        }
+    }
+
+    func testBirthdayRule() throws {
+        for c in try Self.loadGolden().birthdays {
+            XCTAssertEqual(BirthdayRule.isValid(month: c.month, day: c.day, year: c.year), c.valid, "\(c.text) 맞는 날인가")
+            XCTAssertEqual(BirthdayRule.text(month: c.month, day: c.day, year: c.year), c.text)
+        }
+    }
+
+    func testReminderPlanner() throws {
+        func civil(_ parts: [Int]?) -> CivilDate? {
+            guard let parts, parts.count == 3 else { return nil }
+            return CivilDate(year: parts[0], month: parts[1], day: parts[2])
+        }
+        for c in try Self.loadGolden().reminders {
+            let people = c.people.map { p in
+                ReminderPlanner.Person(id: p.id, name: p.name, birthMonth: p.birthMonth, birthDay: p.birthDay,
+                                       firstMet: civil(p.firstMet), lastRecord: civil(p.lastRecord),
+                                       registered: civil(p.registered) ?? CivilDate(year: 2000, month: 1, day: 1),
+                                       cadenceMonths: p.cadenceMonths)
+            }
+            let options = ReminderPlanner.Options(birthdays: c.options.birthdays, anniversaries: c.options.anniversaries,
+                                                  cadence: c.options.cadence)
+            let got = ReminderPlanner.plan(people, today: civil(c.today)!, options: options, limit: c.limit)
+            XCTAssertEqual(got.map(\.id), c.expected.map(\.id), c.name)
+            XCTAssertEqual(got.map(\.kind.rawValue), c.expected.map(\.kind), "\(c.name) — 종류")
+            XCTAssertEqual(got.map { [$0.date.year, $0.date.month, $0.date.day] }, c.expected.map(\.date), "\(c.name) — 날짜")
+            XCTAssertEqual(got.map(\.title), c.expected.map(\.title), "\(c.name) — 제목")
+            XCTAssertEqual(got.map(\.body), c.expected.map(\.body), "\(c.name) — 본문")
         }
     }
 

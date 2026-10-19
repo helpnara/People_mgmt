@@ -21,6 +21,12 @@ struct SettingsView: View {
     @State private var message: (title: String, body: String)?
     /// 모임 짝짓기 문턱 (D-39). 기본 0.3.
     @AppStorage(GroupMatchSetting.key) private var groupMatch: GroupMatchSetting = .standard
+    // 알림 (D-40) — 모두 기본은 꺼짐, 시각은 오전 9시.
+    @AppStorage(ReminderSettings.birthdaysKey) private var remindBirthdays = false
+    @AppStorage(ReminderSettings.anniversariesKey) private var remindAnniversaries = false
+    @AppStorage(ReminderSettings.cadenceKey) private var remindCadence = false
+    @AppStorage(ReminderSettings.hourKey) private var remindHour = ReminderSettings.defaultHour
+    @AppStorage(ReminderSettings.minuteKey) private var remindMinute = 0
 
     var body: some View {
         List {
@@ -58,6 +64,24 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            Section {
+                Toggle("생일 당일", isOn: $remindBirthdays)
+                Toggle("알게 된 지 n주년", isOn: $remindAnniversaries)
+                Toggle("연락 주기 (고른 사람만)", isOn: $remindCadence)
+                if remindBirthdays || remindAnniversaries || remindCadence {
+                    DatePicker("알림 시각", selection: reminderTime, displayedComponents: .hourAndMinute)
+                }
+            } header: {
+                Text("알림")
+            } footer: {
+                Text("기본은 모두 꺼져 있습니다. 생일은 생일을 적은 사람, n주년은 처음 만난 날을 적은 사람, 연락 주기는 사람 수정에서 주기를 고른 사람만 그날 알립니다. 밀린 알림을 쌓지 않고 앱 아이콘에 숫자를 달지 않습니다. 알림은 이 기기 안에서만 만들어집니다.")
+            }
+            .onChange(of: remindBirthdays) { _, on in reminderChanged(turnedOn: on) }
+            .onChange(of: remindAnniversaries) { _, on in reminderChanged(turnedOn: on) }
+            .onChange(of: remindCadence) { _, on in reminderChanged(turnedOn: on) }
+            .onChange(of: remindHour) { _, _ in refreshReminders() }
+            .onChange(of: remindMinute) { _, _ in refreshReminders() }
 
             Section {
                 Picker(selection: $groupMatch) {
@@ -130,6 +154,40 @@ struct SettingsView: View {
         } message: {
             Text(message?.body ?? "")
         }
+    }
+
+    /// 시 · 분 두 칸을 시각 고르기 하나로.
+    private var reminderTime: Binding<Date> {
+        Binding(get: {
+            Calendar.current.date(bySettingHour: remindHour, minute: remindMinute, second: 0, of: Date()) ?? Date()
+        }, set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            remindHour = parts.hour ?? ReminderSettings.defaultHour
+            remindMinute = parts.minute ?? 0
+        })
+    }
+
+    /// 알림을 켜면 그때 한 번 허락을 묻는다. 거절돼 있으면 되돌리고 설정 앱으로 안내한다.
+    private func reminderChanged(turnedOn: Bool) {
+        guard turnedOn else {
+            refreshReminders()
+            return
+        }
+        Task {
+            if await ReminderScheduler.requestPermission() {
+                refreshReminders()
+            } else {
+                remindBirthdays = false
+                remindAnniversaries = false
+                remindCadence = false
+                message = ("알림이 꺼져 있습니다", "기기의 설정 앱 → 알림 → 느린 인연에서 알림을 허용한 뒤 다시 켜 주세요.")
+            }
+        }
+    }
+
+    private func refreshReminders() {
+        let container = context.container
+        Task { await ReminderScheduler.refresh(container: container) }
     }
 
     private static var version: String {

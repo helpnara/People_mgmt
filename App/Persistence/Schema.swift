@@ -2,14 +2,14 @@ import Core
 import Foundation
 import SwiftData
 
-/// 스키마 **4판** — 지금 쓰는 판 (요구사항 6절 · D-30 · 빌드 10).
+/// 스키마 **5판** — 지금 쓰는 판 (요구사항 6절 · D-40 · 빌드 18).
 ///
-/// 3판에서 **아는 사이 연결(`Tie`)** 과 사람 쪽 관계 둘(`tiesAsFirst` · `tiesAsSecond`)을 더했다.
-/// 나머지는 3판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV5` 를 더하고 이 판은 얼린다.
+/// 4판에서 사람에 **생일(월 · 일 · 선택 연도)** 과 **연락 주기(개월)** 칸 넷을 더했다 — 모두 옵셔널이라 가벼운 옮기기.
+/// 나머지는 4판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV6` 를 더하고 이 판은 얼린다.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
-enum SchemaV4: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(4, 0, 0) }
+enum SchemaV5: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(5, 0, 0) }
     static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self] }
 
     /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
@@ -46,6 +46,13 @@ enum SchemaV4: VersionedSchema {
         /// 명함 사진 (FR-050 · 2판). JPEG, 긴 변 1,600px 이하. 저장소 밖 파일로 둔다 — 목록을 읽을 때 같이 올라오지 않게.
         @Attribute(.externalStorage)
         var businessCard: Data?
+        /// 생일 (5판 · D-40) — 월 · 일. 둘 다 있어야 뜻이 있다. 연도는 모를 때가 많아 따로 둔다.
+        var birthMonth: Int?
+        var birthDay: Int?
+        /// 태어난 해 (선택).
+        var birthYear: Int?
+        /// 연락 주기 (5판 · D-40) — 고른 사람만. 이 개월 수만큼 기록이 없으면 한 번 알린다. 비우면 알리지 않는다.
+        var contactCadenceMonths: Int?
 
         /// 이 사람을 나에게 소개한 사람 (FR-043). 소개자를 지우면 비워진다(nullify).
         var introducedBy: Person?
@@ -121,19 +128,20 @@ enum SchemaV4: VersionedSchema {
     }
 }
 
-typealias Person = SchemaV4.Person
-typealias Record = SchemaV4.Record
-typealias Tie = SchemaV4.Tie
+typealias Person = SchemaV5.Person
+typealias Record = SchemaV5.Record
+typealias Tie = SchemaV5.Tie
 
 /// 판 사이의 이사 계획.
 /// - 1판 → 2판: 칸 하나를 더하는 **가벼운 옮기기**
 /// - 3판 → 4판: 아는 사이 연결을 더하는 가벼운 옮기기 (D-30)
+/// - 4판 → 5판: 생일 · 연락 주기 칸을 더하는 가벼운 옮기기 (D-40)
 /// - 2판 → 3판: 칸을 더하고(가벼운 옮기기와 같다), 옮긴 뒤 **한 칸에 들어 있던 연락 수단을 네 칸으로 나눈다** (이슈 11).
 ///   나누지 못한 글은 기타(`contactNote`)에 그대로 남는다 — 잃는 글이 없다. 이미 네 칸 중 하나라도 찬 사람은 건드리지 않는다.
 ///
 /// 실제 옮겨지는지는 `AppTests/MigrationTests.swift` 가 1판 · 2판 저장소를 디스크에 만들어 연다.
 enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self] }
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self),
@@ -142,6 +150,8 @@ enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
             }),
             // 3판 → 4판: 연결 객체와 관계를 더할 뿐 — 가벼운 옮기기.
             .lightweight(fromVersion: SchemaV3.self, toVersion: SchemaV4.self),
+            // 4판 → 5판: 사람에 옵셔널 칸 넷(생일 · 연락 주기)을 더할 뿐 — 가벼운 옮기기 (D-40).
+            .lightweight(fromVersion: SchemaV4.self, toVersion: SchemaV5.self),
         ]
     }
 }
@@ -176,7 +186,7 @@ extension PersistentModel {
     var isGone: Bool { isDeleted || modelContext == nil }
 }
 
-extension SchemaV4.Person {
+extension SchemaV5.Person {
     /// 목록 보조 정보 (요구사항 6.1 `subtitle`): 소속 · 직무, 둘 다 없으면 관계 유형.
     var subtitle: String? {
         let parts = [organization, role].compactMap { $0 }.filter { !$0.isEmpty }

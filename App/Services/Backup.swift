@@ -36,6 +36,11 @@ struct BackupFile: Codable, Sendable {
         var createdAt: Date
         var updatedAt: Date
         var businessCard: Data?
+        /// 5판(빌드 18)부터 — 옛 백업에는 없으니 옵셔널.
+        var birthMonth: Int?
+        var birthDay: Int?
+        var birthYear: Int?
+        var contactCadenceMonths: Int?
     }
 
     struct RecordItem: Codable, Sendable {
@@ -130,7 +135,9 @@ enum Backup {
                     relationshipType: p.relationshipType, metThrough: p.metThrough, introducedBy: p.introducedBy?.uuid,
                     firstMetDate: p.firstMetDate, firstNote: p.firstNote, contactNote: p.contactNote,
                     mobilePhone: p.mobilePhone, officePhone: p.officePhone, faxNumber: p.faxNumber, email: p.email,
-                    isMe: p.isMe, tags: p.tags, createdAt: p.createdAt, updatedAt: p.updatedAt, businessCard: p.businessCard)
+                    isMe: p.isMe, tags: p.tags, createdAt: p.createdAt, updatedAt: p.updatedAt, businessCard: p.businessCard,
+                    birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear,
+                    contactCadenceMonths: p.contactCadenceMonths)
             },
             records: records.map { r in
                 BackupFile.RecordItem(
@@ -219,6 +226,10 @@ enum Backup {
             person.createdAt = item.createdAt
             person.updatedAt = item.updatedAt
             person.businessCard = item.businessCard
+            person.birthMonth = item.birthMonth
+            person.birthDay = item.birthDay
+            person.birthYear = item.birthYear
+            person.contactCadenceMonths = item.contactCadenceMonths
             byID[item.uuid] = person
         }
         // 소개 관계는 사람을 다 넣은 뒤에 잇는다. 자기 자신 · 없는 사람은 잇지 않는다.
