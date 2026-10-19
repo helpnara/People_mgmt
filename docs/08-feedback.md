@@ -42,6 +42,7 @@
 - **사용자 결정 (2026-10-19): 느린 부자 방식.** `Tools/cloudkit/generate-ckdb.py` 가 모델에서 `slowconnection.ckdb` 를 만들고, `cloudkit-schema.yml`(리눅스 · CKTool JS)이 개발 환경에 적용, 사용자가 콘솔에서 Production 으로 배포한다 (06-ci §7 · ADR-0005 개정). 앱의 임시 저장소 준비(`CloudSchema`)와 `icloud_env` 입력은 지웠다. 설정에는 마지막 동기화 때 · 실패를 보인다(`CloudSyncMonitor`).
 - 실행 번호 20 은 썼다 — 동기화 판은 빌드 21 이후.
 - 새 워크플로를 손으로 돌리려 하자 404 — 수동 실행 워크플로는 기본 브랜치(`main`)에 있어야 등록된다. 기본 브랜치를 작업 브랜치로 바꾸는 길(느린 부자 설정)도 견주었으나 **사용자 결정: `cloudkit-schema.yml` 한 파일만 `main` 에 올린다** — `main` = 스토어 판 · 처리방침 게시 · 세션 규칙을 그대로 둔다(06-ci §3 막다른 길과 같은 처방). 관리 토큰은 이 앱용으로 새로 만들었다 (`github-actions-slowconnection` · 시크릿 `CKTOOL_MGMT_TOKEN` · **만료 2027-10-19**).
+- **스키마 워크플로 실행 2(read)** — 팀 · 컨테이너 셋(markdown · slow.connection · slowrich)이 보이고, 두 환경 모두 기본 `Users` 만 있었다. **실행 3(apply)** — 문법 통과 → 개발 환경에 적용 → 다시 읽으니 `CDMR` · `CD_Person`(칸 48) · `CD_Record` · `CD_Tie` 가 파일 그대로 있다. 다음은 사용자가 콘솔에서 Production 배포.
 
 ### 조사 (2026-10-18) — 인맥 분석 기법과 앱 벤치마킹
 
