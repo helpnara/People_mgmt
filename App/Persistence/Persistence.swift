@@ -35,14 +35,21 @@ enum Persistence {
         return container
     }
 
-    /// 저장 파일에 **완전 보호** 등급을 건다 (요구사항 8.4). 잠금 중에는 파일을 읽을 수 없다 —
-    /// 이 앱은 백그라운드 작업이 없어 제약이 없다. SQLite 의 `-wal` · `-shm` 도 함께.
+    /// 저장 파일에 **처음 잠금 해제 후 보호** 등급을 건다 (요구사항 8.4 · D-48 · 이슈 31). 기기를 켠 뒤 한 번 잠금을 풀기 전에는
+    /// 읽을 수 없고, 그 뒤로는 잠겨 있어도 읽힌다. SQLite 의 `-wal` · `-shm` 도 함께. 앱을 켤 때마다 다시 건다 —
+    /// 빌드 21 까지 **완전 보호**로 만든 파일도 이 등급으로 바뀐다.
+    ///
+    /// **완전 보호를 쓰지 않는 까닭 (이슈 31).** iCloud 동기화(빌드 21)부터 앱은 잠긴 동안에도 깨어난다 — 다른 기기의 변경이
+    /// 조용한 푸시로 오면 동기화가 저장소를 읽고, 목록은 요약을 다시 센다. 완전 보호 파일은 잠긴 동안 읽으면 시스템이 앱을 끈다
+    /// (빌드 21 아이패드 · `EXC_BAD_ACCESS (SIGBUS)` · `The inode's protection class does not allow pagein`). 애플이 동기화 앱에
+    /// 권하는 등급이 이것이다. 잠긴 동안 화면 쪽 셈은 따로 막는다(`StoreAccess`).
     /// 실패해도 앱은 돈다 — 보호 등급은 덤이지 저장의 조건이 아니다.
     private static func protectStoreFiles(at url: URL) {
         let manager = FileManager.default
         for path in [url.path, url.path + "-wal", url.path + "-shm"] where manager.fileExists(atPath: path) {
             do {
-                try manager.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: path)
+                try manager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                                          ofItemAtPath: path)
             } catch {
                 print("⚠️ 파일 보호 등급을 못 걸었습니다: \(path) — \(error)")
             }
