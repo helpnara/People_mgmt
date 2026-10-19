@@ -404,11 +404,11 @@ final class GoldenTests: XCTestCase {
         }
     }
 
-    private static func fields(_ f: VFieldsRaw) -> ContactFields {
+    private static func fields(_ f: Golden.VFieldsRaw) -> ContactFields {
         ContactFields(mobile: f.mobile, office: f.office, fax: f.fax, email: f.email, other: f.other)
     }
 
-    private static func person(_ p: VPersonRaw) -> VCardPerson {
+    private static func person(_ p: Golden.VPersonRaw) -> VCardPerson {
         VCardPerson(name: p.name, nickname: p.nickname ?? "", organization: p.organization ?? "", role: p.role ?? "",
                     fields: fields(p.fields), birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear)
     }
