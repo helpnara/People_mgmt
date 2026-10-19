@@ -16,10 +16,5 @@ struct RootView: View {
                 let container = context.container
                 Task { await ReminderScheduler.refresh(container: container) }
             }
-            // iCloud 저장 형태 준비 (준비 판 · D-42) — 진짜 저장소일 때 한 번. 끝났으면 바로 돌아온다.
-            .task {
-                guard !isSampleData else { return }
-                await CloudSchema.prepare()
-            }
     }
 }

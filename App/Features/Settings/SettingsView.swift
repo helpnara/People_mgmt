@@ -33,8 +33,7 @@ struct SettingsView: View {
     @AppStorage(ReminderSettings.minuteKey) private var remindMinute = 0
     /// iCloud 동기화 (D-42 — 기본 켬). 바꾸면 앱을 다시 열 때 적용된다.
     @AppStorage(CloudSync.enabledKey) private var syncWanted = true
-    @State private var schemaMessage = CloudSchema.message
-    @State private var preparingSchema = false
+    private let syncMonitor = CloudSyncMonitor.shared
 
     var body: some View {
         List {
@@ -245,7 +244,7 @@ struct SettingsView: View {
         return "\(short) (빌드 \(build))"
     }
 
-    /// **iCloud 동기화** (D-42). 준비 판에서는 저장 형태 준비 상태를, 동기화 판에서는 켜고 끄기를 보인다.
+    /// **iCloud 동기화** (D-42). 켜고 끄기와 마지막으로 주고받은 때. 동기화를 쓸 수 없는 판에서는 안내만.
     @ViewBuilder
     private var syncSection: some View {
         Section {
@@ -256,35 +255,35 @@ struct SettingsView: View {
                         .font(.scaled(14))
                         .foregroundStyle(Color.accent)
                 }
-            } else {
-                LabeledContent("iCloud 준비") {
-                    Text(CloudSchema.isDone ? "끝" : (preparingSchema ? "준비 중…" : "아직"))
-                        .foregroundStyle(CloudSchema.isDone ? Color.accent : Color.muted)
-                }
-                if let schemaMessage {
-                    Text(schemaMessage)
-                        .font(.scaled(13))
-                        .foregroundStyle(Color.muted)
-                }
-                Button {
-                    preparingSchema = true
-                    Task {
-                        await CloudSchema.prepare(force: true)
-                        schemaMessage = CloudSchema.message
-                        preparingSchema = false
+                if CloudSync.isActive {
+                    LabeledContent("마지막 동기화") {
+                        Text(syncStatus)
+                            .foregroundStyle(syncMonitor.lastError == nil ? Color.muted : Color.danger)
                     }
-                } label: {
-                    Label("다시 준비", systemImage: "icloud.and.arrow.up")
+                    if let failure = syncMonitor.lastError {
+                        Text(failure)
+                            .font(.scaled(13))
+                            .foregroundStyle(Color.muted)
+                    }
                 }
-                .disabled(preparingSchema)
+            } else {
+                Text("다음 판에서 켜집니다.")
+                    .foregroundStyle(Color.muted)
             }
         } header: {
             Text("iCloud 동기화")
         } footer: {
             Text(CloudSync.mainStoreSyncAvailable
                  ? "같은 Apple 계정으로 로그인한 아이폰 · 아이패드가 같은 사람 · 기록을 봅니다. 자료는 내 iCloud 의 비공개 영역에 저장되고 개발자는 볼 수 없습니다. 끄면 이 기기 안에만 둡니다."
-                 : "다음 판에서 아이폰 · 아이패드 동기화가 켜집니다. 지금은 iCloud 에 저장 형태만 준비합니다 — 사람 · 기록은 올라가지 않습니다. iCloud 에 로그인한 채 인터넷이 될 때 한 번 끝나면 됩니다.")
+                 : "같은 Apple 계정의 아이폰 · 아이패드가 같은 사람 · 기록을 보게 하는 기능입니다. 지금은 이 기기 안에만 저장합니다.")
         }
+    }
+
+    private var syncStatus: String {
+        if syncMonitor.isWorking { return "주고받는 중…" }
+        if syncMonitor.lastError != nil { return "실패" }
+        guard let last = syncMonitor.lastSuccess else { return "아직 없음" }
+        return last.formatted(date: .abbreviated, time: .shortened)
     }
 
     enum FileKind {

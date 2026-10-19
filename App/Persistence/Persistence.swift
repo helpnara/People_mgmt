@@ -65,6 +65,7 @@ enum Persistence {
         do {
             // iCloud 동기화 (D-42) — 이 판에서 쓸 수 있고 사용자가 끄지 않았을 때만.
             let sync = CloudSync.mainStoreSyncAvailable && CloudSync.userWantsSync && CloudSync.canUseCloudKit
+            if sync { CloudSyncMonitor.shared.start() }
             let container = try makeContainer(inMemory: false, cloudSync: sync)
             CloudSync.markOpened(active: sync)
             // 날짜 칸을 UTC 정오로 한 번 옮긴다 (이슈 20) — 진짜 저장소에만. 깃발이 이 저장소를 가리키게.

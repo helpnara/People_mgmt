@@ -17,6 +17,8 @@ on:
       - "App/PrivacyInfo.xcprivacy"
       - "App/DesignSystem/Palette.swift"
       - "Tools/contrast.py"
+      - "Tools/cloudkit/**"
+      - "App/Persistence/Schema.swift"
       - ".github/workflows/core-test.yml"
   pull_request:
     paths:
@@ -49,6 +51,14 @@ jobs:
       # **글자 색 대비** (요구사항 8.6). 색을 고친 푸시마다 센다 — 첫 실행에서 muted 가 4.28 로 걸렸다.
       - name: 글자 색 대비가 4.5 를 넘는가
         run: python3 -I Tools/contrast.py
+
+      # **CloudKit 스키마 파일이 모델과 같은가** (ADR-0005). 칸을 더하고 다시 안 만들면 Production 이 레코드를 거부한다.
+      - name: CloudKit 스키마 파일이 최신인가
+        run: |
+          python3 -I Tools/cloudkit/generate-ckdb.py --check || {
+            echo "::error::python3 Tools/cloudkit/generate-ckdb.py > Tools/cloudkit/slowconnection.ckdb 를 돌리고 커밋한 뒤, CloudKit 스키마 워크플로로 Development 에 적용하세요."
+            exit 1
+          }
 
   swift:
     name: swift test
