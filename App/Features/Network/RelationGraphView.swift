@@ -63,6 +63,8 @@ struct RelationGraphView: View {
     @State private var moveStart: Date?
     /// 지금이나 어느 시점에든 모임이 있는가 — 모임 줄을 시점마다 넣었다 뺐다 하지 않는다 (이슈 29).
     @State private var hasAnyCommunities = false
+    /// 사람 자리 → 이름 순 차례 (이슈 30). 이름표를 놓는 차례 — 누가 더 중요한지가 아니라 이름 순이다 (ADR-0004).
+    @State private var nameRank: [Int] = []
 
     /// 접근성 크기 글씨 (AX1~5) — 칩 줄 · 켜기 · 설명 글이 화면을 다 차지해 관계도가 0 높이가 되었다 (빌드 14 · 이슈 26).
     /// 이때는 거르기를 차림표 하나로 접고 설명은 시트로 옮겨, **관계도 칸이 먼저** 자리를 갖는다.
@@ -158,6 +160,11 @@ struct RelationGraphView: View {
             shownPositions = snapshot.positions
             moveStart = nil
             hasAnyCommunities = !snapshot.communities.isEmpty || timeline.slices.contains { !$0.communities.isEmpty }
+            let byName = NameSort.sorted(Array(snapshot.people.indices), name: { snapshot.people[$0].name },
+                                         createdAt: { _ in Date.distantPast })
+            var rank = [Int](repeating: 0, count: snapshot.people.count)
+            for (order, i) in byName.enumerated() { rank[i] = order }
+            nameRank = rank
             sliderValue = Double(timeline.slices.count)
             // CI 스크린샷 — 지난 시점의 관계도를 바로 연다 (`-timeSlice`).
             if let k = LaunchArguments.current.timeSlice, k < timeline.slices.count {
@@ -602,6 +609,9 @@ struct RelationGraphView: View {
         if slice?.beforeUse == true { context.opacity = 0.55 }
         let highlighting = highlight != nil || highlightCommunity != nil
 
+        // 이름표가 피할 칸 — 모임 이름 · 나 (이슈 30).
+        var reserved: [LabelPlacement.Box] = []
+
         // 모임 — 옅은 테두리. 채운 볼록 껍질에 굵고 둥근 선을 겹쳐 점 둘레에 여백을 둔다. 한 층으로 그려 겹친 곳이 진해지지 않게.
         for community in activeCommunities {
             let points = community.memberIndices.map { screenPoint(positions[$0], size: size) }
@@ -620,8 +630,11 @@ struct RelationGraphView: View {
             if highlightCommunity == nil || highlightCommunity == community.id,
                let top = hull.min(by: { $0.y < $1.y }) {
                 let centerX = hull.map(\.x).reduce(0, +) / CGFloat(hull.count)
-                context.draw(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(Color.muted),
-                             at: CGPoint(x: centerX, y: top.y - 20), anchor: .center)
+                let title = context.resolve(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(Color.muted))
+                let titleSize = title.measure(in: CGSize(width: 400, height: 100))
+                context.draw(title, at: CGPoint(x: centerX, y: top.y - 20), anchor: .center)
+                reserved.append(LabelPlacement.Box(centerX: centerX, centerY: top.y - 20,
+                                                   width: titleSize.width, height: titleSize.height))
             }
         }
 
@@ -647,8 +660,8 @@ struct RelationGraphView: View {
         // 점
         let radius: CGFloat = 5
         let showsNames = snapshot.people.count <= 40 || scale >= 2.5
-        var labels = 0
-        for (i, person) in snapshot.people.enumerated() where isShown(i) {
+        var visible: [(index: Int, point: CGPoint)] = []
+        for i in snapshot.people.indices where isShown(i) {
             let p = screenPoint(positions[i], size: size)
             guard p.x > -20, p.y > -20, p.x < size.width + 20, p.y < size.height + 20 else { continue }
             let faded = highlighting && !matches(i)
@@ -657,20 +670,51 @@ struct RelationGraphView: View {
             if selected == i {
                 context.stroke(Path(ellipseIn: rect.insetBy(dx: -4, dy: -4)), with: .color(Color.ink), lineWidth: 2)
             }
-            if showsNames && !faded && labels < 150 {
-                labels += 1
-                context.draw(Text(person.name).font(.scaledCapped(11)).foregroundStyle(Color.bodyText),
-                             at: CGPoint(x: p.x, y: p.y + radius + 8), anchor: .center)
-            }
+            visible.append((i, p))
         }
 
-        // 나 — 가운데, 조금 크게, 고리
+        // 나 — 가운데, 조금 크게, 고리. 이름은 늘 쓰고 다른 이름표가 비켜 간다.
         let me = screenPoint(positions[meIndex], size: size)
         let meRect = CGRect(x: me.x - 9, y: me.y - 9, width: 18, height: 18)
         context.fill(Path(ellipseIn: meRect), with: .color(Color.ink))
         context.stroke(Path(ellipseIn: meRect.insetBy(dx: -3, dy: -3)), with: .color(Color.accent), lineWidth: 2)
-        context.draw(Text(snapshot.meName ?? "나").font(.scaledCapped(12, weight: .semibold)).foregroundStyle(Color.ink),
-                     at: CGPoint(x: me.x, y: me.y + 22), anchor: .center)
+        let meTitle = context.resolve(Text(snapshot.meName ?? "나").font(.scaledCapped(12, weight: .semibold)).foregroundStyle(Color.ink))
+        let meTitleSize = meTitle.measure(in: CGSize(width: 400, height: 100))
+        context.draw(meTitle, at: CGPoint(x: me.x, y: me.y + 22), anchor: .center)
+        reserved.append(LabelPlacement.Box(centerX: me.x, centerY: me.y, width: 24, height: 24))
+        reserved.append(LabelPlacement.Box(centerX: me.x, centerY: me.y + 22, width: meTitleSize.width, height: meTitleSize.height))
+
+        if showsNames {
+            drawNames(in: &context, size: size, visible: visible, radius: radius, reserved: reserved, highlighting: highlighting)
+        }
+    }
+
+    /// 사람 이름표 (이슈 30) — 이름끼리 · 점과 겹치지 않는 자리에만 쓴다(`Core.LabelPlacement`). 놓을 자리가 없으면 이번 크기에서는
+    /// 비운다 — 두 손가락으로 키우면 자리가 생긴다. 차례는 누른 사람 → 강조한 사람 → 이름 순. 한 번에 150개까지.
+    private func drawNames(in context: inout GraphicsContext, size: CGSize, visible: [(index: Int, point: CGPoint)],
+                           radius: CGFloat, reserved: [LabelPlacement.Box], highlighting: Bool) {
+        func group(_ i: Int) -> Int { i == selected ? 0 : (highlighting ? 1 : 2) }
+        func order(_ i: Int) -> Int { i < nameRank.count ? nameRank[i] : i }
+        let named = visible
+            .filter { !highlighting || matches($0.index) || $0.index == selected }
+            .sorted { (group($0.index), order($0.index)) < (group($1.index), order($1.index)) }
+            .prefix(150)
+        var texts: [GraphicsContext.ResolvedText] = []
+        var requests: [LabelPlacement.Request] = []
+        for item in named {
+            let text = context.resolve(Text(snapshot.people[item.index].name).font(.scaledCapped(11)).foregroundStyle(Color.bodyText))
+            let measured = text.measure(in: CGSize(width: 400, height: 100))
+            texts.append(text)
+            requests.append(LabelPlacement.Request(anchorX: item.point.x, anchorY: item.point.y, radius: radius,
+                                                   width: measured.width, height: measured.height))
+        }
+        let dots = visible.map { LabelPlacement.Box(centerX: $0.point.x, centerY: $0.point.y, width: radius * 2, height: radius * 2) }
+        let placed = LabelPlacement.place(requests, obstacles: dots + reserved,
+                                          bounds: LabelPlacement.Box(x: 0, y: 0, width: size.width, height: size.height))
+        for (k, box) in placed.enumerated() {
+            guard let box else { continue }
+            context.draw(texts[k], at: CGPoint(x: box.centerX, y: box.centerY), anchor: .center)
+        }
     }
 
     private func matches(_ i: Int) -> Bool {
