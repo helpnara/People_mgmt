@@ -32,6 +32,10 @@ struct PeopleListView: View {
 
     /// 저장할 때마다 하나씩 오른다. 정렬 · 색인을 다시 만들 때를 이것으로 안다.
     @State private var dataVersion = 0
+    /// 앱이 뒤에 있거나 잠긴 동안 들어온 변경 — 앞으로 나올 때 한 번에 센다 (이슈 31).
+    @State private var pendingChange = false
+    @State private var pendingRemoteChange = false
+    @Environment(\.scenePhase) private var scenePhase
     @State private var sortedPeople: [Person] = []
     @State private var searchIndex: SearchIndex?
     @State private var indexVersion = -1
@@ -205,13 +209,26 @@ struct PeopleListView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
-            dataVersion += 1
+            noteChange()
         }
         // 다른 기기에서 바뀐 자료가 iCloud 로 들어왔을 때 (D-42) — 정렬 · 색인 · 요약을 다시 세고, 나가 둘이면 정리한다.
+        // 앱이 뒤에 있거나 잠긴 동안(조용한 푸시로 깨어남)에는 표시만 하고, 앞으로 나올 때 센다 (이슈 31).
         .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in
             guard CloudSync.isActive else { return }
-            dataVersion += 1
-            if let names = try? store.resolveDuplicateMe(), !names.isEmpty { demotedMe = names }
+            guard StoreAccess.isReadable(scenePhase) else {
+                pendingChange = true
+                pendingRemoteChange = true
+                return
+            }
+            applyRemoteChange()
+        }
+        .onChange(of: scenePhase) { _, _ in
+            guard StoreAccess.isReadable(scenePhase) else { return }
+            if pendingRemoteChange { applyRemoteChange() }
+            if pendingChange {
+                pendingChange = false
+                dataVersion += 1
+            }
         }
         .alert("나는 한 사람만 둡니다", isPresented: Binding(get: { !demotedMe.isEmpty }, set: { if !$0 { demotedMe = [] } })) {
             Button("확인", role: .cancel) {
@@ -232,6 +249,11 @@ struct PeopleListView: View {
             // 저장이 이어지면(하루 10명 입력) 마지막 저장 뒤 한 번만 센다.
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
+            // 그 1초 사이에 뒤로 가거나 잠겼으면 앞으로 나올 때 다시 (이슈 31).
+            guard StoreAccess.isReadable(scenePhase) else {
+                pendingChange = true
+                return
+            }
             let input = await NetworkSnapshotBuilder.readiness(container: context.container)
             guard !Task.isCancelled else { return }
             readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
@@ -245,6 +267,22 @@ struct PeopleListView: View {
         .task { await applyArgumentsOnce() }
         .onChange(of: shortcuts.pending) { _, _ in handleShortcut() }
         .onAppear(perform: handleShortcut)
+    }
+
+    /// 저장 뒤 — 앞에 있으면 바로 다시 세고, 뒤에 있거나 잠겼으면 표시만 (이슈 31).
+    private func noteChange() {
+        if StoreAccess.isReadable(scenePhase) {
+            dataVersion += 1
+        } else {
+            pendingChange = true
+        }
+    }
+
+    /// 다른 기기의 변경을 반영한다 — 다시 세고, 나가 둘이면 정리한다 (D-43).
+    private func applyRemoteChange() {
+        pendingRemoteChange = false
+        dataVersion += 1
+        if let names = try? store.resolveDuplicateMe(), !names.isEmpty { demotedMe = names }
     }
 
     /// 단축어가 남긴 요청을 한 번 처리한다 (빌드 16). 앱이 꺼져 있었으면 목록이 뜬 뒤에, 켜져 있었으면 바로.
