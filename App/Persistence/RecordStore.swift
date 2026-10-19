@@ -40,8 +40,10 @@ struct RecordStore {
     let context: ModelContext
 
     /// 한 사람의 타임라인 (요구사항 6.7). 정렬 규칙은 `Core.TimelineSort` 한 곳이다.
+    /// 지운 기록은 뺀다 — 지운 직후 사람 상세가 다시 그려질 때 관계에 남은 기록의 날짜를 읽으면 SwiftData 가 앱을 끈다
+    /// (빌드 16 실기기 크래시 · 이슈 27).
     static func timeline(of person: Person) -> [Record] {
-        (person.records ?? []).sorted {
+        (person.records ?? []).filter { !$0.isGone }.sorted {
             TimelineSort.areInIncreasingOrder((occurredAt: $0.occurredAt, createdAt: $0.createdAt),
                                               (occurredAt: $1.occurredAt, createdAt: $1.createdAt))
         }

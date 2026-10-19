@@ -6,6 +6,16 @@ struct TimelineRow: View {
     let viewer: Person
 
     var body: some View {
+        // 지운 기록은 다시 그리지 않는다 (CLAUDE.md · 이슈 27) — 빌드 16 에서 기록을 지운 직후 이 줄이 지운 기록의
+        // 장소 · 태그를 읽다 앱이 꺼졌다. 줄 맨 위에서 거른다.
+        if record.isGone {
+            EmptyView()
+        } else {
+            row
+        }
+    }
+
+    private var row: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: record.type.symbol)
                 .font(.scaled(15))
