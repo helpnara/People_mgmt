@@ -147,7 +147,8 @@ public enum TemporalNetwork {
             return low
         }
 
-        return sliceDays.map { t in
+        /// 시점 하나 — 다른 시점과 기대지 않는다.
+        func slice(at t: Int) -> Slice {
             let present = (0..<n).filter { i in known[i].map { $0 <= t } ?? false }
             var isPresent = [Bool](repeating: false, count: n)
             for i in present { isPresent[i] = true }
@@ -195,6 +196,15 @@ public enum TemporalNetwork {
             }
             return Slice(day: t, present: present, linked: linked, status: status, edges: edges, communities: communities)
         }
+
+        // 시점마다 따로 센다 — 여러 코어로 나눠 센다 (D-47 · 빌드 24). 시점마다 쓰는 자리가 달라 결과는 차례로 셀 때와 같다.
+        var out = [Slice?](repeating: nil, count: sliceDays.count)
+        out.withUnsafeMutableBufferPointer { buffer in
+            Parallel.chunks(sliceDays.count, minimumChunk: 1) { range in
+                for k in range { buffer[k] = slice(at: sliceDays[k]) }
+            }
+        }
+        return out.compactMap { $0 }
     }
 
     /// 두 모임을 같은 모임의 앞뒤로 볼까 — Jaccard 가 문턱 이상이거나, 작은 쪽의 절반 이상이 큰 쪽에 들어 있다.
