@@ -132,14 +132,31 @@ public enum TemporalNetwork {
         }
         let timeless = introduced.union(acquainted).sorted()
 
+        // **빠르게 (D-47).** 기록마다 참여자를 한 번만 정리하고(중복 빼고 · 번호 순 · 범위 안), 날짜 순 색인으로 창 안의
+        // 기록만 찾는다 — 시점마다 50,000건을 모두 돌지 않는다. 창 안의 기록은 **원래 차례로** 더한다(무게 합의 마지막 자리까지
+        // 예전과 같게 — 모임 찾기가 같은 답을 내도록).
+        let cleaned: [[Int]] = meetings.map { Set($0.participants.filter { $0 >= 0 && $0 < n }).sorted() }
+        let byDay = meetings.indices.sorted { meetings[$0].day != meetings[$1].day ? meetings[$0].day < meetings[$1].day : $0 < $1 }
+        /// `byDay` 에서 날이 `day` 보다 큰 첫 자리.
+        func upperBound(_ day: Int) -> Int {
+            var low = 0, high = byDay.count
+            while low < high {
+                let mid = (low + high) / 2
+                if meetings[byDay[mid]].day <= day { low = mid + 1 } else { high = mid }
+            }
+            return low
+        }
+
         return sliceDays.map { t in
             let present = (0..<n).filter { i in known[i].map { $0 <= t } ?? false }
-            let isPresent = Set(present)
+            var isPresent = [Bool](repeating: false, count: n)
+            for i in present { isPresent[i] = true }
+            var inWindow = Array(byDay[upperBound(t - windowDays)..<upperBound(t)])
+            inWindow.sort()
             var weight: [Pair: Double] = [:]
-            for meeting in meetings {
-                let d = meeting.day
-                guard d <= t, d > t - windowDays else { continue }
-                let ps = Set(meeting.participants.filter { isPresent.contains($0) }).sorted()
+            for index in inWindow {
+                let d = meetings[index].day
+                let ps = cleaned[index].filter { isPresent[$0] }
                 guard ps.count > 1 else { continue }
                 let w = pow(0.5, Double(t - d) / halfLifeDays) / Double(ps.count - 1)
                 for x in 0..<ps.count {
@@ -148,7 +165,7 @@ public enum TemporalNetwork {
                     }
                 }
             }
-            for pair in timeless where isPresent.contains(pair.a) && isPresent.contains(pair.b) {
+            for pair in timeless where isPresent[pair.a] && isPresent[pair.b] {
                 let add = (introduced.contains(pair) ? 1.0 : 0) + (acquainted.contains(pair) ? 1.0 : 0)
                 weight[pair, default: 0] += add
             }
@@ -188,21 +205,52 @@ public enum TemporalNetwork {
         return both / Double(a.union(b).count) >= threshold || both / Double(min(a.count, b.count)) >= inclusionThreshold
     }
 
+    /// `matches` 와 같은 셈 — 모임마다 집합을 한 번만 만들어 둔 쪽.
+    private static func matches(_ a: Set<Int>, _ b: Set<Int>, threshold: Double) -> Bool {
+        guard !a.isEmpty, !b.isEmpty else { return false }
+        let both = Double(a.intersection(b).count)
+        return both / Double(a.union(b).count) >= threshold || both / Double(min(a.count, b.count)) >= inclusionThreshold
+    }
+
+    /// **빠르게 (D-47).** 겹치는 사람이 하나도 없는 두 모임은 짝이 될 수 없다(두 문턱 모두 0 보다 크다). 그래서 사람 → 모임
+    /// 색인으로 겹치는 모임만 견준다 — 분기마다 모임이 수백 개여도 모든 쌍을 보지 않는다. 판정 · 차례는 모든 쌍을 볼 때와 같다.
     public static func changes(_ slices: [Slice], threshold: Double = matchThreshold) -> [Change] {
         var events: [Change] = []
         /// 앞에서 최근 기록 없음이 된 모임 — 다시 보이면 `다시 모임`.
         var dormant: [[Int]] = []
+        var dormantSets: [Set<Int>] = []
+        // 문턱이 0 이면 겹침 없는 쌍도 짝이 된다 — 그때만 모든 쌍을 본다.
+        let everyPair = threshold <= 0
         for s in slices.indices.dropFirst() {
             let previous = slices[s - 1].communities
             let current = slices[s].communities
-            let successors = previous.map { p in current.indices.filter { matches(p, current[$0], threshold: threshold) } }
-            let predecessors = current.map { c in previous.indices.filter { matches(previous[$0], c, threshold: threshold) } }
+            let previousSets = previous.map(Set.init)
+            let currentSets = current.map(Set.init)
+            var currentOf: [Int: [Int]] = [:]
+            for (c, group) in current.enumerated() {
+                for person in group { currentOf[person, default: []].append(c) }
+            }
+            var successors: [[Int]] = []
+            var predecessors = [[Int]](repeating: [], count: current.count)
+            for (p, group) in previous.enumerated() {
+                var candidates = everyPair ? Set(current.indices) : Set<Int>()
+                for person in group { candidates.formUnion(currentOf[person] ?? []) }
+                let found = candidates.sorted().filter { matches(previousSets[p], currentSets[$0], threshold: threshold) }
+                successors.append(found)
+                for c in found { predecessors[c].append(p) }
+            }
+            var dormantOf: [Int: [Int]] = [:]
+            for (d, group) in dormant.enumerated() {
+                for person in group { dormantOf[person, default: []].append(d) }
+            }
             var woke = Set<Int>()
             for (c, group) in current.enumerated() {
                 let pred = predecessors[c]
                 if pred.isEmpty {
                     // 가장 최근에 쉰 모임부터 견준다.
-                    if let back = dormant.indices.reversed().first(where: { matches(dormant[$0], group, threshold: threshold) }) {
+                    var candidates = everyPair ? Set(dormant.indices) : Set<Int>()
+                    for person in group { candidates.formUnion(dormantOf[person] ?? []) }
+                    if let back = candidates.sorted(by: >).first(where: { matches(dormantSets[$0], currentSets[c], threshold: threshold) }) {
                         woke.insert(back)
                         events.append(Change(slice: s, kind: .returned, members: group))
                     } else {
@@ -223,11 +271,14 @@ public enum TemporalNetwork {
                     }
                 }
             }
-            dormant = dormant.indices.filter { !woke.contains($0) }.map { dormant[$0] }
+            let kept = dormant.indices.filter { !woke.contains($0) }
+            dormant = kept.map { dormant[$0] }
+            dormantSets = kept.map { dormantSets[$0] }
             for (p, group) in previous.enumerated() {
                 if successors[p].isEmpty {
                     events.append(Change(slice: s, kind: .faded, members: group))
                     dormant.append(group)
+                    dormantSets.append(previousSets[p])
                 } else if successors[p].count >= 2 {
                     events.append(Change(slice: s, kind: .split, members: group))
                 }

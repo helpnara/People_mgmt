@@ -161,28 +161,39 @@ public enum CommunityDetection {
         var community = Array(0..<n)
         var total = graph.degree
         var movedAny = false
+        // **빠르게 (D-47).** 사람마다 사전을 새로 만들지 않고 배열 둘을 돌려 쓴다 — 그룹 번호는 늘 0..<n 이다.
+        // 더하는 차례 · 견주는 차례는 사전을 쓸 때와 같다(이웃 번호 순, 처음 만난 그룹 차례).
+        var weightTo = [Double](repeating: 0, count: n)
+        var touched = [Bool](repeating: false, count: n)
+        var order: [Int] = []
         for _ in 0..<maxPasses {
             var movedThisPass = false
             for i in 0..<n {
                 let k = graph.degree[i]
                 let current = community[i]
                 // 이웃 그룹마다 이어진 무게 — 처음 만난 차례(이웃 번호 순)로.
-                var order: [Int] = []
-                var weightTo: [Int: Double] = [:]
+                order.removeAll(keepingCapacity: true)
                 for edge in graph.neighbors[i] {
                     let c = community[edge.node]
-                    if weightTo[c] == nil { order.append(c) }
-                    weightTo[c, default: 0] += edge.weight
+                    if !touched[c] {
+                        touched[c] = true
+                        order.append(c)
+                    }
+                    weightTo[c] += edge.weight
                 }
                 total[current] -= k
                 var best = current
-                var bestGain = (weightTo[current] ?? 0) - resolution * total[current] * k / twoM
+                var bestGain = weightTo[current] - resolution * total[current] * k / twoM
                 for c in order where c != current {
-                    let gain = (weightTo[c] ?? 0) - resolution * total[c] * k / twoM
+                    let gain = weightTo[c] - resolution * total[c] * k / twoM
                     if gain > bestGain + epsilon {
                         best = c
                         bestGain = gain
                     }
+                }
+                for c in order {
+                    weightTo[c] = 0
+                    touched[c] = false
                 }
                 total[best] += k
                 if best != current {

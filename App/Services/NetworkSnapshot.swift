@@ -239,42 +239,71 @@ enum NetworkSnapshotBuilder {
                                        edges: edges, positions: [])
         snapshot.readiness = readiness
         snapshot.gaps = gaps
-        if includesGraph {
-            var nameOf: [UUID: String] = [:]
-            for person in graphPeople { nameOf[person.id] = person.name }
-            snapshot.suggestions = AcquaintanceSuggestions.suggest(people: graphPeople, edges: edges, declined: DeclinedPairs.load())
-                .map { suggestion in
-                    AcquaintanceSuggestionRoute.Item(a: suggestion.a, b: suggestion.b,
-                                                     aName: nameOf[suggestion.a] ?? "", bName: nameOf[suggestion.b] ?? "",
-                                                     evidence: AcquaintanceSuggestionRoute.evidence(
-                                                        together: suggestion.together,
-                                                        introducer: suggestion.introducer.flatMap { nameOf[$0] }))
-                }
-            lap("아는 사이 후보 \(snapshot.suggestions.count)쌍")
-        }
         guard includesGraph else { return snapshot }
 
+        // **넷을 함께 센다 (D-47).** 아는 사이 후보 · 자리 잡기 · 모임 찾기 · 시점은 서로 기대지 않는다 — 차례로 세면 넷의 합이고
+        // 함께 세면 가장 긴 것 하나다. 저장소 객체(`others`)는 여기 들어오기 전에 값으로 바꿔 둔다(문맥은 한 스레드에서만 쓴다).
+        let declined = DeclinedPairs.load()
+        let nameOrder = byName.map(\.id)
+        let usageStart = others.map(\.createdAt).min().map { DayIndex.of($0, calendar: calendar) } ?? today
+        let introducedBy = Dictionary(others.compactMap { person in
+            person.introducedBy.map { (person.uuid, $0.uuid) }
+        }, uniquingKeysWith: { first, _ in first })
+        let nameOf = Dictionary(graphPeople.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        // 함께 세는 쪽에는 바뀌지 않는 값만 넘긴다.
+        let indexOf = index
+        let days = recordDays
+        let lists = participantLists
         let links = edges.compactMap { edge -> GraphLayout.Link? in
             guard let i = index[edge.a], let j = index[edge.b] else { return nil }
             // 진한 선은 함께한 기록이 많을수록 조금 더 당긴다(로그). 같은 소속만이면 약하게.
             let weight = edge.isStrong ? 1 + log(1 + edge.togetherWeight) : 0.3
             return GraphLayout.Link(i: i, j: j, weight: weight)
         }
-        let positions = GraphLayout.layout(nodeCount: people.count + 1, center: people.count, links: links)
-        lap("자리 잡기")
+        lap("함께 셀 값 만들기")
 
-        let (communities, status) = findCommunities(people: people, strong: strong, index: index,
-                                                    readiness: readiness, nameOrder: byName.map(\.id))
-        lap("모임 찾기 \(communities.count)개")
-
-        let usageStart = others.map(\.createdAt).min().map { DayIndex.of($0, calendar: calendar) } ?? today
-        let timeline = makeTimeline(people: people, nameOrder: byName.map(\.id), index: index,
-                                    introducedBy: Dictionary(others.compactMap { person in
-                                        person.introducedBy.map { (person.uuid, $0.uuid) }
-                                    }, uniquingKeysWith: { first, _ in first }),
-                                    recordDays: recordDays, participantLists: participantLists, ties: ties,
-                                    now: now, today: today, usageStart: usageStart, calendar: calendar)
-        lap("시점 \(timeline.slices.count)개 · 변화 \(timeline.changes.count)개")
+        /// 넷이 저마다 자기 칸에만 쓴다 — 같은 칸을 둘이 쓰지 않는다.
+        final class Parts: @unchecked Sendable {
+            var suggestions: [AcquaintanceSuggestionRoute.Item] = []
+            var positions: [GraphLayout.Point] = []
+            var communities: [NetworkSnapshot.Community] = []
+            var status = NetworkSnapshot.CommunityStatus.notEnoughLinks
+            var timeline = NetworkSnapshot.Timeline()
+        }
+        let parts = Parts()
+        let peopleCount = people.count
+        DispatchQueue.concurrentPerform(iterations: 4) { job in
+            let begun = Date()
+            switch job {
+            case 0:
+                parts.suggestions = AcquaintanceSuggestions.suggest(people: graphPeople, edges: edges, declined: declined)
+                    .map { suggestion in
+                        AcquaintanceSuggestionRoute.Item(a: suggestion.a, b: suggestion.b,
+                                                         aName: nameOf[suggestion.a] ?? "", bName: nameOf[suggestion.b] ?? "",
+                                                         evidence: AcquaintanceSuggestionRoute.evidence(
+                                                            together: suggestion.together,
+                                                            introducer: suggestion.introducer.flatMap { nameOf[$0] }))
+                    }
+                LaunchTiming.log("  인맥 · 아는 사이 후보 \(parts.suggestions.count)쌍", since: begun)
+            case 1:
+                parts.positions = GraphLayout.layout(nodeCount: peopleCount + 1, center: peopleCount, links: links)
+                LaunchTiming.log("  인맥 · 자리 잡기", since: begun)
+            case 2:
+                (parts.communities, parts.status) = findCommunities(people: people, strong: strong, index: indexOf,
+                                                                    readiness: readiness, nameOrder: nameOrder)
+                LaunchTiming.log("  인맥 · 모임 찾기 \(parts.communities.count)개", since: begun)
+            default:
+                parts.timeline = makeTimeline(people: people, nameOrder: nameOrder, index: indexOf, introducedBy: introducedBy,
+                                              recordDays: days, participantLists: lists, ties: ties,
+                                              now: now, today: today, usageStart: usageStart, calendar: calendar)
+                LaunchTiming.log("  인맥 · 시점 \(parts.timeline.slices.count)개 · 변화 \(parts.timeline.changes.count)개", since: begun)
+            }
+        }
+        lap("함께 세기 (후보 · 자리 · 모임 · 시점)")
+        let positions = parts.positions
+        let communities = parts.communities
+        let status = parts.status
+        let timeline = parts.timeline
 
         var result = NetworkSnapshot(people: people, meName: me?.name, today: today, yearStart: yearStart, yearEnd: yearEnd,
                                      edges: edges, positions: positions)
@@ -283,7 +312,7 @@ enum NetworkSnapshotBuilder {
         result.communities = communities
         result.communityStatus = status
         result.timeline = timeline
-        result.suggestions = snapshot.suggestions
+        result.suggestions = parts.suggestions
         return result
     }
 
@@ -326,7 +355,10 @@ enum NetworkSnapshotBuilder {
             guard let x = node[pair.0], let y = node[pair.1] else { return nil }
             return (x, y)
         }
+        var begun = Date()
         let computed = TemporalNetwork.slices(members: members, meetings: meetings, ties: tieNodes, sliceDays: ends.map(\.day))
+        LaunchTiming.log("    시점 · 진한 선과 모임 \(computed.count)개", since: begun)
+        begun = Date()
 
         func name(_ group: [Int], _ used: inout Set<String>, _ unnamed: inout Int) -> String {
             let suggested = CommunityNaming.suggest(group.map {
@@ -369,8 +401,12 @@ enum NetworkSnapshotBuilder {
                 communities: groups))
         }
 
+        LaunchTiming.log("    시점 · 이름 붙이기", since: begun)
+        begun = Date()
+        let found = TemporalNetwork.changes(computed, threshold: GroupMatchSetting.current.threshold)
+        LaunchTiming.log("    시점 · 변화 짝짓기 \(found.count)개", since: begun)
         var changes: [NetworkSnapshot.Timeline.Change] = []
-        for change in TemporalNetwork.changes(computed, threshold: GroupMatchSetting.current.threshold) {
+        for change in found {
             // 그대로는 변화가 아니다 — 목록에 넣지 않고 그 시점의 설명에 수로만 (빌드 16 · 조사 보고서 지금 2).
             if change.kind == .steady {
                 slices[change.slice].steady += 1
