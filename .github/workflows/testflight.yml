@@ -14,6 +14,13 @@ on:
         description: "테스터에게 보여줄 변경 사항"
         required: false
         default: "느린 인연"
+      icloud_env:
+        description: "iCloud(CloudKit) 환경 — 준비 판(저장 형태 만들기)은 Development, 그 밖에는 Production (D-42)"
+        type: choice
+        options:
+          - Production
+          - Development
+        default: Production
       upload:
         description: "끄면 아카이브 · 서명 · 검사까지만 하고 TestFlight 에 올리지 않는다"
         type: boolean
@@ -161,6 +168,7 @@ jobs:
             <key>method</key><string>app-store-connect</string>
             <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
             <key>signingStyle</key><string>automatic</string>
+            <key>iCloudContainerEnvironment</key><string>${{ inputs.icloud_env || 'Production' }}</string>
             <key>uploadSymbols</key><true/>
             <key>destination</key><string>export</string>
             <!-- 이게 없으면 Xcode 가 빌드 번호를 App Store Connect 의 마지막 + 1 로 바꿔 버린다.

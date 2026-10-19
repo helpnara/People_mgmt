@@ -13,17 +13,18 @@ enum Persistence {
         let failure: String?
     }
 
-    /// 지금 판(4판) 저장소를 연다. 옛 판 저장소면 `SlowConnectionMigrationPlan` 으로 옮긴다.
+    /// 지금 판(5판) 저장소를 연다. 옛 판 저장소면 `SlowConnectionMigrationPlan` 으로 옮긴다.
     /// `url` 은 시험용 — 앱은 이름(`storeName`)으로 기본 자리를 쓴다.
-    static func makeContainer(inMemory: Bool, url: URL? = nil) throws -> ModelContainer {
+    /// `cloudSync` 면 내 iCloud 비공개 영역과 잇는다 (D-42 · `CloudSync`). 메모리 저장소 · 시험은 잇지 않는다.
+    static func makeContainer(inMemory: Bool, url: URL? = nil, cloudSync: Bool = false) throws -> ModelContainer {
         let schema = Schema(versionedSchema: SchemaV5.self)
-        // 동기화는 켜지 않는다 (D-1). 켤 때는 `.private("iCloud.com.helpnara.slow.connection")` 과
-        // CloudKit 스키마 배포 절차가 함께 온다 (docs/06-ci.md).
+        let database: ModelConfiguration.CloudKitDatabase = (cloudSync && !inMemory && url == nil)
+            ? .private(CloudSync.containerID) : .none
         let configuration: ModelConfiguration
         if let url {
             configuration = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
         } else {
-            configuration = ModelConfiguration(storeName, schema: schema, isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
+            configuration = ModelConfiguration(storeName, schema: schema, isStoredInMemoryOnly: inMemory, cloudKitDatabase: database)
         }
         let container = try ModelContainer(
             for: schema,
@@ -62,9 +63,14 @@ enum Persistence {
             }
         }
         do {
-            let container = try makeContainer(inMemory: false)
+            // iCloud 동기화 (D-42) — 이 판에서 쓸 수 있고 사용자가 끄지 않았을 때만.
+            let sync = CloudSync.mainStoreSyncAvailable && CloudSync.userWantsSync
+            let container = try makeContainer(inMemory: false, cloudSync: sync)
+            CloudSync.markOpened(active: sync)
             // 날짜 칸을 UTC 정오로 한 번 옮긴다 (이슈 20) — 진짜 저장소에만. 깃발이 이 저장소를 가리키게.
             DateConvention.migrateIfNeeded(container.mainContext)
+            // 두 기기에서 따로 만든 나가 둘이면 먼저 만든 나만 남긴다 (D-43).
+            if sync { _ = try? PersonStore(context: container.mainContext).resolveDuplicateMe() }
             return Opened(container: container, isInMemory: false, failure: nil)
         } catch {
             return fallback(reason: "\(error)")
