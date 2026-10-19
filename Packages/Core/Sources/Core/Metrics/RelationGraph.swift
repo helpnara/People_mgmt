@@ -170,9 +170,11 @@ public enum GraphLayout {
         var stack: [Int] = []
         stack.reserveCapacity(64)
 
-        // 사람이 많으면 반복을 줄인다 (500명 넘으면 비례해서, 40번 아래로는 안 내린다). 해바라기 첫 자리가 이미 고르게
+        // 사람이 많으면 반복을 줄인다 (500명 넘으면 비례해서, 25번 아래로는 안 내린다). 해바라기 첫 자리가 이미 고르게
         // 퍼져 있어 5,000명은 40번이면 160번과 같은 모양이다 (파이썬: 반지름 중앙값 0.255 · 0.26). 500명 이하는 그대로.
-        let rounds = n <= 500 ? iterations : max(40, iterations * 500 / n)
+        // **바닥 40 → 25 (D-47 · 빌드 23).** 5,000명 모임 견본을 파이썬(정확한 미는 힘)으로 견줌 — 모임 안 거리 / 모임 밖 거리
+        // 160번 0.222 · 40번 0.230 · 25번 0.227, 반지름 중앙값 0.309 · 0.302 · 0.298. 3,200명 아래는 계산식이 25 보다 커서 그대로.
+        let rounds = n <= 500 ? iterations : max(25, iterations * 500 / n)
         for iteration in 0..<rounds {
             let temperature = startTemperature * (1 - Double(iteration) / Double(rounds)) + 0.002
             var dx = [Double](repeating: 0, count: n)
