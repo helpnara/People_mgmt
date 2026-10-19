@@ -283,6 +283,7 @@ enum NetworkSnapshotBuilder {
         result.communities = communities
         result.communityStatus = status
         result.timeline = timeline
+        result.suggestions = snapshot.suggestions
         return result
     }
 
