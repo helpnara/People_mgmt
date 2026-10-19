@@ -19,7 +19,8 @@ struct RelationshipReviewSection: View {
     }
 
     var body: some View {
-        let records = person.records ?? []
+        // 지운 기록의 고친 날을 읽지 않는다 — 지운 직후 다시 그려질 때 앱이 꺼진다 (이슈 27).
+        let records = (person.records ?? []).filter { !$0.isGone }
         Section {
             if let metrics {
                 content(metrics)
