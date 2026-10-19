@@ -15,7 +15,8 @@ enum CloudSync {
     static let containerID = "iCloud.com.helpnara.slow.connection"
 
     /// 이 판에서 진짜 저장소를 iCloud 와 잇는가. **스키마가 배포 환경에 올라간 뒤에만 참으로** 바꾼다.
-    static let mainStoreSyncAvailable = false
+    /// 2026-10-19 개발 환경 적용(스키마 워크플로 실행 3) · 사용자가 Production 배포 → 빌드 21 부터 켬.
+    static let mainStoreSyncAvailable = true
 
     /// 설정의 켜고 끄기 (D-42 — 기본 켬). 바꾸면 앱을 다시 열 때 적용된다 — 저장소를 연 뒤에는 바꿀 수 없다.
     static let enabledKey = "sync.enabled"
