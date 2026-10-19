@@ -167,8 +167,6 @@ public enum GraphLayout {
         let k2 = k * k
         let gravity = 1.5
         let attraction = pow(min(1, 30.0 / Double(n)), 0.75)
-        var stack: [Int] = []
-        stack.reserveCapacity(64)
 
         // 사람이 많으면 반복을 줄인다 (500명 넘으면 비례해서, 25번 아래로는 안 내린다). 해바라기 첫 자리가 이미 고르게
         // 퍼져 있어 5,000명은 40번이면 160번과 같은 모양이다 (파이썬: 반지름 중앙값 0.255 · 0.26). 500명 이하는 그대로.
@@ -180,11 +178,21 @@ public enum GraphLayout {
             var dx = [Double](repeating: 0, count: n)
             var dy = [Double](repeating: 0, count: n)
 
+            // 미는 힘은 사람마다 따로 센다 — 여러 코어로 나눠 센다 (D-47 · 빌드 24). 사람마다 쓰는 자리가 달라 결과는 같다.
             let tree = QuadTree(positions)
-            for i in 0..<n {
-                let force = tree.repulsion(on: i, positions: positions, k2: k2, stack: &stack)
-                dx[i] += force.x
-                dy[i] += force.y
+            let current = positions
+            dx.withUnsafeMutableBufferPointer { dxBuffer in
+                dy.withUnsafeMutableBufferPointer { dyBuffer in
+                    Parallel.chunks(n, minimumChunk: 256) { range in
+                        var stack: [Int] = []
+                        stack.reserveCapacity(64)
+                        for i in range {
+                            let force = tree.repulsion(on: i, positions: current, k2: k2, stack: &stack)
+                            dxBuffer[i] += force.x
+                            dyBuffer[i] += force.y
+                        }
+                    }
+                }
             }
             for link in links where link.i != link.j && link.i < n && link.j < n {
                 let ddx = positions[link.i].x - positions[link.j].x
