@@ -73,7 +73,7 @@
 
 - **작업 브랜치 `claude/slow-connection`** 에서 개발한다. CI · TestFlight · 처리방침 게시가 전부 여기서 돈다.
 - **`main` 은 App Store 에 낸 판**을 가리킨다. 심사에 낼 때 작업 브랜치를 `main` 에 **병합**(강제 푸시 · 되감기 없이)한다. 스크린샷 충돌은 `-X theirs` 로 작업 브랜치 것을 쓴다.
-- **기본 브랜치는 작업 브랜치 `claude/slow-connection`** 이다 (2026-10-19 사용자 결정 · 느린 부자와 같다). 손으로 돌리는 새 워크플로는 기본 브랜치에 있어야 GitHub 이 등록한다 — `main` 을 기본으로 두면 워크플로를 더할 때마다 `main` 을 건드려야 했다. `main` 은 여전히 스토어 판이다. `master` 는 처음 만들 때의 브랜치로 쓰지 않는다 (`docs/06-ci.md` §2.1).
+- `master` 는 저장소가 만들어질 때의 기본 브랜치다. 기본 브랜치를 `main` 으로 바꾸면 더는 쓰지 않는다 (`docs/06-ci.md`).
 - 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나).
 - `paths-ignore` 로 문서만 고친 푸시는 건너뛴다. `concurrency` + `cancel-in-progress`. 커밋하는 워크플로에는 `permissions: contents: write`. **아티팩트 업로드를 커밋보다 앞에.**
 - 소스 안의 안내 문구 강조는 `**…**`. **곧은 따옴표(`"`)를 문구 안에 쓰지 않는다** — 지난 앱에서 빌드 시스템이 같은 자리에서 두 번 죽었다.
