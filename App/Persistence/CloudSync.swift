@@ -24,6 +24,16 @@ enum CloudSync {
         UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true
     }
 
+    /// 이 실행에서 CloudKit 을 써도 되는가. **시뮬레이터 · 앱 시험에서는 쓰지 않는다** — CI 의 시뮬레이터 판은 서명하지 않아
+    /// iCloud 권한(엔타이틀먼트)이 없고, 권한 없이 CloudKit 을 부르면 CloudKit 이 앱을 끈다 (빌드 20 첫 CI · 앱 시험이 멈춤).
+    static var canUseCloudKit: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+        #endif
+    }
+
     /// 이번에 연 저장소가 iCloud 와 이어졌는가 — 앱을 켤 때 한 번 정해진다.
     @MainActor static private(set) var isActive = false
 
@@ -46,6 +56,7 @@ enum CloudSchema {
 
     /// 끝났으면 다시 하지 않는다 (`force` 면 다시).
     static func prepare(force: Bool = false) async {
+        guard CloudSync.canUseCloudKit else { return }
         if isDone && !force { return }
         let result = await Task.detached(priority: .utility) { () -> (Bool, String) in
             run()
