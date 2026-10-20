@@ -128,6 +128,9 @@ final class GoldenTests: XCTestCase {
         struct ValidationCase: Decodable { let name: String; let expected: String? }
         struct RecordSaveCase: Decodable { let title: String?; let note: String?; let expected: Bool }
         struct NoonCase: Decodable { let iso: String; let timeZone: String; let expectedEpoch: Double }
+        struct ApproxCase: Decodable {
+            let iso: String; let timeZone: String; let precision: Int; let expectedEpoch: Double; let expectedLabel: String?
+        }
         struct Record: Decodable {
             let id: UUID; let displayTitle: String; let title: String?; let note: String?
             let location: String?; let tags: [String]
@@ -190,6 +193,7 @@ final class GoldenTests: XCTestCase {
         let validation: [ValidationCase]
         let recordSave: [RecordSaveCase]
         let dayNoon: [NoonCase]
+        let approxDate: [ApproxCase]
         let search: Search
         let josa: [JosaCase]
         let folded: [FoldedCase]
@@ -589,6 +593,21 @@ final class GoldenTests: XCTestCase {
             calendar.timeZone = try XCTUnwrap(TimeZone(identifier: c.timeZone), c.timeZone)
             let noon = DayNormalizer.noon(of: date, calendar: calendar)
             XCTAssertEqual(noon.timeIntervalSince1970, c.expectedEpoch, accuracy: 0.5, "\(c.iso) in \(c.timeZone)")
+        }
+    }
+
+    /// 대략 날짜 (FR-033) — 정밀도에 맞춰 접은 정오(UTC)와 보이는 글.
+    func testApproximateDate() throws {
+        let parser = ISO8601DateFormatter()
+        for c in try Self.loadGolden().approxDate {
+            let date = try XCTUnwrap(parser.date(from: c.iso), c.iso)
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = try XCTUnwrap(TimeZone(identifier: c.timeZone), c.timeZone)
+            let precision = DatePrecision.of(c.precision)
+            let stored = ApproximateDate.noon(of: date, precision: precision, calendar: calendar)
+            let name = "\(c.iso) in \(c.timeZone) · \(c.precision)"
+            XCTAssertEqual(stored.timeIntervalSince1970, c.expectedEpoch, accuracy: 0.5, name)
+            XCTAssertEqual(ApproximateDate.label(of: stored, precision: precision), c.expectedLabel, name)
         }
     }
 

@@ -41,6 +41,8 @@ struct BackupFile: Codable, Sendable {
         var birthDay: Int?
         var birthYear: Int?
         var contactCadenceMonths: Int?
+        /// 6판(빌드 28)부터 — 처음 만난 날의 정밀도(FR-033). 옛 백업에는 없으니 옵셔널(없으면 날짜까지).
+        var firstMetPrecision: Int?
     }
 
     struct RecordItem: Codable, Sendable {
@@ -54,6 +56,8 @@ struct BackupFile: Codable, Sendable {
         var participants: [UUID]
         var createdAt: Date
         var updatedAt: Date
+        /// 6판(빌드 28)부터 — 기록 날짜의 정밀도(FR-033). 옛 백업에는 없으니 옵셔널.
+        var occurredPrecision: Int?
     }
 
     struct TieItem: Codable, Sendable {
@@ -137,13 +141,13 @@ enum Backup {
                     mobilePhone: p.mobilePhone, officePhone: p.officePhone, faxNumber: p.faxNumber, email: p.email,
                     isMe: p.isMe, tags: p.tags, createdAt: p.createdAt, updatedAt: p.updatedAt, businessCard: p.businessCard,
                     birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear,
-                    contactCadenceMonths: p.contactCadenceMonths)
+                    contactCadenceMonths: p.contactCadenceMonths, firstMetPrecision: p.firstMetPrecision)
             },
             records: records.map { r in
                 BackupFile.RecordItem(
                     uuid: r.uuid, title: r.title, recordType: r.recordType, occurredAt: r.occurredAt,
                     location: r.location, note: r.note, tags: r.tags, participants: (r.participants ?? []).map(\.uuid),
-                    createdAt: r.createdAt, updatedAt: r.updatedAt)
+                    createdAt: r.createdAt, updatedAt: r.updatedAt, occurredPrecision: r.occurredPrecision)
             },
             ties: ties.compactMap { t in
                 guard let a = t.first?.uuid, let b = t.second?.uuid else { return nil }
@@ -213,6 +217,7 @@ enum Backup {
             person.relationshipType = item.relationshipType
             person.metThrough = item.metThrough
             person.firstMetDate = item.firstMetDate
+            person.firstMetPrecision = DatePrecision.of(item.firstMetPrecision ?? 0).rawValue
             person.firstNote = item.firstNote
             person.contactNote = item.contactNote
             person.mobilePhone = item.mobilePhone
@@ -247,6 +252,7 @@ enum Backup {
             context.insert(record)
             record.uuid = item.uuid
             record.location = item.location
+            record.occurredPrecision = DatePrecision.of(item.occurredPrecision ?? 0).rawValue
             record.tags = item.tags
             record.createdAt = item.createdAt
             record.updatedAt = item.updatedAt

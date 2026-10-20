@@ -5,6 +5,8 @@ import SwiftData
 /// 기록 추가 · 수정 화면이 들고 있는 값 (요구사항 4.2.4).
 struct RecordDraft: Equatable {
     var occurredAt = Date()
+    /// 날짜의 정밀도 (FR-033).
+    var occurredPrecision = DatePrecision.day
     var recordType = RecordType.defaultKey
     var title = ""
     var note = ""
@@ -20,6 +22,7 @@ struct RecordDraft: Equatable {
 
     init(record: Record) {
         occurredAt = record.occurredAt
+        occurredPrecision = .of(record.occurredPrecision)
         recordType = record.recordType
         title = record.title ?? ""
         note = record.note ?? ""
@@ -91,7 +94,8 @@ struct RecordStore {
 
     private func fill(_ record: Record, from draft: RecordDraft) {
         record.recordType = RecordType.named(draft.recordType).key
-        record.occurredAt = DayNormalizer.noon(of: draft.occurredAt, calendar: .current)
+        record.occurredAt = ApproximateDate.noon(of: draft.occurredAt, precision: draft.occurredPrecision, calendar: .current)
+        record.occurredPrecision = draft.occurredPrecision.rawValue
         record.title = clipped(draft.title, Limits.recordTitle)
         record.note = clipped(draft.note, Limits.recordNote)
         record.location = clipped(draft.location, Limits.location)
@@ -111,7 +115,7 @@ struct RecordStore {
     }
 }
 
-extension SchemaV5.Record {
+extension SchemaV6.Record {
     /// 목록에 보일 이름 (요구사항 6.2). 규칙은 `Core.DisplayTitle` 하나다.
     var displayTitle: String { DisplayTitle.make(title: title, note: note) }
 
