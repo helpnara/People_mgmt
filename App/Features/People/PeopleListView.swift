@@ -506,8 +506,12 @@ struct PeopleListView: View {
     }
 
     /// 오늘까지의 기록 가운데 날짜가 늦은 셋 (같은 날이면 나중에 적은 것부터). 잠긴 동안은 읽지 않는다 (이슈 31).
+    /// 앱이 막 뜰 때는 아직 앞에 나오기 전이라 여기서 걸린다 — 표시만 해 두면 앞으로 나올 때 다시 센다(빌드 27 CI 스크린샷 02).
     private func loadRecentRecords() {
-        guard StoreAccess.isReadable(scenePhase) else { return }
+        guard StoreAccess.isReadable(scenePhase) else {
+            pendingChange = true
+            return
+        }
         let calendar = Calendar.current
         let endOfToday = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
         var descriptor = FetchDescriptor<Record>(
