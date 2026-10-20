@@ -7,8 +7,14 @@ import XCTest
 @MainActor
 final class Build27Tests: XCTestCase {
 
+    /// 컨테이너를 시험 동안 붙잡아 둔다 — 문맥만 돌려주면 컨테이너가 먼저 풀려 문맥을 쓰는 순간 시험 프로세스가 꺼진다
+    /// (빌드 27 첫 CI · `PersonStoreTests.Fixture` 와 같은 까닭).
+    private var container: ModelContainer?
+
     private func makeContext() throws -> ModelContext {
-        try Persistence.makeContainer(inMemory: true).mainContext
+        let made = try Persistence.makeContainer(inMemory: true)
+        container = made
+        return made.mainContext
     }
 
     private func person(_ name: String, tags: [String], in context: ModelContext) throws -> Person {
