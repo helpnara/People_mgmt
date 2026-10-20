@@ -285,7 +285,7 @@ struct RecordFillRouteView: View {
         return AdaptiveStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.displayTitle).font(.scaled(16, weight: .semibold)).foregroundStyle(Color.ink).readableLineLimit(1)
-                Text(([record.occurredAt.formatted(date: .abbreviated, time: .omitted)] + names).joined(separator: " · "))
+                Text(([record.occurredAt.shown(precision: record.occurredPrecision, style: .abbreviated)] + names).joined(separator: " · "))
                     .font(.scaled(13)).foregroundStyle(Color.muted).readableLineLimit(1)
             }
             Spacer(minLength: 8)

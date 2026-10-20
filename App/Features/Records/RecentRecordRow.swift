@@ -32,7 +32,7 @@ struct RecentRecordRow: View {
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(record.occurredAt.formatted(date: .abbreviated, time: .omitted))
+                    Text(record.occurredAt.shown(precision: record.occurredPrecision, style: .abbreviated))
                     if !companions.isEmpty {
                         Text("· \(companions)")
                             .readableLineLimit(1)

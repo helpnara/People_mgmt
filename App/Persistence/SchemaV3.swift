@@ -5,7 +5,7 @@ import SwiftData
 ///
 /// 2판에서 연락 수단 네 칸과 나 표시(`isMe`)를 더한 판이다. 4판으로 옮기는 원본이다 —
 /// 여기를 고치면 이미 깔린 기기의 저장소가 어느 판인지 알아보지 못해 열리지 않을 수 있다.
-/// 2판 → 3판 옮기기(`ContactMigration`)가 이 판의 `Person` 을 쓴다. 지금 쓰는 판은 `Schema.swift` 의 `SchemaV5`.
+/// 2판 → 3판 옮기기(`ContactMigration`)가 이 판의 `Person` 을 쓴다. 지금 쓰는 판은 `Schema.swift` 의 `SchemaV6`.
 enum SchemaV3: VersionedSchema {
     static var versionIdentifier: Schema.Version { Schema.Version(3, 0, 0) }
     static var models: [any PersistentModel.Type] { [Person.self, Record.self] }

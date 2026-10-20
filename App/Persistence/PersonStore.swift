@@ -16,6 +16,8 @@ struct PersonDraft: Equatable {
     var introducedBy: Person?
     var hasFirstMetDate = false
     var firstMetDate = Date()
+    /// 처음 만난 날의 정밀도 (FR-033) — 월까지 · 연도만이면 그달 1일 · 그해 1월 1일로 저장한다.
+    var firstMetPrecision = DatePrecision.day
     var firstNote = ""
     /// 연락 수단 기타 (FR-032). 네 칸에 들지 않는 번호 · 메일 · 메모.
     var contactNote = ""
@@ -48,6 +50,7 @@ struct PersonDraft: Equatable {
         introducedBy = person.introducedBy
         hasFirstMetDate = person.firstMetDate != nil
         firstMetDate = person.firstMetDate ?? Date()
+        firstMetPrecision = .of(person.firstMetPrecision)
         firstNote = person.firstNote ?? ""
         contactNote = person.contactNote ?? ""
         mobilePhone = person.mobilePhone ?? ""
@@ -251,7 +254,9 @@ struct PersonStore {
         } else {
             person.introducedBy = nil
         }
-        person.firstMetDate = draft.hasFirstMetDate ? DayNormalizer.noon(of: draft.firstMetDate, calendar: .current) : nil
+        person.firstMetDate = draft.hasFirstMetDate
+            ? ApproximateDate.noon(of: draft.firstMetDate, precision: draft.firstMetPrecision, calendar: .current) : nil
+        person.firstMetPrecision = draft.hasFirstMetDate ? draft.firstMetPrecision.rawValue : 0
         person.firstNote = clipped(draft.firstNote, Limits.firstNote)
         person.contactNote = clipped(draft.contactNote, Limits.contactNote)
         person.mobilePhone = clipped(draft.mobilePhone, Limits.phone)

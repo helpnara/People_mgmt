@@ -355,7 +355,7 @@ struct PersonDetailView: View {
 
     private var firstMetText: String {
         if let date = person.firstMetDate {
-            return date.formatted(date: .long, time: .omitted)
+            return date.shown(precision: person.firstMetPrecision, style: .long)
         }
         return "날짜 미상"
     }

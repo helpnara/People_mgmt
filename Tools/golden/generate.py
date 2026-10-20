@@ -1401,6 +1401,17 @@ def noon_epoch(iso: str, zone: str) -> float:
     return datetime(local.year, local.month, local.day, 12, tzinfo=timezone.utc).timestamp()
 
 
+def approx_noon(iso: str, zone: str, precision: int):
+    """(정오 epoch, 보이는 글) — 날짜까지는 그날, 월까지는 그달 1일, 연도만은 1월 1일의 12:00 UTC (Swift `ApproximateDate`)."""
+    day = datetime.fromtimestamp(noon_epoch(iso, zone), tz=timezone.utc)
+    if precision not in (1, 2):  # 모르는 값은 날짜까지 (`DatePrecision.of`)
+        return day.timestamp(), None
+    month = 1 if precision == 2 else day.month
+    folded_day = datetime(day.year, month, 1, 12, tzinfo=timezone.utc)
+    label = f"{day.year}년" if precision == 2 else f"{day.year}년 {day.month}월"
+    return folded_day.timestamp(), label
+
+
 # ── 조사 (Josa) ──────────────────────────────────────────────────────────────
 
 def final_consonant(text: str):
@@ -1690,6 +1701,10 @@ def build() -> dict:
     out["dayNoon"] = [{"iso": c["iso"], "timeZone": c["timeZone"],
                        "expectedEpoch": noon_epoch(c["iso"], c["timeZone"])}
                       for c in cases["dayNoon"]]
+    out["approxDate"] = []
+    for c in cases["approxDate"]:
+        epoch, label = approx_noon(c["iso"], c["timeZone"], c["precision"])
+        out["approxDate"].append({**c, "expectedEpoch": epoch, "expectedLabel": label})
     out["josa"] = [{"text": t, "expected": josa(t)} for t in cases["josa"]]
     out["folded"] = [{"input": t, "expected": folded(t)} for t in cases["folded"]]
     out["tagCatalog"] = []

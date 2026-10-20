@@ -312,6 +312,71 @@
       ]
     }
   ],
+  "approxDate": [
+    {
+      "expectedEpoch": 1614859200.0,
+      "expectedLabel": null,
+      "iso": "2021-03-04T09:00:00+09:00",
+      "precision": 0,
+      "timeZone": "Asia/Seoul"
+    },
+    {
+      "expectedEpoch": 1614600000.0,
+      "expectedLabel": "2021년 3월",
+      "iso": "2021-03-04T09:00:00+09:00",
+      "precision": 1,
+      "timeZone": "Asia/Seoul"
+    },
+    {
+      "expectedEpoch": 1609502400.0,
+      "expectedLabel": "2021년",
+      "iso": "2021-03-04T09:00:00+09:00",
+      "precision": 2,
+      "timeZone": "Asia/Seoul"
+    },
+    {
+      "expectedEpoch": 1614600000.0,
+      "expectedLabel": "2021년 3월",
+      "iso": "2021-03-01T00:30:00+09:00",
+      "precision": 1,
+      "timeZone": "Asia/Seoul"
+    },
+    {
+      "expectedEpoch": 1612180800.0,
+      "expectedLabel": "2021년 2월",
+      "iso": "2021-03-01T00:30:00+09:00",
+      "precision": 1,
+      "timeZone": "UTC"
+    },
+    {
+      "expectedEpoch": 1546344000.0,
+      "expectedLabel": "2019년",
+      "iso": "2019-12-31T23:30:00+09:00",
+      "precision": 2,
+      "timeZone": "Asia/Seoul"
+    },
+    {
+      "expectedEpoch": 1546344000.0,
+      "expectedLabel": "2019년",
+      "iso": "2019-12-31T23:30:00+09:00",
+      "precision": 2,
+      "timeZone": "America/Los_Angeles"
+    },
+    {
+      "expectedEpoch": 1706788800.0,
+      "expectedLabel": "2024년 2월",
+      "iso": "2024-02-29T12:00:00+00:00",
+      "precision": 1,
+      "timeZone": "UTC"
+    },
+    {
+      "expectedEpoch": 1709208000.0,
+      "expectedLabel": null,
+      "iso": "2024-02-29T12:00:00+00:00",
+      "precision": 9,
+      "timeZone": "UTC"
+    }
+  ],
   "birthdays": [
     {
       "day": 14,

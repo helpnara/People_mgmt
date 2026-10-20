@@ -130,6 +130,9 @@ enum ReminderScheduler {
         let context = ModelContext(container)
         let people = (try? context.fetch(FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == false }))) ?? []
         let calendar = Calendar.current
+        func knowsFirstMetDay(_ person: Person) -> Bool {
+            person.firstMetDate != nil && DatePrecision.of(person.firstMetPrecision) == .day
+        }
         func civil(_ date: Date) -> CivilDate {
             let parts = calendar.dateComponents([.year, .month, .day], from: date)
             return CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1)
@@ -137,12 +140,13 @@ enum ReminderScheduler {
         let inputs = people.compactMap { person -> ReminderPlanner.Person? in
             let wantsCadence = options.cadence && (person.contactCadenceMonths ?? 0) > 0
             let needed = (options.birthdays && person.birthMonth != nil)
-                || (options.anniversaries && person.firstMetDate != nil)
+                || (options.anniversaries && knowsFirstMetDay(person))
                 || wantsCadence
             guard needed else { return nil }
             return ReminderPlanner.Person(
                 id: person.uuid, name: person.name, birthMonth: person.birthMonth, birthDay: person.birthDay,
-                firstMet: person.firstMetDate.map(civil),
+                // 월까지 · 연도만인 처음 만난 날은 n주년을 알리지 않는다 — 1일 · 1월 1일에 틀리게 울린다 (FR-033).
+                firstMet: knowsFirstMetDay(person) ? person.firstMetDate.map(civil) : nil,
                 // 마지막 기록은 연락 주기를 고른 사람만 센다 — 기록 관계를 읽는 비용이 크다.
                 lastRecord: wantsCadence ? person.lastRecordAt.map(civil) : nil,
                 registered: civil(person.createdAt), cadenceMonths: person.contactCadenceMonths)

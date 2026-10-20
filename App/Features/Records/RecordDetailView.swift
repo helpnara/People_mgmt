@@ -32,7 +32,7 @@ struct RecordDetailView: View {
                         Image(systemName: record.type.symbol).foregroundStyle(Color.accent)
                         Text(record.type.label).foregroundStyle(Color.accent)
                         Text("·").foregroundStyle(Color.faint)
-                        Text(record.occurredAt.formatted(date: .long, time: .omitted)).foregroundStyle(Color.muted)
+                        Text(record.occurredAt.shown(precision: record.occurredPrecision, style: .long)).foregroundStyle(Color.muted)
                     }
                     .font(.scaled(14, weight: .medium))
                     Text(record.displayTitle)

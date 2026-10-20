@@ -58,7 +58,9 @@ enum SampleData {
         seoyeon.role = "대표"
         seoyeon.relationshipType = "협력사"
         seoyeon.metThrough = "소개"
-        seoyeon.firstMetDate = day(2023, 5, 16)
+        // 대략 날짜 (FR-033) — 언제였는지 달까지만 기억한다. 저장 규칙대로 그달 1일.
+        seoyeon.firstMetDate = day(2023, 5, 1)
+        seoyeon.firstMetPrecision = DatePrecision.month.rawValue
         seoyeon.firstNote = "브랜드 리뉴얼 때 김하늘 팀장이 소개해 주었다."
         seoyeon.tags = ["디자인"]
 

@@ -2,14 +2,15 @@ import Core
 import Foundation
 import SwiftData
 
-/// 스키마 **5판** — 지금 쓰는 판 (요구사항 6절 · D-40 · 빌드 18).
+/// 스키마 **6판** — 지금 쓰는 판 (요구사항 6절 · FR-033 · D-52 · 빌드 28).
 ///
-/// 4판에서 사람에 **생일(월 · 일 · 선택 연도)** 과 **연락 주기(개월)** 칸 넷을 더했다 — 모두 옵셔널이라 가벼운 옮기기.
-/// 나머지는 4판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV6` 를 더하고 이 판은 얼린다.
+/// 5판에서 **날짜의 정밀도** 칸 둘을 더했다 — 사람의 `firstMetPrecision` · 기록의 `occurredPrecision`
+/// (0 날짜까지 · 1 월까지 · 2 연도만, `Core.DatePrecision`). 기본값이 있어 가벼운 옮기기이고, 옛 자료는 모두 날짜까지(0)가 된다.
+/// 나머지는 5판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV7` 을 더하고 이 판은 얼린다.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
-enum SchemaV5: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(5, 0, 0) }
+enum SchemaV6: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(6, 0, 0) }
     static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self] }
 
     /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
@@ -25,6 +26,8 @@ enum SchemaV5: VersionedSchema {
         var metThrough: String?
         /// 날짜만 뜻이 있다. 저장할 때 그날 정오로 맞춘다 (요구사항 7.3).
         var firstMetDate: Date?
+        /// 처음 만난 날의 정밀도 (6판 · FR-033) — 0 날짜까지 · 1 월까지 · 2 연도만. 월이면 그달 1일, 연도면 1월 1일로 저장한다.
+        var firstMetPrecision: Int = 0
         var firstNote: String?
         /// 연락 수단 **기타** (FR-032) — 네 칸에 들지 않는 번호 · 메일 · 메모를 자유 글자로.
         /// 2판까지는 전화 · 메일을 전부 이 한 칸에 담았다 — 3판으로 옮길 때 네 칸으로 나눈다 (이슈 11).
@@ -86,6 +89,8 @@ enum SchemaV5: VersionedSchema {
         var recordType: String = "conversation"
         /// 날짜만 뜻이 있다. 그날 정오. 미래 허용 (D-11).
         var occurredAt: Date = Date()
+        /// 기록 날짜의 정밀도 (6판 · FR-033) — `Person.firstMetPrecision` 과 같은 뜻.
+        var occurredPrecision: Int = 0
         var location: String?
         var note: String?
         var tags: [String] = []
@@ -128,20 +133,21 @@ enum SchemaV5: VersionedSchema {
     }
 }
 
-typealias Person = SchemaV5.Person
-typealias Record = SchemaV5.Record
-typealias Tie = SchemaV5.Tie
+typealias Person = SchemaV6.Person
+typealias Record = SchemaV6.Record
+typealias Tie = SchemaV6.Tie
 
 /// 판 사이의 이사 계획.
 /// - 1판 → 2판: 칸 하나를 더하는 **가벼운 옮기기**
 /// - 3판 → 4판: 아는 사이 연결을 더하는 가벼운 옮기기 (D-30)
 /// - 4판 → 5판: 생일 · 연락 주기 칸을 더하는 가벼운 옮기기 (D-40)
+/// - 5판 → 6판: 날짜 정밀도 칸 둘을 더하는 가벼운 옮기기 (FR-033)
 /// - 2판 → 3판: 칸을 더하고(가벼운 옮기기와 같다), 옮긴 뒤 **한 칸에 들어 있던 연락 수단을 네 칸으로 나눈다** (이슈 11).
 ///   나누지 못한 글은 기타(`contactNote`)에 그대로 남는다 — 잃는 글이 없다. 이미 네 칸 중 하나라도 찬 사람은 건드리지 않는다.
 ///
 /// 실제 옮겨지는지는 `AppTests/MigrationTests.swift` 가 1판 · 2판 저장소를 디스크에 만들어 연다.
 enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self] }
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self),
@@ -152,6 +158,8 @@ enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
             .lightweight(fromVersion: SchemaV3.self, toVersion: SchemaV4.self),
             // 4판 → 5판: 사람에 옵셔널 칸 넷(생일 · 연락 주기)을 더할 뿐 — 가벼운 옮기기 (D-40).
             .lightweight(fromVersion: SchemaV4.self, toVersion: SchemaV5.self),
+            // 5판 → 6판: 기본값이 있는 정밀도 칸 둘을 더할 뿐 — 가벼운 옮기기 (FR-033).
+            .lightweight(fromVersion: SchemaV5.self, toVersion: SchemaV6.self),
         ]
     }
 }
@@ -186,7 +194,7 @@ extension PersistentModel {
     var isGone: Bool { isDeleted || modelContext == nil }
 }
 
-extension SchemaV5.Person {
+extension SchemaV6.Person {
     /// 목록 보조 정보 (요구사항 6.1 `subtitle`): 소속 · 직무, 둘 다 없으면 관계 유형.
     var subtitle: String? {
         let parts = [organization, role].compactMap { $0 }.filter { !$0.isEmpty }

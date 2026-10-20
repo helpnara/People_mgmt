@@ -66,8 +66,9 @@ struct RecordEditView: View {
             Form {
                 Section {
                     DatePicker("날짜", selection: $draft.occurredAt, displayedComponents: .date)
+                    PrecisionPicker(date: draft.occurredAt, selection: $draft.occurredPrecision)
                 } footer: {
-                    Text("기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다.")
+                    Text("기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다. 날짜가 정확하지 않으면 월까지 · 연도만을 고르세요.")
                 }
                 Section("기록 유형") {
                     RecordTypeChips(selection: $draft.recordType)
