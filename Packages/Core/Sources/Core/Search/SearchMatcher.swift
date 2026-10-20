@@ -83,31 +83,32 @@ public struct SearchHit: Sendable, Equatable {
 
 /// 검색용으로 **미리 접어 둔** 사람들 (이슈 6). 검색할 때마다 칸을 NFC · 소문자로 다시 만들지 않는다 —
 /// 5,000명 · 50,000건에서 검색 한 번이 1.4~2.3초 걸린 원인이었다. 자료가 바뀔 때만 다시 만든다.
+/// 칸마다 초성 글도 함께 접어 둔다 — 초성 검색(`Chosung` · FR-036)은 모든 칸에서 된다.
 public struct SearchIndex: Sendable {
 
     struct Field: Sendable {
-        let folded: String
+        let text: FoldedText
         let evidence: String
     }
 
     struct Tag: Sendable {
         let original: String
-        let folded: String
+        let text: FoldedText
     }
 
     struct RecordEntry: Sendable {
         let id: UUID
         let displayTitle: String
-        let title: String?
-        let note: String?
-        let location: String?
+        let title: FoldedText?
+        let note: FoldedText?
+        let location: FoldedText?
         let tags: [Tag]
     }
 
     struct Entry: Sendable {
         let id: UUID
         let nameKey: String
-        let name: String
+        let name: FoldedText
         let tags: [Tag]
         let fields: [Field]
         let records: [RecordEntry]
@@ -118,12 +119,12 @@ public struct SearchIndex: Sendable {
     public var count: Int { entries.count }
 
     public init(_ people: [SearchablePerson]) {
-        func fold(_ value: String?) -> String? {
+        func fold(_ value: String?) -> FoldedText? {
             guard let value, !value.isEmpty else { return nil }
-            return TextNormalization.folded(value)
+            return FoldedText(value)
         }
         func tags(_ values: [String]) -> [Tag] {
-            values.map { Tag(original: $0, folded: TextNormalization.folded($0)) }
+            values.map { Tag(original: $0, text: FoldedText($0)) }
         }
         entries = people.map { person in
             let candidates: [(String?, String)] = [
@@ -134,13 +135,13 @@ public struct SearchIndex: Sendable {
                 (person.metThrough, "알게 된 경로 일치"),
                 (person.firstNote, "첫 인연 메모 일치"),
             ]
-            let fields = candidates.compactMap { value, evidence in fold(value).map { Field(folded: $0, evidence: evidence) } }
+            let fields = candidates.compactMap { value, evidence in fold(value).map { Field(text: $0, evidence: evidence) } }
             let records = person.records.map { record in
                 RecordEntry(id: record.id, displayTitle: record.displayTitle, title: fold(record.title),
                             note: fold(record.note), location: fold(record.location), tags: tags(record.tags))
             }
             let key = NameSort.key(person.name)
-            return Entry(id: person.id, nameKey: key, name: key, tags: tags(person.tags), fields: fields, records: records)
+            return Entry(id: person.id, nameKey: key, name: FoldedText(folded: key), tags: tags(person.tags), fields: fields, records: records)
         }
     }
 }
@@ -157,15 +158,15 @@ public enum SearchMatcher {
     /// 검사 순서가 곧 순위다: 이름 → 태그 → 사람의 다른 칸 → 기록.
     private static func bestMatch(of term: SearchQuery.Term, in entry: SearchIndex.Entry) -> Match? {
         let text = term.text
-        func has(_ folded: String?) -> Bool { folded?.contains(text) ?? false }
+        func has(_ field: FoldedText?) -> Bool { field?.contains(text) ?? false }
 
         if !term.tagOnly, entry.name.contains(text) {
             return Match(kind: .name, evidence: "이름 일치")
         }
-        if let tag = entry.tags.first(where: { $0.folded.contains(text) }) {
+        if let tag = entry.tags.first(where: { $0.text.contains(text) }) {
             return Match(kind: .tag, evidence: "태그 #\(tag.original) 일치")
         }
-        if !term.tagOnly, let field = entry.fields.first(where: { $0.folded.contains(text) }) {
+        if !term.tagOnly, let field = entry.fields.first(where: { $0.text.contains(text) }) {
             return Match(kind: .personField, evidence: field.evidence)
         }
         for record in entry.records {
@@ -174,7 +175,7 @@ public enum SearchMatcher {
                 if has(record.note) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 메모 일치", recordID: record.id) }
                 if has(record.location) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 장소 일치", recordID: record.id) }
             }
-            if let tag = record.tags.first(where: { $0.folded.contains(text) }) {
+            if let tag = record.tags.first(where: { $0.text.contains(text) }) {
                 return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 태그 #\(tag.original) 일치", recordID: record.id)
             }
         }

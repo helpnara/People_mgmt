@@ -1415,6 +1415,33 @@ def josa(text: str) -> dict:
             "iGa": pick("이", "가", "이(가)")}
 
 
+# ── 초성 (Chosung · FoldedText) ───────────────────────────────────────────────
+
+CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+
+
+def chosung_initials(text: str) -> str:
+    """한글 음절은 첫소리 자음으로, 나머지는 그대로 — Swift `Chosung.initials`."""
+    return "".join(CHOSUNG[(ord(c) - 0xAC00) // 588] if 0xAC00 <= ord(c) <= 0xD7A3 else c for c in text)
+
+
+def is_consonant(c: str) -> bool:
+    return 0x3131 <= ord(c) <= 0x314E
+
+
+def chosung_contains(text: str, term: str) -> bool:
+    """접은 글 `text` 에 접은 검색어 `term` 이 있는가. 검색어의 자음은 그 자리 음절의 첫소리와 견준다 —
+    Swift `FoldedText.contains` 와 같은 규칙을 다른 길(자리마다 훑기)로 센다."""
+    if not any(is_consonant(c) for c in term):
+        return term in text
+    firsts = chosung_initials(text)
+    n = len(term)
+    for start in range(len(text) - n + 1):
+        if all((firsts[start + k] == c) if is_consonant(c) else (text[start + k] == c) for k, c in enumerate(term)):
+            return True
+    return False
+
+
 # ── 검색 (SearchQuery · SearchMatcher) ────────────────────────────────────────
 
 KIND_RANK = {"name": 0, "tag": 1, "person": 2, "record": 3}
@@ -1436,7 +1463,7 @@ def best_match(term: tuple[str, bool], person: dict):
     text, tag_only = term
 
     def has(value) -> bool:
-        return value is not None and text in folded(value)
+        return value is not None and chosung_contains(folded(value), text)
 
     if not tag_only and has(person["name"]):
         return ("name", "이름 일치", None)
@@ -1585,6 +1612,10 @@ def build() -> dict:
                       for c in cases["dayNoon"]]
     out["josa"] = [{"text": t, "expected": josa(t)} for t in cases["josa"]]
     out["folded"] = [{"input": t, "expected": folded(t)} for t in cases["folded"]]
+    out["chosung"] = [{"text": c["text"], "initials": chosung_initials(folded(c["text"])),
+                       "terms": [{"term": term, "expected": chosung_contains(folded(c["text"]), folded(term))}
+                                 for term in c["terms"]]}
+                      for c in cases["chosung"]]
     people = cases["search"]["people"]
     out["search"] = {
         "people": people,

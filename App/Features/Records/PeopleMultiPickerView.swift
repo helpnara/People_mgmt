@@ -11,12 +11,12 @@ struct PeopleMultiPickerView: View {
 
     @State private var searchText = ""
     /// 접은 이름(`people` 과 같은 차례)과 거른 결과. **본문에서 전원을 접지 않는다** (전수조사 이슈 18) —
-    /// 사람 수가 바뀔 때 한 번 접고, 검색어가 바뀔 때만 거른다.
-    @State private var foldedNames: [String] = []
+    /// 사람 수가 바뀔 때 한 번 접고, 검색어가 바뀔 때만 거른다. 초성으로도 찾는다(`ㄱㅎㄴ` → 김하늘 · FR-036).
+    @State private var foldedNames: [FoldedText] = []
     @State private var filtered: [Person] = []
 
     private func refold() {
-        foldedNames = people.map { TextNormalization.folded($0.name) }
+        foldedNames = people.map { FoldedText($0.name) }
         refilter()
     }
 

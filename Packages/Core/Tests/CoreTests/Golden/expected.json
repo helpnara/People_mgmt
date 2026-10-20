@@ -801,6 +801,164 @@
       "name": "대표 · 팩스가 한 줄"
     }
   ],
+  "chosung": [
+    {
+      "initials": "ㄱㅎㄴ",
+      "terms": [
+        {
+          "expected": true,
+          "term": "ㄱㅎㄴ"
+        },
+        {
+          "expected": true,
+          "term": "ㄱ"
+        },
+        {
+          "expected": true,
+          "term": "ㅎㄴ"
+        },
+        {
+          "expected": true,
+          "term": "김ㅎ"
+        },
+        {
+          "expected": false,
+          "term": "고ㅎ"
+        },
+        {
+          "expected": false,
+          "term": "ㄲ"
+        },
+        {
+          "expected": true,
+          "term": "하ㄴ"
+        },
+        {
+          "expected": false,
+          "term": "ㄱㄴ"
+        },
+        {
+          "expected": true,
+          "term": "김하늘"
+        },
+        {
+          "expected": true,
+          "term": "ㅎ늘"
+        }
+      ],
+      "text": "김하늘"
+    },
+    {
+      "initials": "ㄲㅊ ㅋㅍ",
+      "terms": [
+        {
+          "expected": true,
+          "term": "ㄲㅊ"
+        },
+        {
+          "expected": false,
+          "term": "ㄱㅊ"
+        },
+        {
+          "expected": true,
+          "term": "ㅊ ㅋ"
+        },
+        {
+          "expected": true,
+          "term": "ㅋㅍ"
+        },
+        {
+          "expected": false,
+          "term": "cafe"
+        }
+      ],
+      "text": "까치 카페"
+    },
+    {
+      "initials": "alice ㅂ",
+      "terms": [
+        {
+          "expected": true,
+          "term": "ㅂ"
+        },
+        {
+          "expected": true,
+          "term": "e ㅂ"
+        },
+        {
+          "expected": false,
+          "term": "ㄱ"
+        },
+        {
+          "expected": true,
+          "term": "alice"
+        }
+      ],
+      "text": "Alice 박"
+    },
+    {
+      "initials": "ㅋㅋ ㅇㅇ",
+      "terms": [
+        {
+          "expected": true,
+          "term": "ㅋㅋ"
+        },
+        {
+          "expected": true,
+          "term": "ㅋ ㅇ"
+        },
+        {
+          "expected": true,
+          "term": "ㅇㅇ"
+        }
+      ],
+      "text": "ㅋㅋ 웃음"
+    },
+    {
+      "initials": "ㄱ nfd ㅎㄱ",
+      "terms": [
+        {
+          "expected": true,
+          "term": "ㄱ"
+        },
+        {
+          "expected": true,
+          "term": "ㅎㄱ"
+        }
+      ],
+      "text": "각 NFD 한글"
+    },
+    {
+      "initials": "ㅊㄹㅅㅍㅌ",
+      "terms": [
+        {
+          "expected": true,
+          "term": "ㅊㄹ"
+        },
+        {
+          "expected": true,
+          "term": "ㅅㅍㅌ"
+        },
+        {
+          "expected": true,
+          "term": "림ㅅ"
+        },
+        {
+          "expected": true,
+          "term": "ㅊ림"
+        },
+        {
+          "expected": true,
+          "term": "ㅊㄹㅅㅍㅌ"
+        },
+        {
+          "expected": false,
+          "term": "ㅊㄹㅅㅍㅌㅇ"
+        }
+      ],
+      "text": "청림소프트"
+    }
+  ],
   "communityName": [
     {
       "expected": "청림소프트",
@@ -4888,6 +5046,177 @@
           }
         ],
         "query": "CAFÉ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "이름 일치",
+            "kind": "name",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": null
+          },
+          {
+            "evidence": "첫 인연 메모 일치",
+            "kind": "person",
+            "personID": "33333333-3333-3333-3333-333333333333",
+            "recordID": null
+          }
+        ],
+        "query": "ㄱㅎㄴ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "이름 일치",
+            "kind": "name",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": null
+          },
+          {
+            "evidence": "관계 유형 일치",
+            "kind": "person",
+            "personID": "44444444-4444-4444-4444-444444444444",
+            "recordID": null
+          },
+          {
+            "evidence": "알게 된 경로 일치",
+            "kind": "person",
+            "personID": "33333333-3333-3333-3333-333333333333",
+            "recordID": null
+          },
+          {
+            "evidence": "소속 일치",
+            "kind": "person",
+            "personID": "22222222-2222-2222-2222-222222222222",
+            "recordID": null
+          },
+          {
+            "evidence": "알게 된 경로 일치",
+            "kind": "person",
+            "personID": "55555555-5555-5555-5555-555555555555",
+            "recordID": null
+          }
+        ],
+        "query": "ㄱ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "이름 일치",
+            "kind": "name",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": null
+          },
+          {
+            "evidence": "첫 인연 메모 일치",
+            "kind": "person",
+            "personID": "33333333-3333-3333-3333-333333333333",
+            "recordID": null
+          }
+        ],
+        "query": "김ㅎ"
+      },
+      {
+        "expected": [],
+        "query": "고ㅎ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "이름 일치",
+            "kind": "name",
+            "personID": "22222222-2222-2222-2222-222222222222",
+            "recordID": null
+          },
+          {
+            "evidence": "기록 '점심' 메모 일치",
+            "kind": "record",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": "aaaaaaaa-0000-0000-0000-000000000002"
+          }
+        ],
+        "query": "ㅇㄷ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "태그 #멘토 일치",
+            "kind": "tag",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": null
+          },
+          {
+            "evidence": "기록 '킥오프' 태그 #멘토링 일치",
+            "kind": "record",
+            "personID": "33333333-3333-3333-3333-333333333333",
+            "recordID": "aaaaaaaa-0000-0000-0000-000000000003"
+          }
+        ],
+        "query": "#ㅁㅌ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "태그 #멘토 일치",
+            "kind": "tag",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": null
+          },
+          {
+            "evidence": "기록 '킥오프' 태그 #멘토링 일치",
+            "kind": "record",
+            "personID": "33333333-3333-3333-3333-333333333333",
+            "recordID": "aaaaaaaa-0000-0000-0000-000000000003"
+          }
+        ],
+        "query": "ㅁㅌ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "기록 '분기 회의' 제목 일치",
+            "kind": "record",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": "aaaaaaaa-0000-0000-0000-000000000001"
+          }
+        ],
+        "query": "ㅂㄱ ㅎㅇ"
+      },
+      {
+        "expected": [],
+        "query": "ㄲ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "소속 일치",
+            "kind": "person",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": null
+          }
+        ],
+        "query": "ㅊㄹ"
+      },
+      {
+        "expected": [],
+        "query": "ㅇㄷㅇ 소개"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "이름 일치",
+            "kind": "name",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": null
+          },
+          {
+            "evidence": "첫 인연 메모 일치",
+            "kind": "person",
+            "personID": "33333333-3333-3333-3333-333333333333",
+            "recordID": null
+          }
+        ],
+        "query": "ㅎㄴ"
       }
     ]
   },
