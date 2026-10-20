@@ -56,6 +56,8 @@ struct LaunchArguments: Sendable {
     let openTags: Bool
     /// 앱 잠금 가리개를 확인 없이 띄운다 (`-previewLock` · 빌드 27) — 가리개 모양만 찍는다.
     let previewLock: Bool
+    /// 기록 추가 · 수정의 태그 칸에 이 글자를 넣고 그 자리까지 내린다 (`-tagInput ㅁㅌ` · 이슈 34 — 자동완성 칩을 찍으려고).
+    let tagInput: String?
     /// 사람 목록을 이 태그로 거른 채 연다 (`-filterTag 멘토` · 빌드 27).
     let filterTag: String?
     /// 스토어 스크린샷 (`-storeShots` · 빌드 18) — 견본 안내 띠를 숨긴다. 사람은 여전히 모두 지어낸 견본이다.
@@ -92,5 +94,6 @@ struct LaunchArguments: Sendable {
         openNetwork = value(after: "-openNetwork")
         timeSlice = value(after: "-timeSlice").flatMap { Int($0) }
         filterTag = value(after: "-filterTag")
+        tagInput = value(after: "-tagInput")
     }
 }

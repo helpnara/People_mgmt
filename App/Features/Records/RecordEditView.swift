@@ -62,6 +62,7 @@ struct RecordEditView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             Form {
                 Section {
                     DatePicker("날짜", selection: $draft.occurredAt, displayedComponents: .date)
@@ -118,7 +119,10 @@ struct RecordEditView: View {
                             guard tagCatalog == nil else { return }
                             tagCatalog = await TagCatalogBuilder.build(container: context.container)
                         }
+                        .id(Self.tagSectionID)
                 }
+            }
+            .task { await showTagInputForScreenshot(proxy) }
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(isCreate ? "기록 추가" : "기록 수정")
@@ -147,12 +151,24 @@ struct RecordEditView: View {
         }
         .interactiveDismissDisabled(hasChanges)
         .onAppear {
-            if isCreate { titleFocused = true }
+            if isCreate && LaunchArguments.current.tagInput == nil { titleFocused = true }
         }
         .task(id: everyone.count) {
             candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
             loadRecentPeople()
         }
+    }
+
+    private static let tagSectionID = "tags"
+
+    /// CI 스크린샷 (`-tagInput ㅁㅌ` · 빌드 27 이슈 34) — 태그 칸에 글자를 넣고 그 자리까지 내려 자동완성 칩을 찍는다.
+    /// 빌드 27 은 칩 글자가 빠진 채 나갔다 — 자동완성이 뜬 화면이 스크린샷에 없었다.
+    private func showTagInputForScreenshot(_ proxy: ScrollViewProxy) async {
+        guard let input = LaunchArguments.current.tagInput else { return }
+        try? await Task.sleep(for: .milliseconds(600))
+        proxy.scrollTo(Self.tagSectionID, anchor: .center)
+        try? await Task.sleep(for: .milliseconds(400))
+        pendingTag = input
     }
 
     /// 최근 함께한 사람 중 아직 고르지 않은 사람 — 누르면 함께한 사람에 들어간다 (빌드 16 · 조사 보고서 지금 7).
