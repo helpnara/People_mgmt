@@ -443,6 +443,9 @@ jobs:
             UDID="$IPAD"
             shoot ipad/02-people.png -seedSampleData
             shoot ipad/03-person-detail.png -seedSampleData -openPerson 김하늘
+            # **아이패드 칸 나누기** (이슈 32) — 왼쪽 바 · 관계도 크게 + 오른쪽 사람 칸 · 입력 상태.
+            shoot ipad/04-network-graph.png -seedSampleData -seedCommunitySample -openNetwork graph
+            shoot ipad/05-readiness.png -seedSampleData -openNetwork readiness
             UDID="${{ steps.sim.outputs.udid }}"
           else
             echo "::warning::iPad 시뮬레이터가 없어 iPad 스크린샷을 건너뜁니다"
