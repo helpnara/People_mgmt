@@ -33,6 +33,12 @@ struct SettingsView: View {
     @AppStorage(ReminderSettings.minuteKey) private var remindMinute = 0
     /// iCloud 동기화 (D-42 — 기본 켬). 바꾸면 앱을 다시 열 때 적용된다.
     @AppStorage(CloudSync.enabledKey) private var syncWanted = true
+    /// 앱 잠금 (FR-029 · D-51 — 기본 꺼짐).
+    @AppStorage(AppLock.enabledKey) private var lockEnabled = false
+    /// 이 기기의 확인 방법 이름 — 화면을 열 때 한 번.
+    @State private var lockMethod = AppLock.methodName()
+    /// CI 스크린샷 — 태그 관리를 바로 연다 (`-openTags`).
+    @State private var openTagsOnLaunch = LaunchArguments.current.openTags
     private let syncMonitor = CloudSyncMonitor.shared
 
     var body: some View {
@@ -96,6 +102,20 @@ struct SettingsView: View {
                 Text("연락처 파일 (vCard)")
             } footer: {
                 Text("내보내기는 나를 뺀 사람의 이름 · 별명 · 소속 · 직무 · 연락 수단 · 생일을 .vcf 파일 하나로 만듭니다. 기록 · 첫 인연 · 태그 · 명함 사진은 들어가지 않습니다 — 그것은 백업 파일이 맡습니다. 가져오기는 넣기 전에 새 사람 · 같은 사람 후보 · 이미 있는 사람을 나눠 보여 주고, 고른 사람만 넣습니다.")
+            }
+
+            lockSection
+
+            Section {
+                NavigationLink {
+                    TagManagerView()
+                } label: {
+                    Label("태그 관리", systemImage: "number")
+                }
+            } header: {
+                Text("태그")
+            } footer: {
+                Text("태그 이름을 바꾸거나 두 태그를 하나로 합칩니다. 사람과 기록에 붙은 태그가 함께 바뀝니다.")
             }
 
             Section {
@@ -163,6 +183,9 @@ struct SettingsView: View {
         .background(Color.ground)
         .navigationTitle("설정")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $openTagsOnLaunch) {
+            TagManagerView()
+        }
         .fileExporter(isPresented: $showingExporter, document: exportDocument,
                       contentType: fileKind == .vcard ? .vCard : .json, defaultFilename: exportName) { result in
             if case .failure(let error) = result {
@@ -228,6 +251,37 @@ struct SettingsView: View {
                 remindAnniversaries = false
                 remindCadence = false
                 message = ("알림이 꺼져 있습니다", "기기의 설정 앱 → 알림 → 느린 인연에서 알림을 허용한 뒤 다시 켜 주세요.")
+            }
+        }
+    }
+
+    /// 토글 · 설명에 쓰는 이름 — 확인 방법을 모르면 Face ID 로 적는다(토글은 꺼져 있다).
+    private var lockName: String { lockMethod ?? "Face ID" }
+
+    private var lockSection: some View {
+        Section {
+            Toggle(isOn: Binding(get: { lockEnabled }, set: { setLock($0) })) {
+                Text("\(lockName)로 잠그기")
+            }
+            .disabled(lockMethod == nil && !lockEnabled)
+        } header: {
+            Text("앱 잠금")
+        } footer: {
+            Text(lockMethod == nil
+                 ? "이 기기에 암호가 설정되어 있지 않아 앱 잠금을 켤 수 없습니다. 기기의 설정 앱에서 암호를 먼저 설정하세요."
+                 : "켜 두면 앱을 열 때와 다른 앱에 갔다 돌아올 때 \(lockName)로 확인합니다. 기본은 꺼져 있습니다. 확인은 기기가 하고, 앱은 얼굴 · 지문 정보를 받지 않습니다.")
+        }
+    }
+
+    /// 켤 때는 한 번 확인해 본다 — 확인이 되는 기기에서만 켜진다.
+    private func setLock(_ wanted: Bool) {
+        guard wanted else {
+            lockEnabled = false
+            return
+        }
+        Task {
+            if await AppLock.authenticate(reason: "앱 잠금을 켭니다") {
+                lockEnabled = true
             }
         }
     }

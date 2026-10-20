@@ -26,6 +26,8 @@ struct RecordEditView: View {
     @State private var candidates: [Person] = []
     /// 태그 칸에 치던 글자 — 저장할 때 태그로 넣는다 (이슈 19).
     @State private var pendingTag = ""
+    /// 태그 자동완성 (FR-026) — 화면이 열릴 때 주 스레드 밖에서 한 번 만든다.
+    @State private var tagCatalog: TagCatalog?
     /// 새 기록이면 제목 칸에 바로 커서를 둔다 — 기록 30초(1.4 성공 기준) · 전수조사 이슈 22.
     @FocusState private var titleFocused: Bool
     /// 최근 함께한 사람 (빌드 16) — 최근 기록부터 처음 보이는 사람 8명. 사람 수가 바뀔 때 한 번 센다.
@@ -111,7 +113,11 @@ struct RecordEditView: View {
                     recentChips
                 }
                 Section("태그") {
-                    TagEditor(tags: $draft.tags, input: $pendingTag)
+                    TagEditor(tags: $draft.tags, input: $pendingTag, catalog: tagCatalog)
+                        .task {
+                            guard tagCatalog == nil else { return }
+                            tagCatalog = await TagCatalogBuilder.build(container: context.container)
+                        }
                 }
             }
             .scrollDismissesKeyboard(.interactively)

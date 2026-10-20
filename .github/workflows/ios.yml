@@ -357,6 +357,10 @@ jobs:
           shoot 30-suggestions.png -seedSampleData -openSuggestions
           # **채울 것 목록** (이슈 28) — 줄 사이 구분선이 왼쪽 끝부터 그어지는지 (오른쪽 채우기 글자 아래에만 짧게 보였다).
           shoot 31-fill-first-met.png -seedSampleData -openFillFirstMet
+          # 빌드 27 — 태그 관리 · 목록 거르기 · 앱 잠금 가리개.
+          shoot 32-tags.png -seedSampleData -openSettings -openTags
+          shoot 33-people-filter.png -seedSampleData -filterTag 멘토
+          shoot 34-lock.png -seedSampleData -previewLock
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
