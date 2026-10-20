@@ -92,6 +92,11 @@ def split_tags(text: str) -> list[str]:
     return re.split(r"[,;\n]", text)
 
 
+def tag_key(raw: str):
+    tag = normalize_tag(raw)
+    return None if tag is None else tag.lower()
+
+
 # ── 표시명 (DisplayTitle) ─────────────────────────────────────────────────────
 
 def display_title(title, note) -> str:
@@ -1442,6 +1447,81 @@ def chosung_contains(text: str, term: str) -> bool:
     return False
 
 
+# ── 태그 모음 · 거르기 (TagCatalog · ListFilter) ──────────────────────────────
+
+def tag_catalog(person_tags, record_tags) -> list[dict]:
+    """같은 열쇠는 하나로, 표기는 문자열 차례로 앞서는 것, 한 목록 안의 겹침은 한 번 — Swift `TagCatalog`."""
+    shown, counts = {}, {"people": {}, "records": {}}
+    for field, lists in (("people", person_tags), ("records", record_tags)):
+        for tags in lists:
+            seen = set()
+            for raw in tags:
+                tag = normalize_tag(raw)
+                if tag is None:
+                    continue
+                key = tag.lower()
+                if key not in shown or tag < shown[key]:
+                    shown[key] = tag
+                if key not in seen:
+                    seen.add(key)
+                    counts[field][key] = counts[field].get(key, 0) + 1
+    entries = [{"tag": tag, "people": counts["people"].get(key, 0), "records": counts["records"].get(key, 0)}
+               for key, tag in shown.items()]
+    entries.sort(key=lambda e: (-(e["people"] + e["records"]), folded(e["tag"]), e["tag"]))
+    return entries
+
+
+def tag_suggestions(entries, text, chosen, limit=8) -> list[str]:
+    term = folded(normalize_tag(text) or "")
+    if not term:
+        return []
+    taken = {tag_key(c) for c in chosen} - {None}
+    starts, inside = [], []
+    for entry in entries:
+        if tag_key(entry["tag"]) in taken:
+            continue
+        f = folded(entry["tag"])
+        if not chosung_contains(f, term):
+            continue
+        (starts if f.startswith(term) else inside).append(entry["tag"])
+    return (starts + inside)[:limit]
+
+
+def tag_renamed(tags, frm, to) -> list[str]:
+    target, key = normalize_tag(to), tag_key(frm)
+    if target is None or key is None:
+        return tags
+    return normalize_tags([target if tag_key(t) == key else t for t in tags])
+
+
+def list_filter_matches(kind, tags, wanted_kind, wanted_tag) -> bool:
+    if wanted_kind is not None:
+        if kind is None or folded(kind) != folded(wanted_kind):
+            return False
+    if wanted_tag is not None:
+        key = tag_key(wanted_tag)
+        if key is None or not any(tag_key(t) == key for t in tags):
+            return False
+    return True
+
+
+def type_choices(types) -> list[str]:
+    shown, counts, order = {}, {}, []
+    for kind in types:
+        if kind is None:
+            continue
+        cleaned = normalized(kind)
+        key = folded(cleaned)
+        if not key:
+            continue
+        if key not in shown:
+            shown[key] = cleaned
+            order.append(key)
+        counts[key] = counts.get(key, 0) + 1
+    order.sort(key=lambda k: (-counts[k], k))
+    return [shown[k] for k in order]
+
+
 # ── 검색 (SearchQuery · SearchMatcher) ────────────────────────────────────────
 
 KIND_RANK = {"name": 0, "tag": 1, "person": 2, "record": 3}
@@ -1612,6 +1692,22 @@ def build() -> dict:
                       for c in cases["dayNoon"]]
     out["josa"] = [{"text": t, "expected": josa(t)} for t in cases["josa"]]
     out["folded"] = [{"input": t, "expected": folded(t)} for t in cases["folded"]]
+    out["tagCatalog"] = []
+    for c in cases["tagCatalog"]:
+        entries = tag_catalog(c["personTags"], c["recordTags"])
+        out["tagCatalog"].append({
+            "name": c["name"], "personTags": c["personTags"], "recordTags": c["recordTags"], "expected": entries,
+            "suggest": [{"input": s["input"], "chosen": s["chosen"],
+                         "expected": tag_suggestions(entries, s["input"], s["chosen"])} for s in c["suggest"]],
+        })
+    out["tagRename"] = [{"name": c["name"], "tags": c["tags"], "from": c["from"], "to": c["to"],
+                         "expected": tag_renamed(c["tags"], c["from"], c["to"])} for c in cases["tagRename"]]
+    out["listFilter"] = [{"name": c["name"], "items": c["items"], "filters": [
+        {"type": f.get("type"), "tag": f.get("tag"),
+         "expected": [i for i, item in enumerate(c["items"])
+                      if list_filter_matches(item.get("type"), item["tags"], f.get("type"), f.get("tag"))]}
+        for f in c["filters"]]} for c in cases["listFilter"]]
+    out["typeChoices"] = [{"input": c, "expected": type_choices(c)} for c in cases["typeChoices"]]
     out["chosung"] = [{"text": c["text"], "initials": chosung_initials(folded(c["text"])),
                        "terms": [{"term": term, "expected": chosung_contains(folded(c["text"]), folded(term))}
                                  for term in c["terms"]]}

@@ -20,13 +20,17 @@ public enum TagNormalizer {
         return text
     }
 
+    /// 같은 태그인지 가르는 열쇠 — 정리한 뒤 소문자. 태그가 될 수 없으면 `nil`. 목록 정리 · 태그 모음 · 거르기가 이것 하나로 견준다.
+    public static func key(_ raw: String) -> String? {
+        normalize(raw)?.lowercased()
+    }
+
     /// 목록을 정리한다. 먼저 나온 표기를 남기고(`Mentor` 뒤의 `mentor` 는 버림) 20개에서 자른다.
     public static func normalizeList(_ raws: [String]) -> [String] {
         var seen = Set<String>()
         var result: [String] = []
         for raw in raws {
-            guard let tag = normalize(raw) else { continue }
-            let key = tag.lowercased()
+            guard let tag = normalize(raw), let key = Self.key(tag) else { continue }
             guard !seen.contains(key) else { continue }
             seen.insert(key)
             result.append(tag)

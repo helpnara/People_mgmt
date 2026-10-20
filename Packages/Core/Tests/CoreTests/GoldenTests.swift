@@ -145,6 +145,17 @@ final class GoldenTests: XCTestCase {
         struct FoldedCase: Decodable { let input: String; let expected: String }
         struct ChosungTerm: Decodable { let term: String; let expected: Bool }
         struct ChosungCase: Decodable { let text: String; let initials: String; let terms: [ChosungTerm] }
+        struct CatalogEntry: Decodable { let tag: String; let people: Int; let records: Int }
+        struct SuggestCase: Decodable { let input: String; let chosen: [String]; let expected: [String] }
+        struct CatalogCase: Decodable {
+            let name: String; let personTags: [[String]]; let recordTags: [[String]]
+            let expected: [CatalogEntry]; let suggest: [SuggestCase]
+        }
+        struct RenameCase: Decodable { let name: String; let tags: [String]; let from: String; let to: String; let expected: [String] }
+        struct FilterItem: Decodable { let type: String?; let tags: [String] }
+        struct FilterQuery: Decodable { let type: String?; let tag: String?; let expected: [Int] }
+        struct FilterCase: Decodable { let name: String; let items: [FilterItem]; let filters: [FilterQuery] }
+        struct TypeChoiceCase: Decodable { let input: [String?]; let expected: [String] }
 
         let tags: [TagCase]
         let tagSplit: [SplitCase]
@@ -183,6 +194,10 @@ final class GoldenTests: XCTestCase {
         let josa: [JosaCase]
         let folded: [FoldedCase]
         let chosung: [ChosungCase]
+        let tagCatalog: [CatalogCase]
+        let tagRename: [RenameCase]
+        let listFilter: [FilterCase]
+        let typeChoices: [TypeChoiceCase]
     }
 
     /// `Bundle.module` 대신 소스 위치에서 직접 읽는다 — 리눅스에서 더 단순하고 확실하다.
@@ -581,6 +596,41 @@ final class GoldenTests: XCTestCase {
     func testFolded() throws {
         for c in try Self.loadGolden().folded {
             XCTAssertEqual(TextNormalization.folded(c.input), c.expected, c.input.debugDescription)
+        }
+    }
+
+    /// 태그 모음 (FR-026) — 쓰인 수 · 표기 · 차례 · 자동완성.
+    func testTagCatalog() throws {
+        for c in try Self.loadGolden().tagCatalog {
+            let catalog = TagCatalog(personTags: c.personTags, recordTags: c.recordTags)
+            XCTAssertEqual(catalog.entries.map { "\($0.tag)|\($0.people)|\($0.records)" },
+                           c.expected.map { "\($0.tag)|\($0.people)|\($0.records)" }, c.name)
+            for s in c.suggest {
+                XCTAssertEqual(catalog.suggestions(for: s.input, excluding: s.chosen), s.expected, "\(c.name) '\(s.input)'")
+            }
+        }
+    }
+
+    /// 태그 이름 바꾸기 · 합치기 (FR-026).
+    func testTagRename() throws {
+        for c in try Self.loadGolden().tagRename {
+            XCTAssertEqual(TagCatalog.renamed(c.tags, from: c.from, to: c.to), c.expected, c.name)
+        }
+    }
+
+    /// 목록 거르기 (FR-013).
+    func testListFilter() throws {
+        let golden = try Self.loadGolden()
+        for c in golden.listFilter {
+            for f in c.filters {
+                let got = c.items.indices.filter {
+                    ListFilter.matches(type: c.items[$0].type, tags: c.items[$0].tags, wantedType: f.type, wantedTag: f.tag)
+                }
+                XCTAssertEqual(got, f.expected, "\(c.name) \(f.type ?? "-") \(f.tag ?? "-")")
+            }
+        }
+        for c in golden.typeChoices {
+            XCTAssertEqual(ListFilter.typeChoices(c.input), c.expected, "\(c.input)")
         }
     }
 
