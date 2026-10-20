@@ -557,8 +557,8 @@ struct PeopleListView: View {
         }
     }
 
-    /// 내 인맥 칸. 관계도는 **위 3분의 2**, 누른 사람은 **아래 3분의 1** (이슈 32 · 2026-10-20 사용자 — 왼쪽 바는 그대로 두고,
-    /// 가로로 셋으로 나누면 관계도가 작다). 아래 칸은 늘 두어 사람을 누를 때 관계도 크기가 바뀌지 않게 (이슈 29 와 같은 까닭).
+    /// 내 인맥 칸. 관계도는 **위 4분의 3**, 누른 사람은 **아래 4분의 1** (이슈 32 · 2026-10-20 사용자 — 왼쪽 바는 그대로 두고,
+    /// 가로로 셋으로 나누면 관계도가 작다. 빌드 25 의 3분의 2 도 가로 화면에서 작아 다른 칸을 줄여서라도 관계도를 크게). 아래 칸은 늘 두어 사람을 누를 때 관계도 크기가 바뀌지 않게 (이슈 29 와 같은 까닭).
     /// 다른 칸(특성 · 돌아보기 · 입력 상태)은 칸 전체를 쓴다.
     @ViewBuilder
     private func networkPane(_ tab: NetworkView.Tab) -> some View {
@@ -569,7 +569,7 @@ struct PeopleListView: View {
                         NetworkView(initialTab: .graph, showsTabs: false, onSelectPerson: { graphPersonID = $0 })
                             .appDestinations()
                     }
-                    .frame(height: proxy.size.height * 2 / 3)
+                    .frame(height: proxy.size.height * 3 / 4)
                     Divider()
                     NavigationStack {
                         Group {
