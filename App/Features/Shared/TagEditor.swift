@@ -63,9 +63,9 @@ struct TagEditor: View {
                             tags = TagNormalizer.normalizeList(tags + [tag])
                             input = ""
                         } label: {
-                            Label("#\(tag)", systemImage: "plus")
-                                .font(.scaled(14))
-                                .foregroundStyle(Color.accent)
+                            // 최근 함께한 사람 칩과 같은 모양 — `Label` 로 그렸더니 입력 화면 안에서 글자가 빠지고 + 만 보였다
+                            // (빌드 27 실기기 · 사용자 화면 사진).
+                            Chip(text: "+ #\(tag)", selected: false)
                                 .tapTarget()
                         }
                         .buttonStyle(.plain)
