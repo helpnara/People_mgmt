@@ -53,6 +53,15 @@ struct PeopleListView: View {
     @State private var searchedText = ""
     /// 입력 상태 한 줄 (D-31). 따로 연 문맥에서 자료가 바뀔 때만 센다 — 본문에서 세지 않는다.
     @State private var readinessLine: String?
+    /// 최근 기록 3건 (FR-028) — 오늘까지의 기록 가운데 날짜가 늦은 것부터. 자료가 바뀔 때만 읽는다.
+    @State private var recentRecords: [Record] = []
+    /// 목록 거르기 (FR-013) — 관계 유형 · 태그. 둘 다 고르면 둘 다 맞는 사람. 기기 편의라 저장하지 않는다.
+    @State private var filterType: String?
+    @State private var filterTag: String?
+    /// 고를 수 있는 것 · 거른 결과 — 자료 · 정렬 · 거르기가 바뀔 때만 센다 (본문에서 전원을 훑지 않는다).
+    @State private var typeChoices: [String] = []
+    @State private var tagChoices: [String] = []
+    @State private var filteredPeople: [Person] = []
 
     // 단축어 (빌드 16) — 사람 추가 · 기록 추가 · 명함 찍기.
     @ObservedObject private var shortcuts = ShortcutRequests.shared
@@ -75,7 +84,15 @@ struct PeopleListView: View {
     /// 지운 사람은 저장과 함께 `@Query` 에서 빠지고 사람 수가 달라져 정렬 결과 대신 받은 차례를 쓴다.
     /// 그 틈의 지운 객체는 **화면에 그려지는 줄에서만** 거른다 (`ForEach` 안).
     private var displayedPeople: [Person] {
-        sortedPeople.count == fetched.count ? sortedPeople : fetched
+        if isFiltering { return filteredPeople }
+        return sortedPeople.count == fetched.count ? sortedPeople : fetched
+    }
+
+    private var isFiltering: Bool { filterType != nil || filterTag != nil }
+
+    /// 머리말 · 풀기 줄에 쓰는 지금 거른 것.
+    private var filterSummary: String {
+        [filterType, filterTag.map { "#" + $0 }].compactMap { $0 }.joined(separator: " · ")
     }
 
     private var isQuerying: Bool { !SearchQuery(parsing: searchText).isEmpty }
@@ -84,6 +101,8 @@ struct PeopleListView: View {
         let version: Int
         let sort: PeopleSortOption
         let count: Int
+        let type: String?
+        let tag: String?
     }
 
     private struct SearchKey: Hashable {
@@ -176,10 +195,12 @@ struct PeopleListView: View {
         } message: {
             Text("다른 기기에서도 나를 적어 두어 나가 둘이 되었습니다. 먼저 만든 나를 남기고 나머지는 보통 사람으로 바꿨습니다 — \(demotedMe.joined(separator: ", ")). 지우지는 않았습니다.")
         }
-        .task(id: ListKey(version: dataVersion, sort: sortOption, count: fetched.count)) {
+        .task(id: ListKey(version: dataVersion, sort: sortOption, count: fetched.count, type: filterType, tag: filterTag)) {
             sortedPeople = LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {
                 PersonStore.sorted(fetched, by: sortOption)
             }
+            refreshFilter()
+            loadRecentRecords()
         }
         .task(id: SearchKey(text: searchText, version: dataVersion)) {
             await runSearch()
@@ -230,14 +251,38 @@ struct PeopleListView: View {
         .searchable(text: $searchText, prompt: "이름, 소속, 메모, 태그")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
+                // 정렬 · 거르기 (FR-027 · FR-013) — 위 줄 단추를 늘리지 않게 차림표 하나에.
                 Menu {
                     Picker("정렬", selection: $sortOption) {
                         ForEach(PeopleSortOption.allCases) { option in
                             Text(option.label).tag(option)
                         }
                     }
+                    if !typeChoices.isEmpty {
+                        Picker("관계 유형", selection: $filterType) {
+                            Text("관계 유형 전체").tag(String?.none)
+                            ForEach(typeChoices, id: \.self) { type in
+                                Text(type).tag(String?.some(type))
+                            }
+                        }
+                    }
+                    if !tagChoices.isEmpty {
+                        Picker("태그", selection: $filterTag) {
+                            Text("태그 전체").tag(String?.none)
+                            ForEach(tagChoices, id: \.self) { tag in
+                                Text("#\(tag)").tag(String?.some(tag))
+                            }
+                        }
+                    }
+                    if isFiltering {
+                        Button {
+                            clearFilter()
+                        } label: {
+                            Label("거르기 풀기", systemImage: "xmark.circle")
+                        }
+                    }
                 } label: {
-                    Label("정렬", systemImage: "arrow.up.arrow.down")
+                    Label("정렬 · 거르기", systemImage: isFiltering ? "line.3.horizontal.decrease.circle.fill" : "arrow.up.arrow.down")
                 }
             }
             // 아이패드는 왼쪽 바에 내 인맥 · 설정이 있다 (이슈 32) — 위 단추는 아이폰에만.
@@ -335,7 +380,24 @@ struct PeopleListView: View {
                         }
                     }
                 }
+                if !recentRecords.isEmpty {
+                    recentSection
+                }
                 Section {
+                    if isFiltering {
+                        Button {
+                            clearFilter()
+                        } label: {
+                            Label("\(filterSummary)만 보는 중 — 누르면 모두 보기", systemImage: "line.3.horizontal.decrease.circle.fill")
+                                .font(.scaled(14))
+                                .foregroundStyle(Color.accent)
+                        }
+                        if displayedPeople.isEmpty {
+                            Text("조건에 맞는 사람이 없습니다")
+                                .font(.scaled(15))
+                                .foregroundStyle(Color.muted)
+                        }
+                    }
                     ForEach(displayedPeople) { person in
                         if !person.isGone {
                             personLink(person) {
@@ -353,7 +415,9 @@ struct PeopleListView: View {
                         }
                     }
                 } header: {
-                    Text("\(displayedPeople.count)명 · \(sortOption.label)")
+                    Text(isFiltering
+                         ? "\(displayedPeople.count)명 · \(sortOption.label) · \(filterSummary)"
+                         : "\(displayedPeople.count)명 · \(sortOption.label)")
                 }
             } else {
                 Section {
@@ -381,6 +445,77 @@ struct PeopleListView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+    }
+
+    /// 최근 기록 (FR-028) — 누르면 그 기록으로. 아이패드는 함께한 사람의 상세를 오른쪽에 열고 그 위에 기록을 연다.
+    private var recentSection: some View {
+        Section {
+            ForEach(recentRecords) { record in
+                if !record.isGone {
+                    if isWide {
+                        Button {
+                            if let person = Self.firstCompanion(of: record) { open(person, recordID: record.uuid) }
+                        } label: {
+                            HStack {
+                                RecentRecordRow(record: record)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        NavigationLink(value: record) {
+                            RecentRecordRow(record: record)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("최근 기록")
+        }
+    }
+
+    /// 함께한 사람 가운데 이름 순으로 처음 — 나는 뺀다.
+    private static func firstCompanion(of record: Record) -> Person? {
+        let others = (record.participants ?? []).filter { !$0.isGone && !$0.isMe }
+        return NameSort.sorted(others, name: \.name, createdAt: \.createdAt).first
+    }
+
+    /// 고를 수 있는 관계 유형 · 태그와 거른 결과 (FR-013). 규칙은 `Core.ListFilter` · `TagCatalog` 하나다.
+    /// 고른 것이 자료에서 사라졌으면(태그 이름을 바꾸는 등) 거르기를 푼다.
+    private func refreshFilter() {
+        let people = fetched.filter { !$0.isGone }
+        LaunchTiming.measure("거르기 고를 것 (\(people.count)명)") {
+            typeChoices = ListFilter.typeChoices(people.map(\.relationshipType))
+            tagChoices = TagCatalog(personTags: people.map(\.tags), recordTags: []).entries.map(\.tag)
+        }
+        if let type = filterType, !typeChoices.contains(where: { NameSort.key($0) == NameSort.key(type) }) { filterType = nil }
+        if let tag = filterTag, !tagChoices.contains(where: { TagNormalizer.key($0) == TagNormalizer.key(tag) }) { filterTag = nil }
+        guard isFiltering else {
+            filteredPeople = []
+            return
+        }
+        filteredPeople = sortedPeople.filter {
+            !$0.isGone && ListFilter.matches(type: $0.relationshipType, tags: $0.tags, wantedType: filterType, wantedTag: filterTag)
+        }
+    }
+
+    private func clearFilter() {
+        filterType = nil
+        filterTag = nil
+    }
+
+    /// 오늘까지의 기록 가운데 날짜가 늦은 셋 (같은 날이면 나중에 적은 것부터). 잠긴 동안은 읽지 않는다 (이슈 31).
+    private func loadRecentRecords() {
+        guard StoreAccess.isReadable(scenePhase) else { return }
+        let calendar = Calendar.current
+        let endOfToday = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
+        var descriptor = FetchDescriptor<Record>(
+            predicate: #Predicate<Record> { $0.occurredAt < endOfToday },
+            sortBy: [SortDescriptor(\.occurredAt, order: .reverse), SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 3
+        recentRecords = (try? context.fetch(descriptor)) ?? []
     }
 
     /// **나** (이슈 12). 인맥은 나를 기준으로 그린다 — 목록 맨 위에 늘 있다.
@@ -615,6 +750,7 @@ struct PeopleListView: View {
         try? await Task.sleep(for: .milliseconds(300))
         LaunchTiming.mark("목록 첫 표시 (\(fetched.count)명)")
         if let search = arguments.search { searchText = search }
+        if let tag = arguments.filterTag { filterTag = tag }
         if arguments.openSettings {
             if isWide { openSection(.settings) } else { path.append(SettingsRoute()) }
             return

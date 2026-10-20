@@ -56,6 +56,8 @@ struct PersonEditView: View {
     @State private var duplicates: [Person] = []
     /// 태그 칸에 치던 글자 — 저장할 때 태그로 넣는다 (이슈 19).
     @State private var pendingTag = ""
+    /// 태그 자동완성 (FR-026) — 화면이 열릴 때 주 스레드 밖에서 한 번 만든다.
+    @State private var tagCatalog: TagCatalog?
     /// 명함 사진을 읽지 못했다 (이슈 19) — 말없이 넘어가지 않는다.
     @State private var cardFailed = false
     /// 명함 지우기 확인 (CLAUDE.md — 모든 삭제에 확인 · 전수조사 이슈 22).
@@ -121,7 +123,11 @@ struct PersonEditView: View {
                 birthdaySection
                 if !isMe { relationshipSections }
                 Section("태그") {
-                    TagEditor(tags: $draft.tags, input: $pendingTag)
+                    TagEditor(tags: $draft.tags, input: $pendingTag, catalog: tagCatalog)
+                        .task {
+                            guard tagCatalog == nil else { return }
+                            tagCatalog = await TagCatalogBuilder.build(container: context.container)
+                        }
                 }
                 if isCreate && !isMe {
                     Section {

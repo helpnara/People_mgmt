@@ -17,6 +17,9 @@ struct PersonDetailView: View {
     @State private var errorMessage: String?
     @State private var appliedArguments = false
     @State private var viewingCard = false
+    /// 타임라인 거르기 (FR-013) — 기록 유형(열쇠) · 태그. 둘 다 고르면 둘 다 맞는 기록.
+    @State private var timelineType: String?
+    @State private var timelineTag: String?
 
     private var store: PersonStore { PersonStore(context: context) }
 
@@ -251,10 +254,21 @@ struct PersonDetailView: View {
     /// 타임라인 (4.2.3). 최신순, 맨 아래에 첫 인연 시작점. 기록 행을 밀면 삭제(확인 뒤).
     /// 정렬은 한 번 그릴 때 한 번 (빌드 11 까지는 세 번 셌다 · 이슈 18).
     private var timelineSection: some View {
-        let timeline = RecordStore.timeline(of: person)
+        let all = RecordStore.timeline(of: person)
+        let filtering = timelineType != nil || timelineTag != nil
+        let timeline = filtering
+            ? all.filter { ListFilter.matches(type: $0.recordType, tags: $0.tags, wantedType: timelineType, wantedTag: timelineTag) }
+            : all
         return Section {
-            if timeline.isEmpty {
+            if all.isEmpty {
                 Text("아직 기록이 없습니다. 함께한 일을 남겨 보세요.")
+                    .font(.scaled(15))
+                    .foregroundStyle(Color.muted)
+            } else if all.count >= 2 {
+                timelineFilter(all)
+            }
+            if filtering && timeline.isEmpty {
+                Text("조건에 맞는 기록이 없습니다")
                     .font(.scaled(15))
                     .foregroundStyle(Color.muted)
             }
@@ -295,8 +309,48 @@ struct PersonDetailView: View {
                 .buttonStyle(.plain)
             }
         } header: {
-            Text(timeline.isEmpty ? "타임라인" : "타임라인 · 기록 \(timeline.count)건")
+            Text(all.isEmpty ? "타임라인" : (filtering ? "타임라인 · 기록 \(timeline.count) / \(all.count)건" : "타임라인 · 기록 \(all.count)건"))
         }
+    }
+
+    /// 타임라인 거르기 칩 (FR-013) — 이 사람의 기록에 쓰인 유형 · 태그만. 고를 것이 하나뿐이면 두지 않는다.
+    @ViewBuilder
+    private func timelineFilter(_ records: [Record]) -> some View {
+        let usedTypes = Set(records.map(\.recordType))
+        let types = RecordType.all.filter { usedTypes.contains($0.key) }
+        let tags = TagCatalog(personTags: [], recordTags: records.map(\.tags)).entries.map(\.tag)
+        if types.count >= 2 || !tags.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    filterChip("전체", selected: timelineType == nil && timelineTag == nil) {
+                        timelineType = nil
+                        timelineTag = nil
+                    }
+                    if types.count >= 2 {
+                        ForEach(types) { type in
+                            filterChip(type.label, selected: timelineType == type.key) {
+                                timelineType = timelineType == type.key ? nil : type.key
+                            }
+                        }
+                    }
+                    ForEach(tags, id: \.self) { tag in
+                        filterChip("#\(tag)", selected: timelineTag == tag) {
+                            timelineTag = timelineTag == tag ? nil : tag
+                        }
+                    }
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        }
+    }
+
+    private func filterChip(_ text: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Chip(text: text, selected: selected)
+                .tapTarget()
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var firstMetText: String {

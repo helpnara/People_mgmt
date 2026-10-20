@@ -52,6 +52,12 @@ struct LaunchArguments: Sendable {
     let openSuggestions: Bool
     /// 채울 것 목록 `처음 만난 날이 빈 사람` 을 바로 연다 (`-openFillFirstMet` · 이슈 28 — 줄 구분선을 스크린샷으로 본다).
     let openFillFirstMet: Bool
+    /// 설정의 태그 관리를 바로 연다 (`-openSettings -openTags` · 빌드 27).
+    let openTags: Bool
+    /// 앱 잠금 가리개를 확인 없이 띄운다 (`-previewLock` · 빌드 27) — 가리개 모양만 찍는다.
+    let previewLock: Bool
+    /// 사람 목록을 이 태그로 거른 채 연다 (`-filterTag 멘토` · 빌드 27).
+    let filterTag: String?
     /// 스토어 스크린샷 (`-storeShots` · 빌드 18) — 견본 안내 띠를 숨긴다. 사람은 여전히 모두 지어낸 견본이다.
     let storeShots: Bool
 
@@ -75,6 +81,8 @@ struct LaunchArguments: Sendable {
         openSuggestions = arguments.contains("-openSuggestions")
         openFillFirstMet = arguments.contains("-openFillFirstMet")
         storeShots = arguments.contains("-storeShots")
+        openTags = arguments.contains("-openTags")
+        previewLock = arguments.contains("-previewLock")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
             return arguments[index + 1]
@@ -83,5 +91,6 @@ struct LaunchArguments: Sendable {
         openPerson = value(after: "-openPerson")
         openNetwork = value(after: "-openNetwork")
         timeSlice = value(after: "-timeSlice").flatMap { Int($0) }
+        filterTag = value(after: "-filterTag")
     }
 }
