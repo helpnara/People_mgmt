@@ -2963,6 +2963,154 @@
       "text": "김하나"
     }
   ],
+  "listFilter": [
+    {
+      "filters": [
+        {
+          "expected": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "tag": null,
+          "type": null
+        },
+        {
+          "expected": [
+            0,
+            3
+          ],
+          "tag": null,
+          "type": "동료"
+        },
+        {
+          "expected": [
+            0,
+            4
+          ],
+          "tag": "멘토",
+          "type": null
+        },
+        {
+          "expected": [
+            1
+          ],
+          "tag": "mentor",
+          "type": null
+        },
+        {
+          "expected": [
+            0
+          ],
+          "tag": "멘토",
+          "type": "동료"
+        },
+        {
+          "expected": [
+            4
+          ],
+          "tag": null,
+          "type": "colleague"
+        },
+        {
+          "expected": [],
+          "tag": null,
+          "type": "가족"
+        },
+        {
+          "expected": [],
+          "tag": "  ",
+          "type": null
+        }
+      ],
+      "items": [
+        {
+          "tags": [
+            "멘토",
+            "독서모임"
+          ],
+          "type": "동료"
+        },
+        {
+          "tags": [
+            "Mentor"
+          ],
+          "type": "친구"
+        },
+        {
+          "tags": [],
+          "type": null
+        },
+        {
+          "tags": [
+            "업무"
+          ],
+          "type": " 동료"
+        },
+        {
+          "tags": [
+            "#멘토"
+          ],
+          "type": "Colleague"
+        }
+      ],
+      "name": "사람 — 관계 유형 · 태그"
+    },
+    {
+      "filters": [
+        {
+          "expected": [
+            0,
+            2
+          ],
+          "tag": null,
+          "type": "meal"
+        },
+        {
+          "expected": [
+            0,
+            1
+          ],
+          "tag": "업무",
+          "type": null
+        },
+        {
+          "expected": [
+            1
+          ],
+          "tag": "업무",
+          "type": "meeting"
+        },
+        {
+          "expected": [],
+          "tag": "분기",
+          "type": "meal"
+        }
+      ],
+      "items": [
+        {
+          "tags": [
+            "업무"
+          ],
+          "type": "meal"
+        },
+        {
+          "tags": [
+            "업무",
+            "분기"
+          ],
+          "type": "meeting"
+        },
+        {
+          "tags": [],
+          "type": "meal"
+        }
+      ],
+      "name": "기록 — 유형 열쇠 · 태그"
+    }
+  ],
   "louvain": [
     {
       "expected": {
@@ -5313,6 +5461,318 @@
       ],
       "name": "끊긴 그룹을 나눈다",
       "nodeCount": 6
+    }
+  ],
+  "tagCatalog": [
+    {
+      "expected": [
+        {
+          "people": 2,
+          "records": 1,
+          "tag": "멘토"
+        },
+        {
+          "people": 0,
+          "records": 3,
+          "tag": "업무"
+        },
+        {
+          "people": 2,
+          "records": 0,
+          "tag": "Mentor"
+        },
+        {
+          "people": 0,
+          "records": 2,
+          "tag": "UX"
+        },
+        {
+          "people": 1,
+          "records": 0,
+          "tag": "독서 모임"
+        },
+        {
+          "people": 1,
+          "records": 0,
+          "tag": "독서모임"
+        }
+      ],
+      "name": "사람과 기록 · 표기 여럿 · 한 목록 안 겹침",
+      "personTags": [
+        [
+          "멘토",
+          "독서모임"
+        ],
+        [
+          "Mentor",
+          "#멘토"
+        ],
+        [
+          "mentor"
+        ],
+        [
+          "  독서  모임 "
+        ],
+        []
+      ],
+      "recordTags": [
+        [
+          "업무",
+          "멘토"
+        ],
+        [
+          "업무"
+        ],
+        [
+          "업무",
+          "UX"
+        ],
+        [
+          "ux"
+        ],
+        [
+          "#"
+        ]
+      ],
+      "suggest": [
+        {
+          "chosen": [],
+          "expected": [
+            "멘토"
+          ],
+          "input": "멘"
+        },
+        {
+          "chosen": [],
+          "expected": [
+            "멘토"
+          ],
+          "input": "ㅁㅌ"
+        },
+        {
+          "chosen": [
+            "#멘토"
+          ],
+          "expected": [],
+          "input": "멘"
+        },
+        {
+          "chosen": [],
+          "expected": [
+            "Mentor"
+          ],
+          "input": "m"
+        },
+        {
+          "chosen": [],
+          "expected": [
+            "독서 모임",
+            "독서모임"
+          ],
+          "input": "모임"
+        },
+        {
+          "chosen": [],
+          "expected": [
+            "업무",
+            "독서 모임",
+            "독서모임"
+          ],
+          "input": "ㅇ"
+        },
+        {
+          "chosen": [],
+          "expected": [],
+          "input": "#"
+        },
+        {
+          "chosen": [],
+          "expected": [],
+          "input": "   "
+        },
+        {
+          "chosen": [],
+          "expected": [
+            "UX"
+          ],
+          "input": "x"
+        },
+        {
+          "chosen": [
+            "업무"
+          ],
+          "expected": [],
+          "input": "업"
+        }
+      ]
+    },
+    {
+      "expected": [],
+      "name": "빈 모음",
+      "personTags": [],
+      "recordTags": [],
+      "suggest": [
+        {
+          "chosen": [],
+          "expected": [],
+          "input": "a"
+        }
+      ]
+    },
+    {
+      "expected": [
+        {
+          "people": 1,
+          "records": 0,
+          "tag": "가"
+        },
+        {
+          "people": 0,
+          "records": 1,
+          "tag": "가나"
+        },
+        {
+          "people": 1,
+          "records": 0,
+          "tag": "나"
+        },
+        {
+          "people": 1,
+          "records": 0,
+          "tag": "다"
+        }
+      ],
+      "name": "같은 수는 이름 순",
+      "personTags": [
+        [
+          "다",
+          "가"
+        ],
+        [
+          "나"
+        ]
+      ],
+      "recordTags": [
+        [
+          "가나"
+        ]
+      ],
+      "suggest": [
+        {
+          "chosen": [],
+          "expected": [
+            "가",
+            "가나"
+          ],
+          "input": "가"
+        },
+        {
+          "chosen": [],
+          "expected": [
+            "가",
+            "가나"
+          ],
+          "input": "ㄱ"
+        }
+      ]
+    }
+  ],
+  "tagRename": [
+    {
+      "expected": [
+        "선배",
+        "업무"
+      ],
+      "from": "멘토",
+      "name": "이름 바꾸기",
+      "tags": [
+        "멘토",
+        "업무"
+      ],
+      "to": "선배"
+    },
+    {
+      "expected": [
+        "멘토",
+        "업무"
+      ],
+      "from": "#mentor",
+      "name": "대소문자 · # 무시하고 찾기",
+      "tags": [
+        "Mentor",
+        "업무"
+      ],
+      "to": "멘토"
+    },
+    {
+      "expected": [
+        "선배",
+        "업무"
+      ],
+      "from": "멘토",
+      "name": "합치기 — 이미 있는 태그로",
+      "tags": [
+        "멘토",
+        "업무",
+        "선배"
+      ],
+      "to": "선배"
+    },
+    {
+      "expected": [
+        "선배"
+      ],
+      "from": "멘토",
+      "name": "합치기 — 앞의 자리에 남는다",
+      "tags": [
+        "선배",
+        "멘토"
+      ],
+      "to": "선배"
+    },
+    {
+      "expected": [
+        "업무"
+      ],
+      "from": "멘토",
+      "name": "없는 태그",
+      "tags": [
+        "업무"
+      ],
+      "to": "선배"
+    },
+    {
+      "expected": [
+        "멘토"
+      ],
+      "from": "멘토",
+      "name": "빈 새 이름은 그대로",
+      "tags": [
+        "멘토"
+      ],
+      "to": "  #  "
+    },
+    {
+      "expected": [
+        "Mentor"
+      ],
+      "from": "mentor",
+      "name": "표기만 바꾸기",
+      "tags": [
+        "mentor"
+      ],
+      "to": "Mentor"
+    },
+    {
+      "expected": [
+        "좋은 선배"
+      ],
+      "from": "멘토",
+      "name": "새 이름도 정리",
+      "tags": [
+        "멘토"
+      ],
+      "to": "  #좋은   선배 "
     }
   ],
   "tagSplit": [
@@ -11517,6 +11977,47 @@
       ],
       "limit": 3,
       "name": "태그 여럿 · 대소문자 · 그 밖에"
+    }
+  ],
+  "typeChoices": [
+    {
+      "expected": [
+        "동료",
+        "친구",
+        "가족"
+      ],
+      "input": [
+        "동료",
+        "친구",
+        " 동료",
+        null,
+        "",
+        "가족",
+        "친구",
+        "동료"
+      ]
+    },
+    {
+      "expected": [
+        "Colleague",
+        "가족"
+      ],
+      "input": [
+        "Colleague",
+        "colleague",
+        "가족"
+      ]
+    },
+    {
+      "expected": [],
+      "input": []
+    },
+    {
+      "expected": [],
+      "input": [
+        null,
+        "  "
+      ]
     }
   ],
   "validation": [

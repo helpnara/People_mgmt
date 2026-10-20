@@ -3606,6 +3606,74 @@
       ]
     }
   ],
+  "tagCatalog": [
+    {"name": "사람과 기록 · 표기 여럿 · 한 목록 안 겹침",
+     "personTags": [["멘토", "독서모임"], ["Mentor", "#멘토"], ["mentor"], ["  독서  모임 "], []],
+     "recordTags": [["업무", "멘토"], ["업무"], ["업무", "UX"], ["ux"], ["#"]],
+     "suggest": [
+       {"input": "멘", "chosen": []},
+       {"input": "ㅁㅌ", "chosen": []},
+       {"input": "멘", "chosen": ["#멘토"]},
+       {"input": "m", "chosen": []},
+       {"input": "모임", "chosen": []},
+       {"input": "ㅇ", "chosen": []},
+       {"input": "#", "chosen": []},
+       {"input": "   ", "chosen": []},
+       {"input": "x", "chosen": []},
+       {"input": "업", "chosen": ["업무"]}
+     ]},
+    {"name": "빈 모음", "personTags": [], "recordTags": [], "suggest": [{"input": "a", "chosen": []}]},
+    {"name": "같은 수는 이름 순", "personTags": [["다", "가"], ["나"]], "recordTags": [["가나"]],
+     "suggest": [{"input": "가", "chosen": []}, {"input": "ㄱ", "chosen": []}]}
+  ],
+  "tagRename": [
+    {"name": "이름 바꾸기", "tags": ["멘토", "업무"], "from": "멘토", "to": "선배"},
+    {"name": "대소문자 · # 무시하고 찾기", "tags": ["Mentor", "업무"], "from": "#mentor", "to": "멘토"},
+    {"name": "합치기 — 이미 있는 태그로", "tags": ["멘토", "업무", "선배"], "from": "멘토", "to": "선배"},
+    {"name": "합치기 — 앞의 자리에 남는다", "tags": ["선배", "멘토"], "from": "멘토", "to": "선배"},
+    {"name": "없는 태그", "tags": ["업무"], "from": "멘토", "to": "선배"},
+    {"name": "빈 새 이름은 그대로", "tags": ["멘토"], "from": "멘토", "to": "  #  "},
+    {"name": "표기만 바꾸기", "tags": ["mentor"], "from": "mentor", "to": "Mentor"},
+    {"name": "새 이름도 정리", "tags": ["멘토"], "from": "멘토", "to": "  #좋은   선배 "}
+  ],
+  "listFilter": [
+    {"name": "사람 — 관계 유형 · 태그",
+     "items": [
+       {"type": "동료", "tags": ["멘토", "독서모임"]},
+       {"type": "친구", "tags": ["Mentor"]},
+       {"type": null, "tags": []},
+       {"type": " 동료", "tags": ["업무"]},
+       {"type": "Colleague", "tags": ["#멘토"]}
+     ],
+     "filters": [
+       {"type": null, "tag": null},
+       {"type": "동료", "tag": null},
+       {"type": null, "tag": "멘토"},
+       {"type": null, "tag": "mentor"},
+       {"type": "동료", "tag": "멘토"},
+       {"type": "colleague", "tag": null},
+       {"type": "가족", "tag": null},
+       {"type": null, "tag": "  "}
+     ]},
+    {"name": "기록 — 유형 열쇠 · 태그",
+     "items": [
+       {"type": "meal", "tags": ["업무"]},
+       {"type": "meeting", "tags": ["업무", "분기"]},
+       {"type": "meal", "tags": []}
+     ],
+     "filters": [
+       {"type": "meal", "tag": null},
+       {"type": null, "tag": "업무"},
+       {"type": "meeting", "tag": "업무"},
+       {"type": "meal", "tag": "분기"}
+     ]}
+  ],
+  "typeChoices": [
+    ["동료", "친구", " 동료", null, "", "가족", "친구", "동료"],
+    ["Colleague", "colleague", "가족"],
+    [],
+    [null, "  "]
+  ],
   "chosung": [
     {"text": "김하늘", "terms": ["ㄱㅎㄴ", "ㄱ", "ㅎㄴ", "김ㅎ", "고ㅎ", "ㄲ", "하ㄴ", "ㄱㄴ", "김하늘", "ㅎ늘"]},
     {"text": "까치 카페", "terms": ["ㄲㅊ", "ㄱㅊ", "ㅊ ㅋ", "ㅋㅍ", "cafe"]},
