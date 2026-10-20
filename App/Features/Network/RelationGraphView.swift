@@ -434,7 +434,8 @@ struct RelationGraphView: View {
             // 관계도 칸 높이가 바뀌지 않게 (이슈 29).
             ZStack(alignment: .topLeading) {
                 // 큰 글씨에서는 잡아 두지 않는다 — 관계도 칸이 먼저 자리를 갖는다 (이슈 26).
-                if !compact {
+                // 아이패드(누른 사람을 아래 칸에 여는 때)도 잡아 두지 않는다 — 사람 칸 · 안내는 아래 칸이 맡는다 (이슈 32).
+                if !compact && onSelectPerson == nil {
                     personCard(name: " ", detail: " \n ")
                         .hidden()
                         .accessibilityHidden(true)
@@ -445,18 +446,20 @@ struct RelationGraphView: View {
                         personCard(name: person.name, detail: selectedDetail)
                     }
                     .buttonStyle(.plain)
-                } else if !compact {
+                } else if !compact && onSelectPerson == nil {
                     Text(Self.hint)
                         .font(.scaled(13))
                         .foregroundStyle(Color.muted)
                 }
             }
             // 큰 글씨에서는 설명 글을 시트로 (이슈 26) — 위 줄 오른쪽의 설명 단추.
-            if !compact {
+            if !compact && onSelectPerson == nil {
                 // 지난 시점에는 지금의 숫자를 감추되 자리는 둔다 (이슈 29).
                 readiness
                     .opacity(sliceIndex == nil ? 1 : 0)
                     .accessibilityHidden(sliceIndex != nil)
+            }
+            if !compact {
                 RecordedScopeNotice()
             }
         }
