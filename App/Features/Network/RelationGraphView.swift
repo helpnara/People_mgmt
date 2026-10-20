@@ -24,7 +24,7 @@ struct RelationGraphView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     /// 관계도 설명 시트 — 큰 글씨에서 설명 글을 관계도 밖으로 옮긴다 (이슈 26).
-    /// 사람을 누를 때 (아이패드 · 이슈 32) — 있으면 아래 사람 칸 대신 바깥(오른쪽 칸)에 연다.
+    /// 사람을 누를 때 (아이패드 · 이슈 32) — 있으면 관계도 아래 사람 카드 대신 바깥(아래 칸)에 연다.
     var onSelectPerson: ((UUID?) -> Void)? = nil
 
     @State private var showsGuide = false
@@ -68,10 +68,17 @@ struct RelationGraphView: View {
     @State private var hasAnyCommunities = false
     /// 사람 자리 → 이름 순 차례 (이슈 30). 이름표를 놓는 차례 — 누가 더 중요한지가 아니라 이름 순이다 (ADR-0004).
     @State private var nameRank: [Int] = []
+    /// 지금 자리가 나(0.5)에서 가로 · 세로로 퍼진 거리 — 그림 칸에 고루 펴는 데 쓴다 (이슈 32). 자료가 바뀔 때만 센다 —
+    /// 시점마다 다시 세면 시점 막대를 옮길 때 그림이 커졌다 작아졌다 한다 (이슈 29).
+    @State private var spreadX = 0.5
+    @State private var spreadY = 0.5
 
     /// 접근성 크기 글씨 (AX1~5) — 칩 줄 · 켜기 · 설명 글이 화면을 다 차지해 관계도가 0 높이가 되었다 (빌드 14 · 이슈 26).
     /// 이때는 거르기를 차림표 하나로 접고 설명은 시트로 옮겨, **관계도 칸이 먼저** 자리를 갖는다.
     private var compact: Bool { typeSize.isAccessibilitySize }
+    /// 아이패드 관계도 칸 (이슈 32 · 빌드 25 사용자 — 관계도가 여전히 작다). 위 거르기를 한 줄로, 시점 설명을 한 줄로 줄여
+    /// 관계도 칸이 높이를 갖는다. 누른 사람 · 안내는 아래 칸이 맡는다.
+    private var wide: Bool { onSelectPerson != nil && !compact }
     private var meIndex: Int { snapshot.people.count }
     private var timeline: NetworkSnapshot.Timeline { snapshot.timeline }
     private var slice: NetworkSnapshot.Timeline.Slice? {
@@ -83,11 +90,18 @@ struct RelationGraphView: View {
         shownPositions.isEmpty ? snapshot.positions : shownPositions
     }
     private static let moveDuration = 0.35
+    /// 칸 가장자리에 남기는 여백 — 이름표 · 모임 이름 · 모임 테두리가 들어갈 자리.
+    private static let edgeX: CGFloat = 36
+    private static let edgeY: CGFloat = 34
+    /// 가로 · 세로 배율 차이의 한도.
+    private static let maxStretch: CGFloat = 1.8
 
     var body: some View {
         VStack(spacing: 0) {
             if compact {
                 compactControls
+            } else if wide {
+                wideControls
             } else {
                 controls
             }
@@ -122,7 +136,7 @@ struct RelationGraphView: View {
                 .onTapGesture { location in
                     selected = nearest(to: location, size: size)
                     selectedDetail = selected.map { detail(forIndex: $0) } ?? ""
-                    // 빈 곳을 누르면 오른쪽 칸은 그대로 둔다 — 고른 사람만 바꾼다.
+                    // 빈 곳을 누르면 아래 칸은 그대로 둔다 — 고른 사람만 바꾼다.
                     if let i = selected, i < snapshot.people.count { onSelectPerson?(snapshot.people[i].id) }
                 }
                 .accessibilityElement()
@@ -164,6 +178,13 @@ struct RelationGraphView: View {
             slicePositions = [:]
             shownPositions = snapshot.positions
             moveStart = nil
+            var reachX = 0.05, reachY = 0.05
+            for point in snapshot.positions {
+                reachX = max(reachX, abs(point.x - 0.5))
+                reachY = max(reachY, abs(point.y - 0.5))
+            }
+            spreadX = reachX
+            spreadY = reachY
             hasAnyCommunities = !snapshot.communities.isEmpty || timeline.slices.contains { !$0.communities.isEmpty }
             let byName = NameSort.sorted(Array(snapshot.people.indices), name: { snapshot.people[$0].name },
                                          createdAt: { _ in Date.distantPast })
@@ -256,6 +277,48 @@ struct RelationGraphView: View {
             .padding(.horizontal, 16)
         }
         .padding(.bottom, 8)
+    }
+
+    /// 아이패드의 위 줄 — 관계 유형 · 모임 칩을 한 줄에, 같은 소속 선은 오른쪽 끝에 (이슈 32).
+    private var wideControls: some View {
+        HStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    chip("전체", selected: highlight == nil && highlightCommunity == nil) {
+                        showAll()
+                    }
+                    ForEach(typeChips, id: \.self) { type in
+                        chip(type, selected: highlight == type) {
+                            toggleType(type)
+                        }
+                    }
+                    // 시점을 옮겨도 칩 자리가 같게 (이슈 29).
+                    if hasAnyCommunities {
+                        Divider()
+                            .frame(height: Font.scaledLength(20))
+                        Text("모임").font(.scaled(13, weight: .semibold)).foregroundStyle(Color.muted)
+                        if activeCommunities.isEmpty {
+                            Text("이 시점에는 묶인 모임이 없습니다").font(.scaled(13)).foregroundStyle(Color.muted)
+                        }
+                        ForEach(activeCommunities) { community in
+                            chip("\(community.name) \(community.memberIDs.count)", selected: highlightCommunity == community.id) {
+                                toggleCommunity(community.id)
+                            }
+                        }
+                    }
+                }
+                .frame(minHeight: Font.scaledLength(44))
+                .padding(.leading, 16)
+            }
+            Toggle(isOn: $showsOrganization) {
+                Text("같은 소속 선").font(.scaled(14)).foregroundStyle(Color.bodyText)
+            }
+            .tint(Color.accent)
+            .disabled(sliceIndex != nil)
+            .fixedSize()
+            .padding(.trailing, 16)
+        }
+        .padding(.bottom, 4)
     }
 
     /// 큰 글씨의 위 줄 (이슈 26) — 관계 유형 · 모임 · 같은 소속 선을 차림표 하나로, 설명은 오른쪽 단추의 시트로.
@@ -388,13 +451,13 @@ struct RelationGraphView: View {
                 Text(timeLine)
                     .font(.scaled(12))
                     .foregroundStyle(Color.muted)
-                    // 시점마다 글 길이가 달라도 세 줄 자리를 늘 잡는다 (이슈 29).
-                    .lineLimit(3, reservesSpace: true)
-                    .minimumScaleFactor(0.8)
+                    // 시점마다 글 길이가 달라도 같은 줄 수 자리를 늘 잡는다 (이슈 29). 아이패드는 폭이 넓어 한 줄 (이슈 32).
+                    .lineLimit(wide ? 1 : 3, reservesSpace: true)
+                    .minimumScaleFactor(wide ? 0.7 : 0.8)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, compact ? 4 : 10)
+        .padding(.top, compact || wide ? 4 : 10)
     }
 
     /// 시점 막대 아래 한 줄 — 그 시점에 무엇을 보고 있나.
@@ -464,7 +527,7 @@ struct RelationGraphView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, compact ? 8 : 16)
+        .padding(.vertical, compact ? 8 : (wide ? 6 : 16))
     }
 
     private func personCard(name: String, detail: String) -> some View {
@@ -598,11 +661,17 @@ struct RelationGraphView: View {
 
     // MARK: - 그리기
 
-    /// 0~1 자리를 화면 자리로 — 가운데 기준으로 키우고 옮긴다.
+    /// 0~1 자리를 화면 자리로 — 나(0.5)를 가운데 두고 키우고 옮긴다.
+    /// 퍼진 거리를 칸의 가로 · 세로에 따로 맞춰 칸에 고루 편다 (이슈 32 · 전에는 짧은 쪽에 맞춘 정사각형이라 넓은 칸의 가운데만 찼다).
+    /// 한쪽으로만 너무 늘이지 않는다 — 모임 모양이 알아볼 수 없게 납작해지지 않게.
     private func screenPoint(_ point: GraphLayout.Point, size: CGSize) -> CGPoint {
-        let side = min(size.width, size.height) * 0.92
-        let baseX = (point.x - 0.5) * side
-        let baseY = (point.y - 0.5) * side
+        var unitX = max(size.width / 2 - Self.edgeX, 20) / CGFloat(spreadX)
+        var unitY = max(size.height / 2 - Self.edgeY, 20) / CGFloat(spreadY)
+        let even = min(unitX, unitY)
+        unitX = min(unitX, even * Self.maxStretch)
+        unitY = min(unitY, even * Self.maxStretch)
+        let baseX = (point.x - 0.5) * unitX
+        let baseY = (point.y - 0.5) * unitY
         return CGPoint(x: size.width / 2 + baseX * scale + offset.width,
                        y: size.height / 2 + baseY * scale + offset.height)
     }
