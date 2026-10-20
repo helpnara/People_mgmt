@@ -29,6 +29,15 @@ struct NetworkView: View {
             case .readiness: return "입력 상태"
             }
         }
+        /// 아이패드 왼쪽 바의 그림 (이슈 32).
+        var symbol: String {
+            switch self {
+            case .graph: return "point.3.connected.trianglepath.dotted"
+            case .traits: return "chart.bar"
+            case .overview: return "clock.arrow.circlepath"
+            case .readiness: return "checklist"
+            }
+        }
     }
 
     @Environment(\.modelContext) private var context
@@ -36,20 +45,29 @@ struct NetworkView: View {
     @State private var snapshot: NetworkSnapshot?
     @State private var dataVersion = 0
 
-    init(initialTab: Tab = .graph) {
+    /// 칸 고르기 — 아이패드는 왼쪽 바가 칸을 고르므로 숨긴다 (이슈 32).
+    private let showsTabs: Bool
+    /// 관계도에서 사람을 누를 때 — 아이패드는 오른쪽 칸에 연다. 없으면 관계도 아래 칸에서 상세로 넘어간다.
+    private let onSelectPerson: ((UUID?) -> Void)?
+
+    init(initialTab: Tab = .graph, showsTabs: Bool = true, onSelectPerson: ((UUID?) -> Void)? = nil) {
         _tab = State(initialValue: initialTab)
+        self.showsTabs = showsTabs
+        self.onSelectPerson = onSelectPerson
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("보기", selection: $tab) {
-                ForEach(Tab.allCases) { tab in
-                    Text(tab.label).tag(tab)
+            if showsTabs {
+                Picker("보기", selection: $tab) {
+                    ForEach(Tab.allCases) { tab in
+                        Text(tab.label).tag(tab)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
 
             ZStack {
                 Color.ground.ignoresSafeArea()
@@ -59,7 +77,7 @@ struct NetworkView: View {
                                                description: Text("사람을 적으면 여기에 인맥이 그려집니다."))
                     } else {
                         switch tab {
-                        case .graph: RelationGraphView(snapshot: snapshot)
+                        case .graph: RelationGraphView(snapshot: snapshot, onSelectPerson: onSelectPerson)
                         case .traits: TraitsView(snapshot: snapshot)
                         case .overview: OverviewView(snapshot: snapshot)
                         case .readiness: ReadinessView(snapshot: snapshot)
@@ -71,7 +89,7 @@ struct NetworkView: View {
             }
         }
         .background(Color.ground)
-        .navigationTitle("내 인맥")
+        .navigationTitle(showsTabs ? "내 인맥" : tab.label)
         .navigationBarTitleDisplayMode(.inline)
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             dataVersion += 1

@@ -24,6 +24,9 @@ struct RelationGraphView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     /// 관계도 설명 시트 — 큰 글씨에서 설명 글을 관계도 밖으로 옮긴다 (이슈 26).
+    /// 사람을 누를 때 (아이패드 · 이슈 32) — 있으면 아래 사람 칸 대신 바깥(오른쪽 칸)에 연다.
+    var onSelectPerson: ((UUID?) -> Void)? = nil
+
     @State private var showsGuide = false
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
@@ -119,6 +122,8 @@ struct RelationGraphView: View {
                 .onTapGesture { location in
                     selected = nearest(to: location, size: size)
                     selectedDetail = selected.map { detail(forIndex: $0) } ?? ""
+                    // 빈 곳을 누르면 오른쪽 칸은 그대로 둔다 — 고른 사람만 바꾼다.
+                    if let i = selected, i < snapshot.people.count { onSelectPerson?(snapshot.people[i].id) }
                 }
                 .accessibilityElement()
                 .accessibilityLabel("관계도 \(slice?.label ?? "지금") — 사람 \(snapshot.people.count)명. 위의 특성 · 돌아보기 칸에서 목록으로 볼 수 있습니다.")
@@ -434,7 +439,7 @@ struct RelationGraphView: View {
                         .hidden()
                         .accessibilityHidden(true)
                 }
-                if let selected, selected < snapshot.people.count {
+                if let selected, selected < snapshot.people.count, onSelectPerson == nil {
                     let person = snapshot.people[selected]
                     NavigationLink(value: PersonID(id: person.id)) {
                         personCard(name: person.name, detail: selectedDetail)

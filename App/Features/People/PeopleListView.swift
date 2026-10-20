@@ -21,6 +21,15 @@ struct PeopleListView: View {
     @Query(filter: #Predicate<Person> { $0.isMe == true }) private var meList: [Person]
 
     @State private var path = NavigationPath()
+
+    // 아이패드 (이슈 32) — 왼쪽 바 · 사람 목록 · 상세를 나란히. 아이폰(좁은 폭)은 위의 스택 하나 그대로.
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isWide: Bool { sizeClass == .regular }
+    @State private var section: AppSection? = .people
+    @State private var selectedPersonID: UUID?
+    @State private var detailPath = NavigationPath()
+    @State private var networkPath = NavigationPath()
+    @State private var graphPersonID: UUID?
     @State private var searchText = ""
     /// 목록 정렬 (FR-027). 기기 편의라 UserDefaults.
     @AppStorage("people.sort") private var sortOption: PeopleSortOption = .name
@@ -83,130 +92,60 @@ struct PeopleListView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
-                    EmptyPeopleView { showingAdd = true }
-                } else if isQuerying && searchRows.isEmpty && searchedText == searchText {
-                    // 요구사항 문구 그대로 — 시스템 기본 문구 대신 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
-                    let shown = TextNormalization.normalized(searchText)
-                    ContentUnavailableView {
-                        Label("'\(shown)'\(Josa.gwaWa(shown)) 일치하는 사람이 없습니다", systemImage: "magnifyingglass")
-                    } description: {
-                        Text("이름 · 소속 · 메모 · 태그로 찾습니다. 태그만 찾으려면 #을 붙이세요.")
-                    }
-                } else {
-                    list
+        Group {
+            if isWide {
+                wideLayout
+            } else {
+                NavigationStack(path: $path) {
+                    home
+                        .appDestinations()
                 }
             }
-            .background(Color.ground)
-            .navigationTitle("느린 인연")
-            .searchable(text: $searchText, prompt: "이름, 소속, 메모, 태그")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Picker("정렬", selection: $sortOption) {
-                            ForEach(PeopleSortOption.allCases) { option in
-                                Text(option.label).tag(option)
-                            }
+        }
+        .sheet(isPresented: $showingAdd, onDismiss: { scanOnAdd = false }) {
+            PersonEditView(mode: .create, startsScan: scanOnAdd) { person in
+                show(person)
+            }
+        }
+        // 단축어 기록 추가 — 누구와의 기록인지 고르고, 고르기 창이 닫힌 뒤 기록 쓰기를 띄운다.
+        .sheet(isPresented: $pickingRecordPerson, onDismiss: {
+            if let person = recordPick {
+                recordPick = nil
+                recordAnchor = person
+            }
+        }) {
+            NavigationStack {
+                PersonPickerView(people: recordCandidates, selection: $recordPick, title: "누구와의 기록인가요")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("취소") { pickingRecordPerson = false }
                         }
-                    } label: {
-                        Label("정렬", systemImage: "arrow.up.arrow.down")
                     }
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    // 내 인맥 (6번째 묶음) — 목록 위 단추 (2026-10-18 사용자 결정).
-                    NavigationLink(value: NetworkRoute(tab: .graph)) {
-                        Label("내 인맥", systemImage: "point.3.connected.trianglepath.dotted")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    // 설정 (FR-030 · D-34) — 백업 · 복원 · 개인정보 안내. 값으로 연다 (이슈 16).
-                    NavigationLink(value: SettingsRoute()) {
-                        Label("설정", systemImage: "gearshape")
-                    }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Label("사람 추가", systemImage: "plus")
-                    }
-                }
             }
-            .navigationDestination(for: Person.self) { person in
-                PersonDetailView(person: person)
+        }
+        .sheet(item: $recordAnchor) { person in
+            RecordEditView(mode: .create(anchor: person)) { _ in
+                show(person)
             }
-            .navigationDestination(for: Record.self) { record in
-                RecordDetailView(record: record)
-            }
-            .navigationDestination(for: NetworkRoute.self) { route in
-                NetworkView(initialTab: route.tab)
-            }
-            // 값으로 여는 목적지는 모두 뿌리 한 곳에 (이슈 16).
-            .navigationDestination(for: PersonID.self) { ref in
-                PersonByIDView(id: ref.id)
-            }
-            .navigationDestination(for: PeopleListRoute.self) { route in
-                PeopleRouteView(route: route)
-            }
-            .navigationDestination(for: EvidenceRoute.self) { route in
-                EvidenceRouteView(route: route)
-            }
-            .navigationDestination(for: RecordFillRoute.self) { route in
-                RecordFillRouteView(route: route)
-            }
-            .navigationDestination(for: SettingsRoute.self) { _ in
-                SettingsView()
-            }
-            .navigationDestination(for: AcquaintanceSuggestionRoute.self) { route in
-                AcquaintanceSuggestionsView(route: route)
-            }
-            .sheet(isPresented: $showingAdd, onDismiss: { scanOnAdd = false }) {
-                PersonEditView(mode: .create, startsScan: scanOnAdd) { person in
-                    path.append(person)
-                }
-            }
-            // 단축어 기록 추가 — 누구와의 기록인지 고르고, 고르기 창이 닫힌 뒤 기록 쓰기를 띄운다.
-            .sheet(isPresented: $pickingRecordPerson, onDismiss: {
-                if let person = recordPick {
-                    recordPick = nil
-                    recordAnchor = person
-                }
-            }) {
-                NavigationStack {
-                    PersonPickerView(people: recordCandidates, selection: $recordPick, title: "누구와의 기록인가요")
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("취소") { pickingRecordPerson = false }
-                            }
-                        }
-                }
-            }
-            .sheet(item: $recordAnchor) { person in
-                RecordEditView(mode: .create(anchor: person)) { _ in
-                    path.append(person)
-                }
-            }
-            .sheet(isPresented: $addingMe) {
-                PersonEditView(mode: .createMe) { _ in }
-            }
-            .confirmationDialog(
-                "삭제",
-                isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
-                titleVisibility: .hidden,
-                presenting: pendingDelete
-            ) { person in
-                Button("삭제", role: .destructive) { delete(person) }
-                Button("취소", role: .cancel) { pendingDelete = nil }
-            } message: { person in
-                Text(store.deletionMessage(for: person))
-            }
-            .alert("삭제하지 못했습니다", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-                Button("닫기", role: .cancel) {}
-            } message: {
-                Text(errorMessage ?? "")
-            }
+        }
+        .sheet(isPresented: $addingMe) {
+            PersonEditView(mode: .createMe) { _ in }
+        }
+        .confirmationDialog(
+            "삭제",
+            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+            titleVisibility: .hidden,
+            presenting: pendingDelete
+        ) { person in
+            Button("삭제", role: .destructive) { delete(person) }
+            Button("취소", role: .cancel) { pendingDelete = nil }
+        } message: { person in
+            Text(store.deletionMessage(for: person))
+        }
+        .alert("삭제하지 못했습니다", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("닫기", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
         }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             noteChange()
@@ -269,6 +208,63 @@ struct PeopleListView: View {
         .onAppear(perform: handleShortcut)
     }
 
+    /// 목록 화면 — 아이폰은 이것이 뿌리, 아이패드는 사람 칸의 왼쪽 목록이다.
+    private var home: some View {
+        Group {
+            if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
+                EmptyPeopleView { showingAdd = true }
+            } else if isQuerying && searchRows.isEmpty && searchedText == searchText {
+                // 요구사항 문구 그대로 — 시스템 기본 문구 대신 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
+                let shown = TextNormalization.normalized(searchText)
+                ContentUnavailableView {
+                    Label("'\(shown)'\(Josa.gwaWa(shown)) 일치하는 사람이 없습니다", systemImage: "magnifyingglass")
+                } description: {
+                    Text("이름 · 소속 · 메모 · 태그로 찾습니다. 태그만 찾으려면 #을 붙이세요.")
+                }
+            } else {
+                list
+            }
+        }
+        .background(Color.ground)
+        .navigationTitle(isWide ? "사람" : "느린 인연")
+        .searchable(text: $searchText, prompt: "이름, 소속, 메모, 태그")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Menu {
+                    Picker("정렬", selection: $sortOption) {
+                        ForEach(PeopleSortOption.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                } label: {
+                    Label("정렬", systemImage: "arrow.up.arrow.down")
+                }
+            }
+            // 아이패드는 왼쪽 바에 내 인맥 · 설정이 있다 (이슈 32) — 위 단추는 아이폰에만.
+            if !isWide {
+                ToolbarItem(placement: .topBarLeading) {
+                    // 내 인맥 (6번째 묶음) — 목록 위 단추 (2026-10-18 사용자 결정).
+                    NavigationLink(value: NetworkRoute(tab: .graph)) {
+                        Label("내 인맥", systemImage: "point.3.connected.trianglepath.dotted")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    // 설정 (FR-030 · D-34) — 백업 · 복원 · 개인정보 안내. 값으로 연다 (이슈 16).
+                    NavigationLink(value: SettingsRoute()) {
+                        Label("설정", systemImage: "gearshape")
+                    }
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingAdd = true
+                } label: {
+                    Label("사람 추가", systemImage: "plus")
+                }
+            }
+        }
+    }
+
     /// 저장 뒤 — 앞에 있으면 바로 다시 세고, 뒤에 있거나 잠겼으면 표시만 (이슈 31).
     private func noteChange() {
         if StoreAccess.isReadable(scenePhase) {
@@ -322,22 +318,27 @@ struct PeopleListView: View {
                 if let readinessLine, !fetched.isEmpty {
                     Section {
                         // 입력 상태 (D-31) — 무엇을 더 적으면 무엇이 보이는지. 내 인맥의 입력 상태 칸으로 간다.
-                        NavigationLink(value: NetworkRoute(tab: .readiness)) {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("입력 상태").font(.scaled(15, weight: .semibold)).foregroundStyle(Color.ink)
-                                    Text(readinessLine).font(.scaled(13)).foregroundStyle(Color.muted)
-                                }
-                            } icon: {
-                                Image(systemName: "checklist").foregroundStyle(Color.accent)
+                        let label = Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("입력 상태").font(.scaled(15, weight: .semibold)).foregroundStyle(Color.ink)
+                                Text(readinessLine).font(.scaled(13)).foregroundStyle(Color.muted)
                             }
+                        } icon: {
+                            Image(systemName: "checklist").foregroundStyle(Color.accent)
+                        }
+                        if isWide {
+                            // 아이패드는 왼쪽 바의 입력 상태 칸으로 (이슈 32).
+                            Button { openSection(.network(.readiness)) } label: { label }
+                                .buttonStyle(.plain)
+                        } else {
+                            NavigationLink(value: NetworkRoute(tab: .readiness)) { label }
                         }
                     }
                 }
                 Section {
                     ForEach(displayedPeople) { person in
                         if !person.isGone {
-                            NavigationLink(value: person) {
+                            personLink(person) {
                                 PersonRow(person: person, evidence: nil, showsLastRecord: true)
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -387,7 +388,7 @@ struct PeopleListView: View {
     private var meSection: some View {
         Section {
             if let me = meList.first, !me.isGone {
-                NavigationLink(value: me) {
+                personLink(me) {
                     HStack(spacing: 12) {
                         // 그림은 xxxLarge 에서 멈춘다 — 가장 큰 글씨에서 이름보다 커지지 않게 (빌드 18).
                         Image(systemName: "person.crop.circle.fill")
@@ -454,13 +455,143 @@ struct PeopleListView: View {
 
     /// 사람 상세를 열고, 기록이 지정됐으면 그 기록 상세까지 연다.
     private func open(_ person: Person, recordID: UUID?) {
-        path.append(person)
+        show(person)
         if let recordID, let record = (person.records ?? []).first(where: { $0.uuid == recordID }) {
-            path.append(record)
+            if isWide { detailPath.append(record) } else { path.append(record) }
         }
     }
 
+    /// 사람을 연다 — 아이폰은 스택에 쌓고, 아이패드는 사람 칸의 오른쪽에 (이슈 32).
+    private func show(_ person: Person) {
+        if isWide {
+            section = .people
+            selectedPersonID = person.uuid
+            detailPath = NavigationPath()
+        } else {
+            path.append(person)
+        }
+    }
+
+    /// 아이패드 왼쪽 바의 칸을 연다 — 그 칸에서 쌓아 둔 화면 · 고른 점은 비운다.
+    private func openSection(_ next: AppSection) {
+        section = next
+        networkPath = NavigationPath()
+        graphPersonID = nil
+    }
+
+    /// 목록의 사람 한 줄 — 아이폰은 상세로 넘어가고, 아이패드는 오른쪽에 연다(고른 줄은 옅게 칠한다).
+    @ViewBuilder
+    private func personLink<Content: View>(_ person: Person, @ViewBuilder content: () -> Content) -> some View {
+        if isWide {
+            Button {
+                show(person)
+            } label: {
+                HStack {
+                    content()
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .listRowBackground(selectedPersonID == person.uuid ? Color.accent.opacity(0.15) : nil)
+            .accessibilityAddTraits(selectedPersonID == person.uuid ? .isSelected : [])
+        } else {
+            NavigationLink(value: person) { content() }
+        }
+    }
+
+    // MARK: - 아이패드 (이슈 32)
+
+    /// 왼쪽 바 · 오른쪽 칸. 세로로 돌리면 왼쪽 바는 숨김 단추로 접힌다(시스템 기본).
+    private var wideLayout: some View {
+        NavigationSplitView {
+            List(selection: Binding(get: { section }, set: { if let next = $0 { openSection(next) } })) {
+                Section {
+                    Label("사람", systemImage: "person.2").tag(AppSection.people)
+                }
+                Section("내 인맥") {
+                    ForEach(NetworkView.Tab.allCases) { tab in
+                        Label(tab.label, systemImage: tab.symbol).tag(AppSection.network(tab))
+                    }
+                }
+                Section {
+                    Label("설정", systemImage: "gearshape").tag(AppSection.settings)
+                }
+            }
+            .navigationTitle("느린 인연")
+        } detail: {
+            switch section ?? .people {
+            case .people:
+                peoplePane
+            case .network(let tab):
+                networkPane(tab)
+            case .settings:
+                NavigationStack {
+                    SettingsView()
+                        .appDestinations()
+                }
+            }
+        }
+    }
+
+    /// 사람 칸 — 왼쪽에 목록, 오른쪽에 고른 사람. 오른쪽 안에서 기록 · 소개한 사람으로 더 들어간다.
+    private var peoplePane: some View {
+        HStack(spacing: 0) {
+            NavigationStack {
+                home
+            }
+            .frame(width: Self.listWidth)
+            Divider()
+            NavigationStack(path: $detailPath) {
+                Group {
+                    if let id = selectedPersonID {
+                        PersonByIDView(id: id)
+                            .id(id)
+                    } else {
+                        ContentUnavailableView("사람을 고르세요", systemImage: "person.crop.rectangle",
+                                               description: Text("왼쪽 목록에서 사람을 누르면 여기에 그 사람과의 인연이 보입니다."))
+                    }
+                }
+                .appDestinations()
+            }
+        }
+    }
+
+    /// 내 인맥 칸 — 관계도는 크게, 누른 사람은 오른쪽 칸에. 오른쪽 칸은 늘 두어 누를 때 관계도 크기가 바뀌지 않게 (이슈 29 와 같은 까닭).
+    private func networkPane(_ tab: NetworkView.Tab) -> some View {
+        HStack(spacing: 0) {
+            NavigationStack(path: $networkPath) {
+                NetworkView(initialTab: tab, showsTabs: false,
+                            onSelectPerson: tab == .graph ? { graphPersonID = $0 } : nil)
+                    .appDestinations()
+            }
+            .id(tab)
+            if tab == .graph {
+                Divider()
+                NavigationStack {
+                    Group {
+                        if let id = graphPersonID {
+                            PersonByIDView(id: id)
+                                .id(id)
+                        } else {
+                            ContentUnavailableView("점을 누르세요", systemImage: "hand.tap",
+                                                   description: Text("관계도에서 사람을 누르면 여기에 그 사람과의 인연이 보입니다."))
+                        }
+                    }
+                    .appDestinations()
+                }
+                .frame(width: Self.panelWidth)
+            }
+        }
+    }
+
+    /// 목록 칸 너비 — 글자 크기를 따르되 너무 좁거나 넓지 않게.
+    private static var listWidth: CGFloat { min(max(Font.scaledLength(340), 320), 460) }
+    /// 관계도 옆 사람 칸 너비.
+    private static var panelWidth: CGFloat { min(max(Font.scaledLength(380), 340), 480) }
+
     private func delete(_ person: Person) {
+        if selectedPersonID == person.uuid { selectedPersonID = nil }
         do {
             try store.delete(person)
         } catch {
@@ -477,21 +608,34 @@ struct PeopleListView: View {
         LaunchTiming.mark("목록 첫 표시 (\(fetched.count)명)")
         if let search = arguments.search { searchText = search }
         if arguments.openSettings {
-            path.append(SettingsRoute())
+            if isWide { openSection(.settings) } else { path.append(SettingsRoute()) }
             return
         }
         if arguments.openFillFirstMet {
             let snapshot = await NetworkSnapshotBuilder.build(container: context.container)
-            path.append(PeopleListRoute(title: "처음 만난 날이 빈 사람", ids: snapshot.gaps.noFirstMet, fill: .firstMet))
+            let route = PeopleListRoute(title: "처음 만난 날이 빈 사람", ids: snapshot.gaps.noFirstMet, fill: .firstMet)
+            if isWide {
+                openSection(.network(.readiness))
+                networkPath.append(route)
+            } else {
+                path.append(route)
+            }
             return
         }
         if arguments.openSuggestions {
             let snapshot = await NetworkSnapshotBuilder.build(container: context.container)
-            path.append(AcquaintanceSuggestionRoute(items: snapshot.suggestions))
+            let route = AcquaintanceSuggestionRoute(items: snapshot.suggestions)
+            if isWide {
+                openSection(.network(.readiness))
+                networkPath.append(route)
+            } else {
+                path.append(route)
+            }
             return
         }
         if let name = arguments.openNetwork {
-            path.append(NetworkRoute(tab: NetworkView.Tab(rawValue: name) ?? .graph))
+            let tab = NetworkView.Tab(rawValue: name) ?? .graph
+            if isWide { openSection(.network(tab)) } else { path.append(NetworkRoute(tab: tab)) }
             return
         }
         if arguments.addPerson { showingAdd = true }
@@ -504,9 +648,9 @@ struct PeopleListView: View {
             opened = PersonStore.sorted(fetched, by: .name).first
         }
         if let opened {
-            path.append(opened)
+            show(opened)
             if arguments.openRecord, let latest = RecordStore.timeline(of: opened).first {
-                path.append(latest)
+                if isWide { detailPath.append(latest) } else { path.append(latest) }
             }
         }
     }
