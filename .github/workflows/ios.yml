@@ -361,6 +361,8 @@ jobs:
           shoot 32-tags.png -seedSampleData -openSettings -openTags
           shoot 33-people-filter.png -seedSampleData -filterTag 멘토
           shoot 34-lock.png -seedSampleData -previewLock
+          # 이슈 34 — 자동완성 칩에 글자가 있는가(빌드 27 은 + 만 보였다). 초성으로 찾는 것까지.
+          shoot 35-tag-suggest.png -seedSampleData -openPerson 김하늘 -addRecord -tagInput ㅁㅌ
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
