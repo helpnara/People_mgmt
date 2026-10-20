@@ -30,6 +30,8 @@ struct PeopleListView: View {
     @State private var detailPath = NavigationPath()
     @State private var networkPath = NavigationPath()
     @State private var graphPersonID: UUID?
+    /// 왼쪽 바를 보일까 — 관계도를 열면 접어 관계도에 자리를 준다(왼쪽 위 단추로 다시 연다).
+    @State private var columns: NavigationSplitViewVisibility = .automatic
     @State private var searchText = ""
     /// 목록 정렬 (FR-027). 기기 편의라 UserDefaults.
     @AppStorage("people.sort") private var sortOption: PeopleSortOption = .name
@@ -477,6 +479,8 @@ struct PeopleListView: View {
         section = next
         networkPath = NavigationPath()
         graphPersonID = nil
+        // 관계도는 넓게 — 세로 화면에서 왼쪽 바 · 사람 칸 · 관계도가 셋으로 나뉘면 관계도가 3분의 1로 좁아졌다 (CI 스크린샷 ipad/04).
+        columns = next == .network(.graph) ? .detailOnly : .automatic
     }
 
     /// 목록의 사람 한 줄 — 아이폰은 상세로 넘어가고, 아이패드는 오른쪽에 연다(고른 줄은 옅게 칠한다).
@@ -504,7 +508,7 @@ struct PeopleListView: View {
 
     /// 왼쪽 바 · 오른쪽 칸. 세로로 돌리면 왼쪽 바는 숨김 단추로 접힌다(시스템 기본).
     private var wideLayout: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             List(selection: Binding(get: { section }, set: { if let next = $0 { openSection(next) } })) {
                 Section {
                     Label("사람", systemImage: "person.2").tag(AppSection.people)
@@ -559,6 +563,7 @@ struct PeopleListView: View {
 
     /// 내 인맥 칸 — 관계도는 크게, 누른 사람은 오른쪽 칸에. 오른쪽 칸은 늘 두어 누를 때 관계도 크기가 바뀌지 않게 (이슈 29 와 같은 까닭).
     private func networkPane(_ tab: NetworkView.Tab) -> some View {
+        GeometryReader { proxy in
         HStack(spacing: 0) {
             NavigationStack(path: $networkPath) {
                 NetworkView(initialTab: tab, showsTabs: false,
@@ -580,15 +585,16 @@ struct PeopleListView: View {
                     }
                     .appDestinations()
                 }
-                .frame(width: Self.panelWidth)
+                .frame(width: Self.panelWidth(for: proxy.size.width))
             }
+        }
         }
     }
 
     /// 목록 칸 너비 — 글자 크기를 따르되 너무 좁거나 넓지 않게.
     private static var listWidth: CGFloat { min(max(Font.scaledLength(340), 320), 460) }
-    /// 관계도 옆 사람 칸 너비.
-    private static var panelWidth: CGFloat { min(max(Font.scaledLength(380), 340), 480) }
+    /// 관계도 옆 사람 칸 너비 — 칸 너비의 3분의 1 안팎, 관계도가 늘 더 넓게.
+    private static func panelWidth(for total: CGFloat) -> CGFloat { min(max(total * 0.32, 300), 400) }
 
     private func delete(_ person: Person) {
         if selectedPersonID == person.uuid { selectedPersonID = nil }
