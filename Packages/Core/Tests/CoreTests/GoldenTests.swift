@@ -143,6 +143,8 @@ final class GoldenTests: XCTestCase {
         struct JosaExpected: Decodable { let eulReul: String; let gwaWa: String; let iGa: String }
         struct JosaCase: Decodable { let text: String; let expected: JosaExpected }
         struct FoldedCase: Decodable { let input: String; let expected: String }
+        struct ChosungTerm: Decodable { let term: String; let expected: Bool }
+        struct ChosungCase: Decodable { let text: String; let initials: String; let terms: [ChosungTerm] }
 
         let tags: [TagCase]
         let tagSplit: [SplitCase]
@@ -180,6 +182,7 @@ final class GoldenTests: XCTestCase {
         let search: Search
         let josa: [JosaCase]
         let folded: [FoldedCase]
+        let chosung: [ChosungCase]
     }
 
     /// `Bundle.module` 대신 소스 위치에서 직접 읽는다 — 리눅스에서 더 단순하고 확실하다.
@@ -578,6 +581,17 @@ final class GoldenTests: XCTestCase {
     func testFolded() throws {
         for c in try Self.loadGolden().folded {
             XCTAssertEqual(TextNormalization.folded(c.input), c.expected, c.input.debugDescription)
+        }
+    }
+
+    /// 초성 검색 (FR-036) — 초성 글과, 검색어마다 찾는지.
+    func testChosung() throws {
+        for c in try Self.loadGolden().chosung {
+            let text = FoldedText(c.text)
+            XCTAssertEqual(Chosung.initials(text.folded), c.initials, c.text)
+            for term in c.terms {
+                XCTAssertEqual(text.contains(TextNormalization.folded(term.term)), term.expected, "'\(c.text)' 에서 '\(term.term)'")
+            }
         }
     }
 
