@@ -314,7 +314,16 @@ struct SettingsView: View {
                         Text(syncStatus)
                             .foregroundStyle(syncMonitor.lastError == nil ? Color.muted : Color.danger)
                     }
-                    if let failure = syncMonitor.lastError {
+                    // 방향별 (이슈 43) — 이 기기의 변경이 올라갔는지, 다른 기기의 변경을 받았는지 따로.
+                    LabeledContent("올림 (이 기기 → iCloud)") {
+                        Text(directionText(syncMonitor.lastUpload, failed: syncMonitor.uploadError != nil))
+                            .foregroundStyle(syncMonitor.uploadError == nil ? Color.muted : Color.danger)
+                    }
+                    LabeledContent("받음 (iCloud → 이 기기)") {
+                        Text(directionText(syncMonitor.lastDownload, failed: syncMonitor.downloadError != nil))
+                            .foregroundStyle(syncMonitor.downloadError == nil ? Color.muted : Color.danger)
+                    }
+                    if let failure = syncMonitor.uploadError ?? syncMonitor.downloadError ?? syncMonitor.lastError {
                         Text(failure)
                             .font(.scaled(13))
                             .foregroundStyle(Color.muted)
@@ -331,6 +340,11 @@ struct SettingsView: View {
                  ? "같은 Apple 계정으로 로그인한 아이폰 · 아이패드가 같은 사람 · 기록을 봅니다. 자료는 내 iCloud 의 비공개 영역에 저장되고 개발자는 볼 수 없습니다. 끄면 이 기기 안에만 둡니다."
                  : "같은 Apple 계정의 아이폰 · 아이패드가 같은 사람 · 기록을 보게 하는 기능입니다. 지금은 이 기기 안에만 저장합니다.")
         }
+    }
+
+    private func directionText(_ date: Date?, failed: Bool) -> String {
+        if failed { return "실패" }
+        return date?.formatted(date: .abbreviated, time: .shortened) ?? "아직 없음"
     }
 
     private var syncStatus: String {
