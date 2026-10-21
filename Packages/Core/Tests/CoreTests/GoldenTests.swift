@@ -159,6 +159,18 @@ final class GoldenTests: XCTestCase {
         struct FilterQuery: Decodable { let type: String?; let tag: String?; let expected: [Int] }
         struct FilterCase: Decodable { let name: String; let items: [FilterItem]; let filters: [FilterQuery] }
         struct TypeChoiceCase: Decodable { let input: [String?]; let expected: [String] }
+        struct ExportContact: Decodable { let label: String; let value: String }
+        struct ExportRecord: Decodable {
+            let date: String; let type: String; let title: String; let note: String?; let location: String?
+            let tags: [String]?; let companions: [String]?
+        }
+        struct ExportPerson: Decodable {
+            let name: String; let nickname: String?; let organization: String?; let role: String?
+            let relationshipType: String?; let metThrough: String?; let introducer: String?; let birthday: String?
+            let tags: [String]?; let contacts: [ExportContact]?; let firstMet: String?; let firstNote: String?
+            let records: [ExportRecord]?; let exportedOn: String
+        }
+        struct ExportCase: Decodable { let name: String; let person: ExportPerson; let expected: String }
 
         let tags: [TagCase]
         let tagSplit: [SplitCase]
@@ -202,6 +214,7 @@ final class GoldenTests: XCTestCase {
         let tagRename: [RenameCase]
         let listFilter: [FilterCase]
         let typeChoices: [TypeChoiceCase]
+        let personExport: [ExportCase]
     }
 
     /// `Bundle.module` 대신 소스 위치에서 직접 읽는다 — 리눅스에서 더 단순하고 확실하다.
@@ -627,6 +640,25 @@ final class GoldenTests: XCTestCase {
             for s in c.suggest {
                 XCTAssertEqual(catalog.suggestions(for: s.input, excluding: s.chosen), s.expected, "\(c.name) '\(s.input)'")
             }
+        }
+    }
+
+    /// 한 사람 내보내기 (FR-014) — Markdown 글 전체.
+    func testPersonExport() throws {
+        for c in try Self.loadGolden().personExport {
+            let p = c.person
+            let person = PersonExport.Person(
+                name: p.name, nickname: p.nickname, organization: p.organization, role: p.role,
+                relationshipType: p.relationshipType, metThrough: p.metThrough, introducer: p.introducer,
+                birthday: p.birthday, tags: p.tags ?? [],
+                contacts: (p.contacts ?? []).map { PersonExport.Contact(label: $0.label, value: $0.value) },
+                firstMet: p.firstMet, firstNote: p.firstNote,
+                records: (p.records ?? []).map {
+                    PersonExport.Record(date: $0.date, type: $0.type, title: $0.title, note: $0.note,
+                                        location: $0.location, tags: $0.tags ?? [], companions: $0.companions ?? [])
+                },
+                exportedOn: p.exportedOn)
+            XCTAssertEqual(PersonExport.markdown(person), c.expected, c.name)
         }
     }
 

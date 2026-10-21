@@ -401,7 +401,7 @@ struct PeopleListView: View {
                     ForEach(displayedPeople) { person in
                         if !person.isGone {
                             personLink(person) {
-                                PersonRow(person: person, evidence: nil, showsLastRecord: true)
+                                PersonRow(person: person, evidence: nil, showsLastRecord: true, showsPhoto: true)
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 // 역할 없는 단추 — `role: .destructive` 는 확인 전에 줄을 먼저 접는다 (느린 부자 178~182).
@@ -428,7 +428,7 @@ struct PeopleListView: View {
                                 open(row.person, recordID: row.hit.recordID)
                             } label: {
                                 HStack {
-                                    PersonRow(person: row.person, evidence: row.hit.evidence)
+                                    PersonRow(person: row.person, evidence: row.hit.evidence, showsPhoto: true)
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.scaled(13, weight: .semibold))
@@ -740,7 +740,11 @@ struct PeopleListView: View {
     private func delete(_ person: Person) {
         if selectedPersonID == person.uuid { selectedPersonID = nil }
         do {
-            try store.delete(person)
+            // 지운 직후 5초 동안 되돌리기 (FR-031) — 문구는 지우기 전에 만든다(지운 객체를 다시 읽지 않게).
+            let name = person.name
+            try DeletionUndo.shared.run("'\(name)'\(Josa.eulReul(name)) 삭제했습니다", in: context) {
+                try store.delete(person)
+            }
         } catch {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
         }
@@ -816,8 +820,21 @@ struct PersonRow: View {
     let evidence: String?
     /// 목록에서만 마지막 기록일을 날 수로 (FR-040 · 이슈 7). 선택기 · 검색 결과에서는 끈다.
     var showsLastRecord = false
+    /// 사진 썸네일 (FR-012) — 사람 목록 · 검색 결과에서만. 고르기 창은 이름만으로 빠르게.
+    var showsPhoto = false
 
     var body: some View {
+        if showsPhoto {
+            HStack(spacing: 12) {
+                PersonAvatar(person: person, size: 40)
+                text
+            }
+        } else {
+            text
+        }
+    }
+
+    private var text: some View {
         VStack(alignment: .leading, spacing: 3) {
             // 큰 글씨에서는 마지막 기록일을 이름 아래로 (D-33).
             AdaptiveStack {

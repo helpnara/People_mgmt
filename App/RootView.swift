@@ -8,9 +8,15 @@ struct RootView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     private let lock = AppLock.shared
+    private let deletionUndo = DeletionUndo.shared
 
     var body: some View {
         PeopleListView(arguments: arguments, isSampleData: isSampleData)
+            // 삭제 실행취소 (FR-031) — 지운 직후 5초 동안 아래에 `되돌리기`.
+            .overlay(alignment: .bottom) {
+                DeletionUndoBanner(undo: deletionUndo)
+                    .animation(.easeOut(duration: 0.2), value: deletionUndo.pending)
+            }
             // 앱 잠금 (FR-029) — 가리개 창이 뜨기 전 첫 장면도 가린다.
             .overlay {
                 if lock.isLocked { LockScreen(lock: lock) }

@@ -1533,6 +1533,67 @@ def type_choices(types) -> list[str]:
     return [shown[k] for k in order]
 
 
+# ── 한 사람 내보내기 (PersonExport) ───────────────────────────────────────────
+
+def person_export(p: dict) -> str:
+    """Swift `PersonExport.markdown` 과 같은 줄 차례 — 빈 칸은 줄을 쓰지 않는다."""
+    def filled(text):
+        if text is None:
+            return None
+        cleaned = normalized(text)
+        return cleaned or None
+
+    def hash_tags(tags):
+        return " ".join("#" + t for t in tags) if tags else None
+
+    lines = [f"# {normalized(p['name'])}", ""]
+    facts = []
+    if filled(p.get("nickname")):
+        facts.append(f"- 별명: {filled(p['nickname'])}")
+    work = [w for w in (filled(p.get("organization")), filled(p.get("role"))) if w]
+    if work:
+        facts.append(f"- 소속: {' · '.join(work)}")
+    if filled(p.get("relationshipType")):
+        facts.append(f"- 관계 유형: {filled(p['relationshipType'])}")
+    if filled(p.get("metThrough")):
+        path = filled(p["metThrough"])
+        intro = filled(p.get("introducer"))
+        facts.append(f"- 알게 된 경로: {path} ({intro}의 소개)" if intro else f"- 알게 된 경로: {path}")
+    if filled(p.get("birthday")):
+        facts.append(f"- 생일: {filled(p['birthday'])}")
+    if hash_tags(p.get("tags", [])):
+        facts.append(f"- 태그: {hash_tags(p['tags'])}")
+    if facts:
+        lines += facts + [""]
+    contacts = [f"- {c['label']}: {filled(c['value'])}" for c in p.get("contacts", []) if filled(c["value"])]
+    if contacts:
+        lines += ["## 연락 수단", ""] + contacts + [""]
+    first_met, first_note = filled(p.get("firstMet")), filled(p.get("firstNote"))
+    if first_met or first_note:
+        lines += ["## 첫 인연", "", first_met or "날짜 미상", ""]
+        if first_note:
+            lines += [first_note, ""]
+    records = p.get("records", [])
+    lines += [f"## 기록 {len(records)}건", ""]
+    if not records:
+        lines += ["아직 기록이 없습니다.", ""]
+    for r in records:
+        lines += [f"### {r['date']} · {r['type']} · {normalized(r['title'])}", ""]
+        details = []
+        if r.get("companions"):
+            details.append(f"- 함께한 사람: {', '.join(r['companions'])}")
+        if filled(r.get("location")):
+            details.append(f"- 장소: {filled(r['location'])}")
+        if hash_tags(r.get("tags", [])):
+            details.append(f"- 태그: {hash_tags(r['tags'])}")
+        if details:
+            lines += details + [""]
+        if filled(r.get("note")):
+            lines += [filled(r["note"]), ""]
+    lines += ["---", "", f"느린 인연에서 {p['exportedOn']}에 내보냄"]
+    return "\n".join(lines) + "\n"
+
+
 # ── 검색 (SearchQuery · SearchMatcher) ────────────────────────────────────────
 
 KIND_RANK = {"name": 0, "tag": 1, "person": 2, "record": 3}
@@ -1723,6 +1784,8 @@ def build() -> dict:
                       if list_filter_matches(item.get("type"), item["tags"], f.get("type"), f.get("tag"))]}
         for f in c["filters"]]} for c in cases["listFilter"]]
     out["typeChoices"] = [{"input": c, "expected": type_choices(c)} for c in cases["typeChoices"]]
+    out["personExport"] = [{"name": c["name"], "person": c["person"], "expected": person_export(c["person"])}
+                           for c in cases["personExport"]]
     out["chosung"] = [{"text": c["text"], "initials": chosung_initials(folded(c["text"])),
                        "terms": [{"term": term, "expected": chosung_contains(folded(c["text"]), folded(term))}
                                  for term in c["terms"]]}

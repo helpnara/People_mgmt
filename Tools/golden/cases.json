@@ -3685,6 +3685,7 @@
     {"iso": "2024-02-29T12:00:00+00:00", "timeZone": "UTC", "precision": 1},
     {"iso": "2024-02-29T12:00:00+00:00", "timeZone": "UTC", "precision": 9}
   ],
+  "personExport": [{"name": "모든 칸", "person": {"name": "김하늘", "nickname": "하늘 팀장", "organization": "청림소프트", "role": "팀장", "relationshipType": "동료", "metThrough": "소개", "introducer": "이도윤", "birthday": "5월 21일", "tags": ["멘토", "독서모임"], "contacts": [{"label": "휴대전화", "value": "010-1234-5678"}, {"label": "사무실", "value": " "}, {"label": "이메일", "value": "haneul@example.com"}], "firstMet": "2019년 3월", "firstNote": "입사 첫날 옆자리.\n점심을 같이 먹었다.", "records": [{"date": "2026년 10월 1일", "type": "식사", "title": "점심", "note": "이직 고민을 들었다", "location": "국숫집", "tags": ["업무"], "companions": ["정유진", "Alice Park"]}, {"date": "2025년", "type": "회의", "title": " 분기 회의 ", "companions": []}], "exportedOn": "2026년 10월 20일"}}, {"name": "이름만", "person": {"name": "  윤서아 ", "exportedOn": "2026년 10월 20일"}}, {"name": "첫 인연 메모만 · 소개자 없는 소개", "person": {"name": "최민준", "metThrough": "소개", "firstNote": "행사에서 만남", "organization": " ", "role": "연구원", "exportedOn": "2026년 1월 2일"}}],
   "chosung": [
     {"text": "김하늘", "terms": ["ㄱㅎㄴ", "ㄱ", "ㅎㄴ", "김ㅎ", "고ㅎ", "ㄲ", "하ㄴ", "ㄱㄴ", "김하늘", "ㅎ늘"]},
     {"text": "까치 카페", "terms": ["ㄲㅊ", "ㄱㅊ", "ㅊ ㅋ", "ㅋㅍ", "cafe"]},

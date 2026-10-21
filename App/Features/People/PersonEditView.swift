@@ -62,6 +62,11 @@ struct PersonEditView: View {
     @State private var cardFailed = false
     /// 명함 지우기 확인 (CLAUDE.md — 모든 삭제에 확인 · 전수조사 이슈 22).
     @State private var confirmingCardRemoval = false
+    // 사람 사진 (FR-012). 사진첩 고르기 창은 명함과 **하나를 함께 쓴다** — 같은 화면에 `.photosPicker` 를 둘 걸면 하나만 뜬다.
+    @State private var pickingForPhoto = false
+    @State private var processingPhoto = false
+    @State private var confirmingPhotoRemoval = false
+    @State private var photoFailed = false
     /// 이름을 한 번이라도 쳤는가 — 쳤다가 지웠을 때만 `이름을 입력하세요` 를 보인다 (처음 열 때는 조르지 않는다 · 7.2).
     @State private var nameEverTyped = false
 
@@ -112,6 +117,7 @@ struct PersonEditView: View {
                 if !savedInRow.isEmpty { savedBanner }
                 importSection
                 nameSection
+                photoSection
                 Section("소속") {
                     TextField("회사 · 조직", text: $draft.organization)
                         .limited($draft.organization, to: Limits.organization)
@@ -159,11 +165,22 @@ struct PersonEditView: View {
                 Button("버리기", role: .destructive) { dismiss() }
                 Button("계속 편집", role: .cancel) {}
             }
+            .confirmationDialog("사진을 지울까요?", isPresented: $confirmingPhotoRemoval, titleVisibility: .visible) {
+                Button("사진 지우기", role: .destructive) { draft.photo = nil }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("저장해야 실제로 지워집니다. 취소하고 버리면 그대로 남습니다.")
+            }
             .confirmationDialog("명함 사진을 지울까요?", isPresented: $confirmingCardRemoval, titleVisibility: .visible) {
                 Button("명함 지우기", role: .destructive) { draft.businessCard = nil }
                 Button("취소", role: .cancel) {}
             } message: {
                 Text("저장해야 실제로 지워집니다. 취소하고 버리면 그대로 남습니다.")
+            }
+            .alert("사진을 읽지 못했습니다", isPresented: $photoFailed) {
+                Button("닫기", role: .cancel) {}
+            } message: {
+                Text("다른 사진으로 다시 시도해 주세요.")
             }
             .alert("명함 사진을 읽지 못했습니다", isPresented: $cardFailed) {
                 Button("닫기", role: .cancel) {}
@@ -186,12 +203,18 @@ struct PersonEditView: View {
             .onChange(of: cardItem) { _, item in
                 guard let item else { return }
                 cardItem = nil
+                let forPhoto = pickingForPhoto
+                pickingForPhoto = false
                 Task {
                     guard let data = try? await item.loadTransferable(type: Data.self) else {
-                        cardFailed = true
+                        if forPhoto { photoFailed = true } else { cardFailed = true }
                         return
                     }
-                    await ingestCard(data, alreadyStraight: false)
+                    if forPhoto {
+                        await ingestPhoto(data)
+                    } else {
+                        await ingestCard(data, alreadyStraight: false)
+                    }
                 }
             }
         }
@@ -399,6 +422,51 @@ struct PersonEditView: View {
         }
     }
 
+    /// 사람 사진 (FR-012 · 7판) — 찍거나 사진첩에서 고른다. 긴 변 1,024px 로 줄여 저장한다.
+    private var photoSection: some View {
+        Section {
+            HStack(spacing: 14) {
+                DraftPhotoPreview(data: draft.photo, initial: String(draft.name.prefix(1)), size: 64)
+                VStack(alignment: .leading, spacing: 4) {
+                    if PhotoCamera.isAvailable {
+                        Button {
+                            PhotoCamera.shared.start { data in
+                                guard let data else { return }
+                                Task { await ingestPhoto(data) }
+                            }
+                        } label: {
+                            Label(draft.photo == nil ? "사진 찍기" : "다시 찍기", systemImage: "camera")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                    Button {
+                        pickingForPhoto = true
+                        pickingCardPhoto = true
+                    } label: {
+                        Label("사진첩에서 고르기", systemImage: "photo")
+                    }
+                    .buttonStyle(.borderless)
+                    if draft.photo != nil {
+                        // 역할 없는 단추 + 확인 창 — 확인 전에 지우지 않는다 (CLAUDE.md).
+                        Button {
+                            confirmingPhotoRemoval = true
+                        } label: {
+                            Label("사진 지우기", systemImage: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .tint(Color.danger)
+                    }
+                }
+                .font(.scaled(15))
+                .disabled(processingPhoto)
+            }
+        } header: {
+            Text("사진")
+        } footer: {
+            Text("목록과 상세에 둥글게 보입니다. 긴 변 1,024px 로 줄여 이 기기(동기화를 켜면 내 iCloud)에만 저장합니다.")
+        }
+    }
+
     private var cardSection: some View {
         Section {
             if let data = draft.businessCard {
@@ -417,6 +485,7 @@ struct PersonEditView: View {
                 }
             }
             Button {
+                pickingForPhoto = false
                 pickingCardPhoto = true
             } label: {
                 Label("사진첩에서 명함 고르기", systemImage: "photo.on.rectangle")
@@ -461,6 +530,17 @@ struct PersonEditView: View {
     }
 
     // MARK: - 동작
+
+    /// 사람 사진을 받아 줄여 담는다 (FR-012). 원본을 그대로 담지 않는다.
+    private func ingestPhoto(_ data: Data) async {
+        processingPhoto = true
+        defer { processingPhoto = false }
+        guard let photo = await PersonPhoto.normalized(from: data) else {
+            photoFailed = true
+            return
+        }
+        draft.photo = photo
+    }
 
     /// 명함 사진을 받아 저장하고 바로 글자를 읽는다.
     private func ingestCard(_ data: Data, alreadyStraight: Bool) async {

@@ -18,6 +18,9 @@ struct PersonDetailView: View {
     @State private var appliedArguments = false
     @State private var viewingCard = false
     /// 타임라인 거르기 (FR-013) — 기록 유형(열쇠) · 태그. 둘 다 고르면 둘 다 맞는 기록.
+    /// 내보내기 확인 (FR-014) — 개인정보가 담긴 파일임을 먼저 알린다.
+    @State private var confirmingExport = false
+    @State private var exportFailed = false
     @State private var timelineType: String?
     @State private var timelineTag: String?
 
@@ -99,6 +102,11 @@ struct PersonDetailView: View {
                     } label: {
                         Label("편집", systemImage: "pencil")
                     }
+                    Button {
+                        confirmingExport = true
+                    } label: {
+                        Label("내보내기", systemImage: "square.and.arrow.up")
+                    }
                     Button(role: .destructive) {
                         confirmingDelete = true
                     } label: {
@@ -118,6 +126,13 @@ struct PersonDetailView: View {
         .fullScreenCover(isPresented: $viewingCard) {
             if let card = person.businessCard { BusinessCardViewer(data: card) }
         }
+        .confirmationDialog("내보내기", isPresented: $confirmingExport, titleVisibility: .visible) {
+            Button("Markdown 파일") { export(.markdown) }
+            Button("PDF 파일") { export(.pdf) }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("\(person.name) 님의 정보와 기록 \(RecordStore.timeline(of: person).count)건이 그대로 담긴 파일을 만듭니다. 이 파일은 앱 밖으로 나가면 보호되지 않습니다 — 믿을 수 있는 곳에만 보내세요.")
+        }
         .confirmationDialog("삭제", isPresented: $confirmingDelete, titleVisibility: .hidden) {
             Button("삭제", role: .destructive) { deletePerson() }
             Button("취소", role: .cancel) {}
@@ -134,6 +149,11 @@ struct PersonDetailView: View {
             Button("취소", role: .cancel) { pendingRecordDelete = nil }
         } message: { _ in
             Text(pendingRecordDeleteMessage)
+        }
+        .alert("내보내지 못했습니다", isPresented: $exportFailed) {
+            Button("닫기", role: .cancel) {}
+        } message: {
+            Text("파일을 만들지 못했습니다. 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요.")
         }
         .alert("삭제하지 못했습니다", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("닫기", role: .cancel) {}
@@ -156,9 +176,13 @@ struct PersonDetailView: View {
     private var headerSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 10) {
-                Text(person.name)
-                    .font(.scaled(26, weight: .bold))
-                    .foregroundStyle(Color.ink)
+                HStack(spacing: 14) {
+                    // 사진 (FR-012) — 없으면 이름 첫 글자.
+                    PersonAvatar(person: person, size: 60)
+                    Text(person.name)
+                        .font(.scaled(26, weight: .bold))
+                        .foregroundStyle(Color.ink)
+                }
                 if let nickname = person.nickname, !nickname.isEmpty {
                     Text(nickname).font(.scaled(15)).foregroundStyle(Color.muted)
                 }
@@ -360,9 +384,20 @@ struct PersonDetailView: View {
         return "날짜 미상"
     }
 
+    private func export(_ format: PersonExporter.Format) {
+        // 확인 창이 닫히는 동안 공유 시트를 띄우면 뜨지 않는다 — 잠깐 쉬었다가.
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            if !PersonExporter.share(person, as: format) { exportFailed = true }
+        }
+    }
+
     private func deletePerson() {
         do {
-            try store.delete(person)
+            let name = person.name
+            try DeletionUndo.shared.run("'\(name)'\(Josa.eulReul(name)) 삭제했습니다", in: context) {
+                try store.delete(person)
+            }
             dismiss()
         } catch {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
@@ -371,7 +406,10 @@ struct PersonDetailView: View {
 
     private func deleteRecord(_ record: Record) {
         do {
-            try RecordStore(context: context).delete(record)
+            let title = record.displayTitle
+            try DeletionUndo.shared.run("'\(title)' 기록을 삭제했습니다", in: context) {
+                try RecordStore(context: context).delete(record)
+            }
         } catch {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
         }
