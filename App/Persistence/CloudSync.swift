@@ -57,6 +57,12 @@ final class CloudSyncMonitor {
     private(set) var lastError: String?
     /// 주고받는 중인가.
     private(set) var isWorking = false
+    /// **방향별** 마지막 성공과 실패 (빌드 30 · 이슈 43). 한쪽 실패를 다른 쪽 성공이 지우지 않는다 —
+    /// 빌드 29 까지는 올리기(내보내기)가 실패해도 곧 이어진 받기(가져오기) 성공이 실패를 지워, 설정에는 늘 성공으로 보였다.
+    private(set) var lastUpload: Date?
+    private(set) var lastDownload: Date?
+    private(set) var uploadError: String?
+    private(set) var downloadError: String?
 
     @ObservationIgnored private var observer: NSObjectProtocol?
 
@@ -71,8 +77,31 @@ final class CloudSyncMonitor {
             let succeeded = event.succeeded
             let failure = event.error?.localizedDescription
             let isSetup = event.type == .setup
+            let isExport = event.type == .export
+            let isImport = event.type == .import
             MainActor.assumeIsolated {
                 self?.record(finished: finished, succeeded: succeeded, failure: failure, isSetup: isSetup)
+                self?.recordDirection(finished: finished, succeeded: succeeded, failure: failure,
+                                      isExport: isExport, isImport: isImport)
+            }
+        }
+    }
+
+    private func recordDirection(finished: Date?, succeeded: Bool, failure: String?, isExport: Bool, isImport: Bool) {
+        guard let finished, isExport || isImport else { return }
+        if isExport {
+            if succeeded {
+                lastUpload = finished
+                uploadError = nil
+            } else {
+                uploadError = failure ?? "iCloud 에 올리지 못했습니다"
+            }
+        } else {
+            if succeeded {
+                lastDownload = finished
+                downloadError = nil
+            } else {
+                downloadError = failure ?? "iCloud 에서 받지 못했습니다"
             }
         }
     }
