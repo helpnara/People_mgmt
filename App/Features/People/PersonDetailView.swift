@@ -394,10 +394,7 @@ struct PersonDetailView: View {
 
     private func deletePerson() {
         do {
-            let name = person.name
-            try DeletionUndo.shared.run("'\(name)'\(Josa.eulReul(name)) 삭제했습니다", in: context) {
-                try store.delete(person)
-            }
+            try DeletionUndo.shared.delete(person, in: context)
             dismiss()
         } catch {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
@@ -406,10 +403,7 @@ struct PersonDetailView: View {
 
     private func deleteRecord(_ record: Record) {
         do {
-            let title = record.displayTitle
-            try DeletionUndo.shared.run("'\(title)' 기록을 삭제했습니다", in: context) {
-                try RecordStore(context: context).delete(record)
-            }
+            try DeletionUndo.shared.delete(record, in: context)
         } catch {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
         }

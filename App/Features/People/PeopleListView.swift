@@ -740,11 +740,8 @@ struct PeopleListView: View {
     private func delete(_ person: Person) {
         if selectedPersonID == person.uuid { selectedPersonID = nil }
         do {
-            // 지운 직후 5초 동안 되돌리기 (FR-031) — 문구는 지우기 전에 만든다(지운 객체를 다시 읽지 않게).
-            let name = person.name
-            try DeletionUndo.shared.run("'\(name)'\(Josa.eulReul(name)) 삭제했습니다", in: context) {
-                try store.delete(person)
-            }
+            // 지운 직후 5초 동안 되돌리기 (FR-031).
+            try DeletionUndo.shared.delete(person, in: context)
         } catch {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
         }

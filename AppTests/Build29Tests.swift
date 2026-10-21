@@ -48,9 +48,8 @@ final class Build29Tests: XCTestCase {
         introduced.introducedBy = a
         try PersonStore(context: context).apply(introduced, to: c)
 
-        try DeletionUndo.shared.run("가를 삭제했습니다", in: context) {
-            try PersonStore(context: context).delete(a)
-        }
+        let aID = a.uuid   // 지운 객체는 다시 읽지 않는다 — 지우기 전에.
+        try DeletionUndo.shared.delete(a, in: context)
         XCTAssertNotNil(DeletionUndo.shared.pending, "되돌리기 알림이 뜬다")
         XCTAssertEqual(try context.fetch(FetchDescriptor<Person>()).count, 2)
         XCTAssertEqual(try context.fetch(FetchDescriptor<Record>()).count, 1, "혼자 기록은 함께 지워진다")
@@ -64,7 +63,8 @@ final class Build29Tests: XCTestCase {
         XCTAssertEqual(try context.fetch(FetchDescriptor<Record>()).count, 2, "혼자 기록도 돌아온다")
         XCTAssertEqual(Set(RecordStore.timeline(of: back).map(\.displayTitle)), ["혼자 점심", "함께 회의"])
         XCTAssertEqual(back.acquaintances.map(\.name), ["나"], "아는 사이가 돌아온다")
-        XCTAssertTrue(c.introducedBy === back, "소개자 칸이 돌아온다")
+        XCTAssertEqual(c.introducedBy?.uuid, back.uuid, "소개자 칸이 돌아온다")
+        XCTAssertEqual(back.uuid, aID, "같은 uuid 로 돌아온다")
         XCTAssertFalse(context.hasChanges, "되돌린 뒤 저장까지 했다")
     }
 
@@ -74,9 +74,7 @@ final class Build29Tests: XCTestCase {
         let b = try person("나", in: context)
         let shared = try record("함께 회의", with: [a, b], in: context)
 
-        try DeletionUndo.shared.run("기록을 삭제했습니다", in: context) {
-            try RecordStore(context: context).delete(shared)
-        }
+        try DeletionUndo.shared.delete(shared, in: context)
         // 5초 사이의 다른 고침은 되돌리기에 섞이지 않는다.
         var edit = PersonDraft(person: b)
         edit.organization = "새 소속"
