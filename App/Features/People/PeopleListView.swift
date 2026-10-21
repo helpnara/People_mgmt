@@ -529,10 +529,9 @@ struct PeopleListView: View {
             if let me = meList.first, !me.isGone {
                 personLink(me) {
                     HStack(spacing: 12) {
-                        // 그림은 xxxLarge 에서 멈춘다 — 가장 큰 글씨에서 이름보다 커지지 않게 (빌드 18).
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.scaledCapped(30))
-                            .foregroundStyle(Color.accent)
+                        // 사진이 있으면 사진, 없으면 사람 그림 (빌드 29 실기기 — 나에게 넣은 사진이 목록에 안 보였다).
+                        // 크기는 큰 글씨에서 1.6배에서 멈춘다 — 가장 큰 글씨에서 이름보다 커지지 않게 (빌드 18).
+                        PersonAvatar(person: me, size: 36, placeholderSymbol: "person.crop.circle.fill")
                         PersonRow(person: me, evidence: nil)
                     }
                 }

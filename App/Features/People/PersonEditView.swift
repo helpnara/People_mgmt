@@ -423,42 +423,54 @@ struct PersonEditView: View {
     }
 
     /// 사람 사진 (FR-012 · 7판) — 찍거나 사진첩에서 고른다. 긴 변 1,024px 로 줄여 저장한다.
+    ///
+    /// 단추는 **한 줄에 하나씩** — 줄 전체가 누르는 자리다 (빌드 29 실기기: 한 줄 안에 둘을 붙여 두니 누르기 어려웠다).
+    /// 사진 동그라미를 눌러도 사진첩이 열린다.
     private var photoSection: some View {
         Section {
-            HStack(spacing: 14) {
-                DraftPhotoPreview(data: draft.photo, initial: String(draft.name.prefix(1)), size: 64)
-                VStack(alignment: .leading, spacing: 4) {
-                    if PhotoCamera.isAvailable {
-                        Button {
-                            PhotoCamera.shared.start { data in
-                                guard let data else { return }
-                                Task { await ingestPhoto(data) }
-                            }
-                        } label: {
-                            Label(draft.photo == nil ? "사진 찍기" : "다시 찍기", systemImage: "camera")
-                        }
-                        .buttonStyle(.borderless)
+            Button {
+                pickPhoto()
+            } label: {
+                DraftPhotoPreview(data: draft.photo, initial: String(draft.name.prefix(1)), size: 96)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(processingPhoto)
+            .accessibilityLabel(draft.photo == nil ? "사진 넣기" : "사진 바꾸기")
+            if PhotoCamera.isAvailable {
+                Button {
+                    PhotoCamera.shared.start { data in
+                        guard let data else { return }
+                        Task { await ingestPhoto(data) }
                     }
-                    Button {
-                        pickingForPhoto = true
-                        pickingCardPhoto = true
-                    } label: {
-                        Label("사진첩에서 고르기", systemImage: "photo")
-                    }
-                    .buttonStyle(.borderless)
-                    if draft.photo != nil {
-                        // 역할 없는 단추 + 확인 창 — 확인 전에 지우지 않는다 (CLAUDE.md).
-                        Button {
-                            confirmingPhotoRemoval = true
-                        } label: {
-                            Label("사진 지우기", systemImage: "trash")
-                        }
-                        .buttonStyle(.borderless)
-                        .tint(Color.danger)
-                    }
+                } label: {
+                    Label(draft.photo == nil ? "사진 찍기" : "다시 찍기", systemImage: "camera")
                 }
-                .font(.scaled(15))
                 .disabled(processingPhoto)
+            }
+            Button {
+                pickPhoto()
+            } label: {
+                Label("사진첩에서 고르기", systemImage: "photo.on.rectangle")
+            }
+            .disabled(processingPhoto)
+            if draft.photo != nil {
+                // 역할 없는 단추 + 확인 창 — 확인 전에 지우지 않는다 (CLAUDE.md).
+                Button {
+                    confirmingPhotoRemoval = true
+                } label: {
+                    Label("사진 지우기", systemImage: "trash")
+                }
+                .tint(Color.danger)
+                .disabled(processingPhoto)
+            }
+            if processingPhoto {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("사진을 줄이는 중…").font(.scaled(14)).foregroundStyle(Color.muted)
+                }
             }
         } header: {
             Text("사진")
@@ -530,6 +542,11 @@ struct PersonEditView: View {
     }
 
     // MARK: - 동작
+
+    private func pickPhoto() {
+        pickingForPhoto = true
+        pickingCardPhoto = true
+    }
 
     /// 사람 사진을 받아 줄여 담는다 (FR-012). 원본을 그대로 담지 않는다.
     private func ingestPhoto(_ data: Data) async {
