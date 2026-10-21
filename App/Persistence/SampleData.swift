@@ -20,6 +20,8 @@ enum SampleData {
         // 나 (이슈 12) — 지어낸 사람이다. 목록 맨 위에 선다.
         let me = Person(name: "윤다온")
         me.isMe = true
+        // 나의 사진 (빌드 29) — 목록 맨 위 나 줄이 사진을 보이는지 스크린샷으로 본다.
+        me.photo = renderPortrait(background: 0xEDF1F3, figure: 0x4E5E6B)
         me.organization = "청림소프트"
         me.role = "서비스 기획"
         me.mobilePhone = "010-5555-0000"

@@ -43,6 +43,8 @@ final class PhotoThumbnails {
 struct PersonAvatar: View {
     let person: Person
     var size: CGFloat = 40
+    /// 사진이 없을 때 첫 글자 대신 쓸 그림 — 목록 맨 위 `나` 줄의 사람 그림.
+    var placeholderSymbol: String?
 
     @State private var image: UIImage?
 
@@ -52,7 +54,7 @@ struct PersonAvatar: View {
         if person.isGone {
             EmptyView()
         } else {
-            AvatarCircle(image: image, initial: String(person.name.prefix(1)), size: size)
+            AvatarCircle(image: image, initial: String(person.name.prefix(1)), size: size, symbol: placeholderSymbol)
                 .task(id: key) {
                     let key = key
                     if let hit = PhotoThumbnails.shared.cached(key) {
@@ -74,6 +76,7 @@ struct AvatarCircle: View {
     let image: UIImage?
     let initial: String
     let size: CGFloat
+    var symbol: String?
 
     var body: some View {
         // 큰 글씨에서는 커지되 처음 크기의 1.6배에서 멈춘다 — 이름 칸을 밀어내지 않게.
@@ -83,6 +86,11 @@ struct AvatarCircle: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
+            } else if let symbol {
+                Image(systemName: symbol)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Color.accent)
             } else {
                 Text(initial)
                     .font(.scaled(size * 0.42, weight: .semibold))
