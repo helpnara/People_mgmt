@@ -439,6 +439,8 @@ struct PersonEditView: View {
             .buttonStyle(.plain)
             .disabled(processingPhoto)
             .accessibilityLabel(draft.photo == nil ? "사진 넣기" : "사진 바꾸기")
+            // 가운데 둔 사진의 왼쪽 끝에서 줄이 시작하지 않게 — 줄의 왼쪽 끝에 맞춘다 (이슈 44).
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             if PhotoCamera.isAvailable {
                 Button {
                     PhotoCamera.shared.start { data in
