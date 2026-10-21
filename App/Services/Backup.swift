@@ -44,6 +44,8 @@ struct BackupFile: Codable, Sendable {
         var contactCadenceMonths: Int?
         /// 6판(빌드 28)부터 — 처음 만난 날의 정밀도(FR-033). 옛 백업에는 없으니 옵셔널(없으면 날짜까지).
         var firstMetPrecision: Int?
+        /// 7판(빌드 29)부터 — 사람 사진(FR-012). 옛 백업에는 없으니 옵셔널.
+        var photo: Data?
     }
 
     struct RecordItem: Codable, Sendable {
@@ -142,7 +144,8 @@ enum Backup {
                     mobilePhone: p.mobilePhone, officePhone: p.officePhone, faxNumber: p.faxNumber, email: p.email,
                     isMe: p.isMe, tags: p.tags, createdAt: p.createdAt, updatedAt: p.updatedAt, businessCard: p.businessCard,
                     birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear,
-                    contactCadenceMonths: p.contactCadenceMonths, firstMetPrecision: p.firstMetPrecision)
+                    contactCadenceMonths: p.contactCadenceMonths, firstMetPrecision: p.firstMetPrecision,
+                    photo: p.photo)
             },
             records: records.map { r in
                 BackupFile.RecordItem(
@@ -232,6 +235,7 @@ enum Backup {
             person.createdAt = item.createdAt
             person.updatedAt = item.updatedAt
             person.businessCard = item.businessCard
+            person.photo = item.photo
             person.birthMonth = item.birthMonth
             person.birthDay = item.birthDay
             person.birthYear = item.birthYear

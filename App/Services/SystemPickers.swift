@@ -71,6 +71,51 @@ final class DocumentScanner: NSObject, VNDocumentCameraViewControllerDelegate {
     }
 }
 
+/// 사람 사진 촬영 (FR-012) — 시스템 카메라. 찍은 사진은 `PersonPhoto` 가 줄인다.
+/// 시뮬레이터에는 카메라가 없어 `isAvailable` 이 거짓이다 — 그때 단추를 숨긴다.
+@MainActor
+final class PhotoCamera: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    static let shared = PhotoCamera()
+
+    static var isAvailable: Bool { UIImagePickerController.isSourceTypeAvailable(.camera) }
+
+    private var completion: ((Data?) -> Void)?
+    private weak var presented: UIViewController?
+
+    func start(_ completion: @escaping (Data?) -> Void) {
+        guard Self.isAvailable else {
+            completion(nil)
+            return
+        }
+        self.completion = completion
+        let controller = UIImagePickerController()
+        controller.sourceType = .camera
+        controller.cameraDevice = .front
+        controller.delegate = self
+        presented = controller
+        TopPresenter.present(controller)
+    }
+
+    private func finish(_ data: Data?) {
+        presented?.dismiss(animated: true)
+        presented = nil
+        let completion = self.completion
+        self.completion = nil
+        completion?(data)
+    }
+
+    // 문서 카메라와 같이 `nonisolated` 로 두고 값(Data)만 뽑아 주 스레드로 넘긴다.
+    nonisolated func imagePickerController(_ picker: UIImagePickerController,
+                                           didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+        let data = (info[.originalImage] as? UIImage)?.jpegData(compressionQuality: 0.9)
+        Task { @MainActor [weak self] in self?.finish(data) }
+    }
+
+    nonisolated func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        Task { @MainActor [weak self] in self?.finish(nil) }
+    }
+}
+
 /// 연락처에서 고른 한 사람 — 앱에 필요한 글자만 (FR-015).
 struct PickedContact: Sendable {
     var given = ""

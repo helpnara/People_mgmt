@@ -42,6 +42,8 @@ enum SampleData {
         haneul.email = "haneul@example.com"
         haneul.businessCard = renderCard(organization: "청림소프트 주식회사", name: "김하늘", role: "개발팀 팀장",
                                          phone: "010-1234-5678", email: "haneul@example.com")
+        // 사진 (FR-012) — 사람이 아닌 무늬 그림. 목록 썸네일 · 상세 사진을 스크린샷으로 본다.
+        haneul.photo = renderPortrait(background: 0xE4F0EC, figure: 0x2F6B5E)
 
         let doyun = Person(name: "이도윤")
         doyun.nickname = "도윤 형"
@@ -246,6 +248,22 @@ enum SampleData {
         try? context.save()
         let elapsed = Int(Date().timeIntervalSince(started) * 1000)
         print("⏱ 큰 견본 채우기 \(elapsed)ms (사람 5,000 · 기록 50,000)")
+    }
+
+    /// 견본 사진 — 사람 얼굴이 아니라 둥근 무늬(머리 · 어깨 실루엣)다. 실제 인물 사진을 넣지 않는다 (CLAUDE.md §2).
+    static func renderPortrait(background: UInt32, figure: UInt32) -> Data? {
+        let size = CGSize(width: 600, height: 600)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor(hex: background).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            UIColor(hex: figure).setFill()
+            context.cgContext.fillEllipse(in: CGRect(x: 210, y: 120, width: 180, height: 180))
+            context.cgContext.fillEllipse(in: CGRect(x: 110, y: 340, width: 380, height: 360))
+        }
+        return image.jpegData(compressionQuality: 0.85)
     }
 
     /// 견본 명함 그림 — 지어낸 회사 · 사람 · 번호 · `example.com` 메일. CI 스크린샷과 글자 읽기 시험에 쓴다.

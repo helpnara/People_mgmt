@@ -3666,6 +3666,85 @@
       "yearStart": 900
     }
   ],
+  "personExport": [
+    {
+      "expected": "# 김하늘\n\n- 별명: 하늘 팀장\n- 소속: 청림소프트 · 팀장\n- 관계 유형: 동료\n- 알게 된 경로: 소개 (이도윤의 소개)\n- 생일: 5월 21일\n- 태그: #멘토 #독서모임\n\n## 연락 수단\n\n- 휴대전화: 010-1234-5678\n- 이메일: haneul@example.com\n\n## 첫 인연\n\n2019년 3월\n\n입사 첫날 옆자리.\n점심을 같이 먹었다.\n\n## 기록 2건\n\n### 2026년 10월 1일 · 식사 · 점심\n\n- 함께한 사람: 정유진, Alice Park\n- 장소: 국숫집\n- 태그: #업무\n\n이직 고민을 들었다\n\n### 2025년 · 회의 · 분기 회의\n\n---\n\n느린 인연에서 2026년 10월 20일에 내보냄\n",
+      "name": "모든 칸",
+      "person": {
+        "birthday": "5월 21일",
+        "contacts": [
+          {
+            "label": "휴대전화",
+            "value": "010-1234-5678"
+          },
+          {
+            "label": "사무실",
+            "value": " "
+          },
+          {
+            "label": "이메일",
+            "value": "haneul@example.com"
+          }
+        ],
+        "exportedOn": "2026년 10월 20일",
+        "firstMet": "2019년 3월",
+        "firstNote": "입사 첫날 옆자리.\n점심을 같이 먹었다.",
+        "introducer": "이도윤",
+        "metThrough": "소개",
+        "name": "김하늘",
+        "nickname": "하늘 팀장",
+        "organization": "청림소프트",
+        "records": [
+          {
+            "companions": [
+              "정유진",
+              "Alice Park"
+            ],
+            "date": "2026년 10월 1일",
+            "location": "국숫집",
+            "note": "이직 고민을 들었다",
+            "tags": [
+              "업무"
+            ],
+            "title": "점심",
+            "type": "식사"
+          },
+          {
+            "companions": [],
+            "date": "2025년",
+            "title": " 분기 회의 ",
+            "type": "회의"
+          }
+        ],
+        "relationshipType": "동료",
+        "role": "팀장",
+        "tags": [
+          "멘토",
+          "독서모임"
+        ]
+      }
+    },
+    {
+      "expected": "# 윤서아\n\n## 기록 0건\n\n아직 기록이 없습니다.\n\n---\n\n느린 인연에서 2026년 10월 20일에 내보냄\n",
+      "name": "이름만",
+      "person": {
+        "exportedOn": "2026년 10월 20일",
+        "name": "  윤서아 "
+      }
+    },
+    {
+      "expected": "# 최민준\n\n- 소속: 연구원\n- 알게 된 경로: 소개\n\n## 첫 인연\n\n날짜 미상\n\n행사에서 만남\n\n## 기록 0건\n\n아직 기록이 없습니다.\n\n---\n\n느린 인연에서 2026년 1월 2일에 내보냄\n",
+      "name": "첫 인연 메모만 · 소개자 없는 소개",
+      "person": {
+        "exportedOn": "2026년 1월 2일",
+        "firstNote": "행사에서 만남",
+        "metThrough": "소개",
+        "name": "최민준",
+        "organization": " ",
+        "role": "연구원"
+      }
+    }
+  ],
   "presetChoices": [
     {
       "expected": [

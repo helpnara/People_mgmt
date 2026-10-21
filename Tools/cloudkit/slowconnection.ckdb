@@ -47,6 +47,8 @@ DEFINE SCHEMA
         CD_updatedAt TIMESTAMP,
         CD_businessCard BYTES,
         CD_businessCard_ckAsset ASSET,
+        CD_photo BYTES,
+        CD_photo_ckAsset ASSET,
         CD_birthMonth INT64,
         CD_birthDay INT64,
         CD_birthYear INT64,

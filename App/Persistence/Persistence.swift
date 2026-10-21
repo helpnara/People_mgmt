@@ -17,7 +17,7 @@ enum Persistence {
     /// `url` 은 시험용 — 앱은 이름(`storeName`)으로 기본 자리를 쓴다.
     /// `cloudSync` 면 내 iCloud 비공개 영역과 잇는다 (D-42 · `CloudSync`). 메모리 저장소 · 시험은 잇지 않는다.
     static func makeContainer(inMemory: Bool, url: URL? = nil, cloudSync: Bool = false) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: SchemaV6.self)
+        let schema = Schema(versionedSchema: SchemaV7.self)
         let database: ModelConfiguration.CloudKitDatabase = (cloudSync && !inMemory && url == nil)
             ? .private(CloudSync.containerID) : .none
         let configuration: ModelConfiguration

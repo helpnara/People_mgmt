@@ -28,6 +28,8 @@ struct PersonDraft: Equatable {
     var tags: [String] = []
     /// 명함 사진 (FR-050). JPEG.
     var businessCard: Data?
+    /// 사람 사진 (FR-012 · 7판). 긴 변 1,024px JPEG.
+    var photo: Data?
     /// 아는 사이 (D-30) — 기록 없이 서로 아는 사람.
     var acquaintances: [Person] = []
     /// 생일 (5판 · D-40) — 켜면 월 · 일이 저장된다. 연도는 선택.
@@ -59,6 +61,7 @@ struct PersonDraft: Equatable {
         email = person.email ?? ""
         tags = person.tags
         businessCard = person.businessCard
+        photo = person.photo
         acquaintances = person.acquaintances
         if let month = person.birthMonth, let day = person.birthDay {
             hasBirthday = true
@@ -266,6 +269,7 @@ struct PersonStore {
         person.tags = TagNormalizer.normalizeList(draft.tags)
         // 같은 사진이면 다시 쓰지 않는다 — 바깥 파일을 매번 새로 쓰지 않게.
         if person.businessCard != draft.businessCard { person.businessCard = draft.businessCard }
+        if person.photo != draft.photo { person.photo = draft.photo }
         // 생일은 맞는 날일 때만 (2월 30일 · 4월 31일은 저장하지 않는다). 끄면 연도까지 비운다.
         if draft.hasBirthday, BirthdayRule.isValid(month: draft.birthMonth, day: draft.birthDay, year: draft.birthYear) {
             person.birthMonth = draft.birthMonth
@@ -349,16 +353,16 @@ struct PersonStore {
         let summary = deletionSummary(for: person)
         let name = person.name
         if summary.sole == 0 && summary.shared == 0 {
-            return "'\(name)'\(Josa.eulReul(name)) 삭제하시겠습니까? 되돌릴 수 없습니다."
+            return "'\(name)'\(Josa.eulReul(name)) 삭제하시겠습니까? 지운 뒤 5초 안에는 되돌릴 수 있습니다."
         }
         if summary.shared == 0 {
-            return "'\(name)'\(Josa.gwaWa(name)) 기록 \(summary.sole)건을 모두 삭제하시겠습니까? 되돌릴 수 없습니다."
+            return "'\(name)'\(Josa.gwaWa(name)) 기록 \(summary.sole)건을 모두 삭제하시겠습니까? 지운 뒤 5초 안에는 되돌릴 수 있습니다."
         }
         if summary.sole == 0 {
             // 혼자 참여한 기록이 없으면 `기록 0건이 삭제되고` 를 말하지 않는다 (전수조사 이슈 19).
-            return "'\(name)'\(Josa.eulReul(name)) 삭제하시겠습니까? 다른 사람과 함께한 기록 \(summary.shared)건에서 이 사람만 빠지고, 기록은 남습니다. 되돌릴 수 없습니다."
+            return "'\(name)'\(Josa.eulReul(name)) 삭제하시겠습니까? 다른 사람과 함께한 기록 \(summary.shared)건에서 이 사람만 빠지고, 기록은 남습니다. 지운 뒤 5초 안에는 되돌릴 수 있습니다."
         }
-        return "'\(name)'\(Josa.eulReul(name)) 삭제하시겠습니까? 기록 \(summary.sole)건이 삭제되고, 다른 사람과 함께한 기록 \(summary.shared)건에서는 이 사람만 빠집니다. 되돌릴 수 없습니다."
+        return "'\(name)'\(Josa.eulReul(name)) 삭제하시겠습니까? 기록 \(summary.sole)건이 삭제되고, 다른 사람과 함께한 기록 \(summary.shared)건에서는 이 사람만 빠집니다. 지운 뒤 5초 안에는 되돌릴 수 있습니다."
     }
 
     /// 사람을 지운다. 혼자 참여한 기록은 함께, 공동 기록에서는 빠지기만, 소개자 칸은 비워진다(nullify).

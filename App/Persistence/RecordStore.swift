@@ -115,7 +115,7 @@ struct RecordStore {
     }
 }
 
-extension SchemaV6.Record {
+extension SchemaV7.Record {
     /// 목록에 보일 이름 (요구사항 6.2). 규칙은 `Core.DisplayTitle` 하나다.
     var displayTitle: String { DisplayTitle.make(title: title, note: note) }
 
@@ -133,7 +133,7 @@ extension SchemaV6.Record {
         } else if people.count >= 2 {
             text += " 함께한 \(people.count)명의 타임라인에서 모두 사라집니다."
         }
-        return text + " 되돌릴 수 없습니다."
+        return text + " 지운 뒤 5초 안에는 되돌릴 수 있습니다."
     }
 
     /// 이 사람 말고 함께한 사람 수 — 타임라인 행의 "외 N명".
