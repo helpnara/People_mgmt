@@ -117,10 +117,7 @@ struct RecordDetailView: View {
 
     private func deleteRecord() {
         do {
-            let title = record.displayTitle
-            try DeletionUndo.shared.run("'\(title)' 기록을 삭제했습니다", in: context) {
-                try RecordStore(context: context).delete(record)
-            }
+            try DeletionUndo.shared.delete(record, in: context)
             dismiss()
         } catch {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."

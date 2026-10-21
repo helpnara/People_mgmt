@@ -136,27 +136,77 @@ enum Backup {
             format: BackupFile.format,
             version: BackupFile.currentVersion,
             exportedAt: now,
-            people: people.map { p in
-                BackupFile.PersonItem(
-                    uuid: p.uuid, name: p.name, nickname: p.nickname, organization: p.organization, role: p.role,
-                    relationshipType: p.relationshipType, metThrough: p.metThrough, introducedBy: p.introducedBy?.uuid,
-                    firstMetDate: p.firstMetDate, firstNote: p.firstNote, contactNote: p.contactNote,
-                    mobilePhone: p.mobilePhone, officePhone: p.officePhone, faxNumber: p.faxNumber, email: p.email,
-                    isMe: p.isMe, tags: p.tags, createdAt: p.createdAt, updatedAt: p.updatedAt, businessCard: p.businessCard,
-                    birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear,
-                    contactCadenceMonths: p.contactCadenceMonths, firstMetPrecision: p.firstMetPrecision,
-                    photo: p.photo)
-            },
-            records: records.map { r in
-                BackupFile.RecordItem(
-                    uuid: r.uuid, title: r.title, recordType: r.recordType, occurredAt: r.occurredAt,
-                    location: r.location, note: r.note, tags: r.tags, participants: (r.participants ?? []).map(\.uuid),
-                    createdAt: r.createdAt, updatedAt: r.updatedAt, occurredPrecision: r.occurredPrecision)
-            },
-            ties: ties.compactMap { t in
-                guard let a = t.first?.uuid, let b = t.second?.uuid else { return nil }
-                return BackupFile.TieItem(uuid: t.uuid, first: a, second: b, since: t.since, createdAt: t.createdAt)
-            })
+            people: people.map { item(of: $0) },
+            records: records.map { item(of: $0) },
+            ties: ties.compactMap { item(of: $0) })
+    }
+
+    // MARK: - 값으로 옮기기 — 백업 · 삭제 실행취소(`DeletionUndo`)가 같은 길을 쓴다
+
+    static func item(of p: Person) -> BackupFile.PersonItem {
+        BackupFile.PersonItem(
+            uuid: p.uuid, name: p.name, nickname: p.nickname, organization: p.organization, role: p.role,
+            relationshipType: p.relationshipType, metThrough: p.metThrough, introducedBy: p.introducedBy?.uuid,
+            firstMetDate: p.firstMetDate, firstNote: p.firstNote, contactNote: p.contactNote,
+            mobilePhone: p.mobilePhone, officePhone: p.officePhone, faxNumber: p.faxNumber, email: p.email,
+            isMe: p.isMe, tags: p.tags, createdAt: p.createdAt, updatedAt: p.updatedAt, businessCard: p.businessCard,
+            birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear,
+            contactCadenceMonths: p.contactCadenceMonths, firstMetPrecision: p.firstMetPrecision,
+            photo: p.photo)
+    }
+
+    static func item(of r: Record) -> BackupFile.RecordItem {
+        BackupFile.RecordItem(
+            uuid: r.uuid, title: r.title, recordType: r.recordType, occurredAt: r.occurredAt,
+            location: r.location, note: r.note, tags: r.tags, participants: (r.participants ?? []).map(\.uuid),
+            createdAt: r.createdAt, updatedAt: r.updatedAt, occurredPrecision: r.occurredPrecision)
+    }
+
+    static func item(of t: Tie) -> BackupFile.TieItem? {
+        guard let a = t.first?.uuid, let b = t.second?.uuid else { return nil }
+        return BackupFile.TieItem(uuid: t.uuid, first: a, second: b, since: t.since, createdAt: t.createdAt)
+    }
+
+    /// 사람의 칸을 값에서 채운다 — 관계(소개자)와 `나` 는 부르는 쪽이 정한다.
+    static func fill(_ person: Person, from item: BackupFile.PersonItem) {
+        person.uuid = item.uuid
+        person.name = item.name
+        person.nickname = item.nickname
+        person.organization = item.organization
+        person.role = item.role
+        person.relationshipType = item.relationshipType
+        person.metThrough = item.metThrough
+        person.firstMetDate = item.firstMetDate
+        person.firstMetPrecision = DatePrecision.of(item.firstMetPrecision ?? 0).rawValue
+        person.firstNote = item.firstNote
+        person.contactNote = item.contactNote
+        person.mobilePhone = item.mobilePhone
+        person.officePhone = item.officePhone
+        person.faxNumber = item.faxNumber
+        person.email = item.email
+        person.tags = item.tags
+        person.createdAt = item.createdAt
+        person.updatedAt = item.updatedAt
+        person.businessCard = item.businessCard
+        person.photo = item.photo
+        person.birthMonth = item.birthMonth
+        person.birthDay = item.birthDay
+        person.birthYear = item.birthYear
+        person.contactCadenceMonths = item.contactCadenceMonths
+    }
+
+    /// 기록의 칸을 값에서 채운다 — 함께한 사람은 부르는 쪽이 잇는다.
+    static func fill(_ record: Record, from item: BackupFile.RecordItem) {
+        record.uuid = item.uuid
+        record.title = item.title
+        record.recordType = item.recordType
+        record.occurredAt = item.occurredAt
+        record.note = item.note
+        record.location = item.location
+        record.occurredPrecision = DatePrecision.of(item.occurredPrecision ?? 0).rawValue
+        record.tags = item.tags
+        record.createdAt = item.createdAt
+        record.updatedAt = item.updatedAt
     }
 
     static func summary(of file: BackupFile) -> Summary {
@@ -214,32 +264,10 @@ enum Backup {
         for item in file.people where byID[item.uuid] == nil {
             let person = Person(name: item.name)
             context.insert(person)
-            person.uuid = item.uuid
-            person.nickname = item.nickname
-            person.organization = item.organization
-            person.role = item.role
-            person.relationshipType = item.relationshipType
-            person.metThrough = item.metThrough
-            person.firstMetDate = item.firstMetDate
-            person.firstMetPrecision = DatePrecision.of(item.firstMetPrecision ?? 0).rawValue
-            person.firstNote = item.firstNote
-            person.contactNote = item.contactNote
-            person.mobilePhone = item.mobilePhone
-            person.officePhone = item.officePhone
-            person.faxNumber = item.faxNumber
-            person.email = item.email
+            fill(person, from: item)
             // 나는 하나뿐이다 (이슈 12) — 백업에 둘이 있으면 앞의 하나만.
             person.isMe = item.isMe && !hasMe
             if person.isMe { hasMe = true }
-            person.tags = item.tags
-            person.createdAt = item.createdAt
-            person.updatedAt = item.updatedAt
-            person.businessCard = item.businessCard
-            person.photo = item.photo
-            person.birthMonth = item.birthMonth
-            person.birthDay = item.birthDay
-            person.birthYear = item.birthYear
-            person.contactCadenceMonths = item.contactCadenceMonths
             byID[item.uuid] = person
         }
         // 소개 관계는 사람을 다 넣은 뒤에 잇는다. 자기 자신 · 없는 사람은 잇지 않는다.
@@ -255,12 +283,7 @@ enum Backup {
             guard !participants.isEmpty else { continue }   // 참여자 없는 기록은 보이지 않는다 — 넣지 않는다.
             let record = Record(recordType: item.recordType, occurredAt: item.occurredAt, title: item.title, note: item.note)
             context.insert(record)
-            record.uuid = item.uuid
-            record.location = item.location
-            record.occurredPrecision = DatePrecision.of(item.occurredPrecision ?? 0).rawValue
-            record.tags = item.tags
-            record.createdAt = item.createdAt
-            record.updatedAt = item.updatedAt
+            fill(record, from: item)
             record.participants = participants
             restoredRecords += 1
         }
