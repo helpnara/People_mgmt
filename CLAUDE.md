@@ -21,7 +21,7 @@
 - **사람(Person)이 중심 객체다.** 전화번호가 아니다. 기록(Record)은 참여자 1명 이상에 속하고 한 번만 저장된다 (N:M, ADR-0003).
 - **첫 인연은 사람의 속성이다.** 기록 유형에 "첫 만남" 이 없다. 타임라인 맨 아래에 시작점으로 파생 표시한다 (ADR-0003).
 - **사람을 점수화하지 않는다.** 관계 지표는 "내가 이 인연을 어떻게 돌보고 있는가" 에만 답한다. 종합 점수 · 순위표는 기본 화면에 두지 않는다 (ADR-0004 · 요구사항 13절).
-- **저장 계층은 SwiftData, 기기 내 저장.** CloudKit 제약(유니크 없음 · 모든 속성 기본값 · 모든 관계 옵셔널)을 첫 모델부터 지킨다 — 나중에 동기화를 켤 때 스키마를 다시 만들지 않으려고 (ADR-0001).
+- **저장 계층은 SwiftData, 기기 내 저장 + 내 iCloud 동기화(빌드 21 부터 · 기본 켬 · ADR-0005).** CloudKit 제약(유니크 없음 · 모든 속성 기본값 · 모든 관계 옵셔널)을 지킨다 (ADR-0001). 스키마는 판을 얼려 쌓는다(지금 7판 · `App/Persistence/Schema.swift`). **스키마를 바꾸면** `Tools/cloudkit/generate-ckdb.py` 로 파일을 다시 만들고 → `cloudkit-schema.yml` 로 개발 환경에 적용 → 사용자가 CloudKit 콘솔에서 Production 배포 (06-ci §7). 배포 전 판을 올리면 그 기기의 올리기가 거부된다.
 - **고유 식별자 칸은 `uuid` 다.** 설계서의 `id` 가 코드에서는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
 - **`Packages/Core` 는 Foundation 만 쓴다.** SwiftUI · SwiftData 를 import 하면 리눅스 `swift test` 가 통째로 없어진다 (ADR-0002). 검색 · 태그 정리 · 정렬 · 표시명 · 검증 · 조사(을/를) · 날짜 정규화가 Core 에 있다.
 - **같은 것을 재는 곳은 하나다.** 정렬은 `NameSort`, 태그 정리는 `TagNormalizer`, 표시명은 `DisplayTitle` — 화면이 따로 셈하지 않는다. 사람을 고치는 문은 `PersonStore` 하나다.
@@ -46,13 +46,14 @@
 |---|---|---|---|
 | **파이썬 정답표** (`Tools/golden/generate.py --check`) | 태그 · 검색 · 정렬 · 표시명 · 검증 · 조사 · 날짜의 기댓값이 최신인가 | **여기서 직접** | 초 |
 | 개인정보 명세 검사 (`Tools/privacy/check-privacy-manifest.py`) | ITMS-91056 | **여기서 직접** | 초 |
+| CloudKit 스키마 파일 검사 (`Tools/cloudkit/generate-ckdb.py --check`) | 모델과 `slowconnection.ckdb` 가 같은가 | **여기서 직접** | 초 |
 | `Core swift test` | 순수 로직이 정답표와 같은가 | CI 리눅스 러너 (`core-test.yml`) | 2~4분 |
 | 앱 빌드 + 앱 테스트 | 문법 · SwiftData 규칙(삭제 · 소개자 · 같은 이름) | CI macOS 러너 (`ios.yml`) | 10분 |
 | 시뮬레이터 스크린샷 | 화면 | CI macOS 러너 | 20분 안팎 |
 | 실기기 TestFlight | 손맛 · 키보드 · 실제 자료 | 사람 | 30분 + 사람 |
 
 **규칙.**
-- 여기서 돌릴 수 있는 것(정답표 · 명세 검사 · YAML 검사)을 **다 돌린 뒤에** 푸시한다.
+- 여기서 돌릴 수 있는 것(정답표 · 명세 검사 · CloudKit 스키마 파일 검사 · YAML 검사)을 **다 돌린 뒤에** 푸시한다.
 - **기댓값을 지어내지 않는다.** Swift 테스트의 수치 · 문자열 기댓값은 `Tools/golden/` 이 파이썬으로 계산한 JSON 만 쓴다.
 - SwiftUI 코드는 CI 로그가 첫 심판이다. 보수적으로 쓴다. **같은 자리에서 CI 가 두 번 죽으면 러너 탓이 아니라 내 코드다.**
 - 화면 확인은 `git pull` 뒤 `screenshots/*.png` 를 Read 한다. 못 찍힌 것은 `screenshots/failed/` 에 온다.
@@ -74,7 +75,7 @@
 - **작업 브랜치 `claude/slow-connection`** 에서 개발한다. CI · TestFlight · 처리방침 게시가 전부 여기서 돈다.
 - **`main` 은 App Store 에 낸 판**을 가리킨다. 심사에 낼 때 작업 브랜치를 `main` 에 **병합**(강제 푸시 · 되감기 없이)한다. 스크린샷 충돌은 `-X theirs` 로 작업 브랜치 것을 쓴다.
 - `master` 는 저장소가 만들어질 때의 기본 브랜치다. 기본 브랜치를 `main` 으로 바꾸면 더는 쓰지 않는다 (`docs/06-ci.md`).
-- 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나).
+- 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `cloudkit-schema.yml`(수동 · CloudKit 개발 환경에 읽기 · 검사 · 적용) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나).
 - `paths-ignore` 로 문서만 고친 푸시는 건너뛴다. `concurrency` + `cancel-in-progress`. 커밋하는 워크플로에는 `permissions: contents: write`. **아티팩트 업로드를 커밋보다 앞에.**
 - 소스 안의 안내 문구 강조는 `**…**`. **곧은 따옴표(`"`)를 문구 안에 쓰지 않는다** — 지난 앱에서 빌드 시스템이 같은 자리에서 두 번 죽었다.
 - 개발자 콘솔(App ID · 컨테이너)의 Description 칸은 **영문**만 받는다. 콘솔에 넣을 값을 안내할 때는 영문 · 숫자 · 빈칸으로 적는다.
@@ -82,8 +83,9 @@
 ## 6. 구조
 
 ```
-docs/            설계 문서. 코드보다 이게 먼저다 (requirements-v0.5 · roadmap · 08-feedback · 06-ci · adr/)
-Tools/           여기서 돌릴 수 있는 도구 — golden(정답표) · privacy(명세 검사) · ci(화소 검사) · site(처리방침) · make-icon.py(아이콘: Tools/icon-source.png 가 원본)
+docs/            설계 문서. 코드보다 이게 먼저다 (requirements-v0.5 · roadmap · 08-feedback · 06-ci · acceptance-checklist · store-listing · privacy · adr/)
+reports/         조사 보고서 (인맥 분석 기법과 앱 벤치마킹)
+Tools/           여기서 돌릴 수 있는 도구 — golden(정답표) · privacy(명세 검사) · cloudkit(스키마 파일 · 적용 스크립트) · ci(화소 검사 · 찍을 화면 목록) · site(처리방침) · contrast.py(색 대비) · make-icon.py(아이콘: Tools/icon-source.png 가 원본)
 Packages/Core/   순수 Swift. Foundation 만 → 리눅스에서 테스트된다
 App/             앱 타깃 (SwiftUI + SwiftData). macOS 에서만 빌드된다
 AppTests/        인메모리 저장소로 저장 규칙을 시험한다
