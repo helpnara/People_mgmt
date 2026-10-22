@@ -13,6 +13,7 @@ struct SlowConnectionApp: App {
         if LaunchArguments.current.seedSampleData, opened.failure == nil {
             SampleData.seed(into: opened.container.mainContext)
             LaunchTiming.mark("저장소 열기 · 견본 채우기")
+            LaunchTiming.storeReady = Date()
         }
     }
 

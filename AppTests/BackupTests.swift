@@ -29,6 +29,7 @@ final class BackupTests: XCTestCase {
         first.name = "첫째"
         first.tags = ["독서모임"]
         first.businessCard = Data([0x01, 0x02, 0x03])
+        first.photo = Data([0x04, 0x05])
         let a = try people.create(first)
         var second = PersonDraft()
         second.name = "둘째"
@@ -51,6 +52,7 @@ final class BackupTests: XCTestCase {
         XCTAssertEqual(summary.records, 1)
         XCTAssertEqual(summary.ties, 1)
         XCTAssertEqual(summary.cards, 1)
+        XCTAssertEqual(summary.photos, 1, "사람 사진도 센다 (이슈 45)")
 
         let restored = target.mainContext
         let all = try restored.fetch(FetchDescriptor<Person>())
@@ -59,6 +61,7 @@ final class BackupTests: XCTestCase {
         XCTAssertEqual(all.filter(\.isMe).map(\.uuid), [me.uuid], "나는 하나 그대로")
         XCTAssertEqual(byID[b.uuid]?.introducedBy?.uuid, a.uuid, "소개 관계가 이어진다")
         XCTAssertEqual(byID[a.uuid]?.businessCard, Data([0x01, 0x02, 0x03]), "명함 사진이 그대로")
+        XCTAssertEqual(byID[a.uuid]?.photo, Data([0x04, 0x05]), "사람 사진이 그대로")
         XCTAssertEqual(byID[a.uuid]?.tags, a.tags)
         XCTAssertEqual(byID[b.uuid]?.acquaintances.map(\.uuid), [a.uuid], "아는 사이가 이어진다")
         let createdGap = abs((byID[a.uuid]?.createdAt.timeIntervalSince1970 ?? 0) - a.createdAt.timeIntervalSince1970)

@@ -199,6 +199,10 @@ struct PeopleListView: View {
             sortedPeople = LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {
                 PersonStore.sorted(fetched, by: sortOption)
             }
+            if let ready = LaunchTiming.storeReady, !sortedPeople.isEmpty {
+                LaunchTiming.storeReady = nil
+                LaunchTiming.log("목록 첫 표시 — 저장소가 열린 뒤 (\(sortedPeople.count)명)", since: ready)
+            }
             refreshFilter()
             loadRecentRecords()
         }
@@ -786,6 +790,7 @@ struct PeopleListView: View {
             if isWide { openSection(.network(tab)) } else { path.append(NetworkRoute(tab: tab)) }
             return
         }
+        if arguments.measureSave { measureSaves() }
         if arguments.addPerson { showingAdd = true }
         var opened: Person?
         if arguments.openMe {
@@ -796,10 +801,29 @@ struct PeopleListView: View {
             opened = PersonStore.sorted(fetched, by: .name).first
         }
         if let opened {
+            LaunchTiming.begin("상세")
             show(opened)
             if arguments.openRecord, let latest = RecordStore.timeline(of: opened).first {
                 if isWide { detailPath.append(latest) } else { path.append(latest) }
             }
+        }
+    }
+}
+
+extension PeopleListView {
+    /// CI 큰 견본(`-measureSave`): 사람 한 명 · 기록 한 건을 저장소 문으로 저장해 시간을 남긴다 (요구사항 8.5 저장 0.3초).
+    /// 견본은 메모리 저장소라 실기기 디스크보다 빠를 수 있다 — 숫자는 참고로 본다.
+    @MainActor fileprivate func measureSaves() {
+        var draft = PersonDraft()
+        draft.name = "저장시간견본"
+        let created = LaunchTiming.measure("저장 · 사람 추가 (\(fetched.count)명 저장소)") {
+            try? PersonStore(context: context).create(draft)
+        }
+        guard let person = created else { return }
+        var record = RecordDraft(anchor: person)
+        record.title = "저장 시간 견본"
+        _ = LaunchTiming.measure("저장 · 기록 추가") {
+            try? RecordStore(context: context).create(record)
         }
     }
 }

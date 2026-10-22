@@ -234,8 +234,12 @@ enum SampleData {
             context.insert(person)
             people.append(person)
         }
+        // 기록 500건인 사람 하나 — 상세 시간을 재려고(요구사항 8.5 · `-openPerson 견본상세`). 첫 기록 500건을 이 사람에게 몰아도
+        // 생성기 차례는 그대로라 나머지 자료는 전과 같다.
+        people[0].name = "견본상세"
         for index in 0..<50_000 {
-            let anchor = people[Int(generator.next() % 5_000)]
+            let drawn = people[Int(generator.next() % 5_000)]
+            let anchor = index < 500 ? people[0] : drawn
             let record = Record(recordType: recordTypes[Int(generator.next() % UInt64(recordTypes.count))],
                                 occurredAt: calendar.date(byAdding: .day, value: -Int(generator.next() % 1_500), to: today) ?? today,
                                 title: index % 4 == 0 ? nil : "견본 기록 \(index)",

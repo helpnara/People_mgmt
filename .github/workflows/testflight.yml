@@ -214,6 +214,10 @@ jobs:
           fi
           echo "APP_VERSION=$SHORT ($BUILD)" >> "$GITHUB_ENV"
 
+          # 앱 용량 (요구사항 8.5 · 50MB 이하 · 안정화 기준 5) — 내려받는 크기는 애플이 기기별로 줄여 더 작다. 로그만.
+          echo "── 용량 ──"
+          echo "IPA $(du -k "$IPA" | cut -f1)KB · 풀어 놓은 앱 $(du -sk "$APP" | cut -f1)KB"
+
           echo "── 개인정보 명세 ──"
           MANIFEST="$APP/PrivacyInfo.xcprivacy"
           [ -f "$MANIFEST" ] || { echo "::error::$MANIFEST 가 없습니다."; exit 1; }
