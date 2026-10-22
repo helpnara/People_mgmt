@@ -280,7 +280,7 @@ struct PersonDetailView: View {
     /// 타임라인 (4.2.3). 최신순, 맨 아래에 첫 인연 시작점. 기록 행을 밀면 삭제(확인 뒤).
     /// 정렬은 한 번 그릴 때 한 번 (빌드 11 까지는 세 번 셌다 · 이슈 18).
     private var timelineSection: some View {
-        let all = RecordStore.timeline(of: person)
+        let all = LaunchTiming.measure("상세 · 타임라인 정렬") { RecordStore.timeline(of: person) }
         let filtering = timelineType != nil || timelineTag != nil
         let timeline = filtering
             ? all.filter { ListFilter.matches(type: $0.recordType, tags: $0.tags, wantedType: timelineType, wantedTag: timelineTag) }
@@ -302,6 +302,8 @@ struct PersonDetailView: View {
                 NavigationLink(value: record) {
                     TimelineRow(record: record, viewer: person)
                 }
+                // 기준 5 — 타임라인 줄이 실제로 그려진 때.
+                .onAppear { LaunchTiming.end("상세 타임라인") { "상세 타임라인 첫 줄 그려짐" } }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button {
                         pendingRecordDeleteMessage = record.deletionMessage(viewer: person)
