@@ -49,7 +49,7 @@
 | CloudKit 스키마 파일 검사 (`Tools/cloudkit/generate-ckdb.py --check`) | 모델과 `slowconnection.ckdb` 가 같은가 | **여기서 직접** | 초 |
 | `Core swift test` | 순수 로직이 정답표와 같은가 | CI 리눅스 러너 (`core-test.yml`) | 2~4분 |
 | 앱 빌드 + 앱 테스트 | 문법 · SwiftData 규칙(삭제 · 소개자 · 같은 이름) | CI macOS 러너 (`ios.yml`) | 10분 |
-| 시뮬레이터 스크린샷 | 화면 | CI macOS 러너 | 20분 안팎 |
+| 시뮬레이터 스크린샷 | 화면 | CI macOS 러너 | 40~50분 (`ios.yml` 전체 55~70분) |
 | 실기기 TestFlight | 손맛 · 키보드 · 실제 자료 | 사람 | 30분 + 사람 |
 
 **규칙.**
