@@ -357,6 +357,12 @@ struct PeopleListView: View {
 
     private var list: some View {
         List {
+            // 견본 둘러보기 (D-55) — 목록 첫 칸. 화면 위에 띄우면 내비게이션 막대의 단추를 덮는다(빌드 33 CI 스크린샷 36).
+            if isDemo {
+                Section {
+                    DemoBanner(demo: DemoMode.shared)
+                }
+            }
             if isSampleData && !isDemo && !arguments.storeShots {
                 Section {
                     Label("견본 자료입니다. 실제 인연이 아닙니다.", systemImage: "info.circle")
