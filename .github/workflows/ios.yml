@@ -504,10 +504,29 @@ jobs:
 
       # **큰 견본으로 화면 시간** (요구사항 8.5 · 사람 5,000 · 기록 50,000). 로그에만 남긴다 — 막는 검사가 아니라
       # "느린 곳만 고친다" 의 숫자를 모으는 자리다. 견본 채우기 자체가 수십 초라 넉넉히 기다린다.
+      # **Release 로 잰다** (2026-10-22 사용자 · 기준 5) — 내려받는 판과 같은 최적화. Debug 는 수치가 부풀어 판단에 못 쓴다.
       - name: 큰 견본으로 화면 시간 재기 (로그만)
         continue-on-error: true
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
+          set -o pipefail
+          if xcodebuild \
+            -project SlowConnection.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "id=$UDID" \
+            -derivedDataPath build-release \
+            CODE_SIGNING_ALLOWED=NO \
+            build > /tmp/build-release.log 2>&1; then
+            RELEASE_APP=$(find build-release/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+            echo "Release 설치: $RELEASE_APP"
+            xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            xcrun simctl install "$UDID" "$RELEASE_APP"
+          else
+            echo "::warning::Release 빌드 실패 — Debug 판으로 잰다"
+            grep -E "error:" /tmp/build-release.log | head -20 || true
+          fi
+          set +o pipefail
           # 첫 줄은 목록이 뜬 뒤 사람 한 명 · 기록 한 건을 저장해 본다(-measureSave). 상세는 기록 500건인 견본상세로.
           for args in "-seedSampleData -seedLargeSample -measureSave" "-seedSampleData -seedLargeSample -search 견본" "-seedSampleData -seedLargeSample -openPerson 견본상세" "-seedSampleData -seedLargeSample -openNetwork graph"; do
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
