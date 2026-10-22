@@ -22,6 +22,8 @@ final class AppLock {
     private(set) var isAuthenticating = false
     @ObservationIgnored private var autoPrompted = false
     @ObservationIgnored private var windows: [UIWindow] = []
+    /// 뿌리 화면은 견본 둘러보기를 열고 닫을 때 다시 만들어진다(D-55) — 그때 다시 잠그지 않게 처음 한 번만.
+    @ObservationIgnored private var launched = false
 
     private init() {
         // 첫 화면이 그려지기 전에 정한다 — 잠금을 켜 두었으면 한 장면도 보이지 않게.
@@ -55,6 +57,8 @@ final class AppLock {
 
     /// 뿌리 화면이 처음 뜰 때.
     func launch(isActive: Bool) {
+        guard !launched else { return }
+        launched = true
         // CI 스크린샷 — 가리개 모양만 (확인 창은 시뮬레이터에서 띄우지 않는다).
         if LaunchArguments.current.previewLock {
             isLocked = true

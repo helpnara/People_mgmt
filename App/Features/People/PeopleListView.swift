@@ -14,6 +14,8 @@ import SwiftUI
 struct PeopleListView: View {
     let arguments: LaunchArguments
     let isSampleData: Bool
+    /// 견본 둘러보기 중 (D-55) — 견본 안내 줄 대신 뿌리의 띠가 말한다.
+    var isDemo = false
 
     @Environment(\.modelContext) private var context
     /// 나를 뺀 사람들. 나는 맨 위 칸에 따로 서고 사람 수 · 검색 · 정렬에 들지 않는다 (이슈 12).
@@ -237,7 +239,7 @@ struct PeopleListView: View {
     private var home: some View {
         Group {
             if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
-                EmptyPeopleView { showingAdd = true }
+                EmptyPeopleView(onAdd: { showingAdd = true }, onDemo: { DemoMode.shared.start() })
             } else if isQuerying && searchRows.isEmpty && searchedText == searchText {
                 // 요구사항 문구 그대로 — 시스템 기본 문구 대신 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
                 let shown = TextNormalization.normalized(searchText)
@@ -355,7 +357,7 @@ struct PeopleListView: View {
 
     private var list: some View {
         List {
-            if isSampleData && !arguments.storeShots {
+            if isSampleData && !isDemo && !arguments.storeShots {
                 Section {
                     Label("견본 자료입니다. 실제 인연이 아닙니다.", systemImage: "info.circle")
                         .font(.scaled(13))

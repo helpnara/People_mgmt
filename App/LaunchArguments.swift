@@ -64,6 +64,8 @@ struct LaunchArguments: Sendable {
     let storeShots: Bool
     /// 큰 견본에서 사람 한 명 · 기록 한 건을 저장해 시간을 잰다 (`-measureSave` · 요구사항 8.5 저장 0.3초).
     let measureSave: Bool
+    /// 견본 둘러보기를 바로 연다 (`-startDemo` · D-55 · CI 스크린샷).
+    let startDemo: Bool
 
     init(_ arguments: [String]) {
         seedSampleData = arguments.contains("-seedSampleData")
@@ -88,6 +90,7 @@ struct LaunchArguments: Sendable {
         openTags = arguments.contains("-openTags")
         previewLock = arguments.contains("-previewLock")
         measureSave = arguments.contains("-measureSave")
+        startDemo = arguments.contains("-startDemo")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
             return arguments[index + 1]
