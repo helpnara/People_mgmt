@@ -71,6 +71,31 @@
 
 인맥,인연,관계,기록,명함,연락처,만남,관계도,모임,첫만남,소개,타임라인,메모,네트워크,사람,일지
 
+## 심사 메모 (App Review Information → Notes) — 초안 · 2026-10-22 (D-55)
+
+로그인이 없는 앱이라 데모 계정은 필요 없다. 심사관은 빈 앱으로 시작하므로, 기록이 쌓여야 보이는 관계도 · 모임 찾기를 보는 길을 적는다. 심사 메모는 영문으로 쓴다(한글 화면 안내는 괄호로).
+
+```
+No account or sign-in is required. All data stays on the device and, if iCloud is
+available, in the user's own private iCloud database. There is no developer server.
+
+The app starts empty. To see every feature with fictional sample data, tap
+"견본으로 둘러보기" (Browse with sample data) on the first screen. Sample data lives
+in memory only, never mixes with the user's data or iCloud, and a banner at the top
+offers "끝내기" (End) to return to the empty app.
+
+Suggested path in the sample: People list → a person → timeline and relationship
+review → back to the list → the network button at the top left ("내 인맥",
+My network; on iPad it is in the sidebar) → relationship graph, groups and the time
+slider. To try real input: "+" adds a person (only a name is required);
+on a person, "기록 추가" adds a shared record.
+
+Camera, photo library and contacts are used only when the user taps the related
+button. Face ID is used only if the user turns on app lock in Settings.
+```
+
+- 단추 이름 · 자리는 2026-10-22 코드에서 확인했다(`내 인맥` = 아이폰 목록 왼쪽 위 · 아이패드 왼쪽 바). 넣기 전에 마지막 판에서 한 번 더 맞춘다.
+
 ## 남은 일
 
 - 스토어 스크린샷 — CI 가 `screenshots/store/` 에 6.9형 iPhone(1320×2868) 6장 · 13형 iPad(2064×2752) 3장을 찍는다(견본 · `-storeShots`). 고를 장 · 순서는 사용자 결정 (로드맵 §5).

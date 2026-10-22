@@ -264,7 +264,10 @@ enum RecordMemory {
         TextNormalization.nilIfEmpty(UserDefaults.standard.string(forKey: locationKey) ?? "")
     }
 
+    @MainActor
     static func remember(type: String, location: String) {
+        // 견본 둘러보기 중에 쓴 유형 · 장소는 내 다음 기록에 남기지 않는다 (D-55).
+        if DemoMode.shared.isActive { return }
         UserDefaults.standard.set(type, forKey: typeKey)
         // 장소를 비운 기록은 지난 장소를 지우지 않는다 — 어제의 장소가 다음에도 쓸모 있다.
         if let place = TextNormalization.nilIfEmpty(location) {

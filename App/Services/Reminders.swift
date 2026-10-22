@@ -45,6 +45,8 @@ enum ReminderScheduler {
     private static let firedKey = "reminders.fired"
 
     static func refresh(container: ModelContainer, now: Date = Date()) async {
+        // 견본 둘러보기 중에는 걸지 않는다 — 견본 사람의 생일로 내 알림을 덮지 않게 (D-55).
+        if DemoMode.shared.isActive { return }
         let center = UNUserNotificationCenter.current()
         let options = ReminderSettings.options
         guard options.any else {

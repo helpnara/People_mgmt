@@ -6,11 +6,12 @@ import UIKit
 /// CI 스크린샷용 **견본 자료**. 전부 지어낸 사람 · 회사 · 메모다.
 ///
 /// 이 저장소는 public 이다. **실제 사람의 이름 · 소속 · 메모를 여기 적지 않는다** (CLAUDE.md).
-/// 실행 인자 `-seedSampleData` 일 때 인메모리 저장소에만 채운다 — 진짜 저장소에는 절대 넣지 않는다.
+/// 실행 인자 `-seedSampleData` 일 때와 견본 둘러보기(`DemoMode` · D-55) 때 인메모리 저장소에만 채운다 — 진짜 저장소에는 절대 넣지 않는다.
 enum SampleData {
 
+    /// `communities` — 모임 견본(15명 · 세 모임)도 채운다. 견본 둘러보기(D-55)는 늘 채운다.
     @MainActor
-    static func seed(into context: ModelContext) {
+    static func seed(into context: ModelContext, communities: Bool = LaunchArguments.current.communitySample) {
         let calendar = Calendar.current
         func day(_ year: Int, _ month: Int, _ day: Int) -> Date {
             let components = DateComponents(year: year, month: month, day: day)
@@ -138,7 +139,7 @@ enum SampleData {
         }
 
         try? context.save()
-        if LaunchArguments.current.communitySample { seedCommunities(into: context, doyun: doyun, jiwoo: jiwoo, alice: alice) }
+        if communities { seedCommunities(into: context, doyun: doyun, jiwoo: jiwoo, alice: alice) }
         if LaunchArguments.current.largeSample { seedLarge(into: context) }
     }
 
