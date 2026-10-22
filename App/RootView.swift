@@ -4,7 +4,7 @@ import SwiftUI
 struct RootView: View {
     let arguments: LaunchArguments
     let isSampleData: Bool
-    /// 견본 둘러보기 중 (D-55) — 위에 띠, 알림은 다시 걸지 않는다.
+    /// 견본 둘러보기 중 (D-55) — 사람 목록 첫 칸에 띠, 알림은 다시 걸지 않는다.
     var isDemo = false
 
     @Environment(\.modelContext) private var context
@@ -14,9 +14,6 @@ struct RootView: View {
 
     var body: some View {
         PeopleListView(arguments: arguments, isSampleData: isSampleData, isDemo: isDemo)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if isDemo { DemoBanner(demo: DemoMode.shared) }
-            }
             // 삭제 실행취소 (FR-031) — 지운 직후 5초 동안 아래에 `되돌리기`.
             .overlay(alignment: .bottom) {
                 DeletionUndoBanner(undo: deletionUndo)

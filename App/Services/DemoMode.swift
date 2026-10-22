@@ -5,7 +5,7 @@ import SwiftUI
 ///
 /// - 사람이 하나도 없을 때 첫 화면에서 연다. 지어낸 사람 · 기록 · 모임을 **메모리 저장소에만** 채운다 —
 ///   진짜 저장소 · iCloud 와 섞이지 않고, 끝내거나 앱을 닫으면 사라진다 (CLAUDE.md §2 · 견본은 인메모리에만).
-/// - 둘러보는 동안 모든 화면 위에 띠가 있고, 띠의 `끝내기` 로 내 자료로 돌아간다.
+/// - 둘러보는 동안 사람 목록 첫 칸에 띠가 있고, 띠의 `끝내기` 로 내 자료로 돌아간다(아이패드는 목록 칸).
 /// - 둘러보는 동안에는 알림을 다시 걸지 않고(견본 사람의 생일로 내 알림을 덮지 않게), 지난 유형 · 장소도 기억하지 않는다.
 @MainActor
 @Observable
@@ -38,7 +38,7 @@ final class DemoMode {
     }
 }
 
-/// 둘러보는 동안 모든 화면 위에 — 견본이라는 것과 끝내는 단추.
+/// 둘러보는 동안 사람 목록 첫 칸에 — 견본이라는 것과 끝내는 단추.
 struct DemoBanner: View {
     let demo: DemoMode
 
@@ -62,11 +62,6 @@ struct DemoBanner: View {
                 .tint(Color.accent)
                 .accessibilityHint("견본을 닫고 내 자료로 돌아갑니다")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color.raised)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Color.rule).frame(height: 1)
-        }
+        .padding(.vertical, 4)
     }
 }

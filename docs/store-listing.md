@@ -82,7 +82,7 @@ available, in the user's own private iCloud database. There is no developer serv
 The app starts empty. To see every feature with fictional sample data, tap
 "견본으로 둘러보기" (Browse with sample data) on the first screen. Sample data lives
 in memory only, never mixes with the user's data or iCloud, and a banner at the top
-offers "끝내기" (End) to return to the empty app.
+of the people list offers "끝내기" (End) to return to the empty app.
 
 Suggested path in the sample: People list → a person → timeline and relationship
 review → back to the list → the network button at the top left ("내 인맥",
