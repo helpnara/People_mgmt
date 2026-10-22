@@ -161,6 +161,8 @@ struct PersonDetailView: View {
             Text(errorMessage ?? "")
         }
         .onAppear {
+            // CI 큰 견본: 목록에서 연 뒤 상세가 뜨기까지 (요구사항 8.5 · 기록 500건 0.5초).
+            LaunchTiming.end("상세") { "상세 첫 표시 (기록 \(RecordStore.timeline(of: person).count)건)" }
             // CI 스크린샷: -addRecord 면 기록 추가 시트를 바로 연다 (한 번만).
             if !appliedArguments {
                 appliedArguments = true

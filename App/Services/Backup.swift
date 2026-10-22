@@ -4,10 +4,10 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// **백업 · 복원** (FR-018 · D-34) — 사람 · 기록 · 아는 사이 · 명함 사진을 **파일 하나(.json)** 로.
+/// **백업 · 복원** (FR-018 · D-34) — 사람 · 기록 · 아는 사이 · 명함과 사람 사진을 **파일 하나(.json)** 로.
 ///
 /// - 고유 식별자(`uuid`)와 만든 날을 그대로 담아, 복원하면 소개 관계 · 함께한 사람 · 아는 사이가 그대로 이어진다.
-/// - 명함 사진은 JSON 안에 base64 로 들어간다 — 사람이 많으면 파일이 커진다(명함 1장에 수백 KB).
+/// - 명함 · 사람 사진은 JSON 안에 base64 로 들어간다 — 사람이 많으면 파일이 커진다(명함 1장에 수백 KB).
 /// - **복원은 앱이 비어 있을 때만** (D-34) — 지금 자료와 섞이지 않게. 새 기기 · 다시 설치한 뒤에 쓴다.
 /// - 만들기 · 복원 모두 **따로 연 문맥**에서 한다 — 사람 5,000명 · 기록 50,000건이어도 주 스레드를 막지 않는다 (이슈 8 · 10).
 /// - 사람을 고치는 문은 `PersonStore` 하나지만(CLAUDE.md), 복원은 식별자와 만든 날을 그대로 살려야 해서
@@ -102,6 +102,8 @@ enum Backup {
         let records: Int
         let ties: Int
         let cards: Int
+        /// 사람 사진 (7판 · 빌드 29) — 이슈 45.
+        let photos: Int
     }
 
     /// 파일 이름 — `느린인연-백업-2026-10-18.json`.
@@ -211,7 +213,8 @@ enum Backup {
 
     static func summary(of file: BackupFile) -> Summary {
         Summary(people: file.people.count, records: file.records.count, ties: file.ties.count,
-                cards: file.people.filter { $0.businessCard != nil }.count)
+                cards: file.people.filter { $0.businessCard != nil }.count,
+                photos: file.people.filter { $0.photo != nil }.count)
     }
 
     // MARK: - 글로 · 글에서
@@ -307,7 +310,8 @@ enum Backup {
             throw error
         }
         return Summary(people: byID.count, records: restoredRecords, ties: restoredTies,
-                       cards: byID.values.filter { $0.businessCard != nil }.count)
+                       cards: byID.values.filter { $0.businessCard != nil }.count,
+                       photos: byID.values.filter { $0.photo != nil }.count)
     }
 }
 

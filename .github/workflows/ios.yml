@@ -506,7 +506,8 @@ jobs:
         continue-on-error: true
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
-          for args in "-seedSampleData -seedLargeSample" "-seedSampleData -seedLargeSample -search 견본" "-seedSampleData -seedLargeSample -openPerson 김하늘" "-seedSampleData -seedLargeSample -openNetwork graph"; do
+          # 첫 줄은 목록이 뜬 뒤 사람 한 명 · 기록 한 건을 저장해 본다(-measureSave). 상세는 기록 500건인 견본상세로.
+          for args in "-seedSampleData -seedLargeSample -measureSave" "-seedSampleData -seedLargeSample -search 견본" "-seedSampleData -seedLargeSample -openPerson 견본상세" "-seedSampleData -seedLargeSample -openNetwork graph"; do
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
             echo "── $args ──"
             # shellcheck disable=SC2086

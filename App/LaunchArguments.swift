@@ -62,6 +62,8 @@ struct LaunchArguments: Sendable {
     let filterTag: String?
     /// 스토어 스크린샷 (`-storeShots` · 빌드 18) — 견본 안내 띠를 숨긴다. 사람은 여전히 모두 지어낸 견본이다.
     let storeShots: Bool
+    /// 큰 견본에서 사람 한 명 · 기록 한 건을 저장해 시간을 잰다 (`-measureSave` · 요구사항 8.5 저장 0.3초).
+    let measureSave: Bool
 
     init(_ arguments: [String]) {
         seedSampleData = arguments.contains("-seedSampleData")
@@ -85,6 +87,7 @@ struct LaunchArguments: Sendable {
         storeShots = arguments.contains("-storeShots")
         openTags = arguments.contains("-openTags")
         previewLock = arguments.contains("-previewLock")
+        measureSave = arguments.contains("-measureSave")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
             return arguments[index + 1]

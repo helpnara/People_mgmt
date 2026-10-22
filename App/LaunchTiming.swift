@@ -18,6 +18,22 @@ enum LaunchTiming {
         print("⏱ \(label) \(Int(Date().timeIntervalSince(started) * 1000))ms")
     }
 
+    /// 저장소를 열고 견본을 다 채운 때 — 그 뒤 목록이 뜨기까지를 따로 잰다(요구사항 8.5 콜드 실행).
+    /// 앱 시작부터 잰 값에는 견본 채우기(수십 초)가 들어 있어 실기기의 첫 실행과 견줄 수 없다. 한 번 쓰면 비운다.
+    @MainActor static var storeReady: Date?
+    /// `begin` 에서 `end` 까지 — 상세 열기처럼 화면을 넘나드는 일.
+    @MainActor private static var begun: [String: Date] = [:]
+
+    @MainActor static func begin(_ key: String) {
+        guard LaunchArguments.current.largeSample else { return }
+        begun[key] = Date()
+    }
+
+    @MainActor static func end(_ key: String, label: () -> String) {
+        guard LaunchArguments.current.largeSample, let started = begun.removeValue(forKey: key) else { return }
+        log(label(), since: started)
+    }
+
     /// 한 작업에 걸린 시간.
     static func measure<T>(_ label: String, _ work: () -> T) -> T {
         guard LaunchArguments.current.largeSample else { return work() }

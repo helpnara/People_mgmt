@@ -7,7 +7,7 @@ struct SettingsRoute: Hashable {}
 
 /// **설정** (FR-030 · D-34) — 백업 · 복원, 개인정보 안내, 앱 버전.
 ///
-/// 백업은 파일 하나(.json, 명함 사진 포함)를 만들어 파일 앱 · iCloud Drive 에 저장한다. 복원은 **앱이 비어 있을 때만**.
+/// 백업은 파일 하나(.json, 명함 · 사람 사진 포함)를 만들어 파일 앱 · iCloud Drive 에 저장한다. 복원은 **앱이 비어 있을 때만**.
 /// 만들기 · 읽기 · 복원은 모두 주 스레드 밖에서 한다 (`Backup`).
 struct SettingsView: View {
     @Environment(\.modelContext) private var context
@@ -55,7 +55,7 @@ struct SettingsView: View {
             } header: {
                 Text("백업")
             } footer: {
-                Text("사람 · 기록 · 아는 사이 · 명함 사진을 파일 하나(.json)로 만듭니다. 파일 앱이나 iCloud Drive 에 저장해 두면 기기를 바꾸거나 앱을 다시 설치해도 되살릴 수 있습니다. 이 파일에는 인연의 기록이 그대로 들어 있으니 믿을 수 있는 곳에만 두세요.")
+                Text("사람 · 기록 · 아는 사이 · 명함과 사람 사진을 파일 하나(.json)로 만듭니다. 파일 앱이나 iCloud Drive 에 저장해 두면 기기를 바꾸거나 앱을 다시 설치해도 되살릴 수 있습니다. 이 파일에는 인연의 기록이 그대로 들어 있으니 믿을 수 있는 곳에만 두세요.")
             }
 
             Section {
@@ -101,7 +101,7 @@ struct SettingsView: View {
             } header: {
                 Text("연락처 파일 (vCard)")
             } footer: {
-                Text("내보내기는 나를 뺀 사람의 이름 · 별명 · 소속 · 직무 · 연락 수단 · 생일을 .vcf 파일 하나로 만듭니다. 기록 · 첫 인연 · 태그 · 명함 사진은 들어가지 않습니다 — 그것은 백업 파일이 맡습니다. 가져오기는 넣기 전에 새 사람 · 같은 사람 후보 · 이미 있는 사람을 나눠 보여 주고, 고른 사람만 넣습니다.")
+                Text("내보내기는 나를 뺀 사람의 이름 · 별명 · 소속 · 직무 · 연락 수단 · 생일을 .vcf 파일 하나로 만듭니다. 기록 · 첫 인연 · 태그 · 명함과 사람 사진은 들어가지 않습니다 — 그것은 백업 파일이 맡습니다. 가져오기는 넣기 전에 새 사람 · 같은 사람 후보 · 이미 있는 사람을 나눠 보여 주고, 고른 사람만 넣습니다.")
             }
 
             lockSection
@@ -217,7 +217,7 @@ struct SettingsView: View {
             Button("취소", role: .cancel) { pendingRestore = nil }
         } message: { file in
             let summary = Backup.summary(of: file)
-            Text("\(file.exportedAt.formatted(date: .long, time: .shortened))에 만든 백업입니다. 사람 \(summary.people)명 · 기록 \(summary.records)건 · 아는 사이 \(summary.ties)줄 · 명함 \(summary.cards)장을 복원할까요?")
+            Text("\(file.exportedAt.formatted(date: .long, time: .shortened))에 만든 백업입니다. 사람 \(summary.people)명 · 기록 \(summary.records)건 · 아는 사이 \(summary.ties)줄 · 명함 \(summary.cards)장 · 사람 사진 \(summary.photos)장을 복원할까요?")
         }
         .alert(message?.title ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
             Button("닫기", role: .cancel) {}
@@ -438,7 +438,7 @@ struct SettingsView: View {
             do {
                 let summary = try await Backup.restore(file, container: container)
                 working = nil
-                message = ("복원했습니다", "사람 \(summary.people)명 · 기록 \(summary.records)건 · 아는 사이 \(summary.ties)줄 · 명함 \(summary.cards)장을 되살렸습니다.")
+                message = ("복원했습니다", "사람 \(summary.people)명 · 기록 \(summary.records)건 · 아는 사이 \(summary.ties)줄 · 명함 \(summary.cards)장 · 사람 사진 \(summary.photos)장을 되살렸습니다.")
             } catch {
                 working = nil
                 message = ("복원하지 못했습니다", error.localizedDescription)
