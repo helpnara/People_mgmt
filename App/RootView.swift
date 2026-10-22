@@ -24,6 +24,7 @@ struct RootView: View {
                 if lock.isLocked { LockScreen(lock: lock) }
             }
             .task { lock.launch(isActive: scenePhase == .active) }
+            .onAppear { LaunchTiming.once("뿌리 화면 나타남") }
             // 앱이 앞으로 나올 때 알림을 다시 건다 — 날이 바뀌었을 수 있다 (D-40).
             .onChange(of: scenePhase) { _, phase in
                 lock.phaseChanged(phase)

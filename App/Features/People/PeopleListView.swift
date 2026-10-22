@@ -201,12 +201,9 @@ struct PeopleListView: View {
             sortedPeople = LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {
                 PersonStore.sorted(fetched, by: sortOption)
             }
-            if let ready = LaunchTiming.storeReady, !sortedPeople.isEmpty {
-                LaunchTiming.storeReady = nil
-                LaunchTiming.log("목록 첫 표시 — 저장소가 열린 뒤 (\(sortedPeople.count)명)", since: ready)
-            }
+            if !sortedPeople.isEmpty { LaunchTiming.once("목록 정렬 끝 (\(sortedPeople.count)명)") }
             refreshFilter()
-            loadRecentRecords()
+            LaunchTiming.measure("최근 기록 3건 읽기") { loadRecentRecords() }
         }
         .task(id: SearchKey(text: searchText, version: dataVersion)) {
             await runSearch()
@@ -220,6 +217,7 @@ struct PeopleListView: View {
                 pendingChange = true
                 return
             }
+            LaunchTiming.once("입력 상태 세기 시작 (자료 판 \(dataVersion))")
             let input = await NetworkSnapshotBuilder.readiness(container: context.container)
             guard !Task.isCancelled else { return }
             readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
@@ -231,6 +229,7 @@ struct PeopleListView: View {
             }
         }
         .task { await applyArgumentsOnce() }
+        .onAppear { LaunchTiming.once("목록 화면 나타남 (사람 \(fetched.count)명 읽힘)") }
         .onChange(of: shortcuts.pending) { _, _ in handleShortcut() }
         .onAppear(perform: handleShortcut)
     }
@@ -415,6 +414,8 @@ struct PeopleListView: View {
                             personLink(person) {
                                 PersonRow(person: person, evidence: nil, showsLastRecord: true, showsPhoto: true)
                             }
+                            // 기준 5 — 사람 줄이 실제로 그려진 때 (정렬이 끝난 때보다 늦다).
+                            .onAppear { LaunchTiming.once("첫 사람 줄 그려짐") }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 // 역할 없는 단추 — `role: .destructive` 는 확인 전에 줄을 먼저 접는다 (느린 부자 178~182).
                                 Button {
@@ -810,6 +811,7 @@ struct PeopleListView: View {
         }
         if let opened {
             LaunchTiming.begin("상세")
+            LaunchTiming.begin("상세 타임라인")
             show(opened)
             if arguments.openRecord, let latest = RecordStore.timeline(of: opened).first {
                 if isWide { detailPath.append(latest) } else { path.append(latest) }

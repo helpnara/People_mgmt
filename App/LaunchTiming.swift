@@ -19,8 +19,15 @@ enum LaunchTiming {
     }
 
     /// 저장소를 열고 견본을 다 채운 때 — 그 뒤 목록이 뜨기까지를 따로 잰다(요구사항 8.5 콜드 실행).
-    /// 앱 시작부터 잰 값에는 견본 채우기(수십 초)가 들어 있어 실기기의 첫 실행과 견줄 수 없다. 한 번 쓰면 비운다.
+    /// 앱 시작부터 잰 값에는 견본 채우기(수십 초)가 들어 있어 실기기의 첫 실행과 견줄 수 없다.
     @MainActor static var storeReady: Date?
+    @MainActor private static var logged: Set<String> = []
+
+    /// 저장소가 열린 뒤 이 일이 처음 일어나기까지 — 이름마다 한 번만 (기준 5 · 어디서 시간이 새는지).
+    @MainActor static func once(_ label: String) {
+        guard LaunchArguments.current.largeSample, let ready = storeReady, logged.insert(label).inserted else { return }
+        log("첫 화면 · \(label)", since: ready)
+    }
     /// `begin` 에서 `end` 까지 — 상세 열기처럼 화면을 넘나드는 일.
     @MainActor private static var begun: [String: Date] = [:]
 
