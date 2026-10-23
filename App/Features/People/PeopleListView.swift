@@ -218,7 +218,7 @@ struct PeopleListView: View {
                 return
             }
             LaunchTiming.once("입력 상태 세기 시작 (자료 판 \(dataVersion))")
-            let input = await NetworkSnapshotBuilder.readiness(container: context.container)
+            let input = await NetworkSnapshotBuilder.readiness(container: context.container, version: dataVersion)
             guard !Task.isCancelled else { return }
             readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
             // 알림도 다시 건다 (D-40) — 생일 · 처음 만난 날 · 기록이 바뀌었을 수 있다. 켠 알림이 없으면 바로 끝난다.
@@ -409,8 +409,10 @@ struct PeopleListView: View {
                                 .foregroundStyle(Color.muted)
                         }
                     }
+                    // 줄마다 정확히 한 칸 (`LiveRow`) — 줄 안에 `if` 를 바로 두면 줄 수가 정해지지 않아 SwiftUI 가 5,000줄을
+                    // 미리 다 만든다(기준 5 · 실행 80: 화면이 나타난 뒤 첫 줄까지 2.3초). 지운 사람 거르기는 그 칸 안에서.
                     ForEach(displayedPeople) { person in
-                        if !person.isGone {
+                        LiveRow(isGone: person.isGone) {
                             personLink(person) {
                                 PersonRow(person: person, evidence: nil, showsLastRecord: true, showsPhoto: true)
                             }
@@ -435,7 +437,7 @@ struct PeopleListView: View {
             } else {
                 Section {
                     ForEach(searchRows) { row in
-                        if !row.person.isGone {
+                        LiveRow(isGone: row.person.isGone) {
                             // 기록에서 일치했으면 그 기록 상세까지 바로 연다 (FR-034). 그래서 NavigationLink 가 아니라 Button 이다.
                             Button {
                                 open(row.person, recordID: row.hit.recordID)
@@ -816,6 +818,24 @@ struct PeopleListView: View {
             if arguments.openRecord, let latest = RecordStore.timeline(of: opened).first {
                 if isWide { detailPath.append(latest) } else { path.append(latest) }
             }
+        }
+    }
+}
+
+/// 목록의 한 줄 — 지운 사람이면 높이 없는 빈 줄. 줄마다 언제나 한 칸이라 목록이 보이는 줄만 그린다 (기준 5).
+/// 지운 객체는 그려지는 줄에서만 거른다(CLAUDE.md) — 거르는 자리는 그대로이고, `ForEach` 바로 안의 `if` 만 이 칸 안으로 옮겼다.
+private struct LiveRow<Content: View>: View {
+    let isGone: Bool
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if isGone {
+            Color.clear
+                .frame(height: 0)
+                .listRowSeparator(.hidden)
+                .accessibilityHidden(true)
+        } else {
+            content()
         }
     }
 }

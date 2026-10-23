@@ -135,11 +135,25 @@ enum NetworkSnapshotBuilder {
         }.value
     }
 
-    /// 목록 맨 위 한 줄 요약용 — 자리 잡기 · 모임 찾기를 건너뛴다 (D-31).
-    static func readiness(container: ModelContainer, now: Date = Date()) async -> ReadinessInput {
-        await Task.detached(priority: .utility) {
+    /// 지금 도는 입력 상태 세기 — 같은 저장소 · 같은 자료 판이면 새로 세지 않고 이것을 기다린다.
+    /// 목록 화면이 처음 뜰 때 두 번 불려 5초짜리(사람 5,000 · 기록 50,000)를 두 번 셌다 (기준 5 · 실행 80).
+    /// 따로 연 문맥의 셈은 취소해도 끝까지 돌므로, 겹치지 않게 하는 것이 유일한 절약이다.
+    @MainActor private static var readinessInFlight: (key: ObjectIdentifier, version: Int, task: Task<ReadinessInput, Never>)?
+
+    /// 목록 맨 위 한 줄 요약용 — 자리 잡기 · 모임 찾기를 건너뛴다 (D-31). `version` 은 부르는 쪽의 자료 판.
+    @MainActor
+    static func readiness(container: ModelContainer, version: Int, now: Date = Date()) async -> ReadinessInput {
+        let key = ObjectIdentifier(container)
+        if let running = readinessInFlight, running.key == key, running.version == version {
+            return await running.task.value
+        }
+        let task = Task.detached(priority: .utility) {
             LaunchTiming.measure("입력 상태 세기") { make(container: container, now: now, includesGraph: false).readiness }
-        }.value
+        }
+        readinessInFlight = (key, version, task)
+        let value = await task.value
+        if readinessInFlight?.task == task { readinessInFlight = nil }
+        return value
     }
 
     private static func make(container: ModelContainer, now: Date, includesGraph: Bool) -> NetworkSnapshot {
