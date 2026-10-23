@@ -90,7 +90,7 @@ final class NetworkSnapshotTests: XCTestCase {
         XCTAssertEqual(Set(snapshot.gaps.noFirstMet), [b.uuid, c.uuid])
         XCTAssertEqual(snapshot.communityStatus, .notEnoughLinks, "진한 선 하나로는 모임을 찾지 않는다")
 
-        let light = await NetworkSnapshotBuilder.readiness(container: container)
+        let light = await NetworkSnapshotBuilder.readiness(container: container, version: 0)
         XCTAssertEqual(light, readiness, "목록 맨 위 요약도 같은 수를 낸다")
     }
 
