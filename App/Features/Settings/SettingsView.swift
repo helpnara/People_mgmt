@@ -39,6 +39,8 @@ struct SettingsView: View {
     @State private var lockMethod = AppLock.methodName()
     /// CI 스크린샷 — 태그 관리를 바로 연다 (`-openTags`).
     @State private var openTagsOnLaunch = LaunchArguments.current.openTags
+    /// CI 스크린샷 — 상세 화면 칸을 바로 연다 (`-openDetailLayout`).
+    @State private var openDetailLayoutOnLaunch = LaunchArguments.current.openDetailLayout
     private let syncMonitor = CloudSyncMonitor.shared
 
     var body: some View {
@@ -118,6 +120,19 @@ struct SettingsView: View {
                 Text("태그 이름을 바꾸거나 두 태그를 하나로 합칩니다. 사람과 기록에 붙은 태그가 함께 바뀝니다.")
             }
 
+            // 사람 상세의 칸 차례 · 보이기 (D-56).
+            Section {
+                NavigationLink {
+                    DetailLayoutView()
+                } label: {
+                    Label("상세 화면 칸", systemImage: "rectangle.stack")
+                }
+            } header: {
+                Text("보기")
+            } footer: {
+                Text("사람을 누르면 나오는 화면의 칸 차례를 바꾸고, 필요 없는 칸을 숨깁니다. 이 기기에만 적용됩니다.")
+            }
+
             Section {
                 Toggle("생일 당일", isOn: $remindBirthdays)
                 Toggle("알게 된 지 n주년", isOn: $remindAnniversaries)
@@ -185,6 +200,9 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $openTagsOnLaunch) {
             TagManagerView()
+        }
+        .navigationDestination(isPresented: $openDetailLayoutOnLaunch) {
+            DetailLayoutView()
         }
         .fileExporter(isPresented: $showingExporter, document: exportDocument,
                       contentType: fileKind == .vcard ? .vCard : .json, defaultFilename: exportName) { result in

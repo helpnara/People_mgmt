@@ -365,6 +365,9 @@ jobs:
           shoot 35-tag-suggest.png -seedSampleData -openPerson 김하늘 -addRecord -tagInput ㅁㅌ
           # 견본 둘러보기 (D-55) — 빈 진짜 저장소에서 열어 위의 띠 · 견본 목록이 보이는지. 견본은 메모리에만.
           shoot 36-demo.png -startDemo
+          # 상세 화면 칸 (D-56) — 설정 화면과, 차례를 바꾸고 관계 돌아보기를 숨긴 상세(실행 인자로 UserDefaults 를 이번 실행에만 덮는다).
+          shoot 37-detail-layout.png -seedSampleData -openSettings -openDetailLayout
+          shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
