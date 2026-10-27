@@ -40,7 +40,15 @@ struct TimelineRow: View {
                 // 장소 · 태그는 줄을 넘으면 접는다 — 큰 글씨에서 한 줄에 다 서지 않는다 (D-33).
                 WrapLayout(spacing: 8) {
                     if let location = record.location, !location.isEmpty {
-                        Label(location, systemImage: "mappin").font(.scaled(12)).foregroundStyle(Color.muted).readableLineLimit(1)
+                        // `Label` 은 이 흘림 배치 안에서 글자가 빠지고 핀만 남았다(이슈 48 · 이슈 34 의 칩과 같은 꼴) — 그림과 글자를 따로.
+                        HStack(spacing: 3) {
+                            Image(systemName: "mappin").accessibilityHidden(true)
+                            Text(location).readableLineLimit(1)
+                        }
+                        .font(.scaled(12))
+                        .foregroundStyle(Color.muted)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("장소 \(location)")
                     }
                     ForEach(record.tags.prefix(3), id: \.self) { tag in
                         Text("#\(tag)").font(.scaled(12)).foregroundStyle(Color.chipInk)
