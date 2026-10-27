@@ -16,6 +16,8 @@ struct PersonDetailView: View {
     @State private var pendingRecordDeleteMessage = ""
     @State private var errorMessage: String?
     @State private var appliedArguments = false
+    /// 칸 차례 · 보이기 (D-56) — 설정의 `상세 화면 칸` 이 쓴다.
+    @AppStorage(DetailLayoutView.storageKey) private var layoutStored = ""
     @State private var viewingCard = false
     /// 타임라인 거르기 (FR-013) — 기록 유형(열쇠) · 태그. 둘 다 고르면 둘 다 맞는 기록.
     /// 내보내기 확인 (FR-014) — 개인정보가 담긴 파일임을 먼저 알린다.
@@ -41,25 +43,9 @@ struct PersonDetailView: View {
         ScrollViewReader { proxy in
         List {
             headerSection
-            if let card = person.businessCard {
-                Section("명함") {
-                    Button {
-                        viewingCard = true
-                    } label: {
-                        BusinessCardThumbnail(data: card, maxHeight: 160)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            // 나는 첫 인연 · 소개 · 기록이 없다 — 모든 기록에 나는 늘 있다 (이슈 12).
-            if !person.isMe {
-                firstEncounterSection
-                RelationshipReviewSection(person: person)
-                if let introduced = person.introduced, !introduced.isEmpty {
-                    introducedSection(introduced)
-                }
-                acquaintanceSection
-                timelineSection
+            // 그 아래 칸은 설정의 상세 화면 칸에서 고른 차례 · 보이기대로 (D-56 · 이 기기에만).
+            ForEach(DetailLayout(stored: layoutStored).visible) { section in
+                detailSection(section)
             }
         }
         .listStyle(.insetGrouped)
@@ -174,6 +160,37 @@ struct PersonDetailView: View {
     }
 
     // MARK: 구역
+
+    /// 맨 위 칸 아래의 칸 하나. 자료가 없는 칸은 전처럼 그리지 않는다.
+    @ViewBuilder
+    private func detailSection(_ section: DetailSection) -> some View {
+        switch section {
+        case .card:
+            if let card = person.businessCard {
+                Section("명함") {
+                    Button {
+                        viewingCard = true
+                    } label: {
+                        BusinessCardThumbnail(data: card, maxHeight: 160)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        // 나는 첫 인연 · 소개 · 기록이 없다 — 모든 기록에 나는 늘 있다 (이슈 12).
+        case .firstEncounter:
+            if !person.isMe { firstEncounterSection }
+        case .review:
+            if !person.isMe { RelationshipReviewSection(person: person) }
+        case .introduced:
+            if !person.isMe, let introduced = person.introduced, !introduced.isEmpty {
+                introducedSection(introduced)
+            }
+        case .acquaintances:
+            if !person.isMe { acquaintanceSection }
+        case .timeline:
+            if !person.isMe { timelineSection }
+        }
+    }
 
     private var headerSection: some View {
         Section {

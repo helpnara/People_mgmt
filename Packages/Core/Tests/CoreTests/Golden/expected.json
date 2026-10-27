@@ -1533,6 +1533,325 @@
       "timeZone": "America/Los_Angeles"
     }
   ],
+  "detailLabels": [
+    {
+      "key": "card",
+      "label": "명함"
+    },
+    {
+      "key": "firstEncounter",
+      "label": "첫 인연"
+    },
+    {
+      "key": "review",
+      "label": "관계 돌아보기"
+    },
+    {
+      "key": "introduced",
+      "label": "소개한 인연"
+    },
+    {
+      "key": "acquaintances",
+      "label": "아는 사이"
+    },
+    {
+      "key": "timeline",
+      "label": "타임라인"
+    }
+  ],
+  "detailLayout": [
+    {
+      "hidden": [],
+      "input": null,
+      "order": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ],
+      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "visible": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ]
+    },
+    {
+      "hidden": [],
+      "input": "",
+      "order": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ],
+      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "visible": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ]
+    },
+    {
+      "hidden": [],
+      "input": "timeline,card",
+      "order": [
+        "timeline",
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ],
+      "stored": "timeline,card,firstEncounter,review,introduced,acquaintances",
+      "visible": [
+        "timeline",
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ]
+    },
+    {
+      "hidden": [
+        "review"
+      ],
+      "input": "-review,timeline",
+      "order": [
+        "review",
+        "timeline",
+        "card",
+        "firstEncounter",
+        "introduced",
+        "acquaintances"
+      ],
+      "stored": "-review,timeline,card,firstEncounter,introduced,acquaintances",
+      "visible": [
+        "timeline",
+        "card",
+        "firstEncounter",
+        "introduced",
+        "acquaintances"
+      ]
+    },
+    {
+      "hidden": [
+        "timeline"
+      ],
+      "input": "card,card,unknown,-timeline",
+      "order": [
+        "card",
+        "timeline",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ],
+      "stored": "card,-timeline,firstEncounter,review,introduced,acquaintances",
+      "visible": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ]
+    },
+    {
+      "hidden": [
+        "card"
+      ],
+      "input": " timeline , - card ",
+      "order": [
+        "timeline",
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ],
+      "stored": "timeline,-card,firstEncounter,review,introduced,acquaintances",
+      "visible": [
+        "timeline",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ]
+    },
+    {
+      "hidden": [],
+      "input": "-",
+      "order": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ],
+      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "visible": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ]
+    },
+    {
+      "hidden": [],
+      "input": ",,",
+      "order": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ],
+      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "visible": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ]
+    },
+    {
+      "hidden": [],
+      "input": "acquaintances,introduced,review,firstEncounter,card,timeline",
+      "order": [
+        "acquaintances",
+        "introduced",
+        "review",
+        "firstEncounter",
+        "card",
+        "timeline"
+      ],
+      "stored": "acquaintances,introduced,review,firstEncounter,card,timeline",
+      "visible": [
+        "acquaintances",
+        "introduced",
+        "review",
+        "firstEncounter",
+        "card",
+        "timeline"
+      ]
+    },
+    {
+      "hidden": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ],
+      "input": "-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline",
+      "order": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ],
+      "stored": "-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline",
+      "visible": []
+    }
+  ],
+  "detailMove": [
+    {
+      "destination": 0,
+      "expected": [
+        "timeline",
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ],
+      "source": [
+        5
+      ],
+      "stored": null
+    },
+    {
+      "destination": 6,
+      "expected": [
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline",
+        "card"
+      ],
+      "source": [
+        0
+      ],
+      "stored": null
+    },
+    {
+      "destination": 5,
+      "expected": [
+        "card",
+        "review",
+        "acquaintances",
+        "firstEncounter",
+        "introduced",
+        "timeline"
+      ],
+      "source": [
+        1,
+        3
+      ],
+      "stored": null
+    },
+    {
+      "destination": 2,
+      "expected": [
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances",
+        "timeline"
+      ],
+      "source": [
+        2
+      ],
+      "stored": null
+    },
+    {
+      "destination": 2,
+      "expected": [
+        "timeline",
+        "review",
+        "card",
+        "firstEncounter",
+        "introduced",
+        "acquaintances"
+      ],
+      "source": [
+        0
+      ],
+      "stored": "-review,timeline"
+    }
+  ],
   "displayTitle": [
     {
       "expected": "분기 회의",

@@ -1533,6 +1533,48 @@ def type_choices(types) -> list[str]:
     return [shown[k] for k in order]
 
 
+# ── 사람 상세의 칸 차례 (DetailLayout · D-56) ─────────────────────────────────
+
+DETAIL_SECTIONS = ["card", "firstEncounter", "review", "introduced", "acquaintances", "timeline"]
+DETAIL_LABELS = {"card": "명함", "firstEncounter": "첫 인연", "review": "관계 돌아보기",
+                 "introduced": "소개한 인연", "acquaintances": "아는 사이", "timeline": "타임라인"}
+
+
+def detail_parse(stored):
+    """Swift `DetailLayout(stored:)` — 모르는 · 겹친 이름은 버리고, 빠진 칸은 보이게 처음 차례대로 끝에."""
+    order, hidden = [], set()
+    for raw in (stored or "").split(","):
+        token = raw.strip(" ")
+        if not token:
+            continue
+        hide = token.startswith("-")
+        if hide:
+            token = token[1:].strip(" ")
+        if token in DETAIL_SECTIONS and token not in order:
+            order.append(token)
+            if hide:
+                hidden.add(token)
+    order += [k for k in DETAIL_SECTIONS if k not in order]
+    return order, hidden
+
+
+def detail_layout(stored) -> dict:
+    order, hidden = detail_parse(stored)
+    return {"order": order,
+            "hidden": [k for k in order if k in hidden],
+            "visible": [k for k in order if k not in hidden],
+            "stored": ",".join(("-" + k) if k in hidden else k for k in order)}
+
+
+def detail_move(stored, source, destination) -> list[str]:
+    order, _ = detail_parse(stored)
+    moving = [order[i] for i in sorted(source) if 0 <= i < len(order)]
+    remaining = [k for i, k in enumerate(order) if i not in source]
+    at = destination - len([i for i in source if i < destination])
+    at = max(0, min(at, len(remaining)))
+    return remaining[:at] + moving + remaining[at:]
+
+
 # ── 한 사람 내보내기 (PersonExport) ───────────────────────────────────────────
 
 def person_export(p: dict) -> str:
@@ -1784,6 +1826,11 @@ def build() -> dict:
                       if list_filter_matches(item.get("type"), item["tags"], f.get("type"), f.get("tag"))]}
         for f in c["filters"]]} for c in cases["listFilter"]]
     out["typeChoices"] = [{"input": c, "expected": type_choices(c)} for c in cases["typeChoices"]]
+    out["detailLayout"] = [{"input": c, **detail_layout(c)} for c in cases["detailLayout"]]
+    out["detailLabels"] = [{"key": k, "label": DETAIL_LABELS[k]} for k in DETAIL_SECTIONS]
+    out["detailMove"] = [{"stored": c["stored"], "source": c["source"], "destination": c["destination"],
+                          "expected": detail_move(c["stored"], c["source"], c["destination"])}
+                         for c in cases["detailMove"]]
     out["personExport"] = [{"name": c["name"], "person": c["person"], "expected": person_export(c["person"])}
                            for c in cases["personExport"]]
     out["chosung"] = [{"text": c["text"], "initials": chosung_initials(folded(c["text"])),

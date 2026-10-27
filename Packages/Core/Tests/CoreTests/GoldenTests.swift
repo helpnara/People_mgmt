@@ -159,6 +159,11 @@ final class GoldenTests: XCTestCase {
         struct FilterQuery: Decodable { let type: String?; let tag: String?; let expected: [Int] }
         struct FilterCase: Decodable { let name: String; let items: [FilterItem]; let filters: [FilterQuery] }
         struct TypeChoiceCase: Decodable { let input: [String?]; let expected: [String] }
+        struct DetailLayoutCase: Decodable {
+            let input: String?; let order: [String]; let hidden: [String]; let visible: [String]; let stored: String
+        }
+        struct DetailLabelCase: Decodable { let key: String; let label: String }
+        struct DetailMoveCase: Decodable { let stored: String?; let source: [Int]; let destination: Int; let expected: [String] }
         struct ExportContact: Decodable { let label: String; let value: String }
         struct ExportRecord: Decodable {
             let date: String; let type: String; let title: String; let note: String?; let location: String?
@@ -215,6 +220,9 @@ final class GoldenTests: XCTestCase {
         let listFilter: [FilterCase]
         let typeChoices: [TypeChoiceCase]
         let personExport: [ExportCase]
+        let detailLayout: [DetailLayoutCase]
+        let detailLabels: [DetailLabelCase]
+        let detailMove: [DetailMoveCase]
     }
 
     /// `Bundle.module` 대신 소스 위치에서 직접 읽는다 — 리눅스에서 더 단순하고 확실하다.
@@ -682,6 +690,26 @@ final class GoldenTests: XCTestCase {
         }
         for c in golden.typeChoices {
             XCTAssertEqual(ListFilter.typeChoices(c.input), c.expected, "\(c.input)")
+        }
+    }
+
+    /// 사람 상세의 칸 차례 (D-56) — 읽기 · 저장 글 · 보이는 칸 · 끌어 옮기기 · 이름.
+    func testDetailLayout() throws {
+        let golden = try Self.loadGolden()
+        for c in golden.detailLayout {
+            let layout = DetailLayout(stored: c.input)
+            XCTAssertEqual(layout.order.map(\.rawValue), c.order, "\(c.input ?? "nil") 차례")
+            XCTAssertEqual(layout.order.filter(layout.isHidden).map(\.rawValue), c.hidden, "\(c.input ?? "nil") 숨김")
+            XCTAssertEqual(layout.visible.map(\.rawValue), c.visible, "\(c.input ?? "nil") 보이는 칸")
+            XCTAssertEqual(layout.stored, c.stored, "\(c.input ?? "nil") 저장 글")
+            XCTAssertEqual(DetailLayout(stored: layout.stored), layout, "\(c.input ?? "nil") 저장 글을 다시 읽어도 같다")
+        }
+        XCTAssertEqual(DetailSection.allCases.map(\.rawValue), golden.detailLabels.map(\.key))
+        XCTAssertEqual(DetailSection.allCases.map(\.label), golden.detailLabels.map(\.label))
+        for c in golden.detailMove {
+            var layout = DetailLayout(stored: c.stored)
+            layout.move(fromOffsets: IndexSet(c.source), toOffset: c.destination)
+            XCTAssertEqual(layout.order.map(\.rawValue), c.expected, "\(c.source) → \(c.destination)")
         }
     }
 
