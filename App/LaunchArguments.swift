@@ -66,6 +66,10 @@ struct LaunchArguments: Sendable {
     let storeShots: Bool
     /// 큰 견본에서 사람 한 명 · 기록 한 건을 저장해 시간을 잰다 (`-measureSave` · 요구사항 8.5 저장 0.3초).
     let measureSave: Bool
+    /// 기록 추가에서 함께한 사람 고르기를 바로 연다 (`-pickParticipants` · 이슈 49).
+    let pickParticipants: Bool
+    /// 사람 고르기 화면의 검색어 (`-pickerSearch ㅈㅇ` · 이슈 49).
+    let pickerSearch: String?
     /// 견본 둘러보기를 바로 연다 (`-startDemo` · D-55 · CI 스크린샷).
     let startDemo: Bool
 
@@ -93,6 +97,7 @@ struct LaunchArguments: Sendable {
         openDetailLayout = arguments.contains("-openDetailLayout")
         previewLock = arguments.contains("-previewLock")
         measureSave = arguments.contains("-measureSave")
+        pickParticipants = arguments.contains("-pickParticipants")
         startDemo = arguments.contains("-startDemo")
         func value(after flag: String) -> String? {
             guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
@@ -104,5 +109,6 @@ struct LaunchArguments: Sendable {
         timeSlice = value(after: "-timeSlice").flatMap { Int($0) }
         filterTag = value(after: "-filterTag")
         tagInput = value(after: "-tagInput")
+        pickerSearch = value(after: "-pickerSearch")
     }
 }
