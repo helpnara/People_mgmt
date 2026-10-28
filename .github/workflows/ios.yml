@@ -512,6 +512,9 @@ jobs:
       - name: 화면 이동 시험 (아이폰 · 아이패드)
         run: |
           status=0
+          # 스크린샷 단계가 띄워 둔 시뮬레이터(아이폰 · 스토어용 아이폰 · 아이패드)를 모두 끄고 시작한다 — 셋이 켜진 채로는
+          # 기계가 무거워 시험 도구가 화면을 읽다 시간 초과가 났다(실행 88 · 아이패드 1개). 필요한 기기는 xcodebuild 가 다시 켠다.
+          xcrun simctl shutdown all >/dev/null 2>&1 || true
           DESTS=(-destination "id=${{ steps.sim.outputs.udid }}")
           if [ -n "${{ steps.ipad.outputs.udid }}" ]; then
             DESTS+=(-destination "id=${{ steps.ipad.outputs.udid }}")
