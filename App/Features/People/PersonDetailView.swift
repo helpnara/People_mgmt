@@ -237,6 +237,7 @@ struct PersonDetailView: View {
                             .font(.scaled(15))
                             .foregroundStyle(Color.accent)
                     }
+                    .accessibilityIdentifier("introducerLink")
                 }
             }
             .padding(.vertical, 6)
@@ -279,6 +280,7 @@ struct PersonDetailView: View {
                     NavigationLink(value: other) {
                         PersonRow(person: other, evidence: nil)
                     }
+                    .accessibilityIdentifier("acquaintanceRow")
                 }
             }
         }
@@ -290,6 +292,7 @@ struct PersonDetailView: View {
                 NavigationLink(value: other) {
                     PersonRow(person: other, evidence: nil)
                 }
+                .accessibilityIdentifier("introducedRow")
             }
         }
     }
@@ -321,6 +324,8 @@ struct PersonDetailView: View {
                 }
                 // 기준 5 — 타임라인 줄이 실제로 그려진 때.
                 .onAppear { LaunchTiming.end("상세 타임라인") { "상세 타임라인 첫 줄 그려짐" } }
+                // 화면 이동 시험(UI)이 이 줄을 찾는다 (이슈 50).
+                .accessibilityIdentifier("timelineRow")
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button {
                         pendingRecordDeleteMessage = record.deletionMessage(viewer: person)
