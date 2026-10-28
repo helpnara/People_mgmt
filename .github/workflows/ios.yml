@@ -507,6 +507,31 @@ jobs:
           fi
           echo "전부 찍었습니다."
 
+      # **화면 이동 시험 (UI)** (이슈 50) — 아이폰 · 아이패드에서 앱을 띄워 실제로 눌러 다음 화면이 뜨는지 본다.
+      # 처음 몇 번은 재현용이라 막지 않는다 — 결과는 로그로 본다.
+      - name: 화면 이동 시험 (아이폰 · 아이패드)
+        continue-on-error: true
+        run: |
+          status=0
+          DESTS=(-destination "id=${{ steps.sim.outputs.udid }}")
+          if [ -n "${{ steps.ipad.outputs.udid }}" ]; then
+            DESTS+=(-destination "id=${{ steps.ipad.outputs.udid }}")
+          fi
+          xcodebuild \
+            -project SlowConnection.xcodeproj \
+            -scheme SlowConnectionUITests \
+            -configuration Debug \
+            "${DESTS[@]}" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            test > /tmp/ui-tests.log 2>&1 || status=$?
+          grep -E "Test Case .*(passed|failed)|Executed|error:|XCTAssert|Testing failed|TEST (SUCCEEDED|FAILED)" /tmp/ui-tests.log | tail -80 || true
+          if [ "$status" -ne 0 ]; then
+            echo "── 실패 — 로그 꼬리 ──"
+            tail -150 /tmp/ui-tests.log
+            exit "$status"
+          fi
+
       # **큰 견본으로 화면 시간** (요구사항 8.5 · 사람 5,000 · 기록 50,000). 로그에만 남긴다 — 막는 검사가 아니라
       # "느린 곳만 고친다" 의 숫자를 모으는 자리다. 견본 채우기 자체가 수십 초라 넉넉히 기다린다.
       # **Release 로 잰다** (2026-10-22 사용자 · 기준 5) — 내려받는 판과 같은 최적화. Debug 는 수치가 부풀어 판단에 못 쓴다.

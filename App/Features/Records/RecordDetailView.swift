@@ -51,6 +51,7 @@ struct RecordDetailView: View {
                     NavigationLink(value: person) {
                         PersonRow(person: person, evidence: nil)
                     }
+                    .accessibilityIdentifier("recordParticipantRow")
                 }
             }
             if let note = record.note, !note.isEmpty {

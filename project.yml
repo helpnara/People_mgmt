@@ -119,6 +119,22 @@ targets:
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1,2"
 
+  # **화면 이동 시험 (UI)** (이슈 50) — 시뮬레이터에서 앱을 띄워 실제로 눌러 본다. 앱 테스트와 따로 돌린다(ios.yml).
+  SlowConnectionUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: SlowConnection
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.helpnara.slow.connection.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        TEST_TARGET_NAME: SlowConnection
+
 schemes:
   SlowConnection:
     build:
@@ -133,3 +149,12 @@ schemes:
     # 아카이브는 Release 로 굽는다. 비워 두면 XcodeGen 기본값에 기대게 된다.
     archive:
       config: Release
+  SlowConnectionUITests:
+    build:
+      targets:
+        SlowConnection: all
+        SlowConnectionUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - SlowConnectionUITests
