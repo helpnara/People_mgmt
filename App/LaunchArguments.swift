@@ -44,7 +44,7 @@ struct LaunchArguments: Sendable {
     /// 저장을 일부러 실패시킨다 — 저장 실패 알림 · 입력 유지 · 다시 시도를 본다 (AC-29 · 전수조사 이슈 19).
     /// `-simulateStoreFailure` 는 저장소 **열기** 실패, 이것은 **저장** 실패.
     let failSaves: Bool
-    /// 관계도의 시점 막대를 이 자리로 (`-timeSlice 2` — 0 이 가장 이른 분기). 지난 시점의 관계도를 찍으려고 (D-32).
+    /// 관계도의 시점 막대를 이 자리로 (`-timeSlice 2` — 0 이 가장 이른 해. `-timeSlice 2025` 처럼 1000 이상이면 그 해). 지난 시점의 관계도를 찍으려고 (D-32).
     let timeSlice: Int?
     /// 설정 화면을 바로 연다 (`-openSettings`) — 백업 · 복원 화면을 찍으려고 (D-34).
     let openSettings: Bool

@@ -50,6 +50,8 @@ public struct RecordType: Equatable, Hashable, Sendable, Identifiable {
     public static let all: [RecordType] = [
         RecordType(key: "conversation", label: "대화", symbol: "bubble.left.and.bubble.right"),
         RecordType(key: "meal", label: "식사", symbol: "fork.knife"),
+        // 친목 (2026-10-28 사용자) — 모임 · 술자리 · 동호회처럼 친해지려고 만난 자리.
+        RecordType(key: "social", label: "친목", symbol: "person.2"),
         RecordType(key: "meeting", label: "회의", symbol: "person.3"),
         RecordType(key: "collaboration", label: "프로젝트·협업", symbol: "briefcase"),
         RecordType(key: "trip", label: "출장", symbol: "airplane"),

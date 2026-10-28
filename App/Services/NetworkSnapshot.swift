@@ -61,7 +61,7 @@ struct NetworkSnapshot: Sendable {
         var singleParticipantRecords: [UUID] = []
     }
 
-    /// **지난 시점의 관계도** (D-32) — 분기 끝마다 창 12개월로 다시 센 진한 선 · 모임, 그리고 모임이 어떻게 변했나.
+    /// **지난 시점의 관계도** (D-32) — 해 끝마다 창 12개월로 (D-59) 다시 센 진한 선 · 모임, 그리고 모임이 어떻게 변했나.
     /// 사람은 `people` 의 자리로 가리킨다. 자리(배치)는 화면이 시점을 고를 때 지금 자리에서 출발해 셈한다.
     struct Timeline: Sendable {
         struct Link: Sendable {
@@ -72,7 +72,7 @@ struct NetworkSnapshot: Sendable {
 
         struct Slice: Sendable, Identifiable {
             let id: Int
-            /// `2025년 3분기`
+            /// `2025년`
             let label: String
             let day: Int
             /// 앱을 쓰기 전 시기 — 적어 넣은 만큼만 되살아나므로 옅게 그린다.
@@ -81,7 +81,7 @@ struct NetworkSnapshot: Sendable {
             let present: [Int]
             let links: [Link]
             let communities: [Community]
-            /// 앞 분기와 같은 모임 수 (`그대로` · 빌드 16) — 변화 목록에는 넣지 않고 시점 설명에 쓴다.
+            /// 전 해와 같은 모임 수 (`그대로` · 빌드 16) — 변화 목록에는 넣지 않고 시점 설명에 쓴다.
             var steady = 0
         }
 
@@ -330,29 +330,26 @@ enum NetworkSnapshotBuilder {
         return result
     }
 
-    /// 분기 끝마다 지난 시점의 관계도를 센다 (D-32). 첫 기록의 분기부터 지난 분기까지, 많아야 40개(10년).
+    /// 해 끝마다 지난 시점의 관계도를 센다 (D-32 · D-59 — 2026-10-28 사용자: 분기별로는 큰 의미가 없어 해마다로).
+    /// 첫 기록의 해부터 지난해까지, 많아야 20개(20년). 창이 365일이라 시점 하나가 그 해 1년이다.
     /// 번호는 **이름 순** — 점 차례가 늘 같게. 지난 시점의 모임 이름은 소속을 쓰지 않는다(소속에는 날짜가 없다).
     private static func makeTimeline(people: [NetworkSnapshot.PersonInfo], nameOrder: [UUID], index: [UUID: Int],
                                      introducedBy: [UUID: UUID], recordDays: [Int], participantLists: [[UUID]],
                                      ties: [(UUID, UUID)], now: Date, today: Int, usageStart: Int,
                                      calendar: Calendar) -> NetworkSnapshot.Timeline {
         guard let firstDay = recordDays.min() else { return NetworkSnapshot.Timeline() }
-        // 분기 끝 날 — 오늘 이전에 끝난 분기만. `Calendar` 의 분기(.quarter)는 믿기 어려워 해 · 달로 센다.
+        // 해 끝 날 — 오늘 이전에 끝난 해만. 올해는 맨 오른쪽 `지금`(오늘까지 12개월)이 맡는다.
         var ends: [(day: Int, label: String)] = []
         let firstDate = Date(timeIntervalSinceReferenceDate: Double(firstDay) * 86_400 + 43_200)
         var year = calendar.component(.year, from: firstDate)
-        var number = (calendar.component(.month, from: firstDate) - 1) / 3 + 1
-        while ends.count < 400 {
-            // 다음 분기 첫날 0시 − 1초 = 이 분기의 마지막 순간.
-            let nextYear = number == 4 ? year + 1 : year
-            let nextMonth = number == 4 ? 1 : number * 3 + 1
-            guard let nextStart = calendar.date(from: DateComponents(year: nextYear, month: nextMonth, day: 1)),
+        while ends.count < 200 {
+            // 다음 해 1월 1일 0시 − 1초 = 이 해의 마지막 순간.
+            guard let nextStart = calendar.date(from: DateComponents(year: year + 1, month: 1, day: 1)),
                   nextStart <= now else { break }
-            ends.append((DayIndex.of(nextStart.addingTimeInterval(-1), calendar: calendar), "\(year)년 \(number)분기"))
-            year = nextYear
-            number = number == 4 ? 1 : number + 1
+            ends.append((DayIndex.of(nextStart.addingTimeInterval(-1), calendar: calendar), "\(year)년"))
+            year += 1
         }
-        ends = Array(ends.suffix(40))
+        ends = Array(ends.suffix(20))
         guard !ends.isEmpty else { return NetworkSnapshot.Timeline() }
 
         var node: [UUID: Int] = [:]
@@ -494,7 +491,7 @@ enum NetworkSnapshotBuilder {
     }
 }
 
-/// **모임 짝짓기 문턱** (설정 · D-39) — 앞 분기 모임과 이번 분기 모임을 같은 모임으로 볼 겹침 정도.
+/// **모임 짝짓기 문턱** (설정 · D-39) — 전 해 모임과 그 해 모임을 같은 모임으로 볼 겹침 정도.
 ///
 /// 작은 쪽의 절반 이상이 겹치면 이 설정과 상관없이 같은 모임이다(`TemporalNetwork.inclusionThreshold`). 이 설정은 겹침이
 /// 절반이 안 될 때만 판정을 바꾼다. 기본은 0.3 — 비교 표(`Tools/golden/compare-thresholds.py`)를 보고 사용자가 골랐다.
