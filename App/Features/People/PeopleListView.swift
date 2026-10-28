@@ -31,7 +31,6 @@ struct PeopleListView: View {
     @State private var selectedPersonID: UUID?
     @State private var detailPath = NavigationPath()
     @State private var networkPath = NavigationPath()
-    @State private var graphPersonID: UUID?
     @State private var searchText = ""
     /// 목록 정렬 (FR-027). 기기 편의라 UserDefaults.
     @AppStorage("people.sort") private var sortOption: PeopleSortOption = .name
@@ -629,7 +628,6 @@ struct PeopleListView: View {
     private func openSection(_ next: AppSection) {
         section = next
         networkPath = NavigationPath()
-        graphPersonID = nil
     }
 
     /// 목록의 사람 한 줄 — 아이폰은 상세로 넘어가고, 아이패드는 오른쪽에 연다(고른 줄은 옅게 칠한다).
@@ -725,40 +723,15 @@ struct PeopleListView: View {
         }
     }
 
-    /// 내 인맥 칸. 관계도는 **위 4분의 3**, 누른 사람은 **아래 4분의 1** (이슈 32 · 2026-10-20 사용자 — 왼쪽 바는 그대로 두고,
-    /// 가로로 셋으로 나누면 관계도가 작다. 빌드 25 의 3분의 2 도 가로 화면에서 작아 다른 칸을 줄여서라도 관계도를 크게). 아래 칸은 늘 두어 사람을 누를 때 관계도 크기가 바뀌지 않게 (이슈 29 와 같은 까닭).
-    /// 다른 칸(특성 · 돌아보기 · 입력 상태)은 칸 전체를 쓴다.
-    /// 관계도 칸도 쌓기는 하나다(이슈 50) — 아래 칸 안에서 더 들어가면 칸 전체에 열리고, 뒤로 가면 관계도로 돌아온다.
-    @ViewBuilder
+    /// 내 인맥 칸 — 칸 전체를 쓴다. 관계도는 **칸 전체 높이**, 누른 사람은 관계도 위에 **떠 있는 요약 카드** (이슈 51 · 2026-10-28 사용자 —
+    /// 빌드 25~35 의 아래 4분의 1 칸에 사람 상세 전체를 두니 보기 불편했다). 카드의 `자세히 보기` 는 칸 전체에 상세를 열고,
+    /// 뒤로 가면 관계도로 돌아온다 — 쌓기는 하나다 (이슈 50 · D-57).
     private func networkPane(_ tab: NetworkView.Tab) -> some View {
-        if tab == .graph {
-            NavigationStack(path: $networkPath) {
-                GeometryReader { proxy in
-                    VStack(spacing: 0) {
-                        NetworkView(initialTab: .graph, showsTabs: false, onSelectPerson: { graphPersonID = $0 })
-                            .frame(height: proxy.size.height * 3 / 4)
-                        Divider()
-                        Group {
-                            if let id = graphPersonID {
-                                PersonByIDView(id: id)
-                                    .id(id)
-                            } else {
-                                ContentUnavailableView("점을 누르세요", systemImage: "hand.tap",
-                                                       description: Text("관계도에서 사람을 누르면 여기에 그 사람과의 인연이 보입니다. 두 손가락으로 키우고 옮기고, 두 번 누르면 처음 크기로."))
-                            }
-                        }
-                        .frame(maxHeight: .infinity)
-                    }
-                }
+        NavigationStack(path: $networkPath) {
+            NetworkView(initialTab: tab, showsTabs: false, floatsCard: tab == .graph)
                 .appDestinations()
-            }
-        } else {
-            NavigationStack(path: $networkPath) {
-                NetworkView(initialTab: tab, showsTabs: false)
-                    .appDestinations()
-            }
-            .id(tab)
         }
+        .id(tab)
     }
 
     /// 목록 칸 너비 — 글자 크기를 따르되 너무 좁거나 넓지 않게.

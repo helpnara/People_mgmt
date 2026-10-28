@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 /// **화면 이동 시험** (이슈 50 · 2026-10-28 사용자 — 아이패드에서 사람 상세의 타임라인 기록이 열리지 않았다).
@@ -69,5 +70,21 @@ final class NavigationUITests: XCTestCase {
         tapWhenReady(app.buttons["recordParticipantRow"].firstMatch, in: app, "함께한 사람")
         let opened = app.navigationBars.matching(NSPredicate(format: "identifier IN %@", ["김하늘", "정유진"])).firstMatch
         XCTAssertTrue(opened.waitForExistence(timeout: 10), "함께한 사람을 눌러도 그 사람 상세가 뜨지 않는다\n\(screen(app))")
+    }
+
+    /// 아이패드 관계도 → 떠 있는 요약 카드 → 자세히 보기 → 그 사람 상세 → 뒤로 → 카드 그대로 (이슈 51).
+    /// 아이폰에는 떠 있는 카드가 없다(관계도 아래 사람 칸) — 건너뛴다.
+    @MainActor
+    func testGraphCardOpensPersonDetailOnIPad() throws {
+        try XCTSkipUnless(UIDevice.current.userInterfaceIdiom == .pad, "떠 있는 카드는 아이패드에만 있다")
+        let app = launch(["-seedCommunitySample", "-openNetwork", "graph", "-graphSelect", "김하늘"])
+        tapWhenReady(app.buttons["graphCardDetail"].firstMatch, in: app, "카드의 자세히 보기")
+        let detail = app.navigationBars["김하늘"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 10), "카드의 자세히 보기를 눌러도 사람 상세가 뜨지 않는다\n\(screen(app))")
+        // 뒤로 단추는 앞 화면 제목(관계도)을 단다 — 글자가 접히면 첫 단추로.
+        let titled = detail.buttons["관계도"]
+        let back = titled.waitForExistence(timeout: 5) ? titled : detail.buttons.element(boundBy: 0)
+        back.tap()
+        XCTAssertTrue(app.buttons["graphCardDetail"].waitForExistence(timeout: 10), "뒤로 가면 관계도와 카드가 그대로 있다\n\(screen(app))")
     }
 }
