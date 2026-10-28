@@ -655,30 +655,34 @@ struct PeopleListView: View {
 
     // MARK: - 아이패드 (이슈 32)
 
-    /// 왼쪽 바 · 오른쪽 칸. 세로로 돌리면 왼쪽 바는 숨김 단추로 접힌다(시스템 기본).
+    /// 아이패드 칸 나누기 — **한 칸에 화면 쌓기(NavigationStack)는 하나만** (이슈 50).
+    ///
+    /// 빌드 25~34 는 왼쪽 바 옆 한 칸 안에 목록 쌓기와 상세 쌓기를 나란히 두었다. 그러면 시스템이 상세 쪽 쌓기를 따로 보지 않아,
+    /// 상세 안의 링크(타임라인 기록 · 소개자 · 소개한 인연 · 아는 사이 · 함께한 사람)를 눌러도 목적지가 없는 목록 쪽으로 가서
+    /// 아무 일도 없었다(화면 이동 시험 · 아이패드 4개 모두 실패). 그래서 사람 칸은 애플이 권하는 **세 칸 분할**(왼쪽 바 · 목록 · 상세)로,
+    /// 다른 칸은 두 칸 분할로 둔다. 칸을 바꾸면 분할 화면이 새로 만들어지지만, 고른 칸 · 사람은 상태로 남는다.
+    @ViewBuilder
     private var wideLayout: some View {
-        NavigationSplitView {
-            List(selection: Binding(get: { section }, set: { if let next = $0 { openSection(next) } })) {
-                Section {
-                    Label("사람", systemImage: "person.2").tag(AppSection.people)
-                }
-                Section("내 인맥") {
-                    ForEach(NetworkView.Tab.allCases) { tab in
-                        Label(tab.label, systemImage: tab.symbol).tag(AppSection.network(tab))
-                    }
-                }
-                Section {
-                    Label("설정", systemImage: "gearshape").tag(AppSection.settings)
-                }
+        switch section ?? .people {
+        case .people:
+            NavigationSplitView {
+                sidebar
+            } content: {
+                home
+                    .navigationSplitViewColumnWidth(min: 320, ideal: Self.listWidth, max: 460)
+            } detail: {
+                personDetailStack
             }
-            .navigationTitle("느린 인연")
-        } detail: {
-            switch section ?? .people {
-            case .people:
-                peoplePane
-            case .network(let tab):
+        case .network(let tab):
+            NavigationSplitView {
+                sidebar
+            } detail: {
                 networkPane(tab)
-            case .settings:
+            }
+        case .settings:
+            NavigationSplitView {
+                sidebar
+            } detail: {
                 NavigationStack {
                     SettingsView()
                         .appDestinations()
@@ -687,44 +691,53 @@ struct PeopleListView: View {
         }
     }
 
-    /// 사람 칸 — 왼쪽에 목록, 오른쪽에 고른 사람. 오른쪽 안에서 기록 · 소개한 사람으로 더 들어간다.
-    private var peoplePane: some View {
-        HStack(spacing: 0) {
-            NavigationStack {
-                home
+    /// 왼쪽 바 — 사람 · 내 인맥 넷 · 설정. 세로로 돌리면 숨김 단추로 접힌다(시스템 기본).
+    private var sidebar: some View {
+        List(selection: Binding(get: { section }, set: { if let next = $0 { openSection(next) } })) {
+            Section {
+                Label("사람", systemImage: "person.2").tag(AppSection.people)
             }
-            .frame(width: Self.listWidth)
-            Divider()
-            NavigationStack(path: $detailPath) {
-                Group {
-                    if let id = selectedPersonID {
-                        PersonByIDView(id: id)
-                            .id(id)
-                    } else {
-                        ContentUnavailableView("사람을 고르세요", systemImage: "person.crop.rectangle",
-                                               description: Text("왼쪽 목록에서 사람을 누르면 여기에 그 사람과의 인연이 보입니다."))
-                    }
+            Section("내 인맥") {
+                ForEach(NetworkView.Tab.allCases) { tab in
+                    Label(tab.label, systemImage: tab.symbol).tag(AppSection.network(tab))
                 }
-                .appDestinations()
             }
+            Section {
+                Label("설정", systemImage: "gearshape").tag(AppSection.settings)
+            }
+        }
+        .navigationTitle("느린 인연")
+    }
+
+    /// 사람 칸의 상세 — 분할 화면의 상세 칸 뿌리가 쌓기 하나다. 상세 안에서 기록 · 소개한 사람으로 더 들어간다.
+    private var personDetailStack: some View {
+        NavigationStack(path: $detailPath) {
+            Group {
+                if let id = selectedPersonID {
+                    PersonByIDView(id: id)
+                        .id(id)
+                } else {
+                    ContentUnavailableView("사람을 고르세요", systemImage: "person.crop.rectangle",
+                                           description: Text("왼쪽 목록에서 사람을 누르면 여기에 그 사람과의 인연이 보입니다."))
+                }
+            }
+            .appDestinations()
         }
     }
 
     /// 내 인맥 칸. 관계도는 **위 4분의 3**, 누른 사람은 **아래 4분의 1** (이슈 32 · 2026-10-20 사용자 — 왼쪽 바는 그대로 두고,
     /// 가로로 셋으로 나누면 관계도가 작다. 빌드 25 의 3분의 2 도 가로 화면에서 작아 다른 칸을 줄여서라도 관계도를 크게). 아래 칸은 늘 두어 사람을 누를 때 관계도 크기가 바뀌지 않게 (이슈 29 와 같은 까닭).
     /// 다른 칸(특성 · 돌아보기 · 입력 상태)은 칸 전체를 쓴다.
+    /// 관계도 칸도 쌓기는 하나다(이슈 50) — 아래 칸 안에서 더 들어가면 칸 전체에 열리고, 뒤로 가면 관계도로 돌아온다.
     @ViewBuilder
     private func networkPane(_ tab: NetworkView.Tab) -> some View {
         if tab == .graph {
-            GeometryReader { proxy in
-                VStack(spacing: 0) {
-                    NavigationStack(path: $networkPath) {
+            NavigationStack(path: $networkPath) {
+                GeometryReader { proxy in
+                    VStack(spacing: 0) {
                         NetworkView(initialTab: .graph, showsTabs: false, onSelectPerson: { graphPersonID = $0 })
-                            .appDestinations()
-                    }
-                    .frame(height: proxy.size.height * 3 / 4)
-                    Divider()
-                    NavigationStack {
+                            .frame(height: proxy.size.height * 3 / 4)
+                        Divider()
                         Group {
                             if let id = graphPersonID {
                                 PersonByIDView(id: id)
@@ -734,10 +747,10 @@ struct PeopleListView: View {
                                                        description: Text("관계도에서 사람을 누르면 여기에 그 사람과의 인연이 보입니다. 두 손가락으로 키우고 옮기고, 두 번 누르면 처음 크기로."))
                             }
                         }
-                        .appDestinations()
+                        .frame(maxHeight: .infinity)
                     }
-                    .frame(maxHeight: .infinity)
                 }
+                .appDestinations()
             }
         } else {
             NavigationStack(path: $networkPath) {
