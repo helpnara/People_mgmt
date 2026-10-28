@@ -523,9 +523,17 @@ jobs:
             -configuration Debug \
             "${DESTS[@]}" \
             -derivedDataPath build \
+            -disable-concurrent-destination-testing \
             CODE_SIGNING_ALLOWED=NO \
             test > /tmp/ui-tests.log 2>&1 || status=$?
-          grep -E "Test Case .*(passed|failed)|Executed|error:|XCTAssert|Testing failed|TEST (SUCCEEDED|FAILED)" /tmp/ui-tests.log | tail -80 || true
+          # 기기를 차례로 돌려 실패 문구(제목 막대 · 화면 구조)가 로그에 찍히게 한다.
+          grep -iE "Test Case .*(passed|failed)|Executed|error:|XCTAssert|Testing (failed|passed)|TEST (SUCCEEDED|FAILED)" /tmp/ui-tests.log | tail -80 || true
+          RESULT=$(ls -td build/Logs/Test/*SlowConnectionUITests*.xcresult 2>/dev/null | head -1)
+          if [ -n "$RESULT" ]; then
+            echo "── 실패 까닭 (xcresult) ──"
+            xcrun xcresulttool get test-results tests --path "$RESULT" 2>/dev/null | head -c 30000 || true
+            echo
+          fi
           if [ "$status" -ne 0 ]; then
             echo "── 실패 — 로그 꼬리 ──"
             tail -150 /tmp/ui-tests.log

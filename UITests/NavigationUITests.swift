@@ -18,10 +18,17 @@ final class NavigationUITests: XCTestCase {
         return app
     }
 
+    /// 실패했을 때 화면에 무엇이 있었는지 — 로그로만 보는 원격 세션의 눈 (이슈 50).
+    @MainActor
+    private func screen(_ app: XCUIApplication) -> String {
+        let bars = app.navigationBars.allElementsBoundByIndex.map(\.identifier)
+        return "보이는 제목 막대: \(bars)\n" + String(app.debugDescription.prefix(5000))
+    }
+
     /// 찾은 단추를 누를 수 있을 때까지 조금씩 올린다.
     @MainActor
     private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication, _ what: String) {
-        XCTAssertTrue(element.waitForExistence(timeout: 15), "\(what) 이(가) 보이지 않는다")
+        XCTAssertTrue(element.waitForExistence(timeout: 15), "\(what) 이(가) 보이지 않는다\n\(screen(app))")
         var tries = 0
         while !element.isHittable && tries < 6 {
             app.swipeUp()
@@ -36,7 +43,7 @@ final class NavigationUITests: XCTestCase {
         let app = launch(["-openPerson", "김하늘", "-detail.layout", "timeline"])
         tapWhenReady(app.buttons["timelineRow"].firstMatch, in: app, "타임라인 기록")
         let stamp = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "만든 날")).firstMatch
-        XCTAssertTrue(stamp.waitForExistence(timeout: 10), "타임라인 기록을 눌러도 기록 상세가 뜨지 않는다")
+        XCTAssertTrue(stamp.waitForExistence(timeout: 10), "타임라인 기록을 눌러도 기록 상세가 뜨지 않는다\n\(screen(app))")
     }
 
     /// 사람 상세 → 소개한 인연 → 그 사람 상세.
@@ -44,7 +51,7 @@ final class NavigationUITests: XCTestCase {
     func testIntroducedPersonOpensPersonDetail() {
         let app = launch(["-openPerson", "김하늘", "-detail.layout", "introduced"])
         tapWhenReady(app.buttons["introducedRow"].firstMatch, in: app, "소개한 인연")
-        XCTAssertTrue(app.navigationBars["박서연"].waitForExistence(timeout: 10), "소개한 인연을 눌러도 그 사람 상세가 뜨지 않는다")
+        XCTAssertTrue(app.navigationBars["박서연"].waitForExistence(timeout: 10), "소개한 인연을 눌러도 그 사람 상세가 뜨지 않는다\n\(screen(app))")
     }
 
     /// 사람 상세 → 맨 위 칸의 소개자 → 소개자 상세.
@@ -52,7 +59,7 @@ final class NavigationUITests: XCTestCase {
     func testIntroducerLinkOpensPersonDetail() {
         let app = launch(["-openPerson", "박서연"])
         tapWhenReady(app.buttons["introducerLink"].firstMatch, in: app, "소개자")
-        XCTAssertTrue(app.navigationBars["김하늘"].waitForExistence(timeout: 10), "소개자를 눌러도 소개자 상세가 뜨지 않는다")
+        XCTAssertTrue(app.navigationBars["김하늘"].waitForExistence(timeout: 10), "소개자를 눌러도 소개자 상세가 뜨지 않는다\n\(screen(app))")
     }
 
     /// 기록 상세 → 함께한 사람 → 그 사람 상세. 기록 상세는 실행 인자로 연다(코드로 쌓는 길).
@@ -61,6 +68,6 @@ final class NavigationUITests: XCTestCase {
         let app = launch(["-openPerson", "김하늘", "-openRecord"])
         tapWhenReady(app.buttons["recordParticipantRow"].firstMatch, in: app, "함께한 사람")
         let opened = app.navigationBars.matching(NSPredicate(format: "identifier IN %@", ["김하늘", "정유진"])).firstMatch
-        XCTAssertTrue(opened.waitForExistence(timeout: 10), "함께한 사람을 눌러도 그 사람 상세가 뜨지 않는다")
+        XCTAssertTrue(opened.waitForExistence(timeout: 10), "함께한 사람을 눌러도 그 사람 상세가 뜨지 않는다\n\(screen(app))")
     }
 }
