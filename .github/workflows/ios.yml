@@ -368,6 +368,8 @@ jobs:
           # 상세 화면 칸 (D-56) — 설정 화면과, 차례를 바꾸고 관계 돌아보기를 숨긴 상세(실행 인자로 UserDefaults 를 이번 실행에만 덮는다).
           shoot 37-detail-layout.png -seedSampleData -openSettings -openDetailLayout
           shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
+          # 함께한 사람 고르기의 검색 (이슈 49) — 검색 칸이 늘 보이고, 초성 ㅈㅇ 으로 거른 결과.
+          shoot 39-participant-search.png -seedSampleData -openPerson 김하늘 -addRecord -pickParticipants -pickerSearch ㅈㅇ
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord

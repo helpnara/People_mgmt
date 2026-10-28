@@ -32,6 +32,8 @@ struct RecordEditView: View {
     @FocusState private var titleFocused: Bool
     /// 최근 함께한 사람 (빌드 16) — 최근 기록부터 처음 보이는 사람 8명. 사람 수가 바뀔 때 한 번 센다.
     @State private var recentPeople: [Person] = []
+    /// CI 스크린샷 — 함께한 사람 고르기를 바로 연다 (`-pickParticipants` · 이슈 49).
+    @State private var pickingParticipants = LaunchArguments.current.pickParticipants
     /// 지난 기록의 장소 — 눌러야 들어간다 (빌드 16). 저절로 채우면 틀린 장소가 저장되기 쉽다.
     private let lastLocation = RecordMemory.lastLocation
 
@@ -126,6 +128,9 @@ struct RecordEditView: View {
             .task { await showTagInputForScreenshot(proxy) }
             }
             .scrollDismissesKeyboard(.interactively)
+            .navigationDestination(isPresented: $pickingParticipants) {
+                PeopleMultiPickerView(people: candidates, selection: $draft.participants, locked: anchor)
+            }
             .navigationTitle(isCreate ? "기록 추가" : "기록 수정")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
