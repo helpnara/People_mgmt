@@ -458,6 +458,8 @@ jobs:
             shoot ipad/03-person-detail.png -seedSampleData -openPerson 김하늘
             # **아이패드 칸 나누기** (이슈 32) — 왼쪽 바 · 관계도 크게 + 오른쪽 사람 칸 · 입력 상태.
             shoot ipad/04-network-graph.png -seedSampleData -seedCommunitySample -openNetwork graph
+            # **관계도에서 누른 사람** (이슈 51) — 관계도 위에 떠 있는 요약 카드.
+            shoot ipad/06-graph-card.png -seedSampleData -seedCommunitySample -openNetwork graph -graphSelect 김하늘
             shoot ipad/05-readiness.png -seedSampleData -openNetwork readiness
             UDID="${{ steps.sim.outputs.udid }}"
           else

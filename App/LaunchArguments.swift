@@ -70,6 +70,8 @@ struct LaunchArguments: Sendable {
     let pickParticipants: Bool
     /// 사람 고르기 화면의 검색어 (`-pickerSearch ㅈㅇ` · 이슈 49).
     let pickerSearch: String?
+    /// 아이패드 관계도에서 이 이름의 점을 누른 채로 연다 (`-graphSelect 김하늘` · 이슈 51) — 떠 있는 요약 카드를 찍으려고.
+    let graphSelect: String?
     /// 견본 둘러보기를 바로 연다 (`-startDemo` · D-55 · CI 스크린샷).
     let startDemo: Bool
 
@@ -110,5 +112,6 @@ struct LaunchArguments: Sendable {
         filterTag = value(after: "-filterTag")
         tagInput = value(after: "-tagInput")
         pickerSearch = value(after: "-pickerSearch")
+        graphSelect = value(after: "-graphSelect")
     }
 }

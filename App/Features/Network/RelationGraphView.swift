@@ -24,8 +24,9 @@ struct RelationGraphView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     /// 관계도 설명 시트 — 큰 글씨에서 설명 글을 관계도 밖으로 옮긴다 (이슈 26).
-    /// 사람을 누를 때 (아이패드 · 이슈 32) — 있으면 관계도 아래 사람 카드 대신 바깥(아래 칸)에 연다.
-    var onSelectPerson: ((UUID?) -> Void)? = nil
+    /// 아이패드 (이슈 32 · 51) — 누른 사람을 관계도 위에 떠 있는 요약 카드로 보인다(`GraphPersonCard`).
+    /// 아니면(아이폰) 관계도 아래 사람 칸에서 상세로 넘어간다.
+    var floatsCard = false
 
     @State private var showsGuide = false
     @State private var scale: CGFloat = 1
@@ -37,6 +38,10 @@ struct RelationGraphView: View {
     @State private var showsOrganization = true
     @State private var selected: Int?
     @State private var selectedDetail = ""
+    /// 고른 사람의 id — 자료를 다시 만들어도(상세에서 기록을 더하고 돌아올 때) 떠 있는 카드를 그대로 둔다 (이슈 51).
+    @State private var selectedID: UUID?
+    /// 떠 있는 카드의 귀퉁이 — 누른 점의 맞은편 (이슈 51).
+    @State private var cardAlignment: Alignment = .bottomTrailing
     @State private var typeChips: [String] = []
     /// 사람 자리마다 관계 유형의 이름 열쇠 — 칩 강조를 그릴 때마다 세지 않게.
     @State private var typeKeys: [String] = []
@@ -77,8 +82,8 @@ struct RelationGraphView: View {
     /// 이때는 거르기를 차림표 하나로 접고 설명은 시트로 옮겨, **관계도 칸이 먼저** 자리를 갖는다.
     private var compact: Bool { typeSize.isAccessibilitySize }
     /// 아이패드 관계도 칸 (이슈 32 · 빌드 25 사용자 — 관계도가 여전히 작다). 위 거르기를 한 줄로, 시점 설명을 한 줄로 줄여
-    /// 관계도 칸이 높이를 갖는다. 누른 사람 · 안내는 아래 칸이 맡는다.
-    private var wide: Bool { onSelectPerson != nil && !compact }
+    /// 관계도 칸이 높이를 갖는다. 누른 사람은 관계도 위에 떠 있는 카드가 맡는다 (이슈 51).
+    private var wide: Bool { floatsCard && !compact }
     private var meIndex: Int { snapshot.people.count }
     private var timeline: NetworkSnapshot.Timeline { snapshot.timeline }
     private var slice: NetworkSnapshot.Timeline.Slice? {
@@ -136,11 +141,25 @@ struct RelationGraphView: View {
                 .onTapGesture { location in
                     selected = nearest(to: location, size: size)
                     selectedDetail = selected.map { detail(forIndex: $0) } ?? ""
-                    // 빈 곳을 누르면 아래 칸은 그대로 둔다 — 고른 사람만 바꾼다.
-                    if let i = selected, i < snapshot.people.count { onSelectPerson?(snapshot.people[i].id) }
+                    selectedID = selected.flatMap { $0 < snapshot.people.count ? snapshot.people[$0].id : nil }
+                    // 카드는 누른 점의 맞은편 귀퉁이로 — 누른 점과 그 둘레를 가리지 않게 (이슈 51).
+                    cardAlignment = Alignment(horizontal: location.x > size.width / 2 ? .leading : .trailing,
+                                              vertical: location.y > size.height / 2 ? .top : .bottom)
                 }
                 .accessibilityElement()
                 .accessibilityLabel("관계도 \(slice?.label ?? "지금") — 사람 \(snapshot.people.count)명. 위의 특성 · 돌아보기 칸에서 목록으로 볼 수 있습니다.")
+            }
+            .overlay(alignment: cardAlignment) {
+                if floatsCard, let selectedID, let selected, selected < snapshot.people.count {
+                    GraphPersonCard(id: selectedID, detail: selectedDetail) {
+                        self.selected = nil
+                        self.selectedID = nil
+                    }
+                    .id(selectedID)
+                    .frame(maxWidth: min(Font.scaledLength(340), 460))
+                    .padding(16)
+                    .transition(.opacity)
+                }
             }
             // 큰 글씨에서도 관계도 칸은 줄어 없어지지 않는다 (이슈 26). 둘레는 위에서 짧게 접었다.
             .frame(minHeight: compact ? 240 : 0)
@@ -198,6 +217,15 @@ struct RelationGraphView: View {
             }
             refreshMembership()
             groupsItem = InputReadiness.evaluate(snapshot.readiness).first { $0.feature == .groups }
+            // 떠 있는 카드는 같은 사람을 새 자료에서 다시 찾는다 (이슈 51). CI 스크린샷은 이름으로 미리 고른다 (`-graphSelect`).
+            if floatsCard {
+                if selectedID == nil, let name = LaunchArguments.current.graphSelect {
+                    selectedID = snapshot.people.first { $0.name == name }?.id
+                }
+                selected = selectedID.flatMap { id in snapshot.people.firstIndex { $0.id == id } }
+                if selected == nil { selectedID = nil }
+                selectedDetail = selected.map { detail(forIndex: $0) } ?? ""
+            }
         }
         .onChange(of: sliderValue) { _, value in
             let k = Int(value.rounded())
@@ -205,6 +233,7 @@ struct RelationGraphView: View {
             guard next != sliceIndex else { return }
             sliceIndex = next
             selected = nil
+            selectedID = nil
             prepareSlice()
             refreshMembership()
             // 자리가 이미 있으면 바로 옮겨 가고, 없으면 셈이 끝날 때까지 앞 그림을 둔다.
@@ -497,26 +526,34 @@ struct RelationGraphView: View {
             // 관계도 칸 높이가 바뀌지 않게 (이슈 29).
             ZStack(alignment: .topLeading) {
                 // 큰 글씨에서는 잡아 두지 않는다 — 관계도 칸이 먼저 자리를 갖는다 (이슈 26).
-                // 아이패드(누른 사람을 아래 칸에 여는 때)도 잡아 두지 않는다 — 사람 칸 · 안내는 아래 칸이 맡는다 (이슈 32).
-                if !compact && onSelectPerson == nil {
+                // 아이패드(누른 사람을 떠 있는 카드로 보이는 때)도 잡아 두지 않는다 (이슈 32 · 51).
+                if !compact && !floatsCard {
                     personCard(name: " ", detail: " \n ")
                         .hidden()
                         .accessibilityHidden(true)
                 }
-                if let selected, selected < snapshot.people.count, onSelectPerson == nil {
+                if let selected, selected < snapshot.people.count, !floatsCard {
                     let person = snapshot.people[selected]
                     NavigationLink(value: PersonID(id: person.id)) {
                         personCard(name: person.name, detail: selectedDetail)
                     }
                     .buttonStyle(.plain)
-                } else if !compact && onSelectPerson == nil {
+                } else if !compact && !floatsCard {
                     Text(Self.hint)
                         .font(.scaled(13))
                         .foregroundStyle(Color.muted)
                 }
             }
+            // 아이패드는 누른 사람을 관계도 위 카드로 보인다 (이슈 51) — 아래에는 안내 한 줄만, 늘 같은 높이로.
+            if wide {
+                Text(Self.hint)
+                    .font(.scaled(13))
+                    .foregroundStyle(Color.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
             // 큰 글씨에서는 설명 글을 시트로 (이슈 26) — 위 줄 오른쪽의 설명 단추.
-            if !compact && onSelectPerson == nil {
+            if !compact && !floatsCard {
                 // 지난 시점에는 지금의 숫자를 감추되 자리는 둔다 (이슈 29).
                 readiness
                     .opacity(sliceIndex == nil ? 1 : 0)

@@ -47,13 +47,13 @@ struct NetworkView: View {
 
     /// 칸 고르기 — 아이패드는 왼쪽 바가 칸을 고르므로 숨긴다 (이슈 32).
     private let showsTabs: Bool
-    /// 관계도에서 사람을 누를 때 — 아이패드는 오른쪽 칸에 연다. 없으면 관계도 아래 칸에서 상세로 넘어간다.
-    private let onSelectPerson: ((UUID?) -> Void)?
+    /// 관계도에서 누른 사람을 떠 있는 요약 카드로 — 아이패드 (이슈 51). 아니면 관계도 아래 칸에서 상세로 넘어간다.
+    private let floatsCard: Bool
 
-    init(initialTab: Tab = .graph, showsTabs: Bool = true, onSelectPerson: ((UUID?) -> Void)? = nil) {
+    init(initialTab: Tab = .graph, showsTabs: Bool = true, floatsCard: Bool = false) {
         _tab = State(initialValue: initialTab)
         self.showsTabs = showsTabs
-        self.onSelectPerson = onSelectPerson
+        self.floatsCard = floatsCard
     }
 
     var body: some View {
@@ -77,7 +77,7 @@ struct NetworkView: View {
                                                description: Text("사람을 적으면 여기에 인맥이 그려집니다."))
                     } else {
                         switch tab {
-                        case .graph: RelationGraphView(snapshot: snapshot, onSelectPerson: onSelectPerson)
+                        case .graph: RelationGraphView(snapshot: snapshot, floatsCard: floatsCard)
                         case .traits: TraitsView(snapshot: snapshot)
                         case .overview: OverviewView(snapshot: snapshot)
                         case .readiness: ReadinessView(snapshot: snapshot)
