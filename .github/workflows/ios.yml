@@ -391,7 +391,7 @@ jobs:
           shoot 21-network-groups.png -seedSampleData -seedCommunitySample -openNetwork graph
           # **지난 시점의 관계도 · 모임의 변화** (빌드 12 · D-32). 모임 견본의 2025년 3분기(시점 9) — 독서 · 등산 모임이 보이고
           # 프로젝트 모임 사람들은 아직 없다. 돌아보기 아래에 모임의 변화(새로 생긴 모임 · 최근 기록 없음)가 보여야 한다.
-          shoot 22-network-timeline.png -seedSampleData -seedCommunitySample -openNetwork graph -timeSlice 9
+          shoot 22-network-timeline.png -seedSampleData -seedCommunitySample -openNetwork graph -timeSlice 2025
           shoot 23-network-changes.png -seedSampleData -seedCommunitySample -openNetwork overview
           # **설정** (빌드 13 · D-34) — 백업 · 복원 · 개인정보 안내 · 앱 버전.
           shoot 24-settings.png -seedSampleData -openSettings

@@ -87,7 +87,7 @@ public enum TemporalNetwork {
             case .merged: return "두 모임이 이어졌습니다"
             case .split: return "한 모임이 나뉘었습니다"
             case .faded: return "최근 기록 없음"
-            case .steady: return "앞 분기와 같습니다"
+            case .steady: return "전 해와 같습니다"
             case .returned: return "다시 함께한 기록이 생겼습니다"
             }
         }
@@ -223,7 +223,7 @@ public enum TemporalNetwork {
     }
 
     /// **빠르게 (D-47).** 겹치는 사람이 하나도 없는 두 모임은 짝이 될 수 없다(두 문턱 모두 0 보다 크다). 그래서 사람 → 모임
-    /// 색인으로 겹치는 모임만 견준다 — 분기마다 모임이 수백 개여도 모든 쌍을 보지 않는다. 판정 · 차례는 모든 쌍을 볼 때와 같다.
+    /// 색인으로 겹치는 모임만 견준다 — 시점마다 모임이 수백 개여도 모든 쌍을 보지 않는다. 판정 · 차례는 모든 쌍을 볼 때와 같다.
     public static func changes(_ slices: [Slice], threshold: Double = matchThreshold) -> [Change] {
         var events: [Change] = []
         /// 앞에서 최근 기록 없음이 된 모임 — 다시 보이면 `다시 모임`.

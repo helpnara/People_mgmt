@@ -766,6 +766,7 @@ final class GoldenTests: XCTestCase {
     func testRecordTypeFallsBackToOther() {
         XCTAssertEqual(RecordType.named("nope").key, "other")
         XCTAssertEqual(RecordType.named("meal").label, "식사")
-        XCTAssertEqual(RecordType.all.count, 9)
+        XCTAssertEqual(RecordType.all.count, 10)
+        XCTAssertEqual(RecordType.named("social").label, "친목")
     }
 }

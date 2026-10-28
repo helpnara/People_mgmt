@@ -8,7 +8,7 @@ import SwiftUI
 /// - 점은 **모두 같은 크기 · 같은 색**이다 — 크기 · 거리로 사람을 줄 세우지 않는다 (ADR-0004).
 ///   관계 유형 칩을 고르면 그 유형만 진하게 보인다 (사람이 많아 유형마다 색을 나누면 구분이 안 된다).
 /// - 모임 (D-30): 조건이 차면 Louvain 으로 찾은 모임을 옅은 테두리로 감싸고 이름을 단다. 모임 칩을 고르면 그 모임만 진하게.
-/// - **시점 막대** (8번째 묶음 · D-32): 분기 끝마다 12개월 창으로 다시 센 관계도. 지난 시점의 자리는 **지금 자리에서 출발**해
+/// - **시점 막대** (8번째 묶음 · D-32): 해 끝마다 12개월 창으로 다시 센 관계도 (D-59 · 처음엔 분기 끝마다). 지난 시점의 자리는 **지금 자리에서 출발**해
 ///   셈한다 — 같은 사람은 비슷한 자리에 머물고 변한 곳만 움직인다. 앱을 쓰기 전 시기는 옅게.
 ///
 /// 그리기는 프레임마다 돈다 — **사람 전원을 훑는 셈은 자료나 시점이 바뀔 때 상태에 담는다** (CLAUDE.md · 전수조사 이슈 18).
@@ -212,8 +212,10 @@ struct RelationGraphView: View {
             nameRank = rank
             sliderValue = Double(timeline.slices.count)
             // CI 스크린샷 — 지난 시점의 관계도를 바로 연다 (`-timeSlice`).
-            if let k = LaunchArguments.current.timeSlice, k < timeline.slices.count {
-                sliderValue = Double(k)
+            if let k = LaunchArguments.current.timeSlice,
+               let at = k >= 1000 ? timeline.slices.firstIndex(where: { $0.label == "\(k)년" }) : Optional(k),
+               at < timeline.slices.count {
+                sliderValue = Double(at)
             }
             refreshMembership()
             groupsItem = InputReadiness.evaluate(snapshot.readiness).first { $0.feature == .groups }
@@ -435,7 +437,7 @@ struct RelationGraphView: View {
         highlightKey = nil
     }
 
-    /// 시점 막대 (D-32) — 분기 끝마다 · 맨 오른쪽이 지금.
+    /// 시점 막대 (D-32 · D-59) — 해마다 · 맨 오른쪽이 지금.
     private var timeBar: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
@@ -492,7 +494,7 @@ struct RelationGraphView: View {
     /// 시점 막대 아래 한 줄 — 그 시점에 무엇을 보고 있나.
     private var timeLine: String {
         guard let slice else {
-            return "막대를 왼쪽으로 옮기면 분기마다 그 전 12개월의 기록으로 다시 그린 관계도를 봅니다."
+            return "막대를 왼쪽으로 옮기면 해마다 그 해 12개월의 기록으로 다시 그린 관계도를 봅니다."
         }
         var parts: [String]
         switch slice.status {
@@ -502,7 +504,7 @@ struct RelationGraphView: View {
             parts = ["진한 선 \(slice.links.count)개 · 뚜렷하게 나뉘는 모임은 없습니다"]
         case .shown:
             parts = ["모임 \(slice.communities.count)개 · 진한 선 \(slice.links.count)개"]
-            if slice.steady > 0 { parts.append("앞 분기와 같은 모임 \(slice.steady)개") }
+            if slice.steady > 0 { parts.append("전 해와 같은 모임 \(slice.steady)개") }
         }
         parts.append("그 시점에 있던 사람 \(slice.present.count)명")
         var line = parts.joined(separator: " · ") + "."
