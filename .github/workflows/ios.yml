@@ -468,6 +468,17 @@ jobs:
             echo "::warning::iPad 시뮬레이터가 없어 iPad 스크린샷을 건너뜁니다"
           fi
 
+          # 스토어용 기기는 언어 · 지역을 한국어로 — 아이패드 상태 바의 날짜(Fri Oct 30)와 날짜 고르개(10/30/26)가
+          # 영어 형식으로 나오지 않게. 바꾼 뒤 다시 켜야 시스템 화면에 든다 (이슈 56).
+          korean() {
+            xcrun simctl spawn "$1" defaults write -g AppleLanguages -array ko-KR en
+            xcrun simctl spawn "$1" defaults write -g AppleLocale ko_KR
+            xcrun simctl shutdown "$1" || true
+            xcrun simctl boot "$1" || true
+            xcrun simctl bootstatus "$1" -b
+            status_bar "$1"
+          }
+
           # ── 스토어용 (6.9형 iPhone · 13형 iPad) — 견본 안내 띠를 숨긴다(-storeShots). 사람은 모두 지어낸 견본이다. ──
           STORE="${{ steps.store.outputs.udid }}"
           if [ -n "$STORE" ]; then
@@ -476,7 +487,7 @@ jobs:
             SHOOT_WAIT=12; SHOOT_ATTEMPTS=4; SHOOT_MIN=150000
             xcrun simctl boot "$STORE" || true
             xcrun simctl bootstatus "$STORE" -b
-            status_bar "$STORE"
+            korean "$STORE"
             xcrun simctl install "$STORE" "$APP"
             # **원본**(raw) — 스토어에 올릴 합성 이미지는 다음 단계의 Tools/store/compose.py 가 만든다 (2026-10-30 · 설명 + 앱 화면).
             # 6.3형 칸(1206 × 2622)도 이 원본을 줄여 만든다 — 가로세로 비가 거의 같다.
@@ -496,6 +507,8 @@ jobs:
           if [ -n "$IPAD" ]; then
             UDID="$IPAD"
             SHOOT_MIN=250000
+            # 다음 단계(앱 미리보기 녹화)까지 한국어 그대로 쓰고, 그 단계 끝에서 되돌린다.
+            korean "$IPAD"
             mkdir -p screenshots/store/raw/ipad
             shoot store/raw/ipad/01-people.png -seedSampleData -storeShots -openPerson 김하늘
             shoot store/raw/ipad/02-graph-card.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -graphSelect 김하늘
@@ -562,6 +575,14 @@ jobs:
           }
           STORE="${{ steps.store.outputs.udid }}"
           IPAD="${{ steps.ipad.outputs.udid }}"
+          # 스크린샷 단계에서 한국어로 바꾼 아이패드를 이 단계가 어떻게 끝나든 되돌린다 (다음 화면 이동 시험은 원래 설정으로).
+          restore_ipad_locale() {
+            if [ -n "$IPAD" ]; then
+              xcrun simctl spawn "$IPAD" defaults delete -g AppleLanguages >/dev/null 2>&1 || true
+              xcrun simctl spawn "$IPAD" defaults delete -g AppleLocale >/dev/null 2>&1 || true
+            fi
+          }
+          trap restore_ipad_locale EXIT
           if [ -n "$STORE" ]; then
             record_tour "$STORE" build/preview/iphone.mov 29
             encode build/preview/iphone.mov screenshots/store/upload/preview-iphone.mp4 "scale=886:-2:flags=lanczos,crop=886:1920" 26

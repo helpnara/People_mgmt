@@ -157,7 +157,9 @@ struct RecordEditView: View {
         }
         .interactiveDismissDisabled(hasChanges)
         .onAppear {
-            if isCreate && LaunchArguments.current.tagInput == nil { titleFocused = true }
+            // 스토어 스크린샷(-storeShots)은 키보드 없이 — 키보드가 입력 칸을 가리고 시뮬레이터의 영문 안내가 뜬다 (이슈 56).
+            let arguments = LaunchArguments.current
+            if isCreate && arguments.tagInput == nil && !arguments.storeShots { titleFocused = true }
         }
         .task(id: everyone.count) {
             candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
