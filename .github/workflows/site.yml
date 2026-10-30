@@ -9,6 +9,7 @@ on:
     branches: [main, master, "claude/**"]
     paths:
       - docs/privacy.md
+      - docs/support.md
       - Tools/site/**
       - .github/workflows/site.yml
   workflow_dispatch:

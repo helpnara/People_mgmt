@@ -26,7 +26,9 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 # (원문, 게시 자리, html lang, 다른 말 쪽으로 가는 줄, 마지막 수정 글)
 PAGES = (
-    (ROOT / "docs" / "privacy.md", "privacy", "ko", "", "마지막 수정"),
+    (ROOT / "docs" / "privacy.md", "privacy", "ko", '<a href="../support/">도움말 · 문의</a>', "마지막 수정"),
+    # 지원 URL (App Store Connect 필수 칸 · 2026-10-30 사용자) — 자주 묻는 것과 문의 메일.
+    (ROOT / "docs" / "support.md", "support", "ko", '<a href="../privacy/">개인정보 처리방침</a>', "마지막 수정"),
 )
 
 PLACEHOLDER = "{{SUPPORT_EMAIL}}"

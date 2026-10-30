@@ -23,6 +23,11 @@ struct SettingsView: View {
     @State private var importItems: [VCardTransfer.Item]?
     @State private var pendingRestore: BackupFile?
     @State private var message: (title: String, body: String)?
+    /// 전체 데이터 삭제 (할 일 54) — 첫 확인 창에 쓸 수. 있으면 첫 확인 창이 뜬다.
+    @State private var wipeCounts: DataWipe.Counts?
+    /// 두 번째 확인 — 삭제 를 직접 적는다.
+    @State private var confirmingWipeText = false
+    @State private var wipeText = ""
     /// 모임 짝짓기 문턱 (D-39). 기본 0.3.
     @AppStorage(GroupMatchSetting.key) private var groupMatch: GroupMatchSetting = .standard
     // 알림 (D-40) — 모두 기본은 꺼짐, 시각은 오전 9시.
@@ -181,11 +186,27 @@ struct SettingsView: View {
                       : "자료는 이 기기에만 저장됩니다. 앱은 인터넷으로 아무것도 보내지 않습니다.", systemImage: "lock")
                 Label("기기의 iCloud 백업을 켜 두었다면 이 앱의 자료도 그 백업에 함께 들어갑니다.", systemImage: "icloud")
                 Label("전화 · 메일 단추는 기기의 전화 · 메일 앱으로 넘겨 줄 뿐입니다.", systemImage: "phone")
+                // 처리방침 · 도움말 (심사 지침 5.1.1 — 앱 안에도 처리방침 링크). 누르면 기기의 브라우저가 연다 — 앱이 통신하지 않는다.
+                Link(destination: Self.privacyURL) {
+                    Label("개인정보 처리방침", systemImage: "hand.raised")
+                        .foregroundStyle(Color.accent)
+                }
+                .accessibilityHint("브라우저에서 엽니다")
+                Link(destination: Self.supportURL) {
+                    Label("도움말 · 문의", systemImage: "questionmark.circle")
+                        .foregroundStyle(Color.accent)
+                }
+                .accessibilityHint("브라우저에서 엽니다")
             } header: {
                 Text("개인정보")
             }
             .font(.scaled(14))
             .foregroundStyle(Color.bodyText)
+
+            // 견본 둘러보기(D-55) 중에는 두지 않는다 — 견본은 끝내면 사라진다.
+            if !DemoMode.shared.isActive {
+                wipeSection
+            }
 
             Section {
                 LabeledContent("버전", value: Self.version)
@@ -203,6 +224,13 @@ struct SettingsView: View {
         }
         .navigationDestination(isPresented: $openDetailLayoutOnLaunch) {
             DetailLayoutView()
+        }
+        .task {
+            // CI 스크린샷 — 모든 자료 지우기의 첫 확인 창 (`-confirmWipe`).
+            guard LaunchArguments.current.confirmWipe else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            let counts = DataWipe.counts(in: context)
+            if !counts.isEmpty { wipeCounts = counts }
         }
         .fileExporter(isPresented: $showingExporter, document: exportDocument,
                       contentType: fileKind == .vcard ? .vCard : .json, defaultFilename: exportName) { result in
@@ -307,6 +335,97 @@ struct SettingsView: View {
     private func refreshReminders() {
         let container = context.container
         Task { await ReminderScheduler.refresh(container: container) }
+    }
+
+    static let privacyURL = URL(string: "https://helpnara.github.io/People_mgmt/privacy/")!
+    static let supportURL = URL(string: "https://helpnara.github.io/People_mgmt/support/")!
+
+    // MARK: - 전체 데이터 삭제 (할 일 54 · 2026-10-30 사용자)
+
+    /// 확인 두 번 — 첫 창은 지울 수와 백업 권하기, 둘째 창은 삭제 를 직접 적기 (요구사항 7절).
+    private var wipeSection: some View {
+        Section {
+            Button {
+                let counts = DataWipe.counts(in: context)
+                if counts.isEmpty {
+                    message = ("지울 자료가 없습니다", "사람 · 기록 · 아는 사이가 하나도 없습니다.")
+                } else {
+                    wipeCounts = counts
+                }
+            } label: {
+                Label("모든 자료 지우기", systemImage: "trash")
+                    .foregroundStyle(Color.danger)
+            }
+            .disabled(working != nil)
+            .confirmationDialog("모든 자료를 지울까요?",
+                                isPresented: Binding(get: { wipeCounts != nil }, set: { if !$0 { wipeCounts = nil } }),
+                                titleVisibility: .visible, presenting: wipeCounts) { _ in
+                Button("먼저 백업 파일 만들기") {
+                    wipeCounts = nil
+                    makeBackup()
+                }
+                Button("백업 없이 다음으로") {
+                    wipeCounts = nil
+                    // 첫 창이 내려간 뒤에 둘째 창을 띄운다 — 내려가는 중에 띄우면 묻힌다.
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(500))
+                        confirmingWipeText = true
+                    }
+                }
+                Button("취소", role: .cancel) { wipeCounts = nil }
+            } message: { counts in
+                Text(wipeMessage(counts))
+            }
+            .alert("정말 모두 지울까요?", isPresented: $confirmingWipeText) {
+                TextField("삭제", text: $wipeText)
+                Button("모두 지우기", role: .destructive) { wipeIfConfirmed() }
+                Button("취소", role: .cancel) { wipeText = "" }
+            } message: {
+                Text("되돌릴 수 없습니다. 확인하려면 칸에 삭제 라고 적으세요.")
+            }
+        } header: {
+            Text("자료 지우기")
+        } footer: {
+            Text(CloudSync.isActive
+                 ? "사람 · 기록 · 아는 사이 · 명함과 사람 사진을 모두 지웁니다. iCloud 동기화가 켜져 있어 같은 Apple 계정의 다른 기기와 iCloud 에서도 지워집니다. 앱 잠금 · 알림 · 보기 같은 설정은 그대로 둡니다."
+                 : "사람 · 기록 · 아는 사이 · 명함과 사람 사진을 모두 지웁니다. 앱 잠금 · 알림 · 보기 같은 설정은 그대로 둡니다.")
+        }
+    }
+
+    private func wipeMessage(_ counts: DataWipe.Counts) -> String {
+        var text = "사람 \(counts.people)명 · 기록 \(counts.records)건 · 아는 사이 \(counts.ties)줄과 명함 · 사람 사진을 모두 지웁니다. 지운 뒤에는 되돌릴 수 없습니다."
+        if CloudSync.isActive {
+            text += " iCloud 동기화가 켜져 있어 같은 Apple 계정의 다른 기기와 iCloud 에서도 지워집니다."
+        }
+        return text + " 지우기 전에 백업 파일을 만들어 두기를 권합니다."
+    }
+
+    private func wipeIfConfirmed() {
+        let typed = wipeText.trimmingCharacters(in: .whitespacesAndNewlines)
+        wipeText = ""
+        guard typed == "삭제" else {
+            Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                message = ("지우지 않았습니다", "적은 글자가 삭제 와 달라 아무것도 지우지 않았습니다.")
+            }
+            return
+        }
+        working = "모든 자료를 지우는 중…"
+        // 되돌리기 띠가 지운 객체를 붙잡고 있지 않게 먼저 끝낸다.
+        DeletionUndo.shared.finish()
+        let container = context.container
+        Task {
+            do {
+                let done = try await DataWipe.wipe(container: container)
+                // 지운 사람의 생일 · n주년 · 연락 주기 알림을 거둔다 — 사람이 없으니 다시 걸면 빈다.
+                await ReminderScheduler.refresh(container: container)
+                working = nil
+                message = ("모두 지웠습니다", "사람 \(done.people)명 · 기록 \(done.records)건 · 아는 사이 \(done.ties)줄을 지웠습니다.")
+            } catch {
+                working = nil
+                message = ("지우지 못했습니다", "아무것도 지우지 않았습니다. \(error.localizedDescription)")
+            }
+        }
     }
 
     private static var version: String {
