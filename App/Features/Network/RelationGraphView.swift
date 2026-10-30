@@ -229,6 +229,21 @@ struct RelationGraphView: View {
                 selectedDetail = selected.map { detail(forIndex: $0) } ?? ""
             }
         }
+        // 스토어 미리보기 영상 (`-previewTour`) — 점 고르기 · 시점 막대를 바깥에서 움직인다.
+        .onReceive(NotificationCenter.default.publisher(for: PreviewTour.selectPerson)) { note in
+            guard floatsCard, let name = note.object as? String,
+                  let i = snapshot.people.firstIndex(where: { $0.name == name }) else { return }
+            selected = i
+            selectedID = snapshot.people[i].id
+            selectedDetail = detail(forIndex: i)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PreviewTour.timeSlice)) { note in
+            let year = note.object as? Int
+            let target = year.flatMap { y in timeline.slices.firstIndex { $0.label == "\(y)년" } } ?? timeline.slices.count
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.6)) {
+                sliderValue = Double(target)
+            }
+        }
         .onChange(of: sliderValue) { _, value in
             let k = Int(value.rounded())
             let next = k >= timeline.slices.count ? nil : k

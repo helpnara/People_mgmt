@@ -74,6 +74,8 @@ struct LaunchArguments: Sendable {
     let graphSelect: String?
     /// 설정의 모든 자료 지우기 첫 확인 창을 띄운 채로 연다 (`-openSettings -confirmWipe` · 할 일 54) — 문구를 찍으려고.
     let confirmWipe: Bool
+    /// 스토어 미리보기 영상 — 목록이 정해진 차례로 화면을 넘긴다 (`-previewTour` · `PreviewTour`).
+    let previewTour: Bool
     /// 견본 둘러보기를 바로 연다 (`-startDemo` · D-55 · CI 스크린샷).
     let startDemo: Bool
 
@@ -116,5 +118,6 @@ struct LaunchArguments: Sendable {
         pickerSearch = value(after: "-pickerSearch")
         graphSelect = value(after: "-graphSelect")
         confirmWipe = arguments.contains("-confirmWipe")
+        previewTour = arguments.contains("-previewTour")
     }
 }

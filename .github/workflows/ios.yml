@@ -478,14 +478,16 @@ jobs:
             xcrun simctl bootstatus "$STORE" -b
             status_bar "$STORE"
             xcrun simctl install "$STORE" "$APP"
-            mkdir -p screenshots/store
+            # **원본**(raw) — 스토어에 올릴 합성 이미지는 다음 단계의 Tools/store/compose.py 가 만든다 (2026-10-30 · 설명 + 앱 화면).
+            # 6.3형 칸(1206 × 2622)도 이 원본을 줄여 만든다 — 가로세로 비가 거의 같다.
+            mkdir -p screenshots/store/raw/iphone
             UDID="$STORE"
-            shoot store/01-people.png -seedSampleData -storeShots
-            shoot store/02-person-detail.png -seedSampleData -storeShots -openPerson 김하늘
-            shoot store/03-record-detail.png -seedSampleData -storeShots -openPerson 김하늘 -openRecord
-            shoot store/04-network-graph.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph
-            shoot store/05-network-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
-            shoot store/06-readiness.png -seedSampleData -storeShots -openNetwork readiness
+            shoot store/raw/iphone/01-people.png -seedSampleData -storeShots
+            shoot store/raw/iphone/02-person-detail.png -seedSampleData -storeShots -openPerson 김하늘
+            shoot store/raw/iphone/03-add-record.png -seedSampleData -storeShots -openPerson 김하늘 -addRecord
+            shoot store/raw/iphone/04-network-graph.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph
+            shoot store/raw/iphone/05-timeline.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -timeSlice 2025
+            shoot store/raw/iphone/06-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
             xcrun simctl shutdown "$STORE" || true
             UDID="${{ steps.sim.outputs.udid }}"
           else
@@ -494,9 +496,12 @@ jobs:
           if [ -n "$IPAD" ]; then
             UDID="$IPAD"
             SHOOT_MIN=250000
-            shoot store/ipad-01-people.png -seedSampleData -storeShots
-            shoot store/ipad-02-person-detail.png -seedSampleData -storeShots -openPerson 김하늘
-            shoot store/ipad-03-network-graph.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph
+            mkdir -p screenshots/store/raw/ipad
+            shoot store/raw/ipad/01-people.png -seedSampleData -storeShots -openPerson 김하늘
+            shoot store/raw/ipad/02-graph-card.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -graphSelect 김하늘
+            shoot store/raw/ipad/03-timeline.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -timeSlice 2025
+            shoot store/raw/ipad/04-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
+            shoot store/raw/ipad/05-add-record.png -seedSampleData -storeShots -openPerson 김하늘 -addRecord
             UDID="${{ steps.sim.outputs.udid }}"
           fi
 
@@ -513,6 +518,62 @@ jobs:
 
       # **화면 이동 시험 (UI)** (이슈 50) — 아이폰 · 아이패드에서 앱을 띄워 실제로 눌러 다음 화면이 뜨는지 본다.
       # 이제 막는 시험이다(이슈 50 고친 뒤 · 아이패드 4개 통과) — 실패하면 CI 가 붉다.
+      # **스토어 자산** (2026-10-30 사용자 — 아이폰 · 아이패드 스크린샷과 앱 미리보기, 올리기 거부가 없게).
+      # 1) 앱 미리보기: `-previewTour` 로 앱이 스스로 화면을 넘기는 동안 녹화 → ffmpeg 로 칸이 받는 크기 · 초당 30장 ·
+      #    15~30초 · H.264 · 무음 AAC 스테레오 칸으로. 2) 스크린샷: 원본에 설명을 얹어 칸마다의 크기로 · 알파 없는 RGB.
+      # 3) Tools/store/check-assets.py 가 크기 · 색 칸 · 길이 · 코덱 · 소리 칸을 검사한다. 처음 판이라 막지 않는다(로그로 본다).
+      - name: 스토어 이미지 · 앱 미리보기
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          command -v ffmpeg >/dev/null || brew install ffmpeg
+          mkdir -p screenshots/store/upload build/preview
+          status_bar() {
+            xcrun simctl status_bar "$1" override --time "9:41" \
+              --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100
+          }
+          record_tour() {   # $1 기기 · $2 원본 영상 · $3 녹화 초
+            xcrun simctl boot "$1" 2>/dev/null || true
+            xcrun simctl bootstatus "$1" -b
+            status_bar "$1"
+            xcrun simctl terminate "$1" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            # 한 번 띄웠다 닫아 첫 실행의 느린 준비를 녹화에서 뺀다.
+            xcrun simctl launch "$1" "$BUNDLE_ID" -seedSampleData -storeShots >/dev/null
+            sleep 6
+            xcrun simctl terminate "$1" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            sleep 1
+            xcrun simctl launch "$1" "$BUNDLE_ID" -seedSampleData -seedCommunitySample -storeShots -previewTour >/dev/null
+            sleep 1.5
+            xcrun simctl io "$1" recordVideo --codec=h264 --force "$2" &
+            local rec=$!
+            sleep "$3"
+            kill -INT "$rec"
+            wait "$rec" || true
+            xcrun simctl terminate "$1" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            ls -la "$2"
+          }
+          encode() {        # $1 원본 · $2 결과 · $3 크기 거르기 · $4 길이
+            ffmpeg -hide_banner -loglevel error -y -ss 0.5 -t "$4" -i "$1" \
+              -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 \
+              -map 0:v:0 -map 1:a:0 -vf "fps=30,$3,format=yuv420p" \
+              -c:v libx264 -profile:v high -level:v 4.0 -preset slow -b:v 10M -maxrate 12M -bufsize 20M \
+              -c:a aac -b:a 256k -ar 48000 -ac 2 -shortest -movflags +faststart "$2"
+            ls -la "$2"
+          }
+          STORE="${{ steps.store.outputs.udid }}"
+          IPAD="${{ steps.ipad.outputs.udid }}"
+          if [ -n "$STORE" ]; then
+            record_tour "$STORE" build/preview/iphone.mov 29
+            encode build/preview/iphone.mov screenshots/store/upload/preview-iphone.mp4 "scale=886:-2:flags=lanczos,crop=886:1920" 26
+            xcrun simctl shutdown "$STORE" || true
+          fi
+          if [ -n "$IPAD" ]; then
+            record_tour "$IPAD" build/preview/ipad.mov 30
+            encode build/preview/ipad.mov screenshots/store/upload/preview-ipad.mp4 "scale=1200:1600:flags=lanczos" 27
+          fi
+          .ci-venv/bin/python Tools/store/compose.py
+          .ci-venv/bin/python Tools/store/check-assets.py
+
       - name: 화면 이동 시험 (아이폰 · 아이패드)
         run: |
           status=0
