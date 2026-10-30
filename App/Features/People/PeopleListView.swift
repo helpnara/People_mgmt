@@ -756,6 +756,10 @@ struct PeopleListView: View {
         LaunchTiming.mark("목록 첫 표시 (\(fetched.count)명)")
         if let search = arguments.search { searchText = search }
         if let tag = arguments.filterTag { filterTag = tag }
+        if arguments.previewTour {
+            await runPreviewTour()
+            return
+        }
         if arguments.openSettings {
             if isWide { openSection(.settings) } else { path.append(SettingsRoute()) }
             return
@@ -827,6 +831,51 @@ private struct LiveRow<Content: View>: View {
 }
 
 extension PeopleListView {
+    /// **스토어 미리보기 영상** (`-previewTour`) — 녹화가 붙을 시간을 두고, 정해진 차례로 화면을 넘긴다. 아이폰 약 24초 · 아이패드 약 25초.
+    /// 스토어 영상은 15~30초여야 한다 — 차례를 바꾸면 CI 의 자르는 길이(`-t`)와 함께 본다.
+    @MainActor fileprivate func runPreviewTour() async {
+        func pause(_ seconds: Double) async { try? await Task.sleep(for: .seconds(seconds)) }
+        func post(_ name: Notification.Name, _ object: Any?) { NotificationCenter.default.post(name: name, object: object) }
+        guard let person = fetched.first(where: { NameSort.key($0.name) == NameSort.key("김하늘") }) else { return }
+        if isWide {
+            await pause(2.5)
+            show(person)                                   // 목록 + 그 사람의 인연
+            await pause(4)
+            openSection(.network(.graph))                  // 관계도
+            await pause(3)
+            post(PreviewTour.selectPerson, person.name)    // 점을 누른 것처럼 — 떠 있는 요약 카드
+            await pause(3.5)
+            networkPath.append(PersonID(id: person.uuid))  // 자세히 보기
+            await pause(3.5)
+            networkPath.removeLast()
+            await pause(1.5)
+            post(PreviewTour.timeSlice, 2025)              // 시점 막대 — 지난해
+            await pause(3)
+            post(PreviewTour.timeSlice, nil)
+            await pause(1.5)
+            openSection(.network(.overview))               // 돌아보기
+        } else {
+            await pause(3.5)
+            show(person)                                   // 사람 상세
+            await pause(4)
+            if let latest = RecordStore.timeline(of: person).first {
+                path.append(latest)                        // 기록 상세
+                await pause(3)
+            }
+            path = NavigationPath()
+            await pause(1.2)
+            path.append(NetworkRoute(tab: .graph))         // 관계도
+            await pause(3.5)
+            post(PreviewTour.timeSlice, 2025)              // 시점 막대 — 지난해
+            await pause(3)
+            post(PreviewTour.timeSlice, nil)
+            await pause(1.5)
+            path.removeLast()
+            await pause(0.8)
+            path.append(NetworkRoute(tab: .overview))      // 돌아보기
+        }
+    }
+
     /// CI 큰 견본(`-measureSave`): 사람 한 명 · 기록 한 건을 저장소 문으로 저장해 시간을 남긴다 (요구사항 8.5 저장 0.3초).
     /// 견본은 메모리 저장소라 실기기 디스크보다 빠를 수 있다 — 숫자는 참고로 본다.
     @MainActor fileprivate func measureSaves() {
