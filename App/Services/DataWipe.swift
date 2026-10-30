@@ -26,13 +26,14 @@ enum DataWipe {
     }
 
     static func wipe(container: ModelContainer) async throws -> Counts {
-        try await Task.detached(priority: .userInitiated) {
+        // 저장 실패 시험(`-failSaves`)은 주 스레드의 값이라 여기서 본다 — 실패하면 하나도 지우지 않는다.
+        try await SaveFailure.check()
+        return try await Task.detached(priority: .userInitiated) {
             try wipe(into: ModelContext(container))
         }.value
     }
 
     static func wipe(into context: ModelContext) throws -> Counts {
-        try SaveFailure.check()
         let ties = try context.fetch(FetchDescriptor<Tie>())
         let records = try context.fetch(FetchDescriptor<Record>())
         let people = try context.fetch(FetchDescriptor<Person>())

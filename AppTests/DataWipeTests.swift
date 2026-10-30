@@ -38,12 +38,15 @@ final class DataWipeTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: key), "timeline", "설정은 그대로 둔다")
     }
 
-    func testFailedSaveLeavesEverythingInPlace() throws {
+    func testFailedSaveLeavesEverythingInPlace() async throws {
         let container = try seeded()
         let before = DataWipe.counts(in: container.mainContext)
         SaveFailure.isOn = true
         defer { SaveFailure.isOn = false }
-        XCTAssertThrowsError(try DataWipe.wipe(into: ModelContext(container)))
+        do {
+            _ = try await DataWipe.wipe(container: container)
+            XCTFail("저장 실패 시험 중에는 던져야 한다")
+        } catch {}
         XCTAssertEqual(DataWipe.counts(in: ModelContext(container)), before, "저장이 실패하면 하나도 지우지 않는다")
     }
 
