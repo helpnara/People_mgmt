@@ -141,8 +141,8 @@ CI(`ios.yml` 의 *스토어 이미지 · 앱 미리보기*)가 만들어 `screen
 | iPhone 6.9형 (필수) | `upload/iphone-6.9/*.png` | 1320 × 2868 | 6 |
 | iPhone 15.5cm · 15.9cm (6.3형) | `upload/iphone-6.3/*.png` | 1206 × 2622 | 6 |
 | iPad 32.8cm · 33.0cm (13형 · 필수) | `upload/ipad-13/*.png` | 2064 × 2752 | 5 |
-| iPhone 앱 미리보기 | `upload/preview-iphone.mp4` | 886 × 1920 · 약 26초 | 1 |
-| iPad 앱 미리보기 | `upload/preview-ipad.mp4` | 1200 × 1600 · 약 27초 | 1 |
+| iPhone 앱 미리보기 | `upload/preview-iphone.mp4` | 886 × 1920 · 약 19초 | 1 |
+| iPad 앱 미리보기 | `upload/preview-ipad.mp4` | 1200 × 1600 · 약 22초 | 1 |
 
 - **올리기 거부를 막는 것** (`Tools/store/check-assets.py` 가 CI 에서 검사): 칸이 받는 크기 그대로 · **알파 없는 RGB PNG**(시뮬레이터 원본은 RGBA 라 그대로 올리면 거부될 수 있다) · 칸마다 1~10장 ·
   미리보기는 H.264 · yuv420p · 초당 30장 · 15~30초 · 무음 AAC 스테레오 48kHz 소리 칸(소리 칸이 없으면 거부된다는 보고) · 500MB 이하.
