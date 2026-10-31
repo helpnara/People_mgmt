@@ -2,6 +2,7 @@ import Core
 import SwiftUI
 
 /// 선택지 칩 + `직접 입력` (요구사항 4.2.2). 하나만 고르고, 다시 누르면 푼다.
+/// 선택지에는 전에 직접 입력해 쓴 값도 붙어 온다 (이슈 13 — `RelationshipPresets.choices`).
 ///
 /// 저장값은 표시 라벨 문자열 하나다 — 선택지에서 골랐는지 직접 썼는지 구분하지 않는다 (6.3).
 struct ChoiceChips: View {
@@ -33,6 +34,7 @@ struct ChoiceChips: View {
                         customText = ""
                     } label: {
                         Chip(text: option, selected: selection == option)
+                            .tapTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(selection == option ? .isSelected : [])
@@ -45,6 +47,7 @@ struct ChoiceChips: View {
                     }
                 } label: {
                     Chip(text: customPrompt, selected: isCustomSelected || showingCustom)
+                        .tapTarget()
                 }
                 .buttonStyle(.plain)
             }
@@ -65,6 +68,13 @@ struct ChoiceChips: View {
             if isCustomSelected {
                 showingCustom = true
                 customText = selection ?? ""
+            }
+        }
+        .onChange(of: options) { _, newOptions in
+            // 직접 입력해 쓴 값이 선택지로 붙으면(이슈 13) 그 칩이 골라진 것으로 보이고 입력 칸은 닫는다.
+            if let selection, newOptions.contains(selection), showingCustom {
+                showingCustom = false
+                customText = ""
             }
         }
     }

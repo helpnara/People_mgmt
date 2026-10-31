@@ -42,7 +42,10 @@ def normalized(text: str) -> str:
 
 
 def folded(text: str) -> str:
-    return normalized(text).lower()
+    # 발음 구별 기호(Mn)를 빼고 다시 합친 뒤 소문자 — Swift `TextNormalization.folded` 와 같은 차례.
+    decomposed = unicodedata.normalize("NFD", normalized(text))
+    stripped = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+    return unicodedata.normalize("NFC", stripped).lower()
 
 
 def collapsed_spaces(text: str) -> str:
@@ -89,6 +92,11 @@ def split_tags(text: str) -> list[str]:
     return re.split(r"[,;\n]", text)
 
 
+def tag_key(raw: str):
+    tag = normalize_tag(raw)
+    return None if tag is None else tag.lower()
+
+
 # ── 표시명 (DisplayTitle) ─────────────────────────────────────────────────────
 
 def display_title(title, note) -> str:
@@ -114,6 +122,1261 @@ def sort_people(people: list[dict]) -> list[str]:
     return [p["name"] for p in ordered]
 
 
+def sort_recency(people: list[dict]) -> list[str]:
+    def key(p):
+        last = p.get("lastRecordAt")
+        return (0, -last, folded(p["name"]), p["createdAt"]) if last is not None else (1, 0, folded(p["name"]), p["createdAt"])
+    return [p["name"] for p in sorted(people, key=key)]
+
+
+def sort_timeline(records: list[dict]) -> list[str]:
+    ordered = sorted(records, key=lambda r: (-r["occurredAt"], -r["createdAt"]))
+    return [r["id"] for r in ordered]
+
+
+# ── 최근 함께한 사람 (RecentCompanions · 빌드 16 · 조사 보고서 지금 7) ─────────────────────
+# 최근 기록부터(타임라인 차례) 처음 보이는 사람을 모은다. 한 기록 안에서는 이름 순. 뺄 사람 · 개수 한도.
+
+def recent_companions(records, excluding, limit=8):
+    ordered = sorted(records, key=lambda r: (-r["occurredAt"], -r["createdAt"]))
+    seen = {x.upper() for x in excluding}
+    out = []
+    for r in ordered:
+        people = sorted(r["participants"], key=lambda p: (folded(p["name"]), p["id"].upper()))
+        for p in people:
+            pid = p["id"].upper()
+            if pid in seen:
+                continue
+            seen.add(pid)
+            out.append(pid)
+            if len(out) >= limit:
+                return out
+    return out
+
+
+# ── 생일 · 알림 계획 (BirthdayRule · ReminderPlanner · 빌드 18 · D-40) ───────────────────────
+# 달력의 날만 센다(시간대 없음). 생일 당일 · 알게 된 지 n주년 · 연락 주기(고른 사람만, 지났으면 오늘로 한 번).
+# 오늘부터 366일 안, 날짜 → 종류(생일 · n주년 · 연락 주기) → 이름 순, 한도까지.
+
+import calendar as _calendar
+import datetime as _dt
+
+REMINDER_LIMIT = 60
+REMINDER_HORIZON = 366
+REMINDER_ORDER = {"birthday": 0, "anniversary": 1, "cadence": 2}
+
+
+def _days_in(month, year):
+    return _calendar.monthrange(year, month)[1]
+
+
+def _clamped(year, month, day):
+    return _dt.date(year, month, min(day, _days_in(month, year)))
+
+
+def _add_months(d, months):
+    index = d.year * 12 + (d.month - 1) + months
+    y, m = divmod(index, 12)
+    return _clamped(y, m + 1, d.day)
+
+
+def _next_occurrence(today, month, day):
+    this_year = _clamped(today.year, month, day)
+    return _clamped(today.year + 1, month, day) if this_year < today else this_year
+
+
+def birthday_valid(month, day, year):
+    if not (1 <= month <= 12) or day < 1:
+        return False
+    limit = _days_in(month, year) if year is not None else (29 if month == 2 else _days_in(month, 2001))
+    return day <= limit
+
+
+def birthday_text(month, day, year):
+    md = f"{month}월 {day}일"
+    return f"{year}년 {md}" if year is not None else md
+
+
+def _civil(d):
+    return None if d is None else _dt.date(d[0], d[1], d[2])
+
+
+def reminder_plan(people, today, options, limit=REMINDER_LIMIT):
+    if not any(options.values()):
+        return []
+    today = _civil(today)
+    horizon = today + _dt.timedelta(days=REMINDER_HORIZON)
+    out = []
+
+    def add(kind, p, date, title, body, named=None):
+        if date > horizon:
+            return
+        named = named or date   # 연락 주기는 기한 날로 이름을 붙인다 — 오늘로 당겨 와도 같은 이름
+        out.append({"id": f"{kind}|{p['id'].upper()}|{named.isoformat()}", "kind": kind, "personID": p["id"].upper(),
+                    "date": [date.year, date.month, date.day], "title": title, "body": body,
+                    "_key": (date, REMINDER_ORDER[kind], folded(p["name"]), p["id"].upper())})
+
+    for p in people:
+        bm, bd = p.get("birthMonth"), p.get("birthDay")
+        if options["birthdays"] and bm is not None and bd is not None and birthday_valid(bm, bd, None):
+            add("birthday", p, _next_occurrence(today, bm, bd), f"오늘은 {p['name']} 님 생일입니다", "축하 인사를 전해 보세요.")
+        met = _civil(p.get("firstMet"))
+        if options["anniversaries"] and met is not None:
+            nxt = _next_occurrence(today, met.month, met.day)
+            if nxt.year - met.year < 1:
+                nxt = _clamped(met.year + 1, met.month, met.day)
+            years = nxt.year - met.year
+            add("anniversary", p, nxt, f"{p['name']} 님과 알게 된 지 {years}년이 되었습니다",
+                "처음 만난 날 " + birthday_text(met.month, met.day, met.year))
+        months = p.get("cadenceMonths")
+        if options["cadence"] and months:
+            base = _civil(p.get("lastRecord")) or _civil(p["registered"])
+            due = _add_months(base, months)
+            add("cadence", p, max(due, today), f"{p['name']} 님과 {months}개월 동안 기록이 없습니다", "안부를 전하고 함께한 일을 남겨 보세요.", due)
+    out.sort(key=lambda r: r["_key"])
+    for r in out:
+        del r["_key"]
+    return out[:limit]
+
+
+# ── vCard 만들기 · 읽기 · 같은 사람 판정 (VCard · ImportMatcher · 빌드 18 · D-41) ───────────────
+# 만들기는 3.0, 읽기는 2.1 · 3.0 · 4.0 을 너그럽게. 전화 종류는 연락처 가져오기 규칙(contact_from_contact)으로.
+
+def vcard_escape(text):
+    out = []
+    for ch in text:
+        out.append({"\\": "\\\\", "\n": "\\n", ",": "\\,", ";": "\\;"}.get(ch, ch))
+    return "".join(out)
+
+
+def vcard_encode(people):
+    out = ""
+    for p in people:
+        lines = ["BEGIN:VCARD", "VERSION:3.0", f"N:;{vcard_escape(p['name'])};;;", f"FN:{vcard_escape(p['name'])}"]
+        if p.get("nickname"):
+            lines.append(f"NICKNAME:{vcard_escape(p['nickname'])}")
+        if p.get("organization"):
+            lines.append(f"ORG:{vcard_escape(p['organization'])}")
+        if p.get("role"):
+            lines.append(f"TITLE:{vcard_escape(p['role'])}")
+        f = p["fields"]
+        if f["mobile"]:
+            lines.append(f"TEL;TYPE=CELL:{vcard_escape(f['mobile'])}")
+        if f["office"]:
+            lines.append(f"TEL;TYPE=WORK,VOICE:{vcard_escape(f['office'])}")
+        if f["fax"]:
+            lines.append(f"TEL;TYPE=WORK,FAX:{vcard_escape(f['fax'])}")
+        if f["email"]:
+            lines.append(f"EMAIL;TYPE=INTERNET:{vcard_escape(f['email'])}")
+        if p.get("birthMonth") is not None and p.get("birthDay") is not None:
+            if p.get("birthYear") is not None:
+                lines.append(f"BDAY:{p['birthYear']:04d}-{p['birthMonth']:02d}-{p['birthDay']:02d}")
+            else:
+                lines.append(f"BDAY:--{p['birthMonth']:02d}{p['birthDay']:02d}")
+        if f["other"]:
+            lines.append(f"NOTE:{vcard_escape(f['other'])}")
+        lines.append("END:VCARD")
+        out += "\r\n".join(lines) + "\r\n"
+    return out
+
+
+def _vcard_unescape(text):
+    out, escaped = [], False
+    for ch in text:
+        if escaped:
+            out.append("\n" if ch in "nN" else ch)
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        else:
+            out.append(ch)
+    if escaped:
+        out.append("\\")
+    return "".join(out)
+
+
+def _vcard_split(text):
+    parts, cur, escaped = [], [], False
+    for ch in text:
+        if escaped:
+            cur.append("\\" + ch)
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        elif ch == ";":
+            parts.append(_vcard_unescape("".join(cur)))
+            cur = []
+        else:
+            cur.append(ch)
+    if escaped:
+        cur.append("\\")
+    parts.append(_vcard_unescape("".join(cur)))
+    return parts
+
+
+def _vcard_is_qp(line):
+    if ":" not in line:
+        return False
+    return "QUOTED-PRINTABLE" in line.split(":", 1)[0].upper()
+
+
+def _vcard_qp(text):
+    data = text.encode("utf-8")
+    out, i = bytearray(), 0
+    hexd = "0123456789abcdefABCDEF"
+    while i < len(data):
+        if data[i] == 61 and i + 2 < len(data) and chr(data[i + 1]) in hexd and chr(data[i + 2]) in hexd:
+            out.append(int(chr(data[i + 1]) + chr(data[i + 2]), 16))
+            i += 3
+        else:
+            out.append(data[i])
+            i += 1
+    return out.decode("utf-8", errors="replace")
+
+
+def _ascii_digits(s):
+    return all("0" <= c <= "9" for c in s)
+
+
+def _vcard_birthday(raw, omit):
+    text = raw.strip(" ")
+    if "T" in text:
+        text = text[:text.index("T")]
+    year = None
+    if text.startswith("--"):
+        rest = text[2:]
+    else:
+        digits = text.replace("-", "")
+        if len(digits) != 8 or not _ascii_digits(digits):
+            return None
+        year = int(digits[:4])
+        rest = digits[4:]
+    rest = rest.replace("-", "")
+    if len(rest) != 4 or not _ascii_digits(rest):
+        return None
+    month, day = int(rest[:2]), int(rest[2:])
+    if year is not None and omit is not None and _ascii_digits(omit) and omit and int(omit) == year:
+        year = None
+    return (month, day, year) if birthday_valid(month, day, year) else None
+
+
+def vcard_parse(text):
+    raw = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines = []
+    for line in raw:
+        if lines:
+            if line.startswith(" ") or line.startswith("\t"):
+                lines[-1] += line[1:]
+                continue
+            if _vcard_is_qp(lines[-1]) and lines[-1].endswith("="):
+                lines[-1] = lines[-1][:-1] + line
+                continue
+        lines.append(line)
+    people, card = [], None
+    clean = lambda t: collapsed_spaces(normalized(t))
+    for line in lines:
+        if ":" not in line:
+            continue
+        head, value = line.split(":", 1)
+        head_parts = head.split(";")
+        name = head_parts.pop(0).upper()
+        if "." in name:
+            name = name[name.rindex(".") + 1:]
+        if name == "BEGIN" and value.upper() == "VCARD":
+            card = {"fn": "", "family": "", "given": "", "nickname": "", "org": "", "role": "", "phones": [], "emails": [], "note": "", "bday": None}
+            continue
+        if name == "END" and value.upper() == "VCARD":
+            if card is not None:
+                nm = clean(card["fn"]) or contact_name(card["given"], card["family"])
+                if nm:
+                    f = contact_from_contact(card["phones"], card["emails"])
+                    if card["note"]:
+                        contact_place(f, card["note"], "other")
+                    b = card["bday"]
+                    people.append({"name": nm, "nickname": clean(card["nickname"]), "organization": clean(card["org"]),
+                                   "role": clean(card["role"]), "fields": f,
+                                   "birthMonth": b[0] if b else None, "birthDay": b[1] if b else None, "birthYear": b[2] if b else None})
+            card = None
+            continue
+        if card is None:
+            continue
+        types, params = [], {}
+        for part in head_parts:
+            if "=" in part:
+                key, val = part.split("=", 1)
+                key = key.upper()
+                val = val.replace('"', "")   # 4.0 은 TYPE="work,voice" 처럼 따옴표를 친다
+                params[key] = val
+                if key == "TYPE":
+                    types += [t.upper() for t in val.split(",") if t]
+            else:
+                types.append(part.upper())
+        if params.get("ENCODING", "").upper() == "QUOTED-PRINTABLE" or "QUOTED-PRINTABLE" in types:
+            value = _vcard_qp(value)
+        if name == "FN":
+            card["fn"] = _vcard_unescape(value)
+        elif name == "N":
+            parts = _vcard_split(value)
+            card["family"] = parts[0] if parts else ""
+            card["given"] = parts[1] if len(parts) > 1 else ""
+        elif name == "NICKNAME":
+            card["nickname"] = _vcard_unescape(value)
+        elif name == "ORG":
+            card["org"] = _vcard_split(value)[0]
+        elif name == "TITLE":
+            card["role"] = _vcard_unescape(value)
+        elif name == "TEL":
+            label = ",".join(t for t in types if t not in ("VOICE", "PREF", "INTERNET", "QUOTED-PRINTABLE") and not t.startswith("CHARSET"))
+            number = _vcard_unescape(value)
+            if number.lower().startswith("tel:"):   # 4.0 의 VALUE=uri
+                number = number[4:]
+            card["phones"].append({"label": label, "value": number})
+        elif name == "EMAIL":
+            card["emails"].append(_vcard_unescape(value))
+        elif name == "NOTE":
+            card["note"] = _vcard_unescape(value)
+        elif name == "BDAY":
+            card["bday"] = _vcard_birthday(value, params.get("X-APPLE-OMIT-YEAR"))
+    return people
+
+
+def import_name_key(name):
+    return folded("".join(ch for ch in name if not ch.isspace()))
+
+
+def _phone_key(number):
+    digits = "".join(c for c in number if "0" <= c <= "9")
+    if "+" in number and digits.startswith("82"):
+        digits = "0" + digits[2:]
+    return digits if len(digits) >= 7 else None
+
+
+def _contact_keys(f):
+    out = {"t:" + k for k in (_phone_key(f["mobile"]), _phone_key(f["office"]), _phone_key(f["fax"])) if k}
+    email = f["email"].strip(" ").lower()
+    if email:
+        out.add("e:" + email)
+    return out
+
+
+def import_match(incoming, existing):
+    prepared = [(e, import_name_key(e["name"]), _contact_keys(e["fields"])) for e in existing]
+    out = []
+    for p in incoming:
+        name, wanted = import_name_key(p["name"]), _contact_keys(p["fields"])
+        same = [x for x in prepared if x[1] == name]
+        hit = next((x for x in same if wanted <= x[2]), None)
+        if hit:
+            out.append({"verdict": "duplicate", "existingID": hit[0]["id"].upper()})
+        elif same:
+            out.append({"verdict": "possibleSame", "existingID": same[0][0]["id"].upper()})
+        else:
+            hit = next((x for x in prepared if wanted and x[2] & wanted), None)
+            out.append({"verdict": "possibleSame", "existingID": hit[0]["id"].upper()} if hit else {"verdict": "new", "existingID": None})
+    return out
+
+
+# ── 날 수 (RelativeDay) ──────────────────────────────────────────────────────
+
+def relative_day(days: int) -> str:
+    if days == 0:
+        return "오늘"
+    if days == 1:
+        return "어제"
+    if days == -1:
+        return "내일"
+    n = abs(days)
+    suffix = "전" if days > 0 else "후"
+    if n < 7:
+        return f"{n}일 {suffix}"
+    if n < 30:
+        return f"{n // 7}주 {suffix}"
+    if n < 365:
+        return f"{n // 30}개월 {suffix}"
+    return f"{n // 365}년 {suffix}"
+
+
+# ── 연락처 (ContactName · ContactNote) ───────────────────────────────────────
+
+def east_asian(text: str) -> bool:
+    chars = [ch for ch in text if not ch.isspace()]
+    return bool(chars) and all(0xAC00 <= ord(ch) <= 0xD7A3 or 0x4E00 <= ord(ch) <= 0x9FFF for ch in chars)
+
+
+def contact_name(given: str, family: str) -> str:
+    g = collapsed_spaces(normalized(given))
+    f = collapsed_spaces(normalized(family))
+    if not g:
+        return f
+    if not f:
+        return g
+    if east_asian(f) and east_asian(g):
+        return f + g
+    return g + " " + f
+
+
+def contact_note(phones: list[str], emails: list[str]) -> str:
+    seen, parts = set(), []
+    for raw in phones + emails:
+        item = collapsed_spaces(normalized(raw))
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        parts.append(item)
+    return " · ".join(parts)[:500]
+
+
+# ── 관계 지표 (DyadMetrics · NetworkOverview · TraitDistribution · RelationGraph) ─
+
+import math
+
+DAYS_PER_MONTH = 30.4375
+
+
+def dyad_metrics(records: list[dict], first_met, today: int, type_count: int = 9) -> dict:
+    past = sorted([r for r in records if r["day"] <= today], key=lambda r: (-r["day"], r["id"].upper()))
+    last_year = [r for r in past if today - r["day"] <= 364]
+    recent = [r for r in past if today - r["day"] <= 181]
+    previous = [r for r in past if 182 <= today - r["day"] <= 364]
+    out = {
+        "total": len(past), "lastYear": len(last_year), "daysSinceLast": None, "spanDays": None,
+        "spanFromFirstMeeting": first_met is not None, "perMonthTenths": None, "frequencyText": None,
+        "trend": None, "recentHalf": len(recent), "previousHalf": len(previous),
+        "diversityClass": None, "typeCounts": [],
+        "pastIDs": [r["id"] for r in past], "lastYearIDs": [r["id"] for r in last_year],
+        "recentHalfIDs": [r["id"] for r in recent], "previousHalfIDs": [r["id"] for r in previous],
+        "firstID": past[-1]["id"] if past else None, "lastID": past[0]["id"] if past else None,
+        "spanText": None,
+    }
+    if not past:
+        return out
+    last, first = past[0], past[-1]
+    out["daysSinceLast"] = today - last["day"]
+    out["spanDays"] = max(0, last["day"] - (first_met if first_met is not None else first["day"]))
+    out["spanText"] = span_text(out["spanDays"])
+    if len(past) >= 3:
+        days = max(float(today - first["day"]), DAYS_PER_MONTH)
+        per_month = float(len(past)) * DAYS_PER_MONTH / days
+        out["perMonthTenths"] = math.floor(per_month * 10 + 0.5)
+        out["frequencyText"] = frequency_text(per_month)
+    if len(past) >= 4:
+        diff = len(recent) - len(previous)
+        out["trend"] = "rising" if diff >= 2 else ("falling" if diff <= -2 else "steady")
+    counts: dict = {}
+    for r in past:
+        counts[r["type"]] = counts.get(r["type"], 0) + 1
+    out["typeCounts"] = [{"type": t, "count": c} for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    if len(past) >= 3 and type_count > 1:
+        n = float(len(past))
+        entropy = 0.0
+        for item in out["typeCounts"]:
+            p_ = item["count"] / n
+            entropy -= p_ * math.log(p_)
+        normalized_ = entropy / math.log(float(type_count))
+        out["diversityClass"] = "mostlyOne" if normalized_ < 0.25 else ("several" if normalized_ < 0.6 else "even")
+    return out
+
+
+def span_text(days: int) -> str:
+    days = max(0, days)
+    if days < 30:
+        return f"{days}일"
+    years = days // 365
+    months = min((days % 365) // 30, 11)
+    if years > 0 and months > 0:
+        return f"{years}년 {months}개월"
+    if years > 0:
+        return f"{years}년"
+    return f"{months}개월"
+
+
+def frequency_text(per_month: float) -> str:
+    tenths = math.floor(per_month * 10 + 0.5)
+    if tenths >= 10:
+        if tenths % 10 == 0:
+            return f"한 달에 약 {tenths // 10}번"
+        return f"한 달에 약 {tenths // 10}.{tenths % 10}번"
+    per_year = math.floor(per_month * 12 + 0.5)
+    if per_year >= 1:
+        return f"1년에 약 {per_year}번"
+    return "1년에 1번 미만"
+
+
+def network_overview(people: list[dict], today: int, year_start: int, year_end: int, neglect_days: int) -> dict:
+    def by_name(p):
+        return (folded(p["name"]), p["id"].upper())
+    active = [p for p in people if p["lastDay"] is not None and today - p["lastDay"] <= 364]
+    new = sorted([p for p in people if p["firstMetDay"] is not None and year_start <= p["firstMetDay"] <= year_end],
+                 key=lambda p: (-p["firstMetDay"],) + by_name(p))
+    quiet = sorted([p for p in people if p["lastDay"] is not None and today - p["lastDay"] >= neglect_days],
+                   key=lambda p: (p["lastDay"],) + by_name(p))
+    none = sorted([p for p in people if p["lastDay"] is None], key=by_name)
+    return {"total": len(people), "activeCount": len(active), "newThisYearIDs": [p["id"] for p in new],
+            "quietIDs": [p["id"] for p in quiet], "noRecordIDs": [p["id"] for p in none]}
+
+
+def trait_buckets(items: list[dict], limit: int = 8) -> list[dict]:
+    labels, members, order, unspecified = {}, {}, [], []
+    for item in items:
+        seen = set()
+        for raw in item["values"]:
+            value = normalized(raw)
+            if not value:
+                continue
+            key = folded(value)
+            if key in seen:
+                continue
+            seen.add(key)
+            if key not in labels:
+                labels[key] = value
+                order.append(key)
+            members.setdefault(key, []).append(item["id"])
+        if not seen:
+            unspecified.append(item["id"])
+    ordered = sorted(order, key=lambda k: (-len(members[k]), k))
+    keep = max(limit - 1, 0) if len(ordered) > limit else len(ordered)
+    out = [{"label": labels[k], "count": len(members[k]), "ids": members[k], "isUnspecified": False, "isRest": False}
+           for k in ordered[:keep]]
+    if len(ordered) > keep:
+        rest = set(ordered[keep:])
+        ids, seen_ids = [], set()
+        for item in items:
+            keys = [folded(normalized(v)) for v in item["values"]]
+            if any(k in rest for k in keys) and item["id"] not in seen_ids:
+                seen_ids.add(item["id"])
+                ids.append(item["id"])
+        out.append({"label": f"그 밖에 {len(rest)}가지", "count": len(ids), "ids": ids, "isUnspecified": False, "isRest": True})
+    if unspecified:
+        out.append({"label": "미지정", "count": len(unspecified), "ids": unspecified, "isUnspecified": True, "isRest": False})
+    return out
+
+
+def graph_edges(people: list[dict], records: list[list[str]], clique_limit: int = 12, ties=None) -> list[dict]:
+    known = {p["id"].upper() for p in people}
+    edges: dict = {}
+
+    def touch(x, y, field, share=0.0):
+        x, y = x.upper(), y.upper()
+        if x == y or x not in known or y not in known:
+            return
+        a, b = (x, y) if x < y else (y, x)
+        e = edges.setdefault((a, b), {"a": a, "b": b, "together": 0, "togetherWeight": 0.0, "introduced": False,
+                                      "sameOrganization": False, "acquainted": False})
+        if field == "together":
+            e["together"] += 1
+            e["togetherWeight"] += share
+        else:
+            e[field] = True
+
+    for participants in records:
+        seen, unique = set(), []
+        for pid in participants:
+            u = pid.upper()
+            if u in known and u not in seen:
+                seen.add(u)
+                unique.append(u)
+        # 큰 기록의 무게 낮추기 (빌드 16 · 조사 보고서 지금 4) — n명 기록의 각 쌍에 1/(n−1).
+        share = 1.0 / (len(unique) - 1) if len(unique) > 1 else 0.0
+        for i in range(len(unique)):
+            for j in range(i + 1, len(unique)):
+                touch(unique[i], unique[j], "together", share)
+    for p in people:
+        if p.get("introducedBy"):
+            touch(p["id"], p["introducedBy"], "introduced")
+    for x, y in (ties or []):
+        touch(x, y, "acquainted")
+    groups: dict = {}
+    for p in people:
+        key = folded(p.get("organization") or "")
+        if key:
+            groups.setdefault(key, []).append(p)
+    for key in sorted(groups):
+        members = sorted(groups[key], key=lambda p: (folded(p["name"]), p["id"].upper()))
+        if len(members) < 2:
+            continue
+        if len(members) <= clique_limit:
+            for i in range(len(members)):
+                for j in range(i + 1, len(members)):
+                    touch(members[i]["id"], members[j]["id"], "sameOrganization")
+        else:
+            for i in range(len(members)):
+                touch(members[i]["id"], members[(i + 1) % len(members)]["id"], "sameOrganization")
+    return [edges[k] for k in sorted(edges)]
+
+
+# ── 아는 사이 후보 (AcquaintanceSuggestions · 빌드 16 · 조사 보고서 지금 5) ───────────────────
+# 사실만 근거로 — 같은 기록에 함께 나온 횟수, 같은 사람이 둘 다 소개함. 점수 · 퍼센트는 없다.
+# 이미 아는 사이 · 한쪽이 다른 쪽을 소개 · "아니요" 한 쌍은 빼고, 함께한 기록 수 → 같은 소개자 → 이름 순.
+
+SUGGESTION_LIMIT = 30
+SUGGESTION_INTRODUCER_GROUP = 12
+
+
+def pair_key(x, y):
+    x, y = x.upper(), y.upper()
+    return f"{x}|{y}" if x < y else f"{y}|{x}"
+
+
+def acquaintance_suggestions(people, records, ties, declined, limit=SUGGESTION_LIMIT):
+    by_id = {p["id"].upper(): p for p in people}
+    edges = {(e["a"], e["b"]): e for e in graph_edges(people, records, 12, ties)}
+    declined = {pair_key(*d.split("|")) for d in declined if d.count("|") == 1}   # 차례 · 대소문자와 상관없이
+    found = {}
+    for (a, b), e in edges.items():
+        if e["together"] > 0 and not e["acquainted"] and not e["introduced"]:
+            found[(a, b)] = {"together": e["together"], "introducer": None}
+    groups = {}
+    for p in people:
+        x = (p.get("introducedBy") or "").upper()
+        if x and x in by_id and x != p["id"].upper():
+            groups.setdefault(x, []).append(p["id"].upper())
+    for x in sorted(groups):
+        members = sorted(groups[x])
+        if len(members) < 2 or len(members) > SUGGESTION_INTRODUCER_GROUP:
+            continue
+        for i in range(len(members)):
+            for j in range(i + 1, len(members)):
+                key = (members[i], members[j])
+                e = edges.get(key)
+                if e and (e["acquainted"] or e["introduced"]):
+                    continue
+                item = found.setdefault(key, {"together": e["together"] if e else 0, "introducer": None})
+                item["introducer"] = x
+
+    def name_key(i):
+        return (folded(by_id[i]["name"]), i)
+
+    out = []
+    for (a, b), item in found.items():
+        if pair_key(a, b) in declined:
+            continue
+        first, second = sorted((a, b), key=name_key)
+        out.append({"a": first, "b": second, "together": item["together"], "introducer": item["introducer"]})
+    out.sort(key=lambda s: (-s["together"], 0 if s["introducer"] else 1, name_key(s["a"]), name_key(s["b"])))
+    return out[:limit]
+
+
+# ── 모임 찾기 (CommunityDetection · CommunityNaming) ─────────────────────────
+# Swift 와 덧셈 차례까지 같게 쓴다 — 이웃은 번호 순, 무게는 들어온 차례로 더한다.
+
+def _graph_from_links(n, links):
+    merged = [dict() for _ in range(n)]
+    loops = [0.0] * n
+    for l in links:
+        i, j, w = l["i"], l["j"], l["weight"]
+        if not (w > 0 and i < n and j < n):
+            continue
+        if i == j:
+            loops[i] += w
+        else:
+            merged[i][j] = merged[i].get(j, 0.0) + w
+            merged[j][i] = merged[j].get(i, 0.0) + w
+    return _graph(_sorted_neighbors(merged), loops)
+
+
+def _sorted_neighbors(merged):
+    return [[(k, d[k]) for k in sorted(d)] for d in merged]
+
+
+def _graph(neighbors, loops):
+    degree, total = [], 0.0
+    for i in range(len(loops)):
+        k = 2 * loops[i]
+        for _, w in neighbors[i]:
+            k += w
+        degree.append(k)
+        total += loops[i]
+        for node, w in neighbors[i]:
+            if node > i:
+                total += w
+    return {"neighbors": neighbors, "loops": loops, "degree": degree, "total": total}
+
+
+def _local_moving(g, resolution, epsilon, max_passes):
+    n = len(g["loops"])
+    two_m = 2 * g["total"]
+    community = list(range(n))
+    total = list(g["degree"])
+    moved_any = False
+    for _ in range(max_passes):
+        moved = False
+        for i in range(n):
+            k = g["degree"][i]
+            current = community[i]
+            order, weight_to = [], {}
+            for node, w in g["neighbors"][i]:
+                c = community[node]
+                if c not in weight_to:
+                    order.append(c)
+                    weight_to[c] = 0.0
+                weight_to[c] += w
+            total[current] -= k
+            best = current
+            best_gain = weight_to.get(current, 0.0) - resolution * total[current] * k / two_m
+            for c in order:
+                if c == current:
+                    continue
+                gain = weight_to.get(c, 0.0) - resolution * total[c] * k / two_m
+                if gain > best_gain + epsilon:
+                    best, best_gain = c, gain
+            total[best] += k
+            if best != current:
+                community[i] = best
+                moved = moved_any = True
+        if not moved:
+            break
+    return community, moved_any
+
+
+def _renumber(community):
+    mapping, out = {}, []
+    for c in community:
+        if c not in mapping:
+            mapping[c] = len(mapping)
+        out.append(mapping[c])
+    return out, len(mapping)
+
+
+def _aggregate(g, community, count):
+    loops = [0.0] * count
+    merged = [dict() for _ in range(count)]
+    for i in range(len(g["loops"])):
+        loops[community[i]] += g["loops"][i]
+        for node, w in g["neighbors"][i]:
+            if node <= i:
+                continue
+            a, b = community[i], community[node]
+            if a == b:
+                loops[a] += w
+            else:
+                merged[a][b] = merged[a].get(b, 0.0) + w
+                merged[b][a] = merged[b].get(a, 0.0) + w
+    return _graph(_sorted_neighbors(merged), loops)
+
+
+def split_connected(communities, n, links):
+    neighbors = [[] for _ in range(n)]
+    for l in links:
+        if l["weight"] > 0 and l["i"] != l["j"] and l["i"] < n and l["j"] < n:
+            neighbors[l["i"]].append(l["j"])
+            neighbors[l["j"]].append(l["i"])
+    out = []
+    for community in communities:
+        members, seen = set(community), set()
+        for start in sorted(community):
+            if start in seen:
+                continue
+            component, queue, head = [], [start], 0
+            seen.add(start)
+            while head < len(queue):
+                node = queue[head]
+                head += 1
+                component.append(node)
+                for nxt in sorted(neighbors[node]):
+                    if nxt in members and nxt not in seen:
+                        seen.add(nxt)
+                        queue.append(nxt)
+            out.append(sorted(component))
+    return sorted(out, key=lambda c: (-len(c), c[0] if c else 0))
+
+
+def modularity(communities, n, links, resolution=1.0):
+    group = [-1] * n
+    for idx, c in enumerate(communities):
+        for node in c:
+            if node < n:
+                group[node] = idx
+    m = 0.0
+    inside = [0.0] * len(communities)
+    degree = [0.0] * len(communities)
+    for l in links:
+        if not (l["i"] < n and l["j"] < n and l["weight"] > 0):
+            continue
+        m += l["weight"]
+        gi, gj = group[l["i"]], group[l["j"]]
+        if gi >= 0:
+            degree[gi] += l["weight"]
+        if gj >= 0:
+            degree[gj] += l["weight"]
+        if gi == gj and gi >= 0:
+            inside[gi] += l["weight"]
+    if m <= 0:
+        return 0.0
+    q = 0.0
+    for c in range(len(communities)):
+        share = degree[c] / (2 * m)
+        q += inside[c] / m - resolution * share * share
+    return q
+
+
+def louvain(n, links, resolution=1.0, epsilon=1e-7, max_levels=10, max_passes=50):
+    if n <= 0:
+        return {"communities": [], "modularity": 0.0}
+    base = _graph_from_links(n, links)
+    if not base["total"] > 0:
+        return {"communities": [[i] for i in range(n)], "modularity": 0.0}
+    membership = list(range(n))
+    g = base
+    for _ in range(max_levels):
+        community, moved = _local_moving(g, resolution, epsilon, max_passes)
+        if not moved:
+            break
+        renumbered, count = _renumber(community)
+        membership = [renumbered[x] for x in membership]
+        g = _aggregate(g, renumbered, count)
+    groups = [[] for _ in range((max(membership) if membership else -1) + 1)]
+    for person, grp in enumerate(membership):
+        groups[grp].append(person)
+    split = split_connected([c for c in groups if c], n, links)
+    return {"communities": split, "modularity": modularity(split, n, links, resolution)}
+
+
+def community_name(members):
+    def top(values):
+        counts, labels = {}, {}
+        for person_values in values:
+            seen = set()
+            for raw in person_values:
+                v = normalized(raw or "")
+                if not v:
+                    continue
+                key = folded(v)
+                if key in seen:
+                    continue
+                seen.add(key)
+                counts[key] = counts.get(key, 0) + 1
+                labels.setdefault(key, v)
+        best = sorted([(k, c) for k, c in counts.items() if c >= 2], key=lambda kc: (-kc[1], kc[0]))
+        return labels[best[0][0]] if best else None
+    name = top([[m.get("organization") or ""] for m in members])
+    if name:
+        return name
+    name = top([m.get("tags", []) for m in members])
+    if name:
+        return "#" + name
+    return top([[m.get("metThrough") or ""] for m in members])
+
+
+# ── 시점에 따른 관계 변화 (TemporalNetwork · D-32) ───────────────────────────
+# 사람 · 기록 · 아는 사이는 번호로 받는다 (번호 차례 = 이름 순). 시점마다 창(365일) 안의 함께한 기록을
+# 반감기 182.625일로 줄여 더하고, 소개 · 아는 사이는 두 사람이 그 시점에 있으면 1 을 더한다.
+
+TEMPORAL_WINDOW = 365
+TEMPORAL_HALF_LIFE = 182.625
+TEMPORAL_MIN_EDGES = 10
+TEMPORAL_MIN_MODULARITY = 0.3
+TEMPORAL_MIN_GROUP = 3
+TEMPORAL_MATCH = 0.3
+TEMPORAL_SIZE_CHANGE = 0.3
+TEMPORAL_INCLUSION = 0.5
+
+
+def temporal_slices(people, records, ties, slice_days):
+    n = len(people)
+    first_record = [None] * n
+    for r in records:
+        for x in set(r["participants"]):
+            if 0 <= x < n and (first_record[x] is None or r["day"] < first_record[x]):
+                first_record[x] = r["day"]
+    known = []
+    for i, p in enumerate(people):
+        days = [d for d in (p.get("firstMetDay"), first_record[i]) if d is not None]
+        known.append(min(days) if days else None)
+    pair_sets = []
+    intro = set()
+    for i, p in enumerate(people):
+        j = p.get("introducedBy")
+        if j is not None and 0 <= j < n and j != i:
+            intro.add((min(i, j), max(i, j)))
+    tie = set()
+    for a, b in ties:
+        if a != b and 0 <= a < n and 0 <= b < n:
+            tie.add((min(a, b), max(a, b)))
+    out = []
+    for t in slice_days:
+        present = [i for i in range(n) if known[i] is not None and known[i] <= t]
+        pres = set(present)
+        weight = {}
+        for r in records:
+            d = r["day"]
+            if d > t or d <= t - TEMPORAL_WINDOW:
+                continue
+            ps = sorted(set(x for x in r["participants"] if x in pres))
+            if len(ps) < 2:
+                continue
+            w = 0.5 ** ((t - d) / TEMPORAL_HALF_LIFE) / (len(ps) - 1)
+            for a in range(len(ps)):
+                for b in range(a + 1, len(ps)):
+                    key = (ps[a], ps[b])
+                    weight[key] = weight.get(key, 0.0) + w
+        for key in sorted(intro | tie):
+            if key[0] in pres and key[1] in pres:
+                add = (1.0 if key in intro else 0.0) + (1.0 if key in tie else 0.0)
+                weight[key] = weight.get(key, 0.0) + add
+        edges = sorted(weight.items())
+        linked = sorted(set(i for (a, b), _ in edges for i in (a, b)))
+        status, communities = "sparse", []
+        if len(edges) >= TEMPORAL_MIN_EDGES:
+            node = {p: k for k, p in enumerate(present)}
+            links = [{"i": node[a], "j": node[b], "weight": w} for (a, b), w in edges]
+            found = louvain(len(present), links)
+            groups = [[present[k] for k in c] for c in found["communities"] if len(c) >= TEMPORAL_MIN_GROUP]
+            if found["modularity"] >= TEMPORAL_MIN_MODULARITY and groups:
+                status, communities = "shown", groups
+            else:
+                status = "unclear"
+        out.append({"day": t, "present": present, "linked": linked, "status": status,
+                    "edges": [[a, b, w] for (a, b), w in edges], "communities": communities})
+    return out
+
+
+def temporal_match(x, y, threshold=TEMPORAL_MATCH):
+    """두 모임을 같은 모임의 앞뒤로 볼까 — Jaccard 가 문턱 이상이거나, 작은 쪽의 절반 이상이 큰 쪽에 들어 있다 (GED 포함도)."""
+    a, b = set(x), set(y)
+    if not a or not b:
+        return False
+    both = len(a & b)
+    return both / len(a | b) >= threshold or both / min(len(a), len(b)) >= TEMPORAL_INCLUSION
+
+
+def temporal_changes(slices, threshold=TEMPORAL_MATCH):
+    events = []
+    dormant = []   # 앞에서 최근 기록 없음이 된 모임 — 다시 보이면 다시 모임 (빌드 16 · 조사 보고서 지금 2)
+    for s in range(1, len(slices)):
+        prev, cur = slices[s - 1]["communities"], slices[s]["communities"]
+        succ = [[c for c in range(len(cur)) if temporal_match(prev[p], cur[c], threshold)] for p in range(len(prev))]
+        pred = [[p for p in range(len(prev)) if temporal_match(prev[p], cur[c], threshold)] for c in range(len(cur))]
+        woke = []
+        for c, group in enumerate(cur):
+            if not pred[c]:
+                back = next((k for k in range(len(dormant) - 1, -1, -1) if temporal_match(dormant[k], group, threshold)), None)
+                if back is None:
+                    events.append({"slice": s, "kind": "new", "members": group})
+                else:
+                    woke.append(back)
+                    events.append({"slice": s, "kind": "returned", "members": group})
+            elif len(pred[c]) >= 2:
+                events.append({"slice": s, "kind": "merged", "members": group})
+            else:
+                p = pred[c][0]
+                if len(succ[p]) >= 2:
+                    continue
+                ratio = (len(group) - len(prev[p])) / len(prev[p])
+                if ratio > TEMPORAL_SIZE_CHANGE:
+                    events.append({"slice": s, "kind": "grew", "members": group})
+                elif ratio < -TEMPORAL_SIZE_CHANGE:
+                    events.append({"slice": s, "kind": "shrank", "members": group})
+                else:
+                    events.append({"slice": s, "kind": "steady", "members": group})
+        dormant = [d for k, d in enumerate(dormant) if k not in woke]
+        for p, group in enumerate(prev):
+            if not succ[p]:
+                events.append({"slice": s, "kind": "faded", "members": group})
+                dormant.append(group)
+            elif len(succ[p]) >= 2:
+                events.append({"slice": s, "kind": "split", "members": group})
+    return events
+
+
+# ── 입력 상태 (InputReadiness) ───────────────────────────────────────────────
+
+READINESS_TITLES = {"traits": "특성 분포", "firstMet": "올해 처음 만남", "review": "돌아보기", "graph": "관계도", "groups": "모임 찾기"}
+
+
+def input_readiness(i: dict) -> list[dict]:
+    n = i["people"]
+    def toward(count, pct):
+        return min(float(count * 100) / float(n * pct), 1.0) if n > 0 else 0.0
+    def percent(count):
+        return (count * 200 + n) // (2 * n) if n > 0 else 0
+    def need(count, pct):
+        return max((n * pct + 99) // 100 - count, 0)
+    def level(p):
+        return "ready" if p >= 1 else ("almost" if p >= 0.6 else "notYet")
+    items = []
+    empty = "사람을 적으면 시작합니다."
+    typed = min(i["withRelationshipType"], i["withMetThrough"])
+    tp = min(min(float(n) / 20.0, toward(typed, 80)), 1.0)
+    if n < 20:
+        th = f"사람을 {20 - n}명 더 적으면 분포가 뜻을 갖습니다."
+    elif need(typed, 80) > 0:
+        th = f"관계 유형 · 알게 된 경로를 {need(typed, 80)}명 더 채우면 분포가 정확해집니다."
+    else:
+        th = "내 인연의 구성이 믿을 만하게 보입니다."
+    items.append({"feature": "traits", "level": level(tp), "progress": tp,
+                  "current": f"사람 {n}명 · 관계 유형과 경로를 적은 사람 {percent(typed)}%", "hint": th})
+    fp = toward(i["withFirstMet"], 50); fn = need(i["withFirstMet"], 50)
+    items.append({"feature": "firstMet", "level": level(fp), "progress": fp,
+                  "current": f"처음 만난 날을 적은 사람 {i['withFirstMet']}명 / {n}명",
+                  "hint": empty if n == 0 else f"처음 만난 날을 {fn}명 더 적으면 올해 처음 만남과 인연 기간이 정확해집니다." if fn > 0
+                          else "올해 처음 만난 사람과 인연 기간이 정확하게 보입니다."})
+    rp = toward(i["withRecords"], 50); rn = need(i["withRecords"], 50)
+    items.append({"feature": "review", "level": level(rp), "progress": rp,
+                  "current": f"기록이 있는 사람 {i['withRecords']}명 / {n}명",
+                  "hint": empty if n == 0 else f"{rn}명과의 기록을 더 남기면 최근 기록 없음 · 관계 돌아보기가 뜻을 갖습니다." if rn > 0
+                          else "오래 기록이 없는 인연과 사람마다의 흐름이 보입니다."})
+    gp = toward(i["linkedPeople"], 30); gn = need(i["linkedPeople"], 30)
+    items.append({"feature": "graph", "level": level(gp), "progress": gp,
+                  "current": f"서로 이어진 사람 {i['linkedPeople']}명 / {n}명 ({percent(i['linkedPeople'])}%)",
+                  "hint": empty if n == 0 else f"{gn}명을 더 이으면 관계도에 모양이 드러납니다 — 아는 사이를 고르거나, 기록에 함께한 사람을 두 명 이상 넣으세요." if gn > 0
+                          else "사람들 사이의 연결이 관계도에 드러납니다."})
+    op = min(min(float(i["strongEdges"]) / 20.0, float(i["linkedPeople"]) / 10.0), 1.0)
+    es, ls = max(20 - i["strongEdges"], 0), max(10 - i["linkedPeople"], 0)
+    if es > 0 or ls > 0:
+        parts = []
+        if es > 0:
+            parts.append(f"진한 선 {es}개")
+        if ls > 0:
+            parts.append(f"이어진 사람 {ls}명")
+        oh = " · ".join(parts) + " 더 있으면 모임(그룹)을 찾아 관계도에 묶어 보여 줍니다."
+    else:
+        oh = "모임(그룹)을 찾을 만큼 연결이 쌓였습니다."
+    items.append({"feature": "groups", "level": level(op), "progress": op,
+                  "current": f"진한 선 {i['strongEdges']}개 · 이어진 사람 {i['linkedPeople']}명", "hint": oh})
+    return items
+
+
+def readiness_summary(items):
+    ready = sum(1 for x in items if x["level"] == "ready")
+    head = f"{len(items)}가지 중 {ready}가지 준비됨"
+    nxt = next((x for x in items if x["level"] != "ready"), None)
+    return head + " · 모두 준비됨" if nxt is None else head + " · 다음: " + READINESS_TITLES[nxt["feature"]]
+
+
+# ── 관계 유형 · 알게 된 경로 선택지 (RelationshipPresets.choices) ───────────
+
+def preset_choices(presets: list[str], used: list[str]) -> list[str]:
+    counts: dict = {}
+    for raw in used:
+        v = normalized(raw)
+        if not v or v in presets:
+            continue
+        counts[v] = counts.get(v, 0) + 1
+    extras = sorted(counts, key=lambda v: (-counts[v], folded(v), v))
+    return presets + extras
+
+
+# ── 연락 수단 다섯 칸 (ContactFields · ContactSorter) ─────────────────────────
+
+CONTACT_KINDS = ("mobile", "office", "fax", "email")
+
+
+def contact_fields() -> dict:
+    return {"mobile": "", "office": "", "fax": "", "email": "", "other": ""}
+
+
+def contact_contains(f: dict, v: str) -> bool:
+    return v in (f["mobile"], f["office"], f["fax"], f["email"]) or v in f["other"].split(" · ")
+
+
+def contact_place(f: dict, raw: str, kind: str) -> None:
+    value = collapsed_spaces(normalized(raw))
+    if not value or contact_contains(f, value):
+        return
+    if kind in CONTACT_KINDS and not f[kind]:
+        f[kind] = value
+    else:
+        f["other"] = value if not f["other"] else f["other"] + " · " + value
+
+
+def label_key(label: str) -> str:
+    return "".join(ch for ch in label.lower() if ch.isalpha())
+
+
+def label_kind(key: str):
+    if not key:
+        return ("none",)
+    has = lambda parts: any(p in key for p in parts)
+    if key == "f" or has(["fax", "팩스"]):
+        return ("kind", "fax")
+    if key in ("e", "email", "mail") or has(["메일"]):
+        return ("kind", "email")
+    if key in ("m", "hp", "handphone") or has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]):
+        return ("kind", "mobile")
+    if key in ("o", "main", "dir") or has(["office", "work", "company", "direct", "회사", "사무실", "직장", "대표", "직통"]):
+        return ("kind", "office")
+    if key in ("t", "tel", "phone", "telephone", "전화", "전화번호", "연락처"):
+        return ("phone",)
+    if has(["home", "other", "pager", "school", "집", "자택", "기타"]):
+        return ("kind", "other")
+    return ("unknown",)
+
+
+def is_mobile(number: str) -> bool:
+    digits = "".join(ch for ch in number if ch.isascii() and ch.isdigit())
+    if "+" in number and digits.startswith("82"):
+        digits = "0" + digits[2:]
+    return 10 <= len(digits) <= 11 and digits.startswith("01") and digits[2] in "016789"
+
+
+def contact_from_contact(phones: list[dict], emails: list[str]) -> dict:
+    f = contact_fields()
+    for p in phones:
+        k = label_kind(label_key(p["label"]))
+        if k[0] in ("none", "phone"):
+            kind = "mobile" if is_mobile(p["value"]) else "office"
+        elif k == ("kind", "email") or k[0] == "unknown":
+            kind = "other"
+        else:
+            kind = k[1]
+        contact_place(f, p["value"], kind)
+    for e in emails:
+        contact_place(f, e, "email")
+    return f
+
+
+# Swift 의 Character.isNewline 과 같은 줄바꿈들. `\r\n` 은 둘로 갈라지고 빈 조각은 버려진다.
+CONTACT_SPLIT_RE = re.compile("[·,;|\n\r\x0b\x0c\x85\u2028\u2029]")
+
+
+def contact_tokens(text: str) -> list[str]:
+    parts = CONTACT_SPLIT_RE.split(normalized(text))
+    return [p for p in (collapsed_spaces(x) for x in parts) if p]
+
+
+def contact_resolve(label: str, value: str, is_email: bool):
+    k = label_kind(label)
+    if is_email:
+        return "email" if k in (("none",), ("kind", "email")) else None
+    if k[0] in ("none", "phone"):
+        return "mobile" if is_mobile(value) else "office"
+    if k == ("kind", "email") or k[0] == "unknown":
+        return None
+    return k[1]
+
+
+def contact_sort(token: str, f: dict) -> None:
+    emails = [m.span() for m in EMAIL_RE.finditer(token)]
+    phones = [m.span() for m in PHONE_RE.finditer(token)
+              if not any(s < m.end() and m.start() < e for s, e in emails)]
+    found = sorted([(s, e, True) for s, e in emails] + [(s, e, False) for s, e in phones])
+    if not found:
+        contact_place(f, token, "other")
+        return
+    placements, cursor = [], 0
+    for s, e, is_email in found:
+        kind = contact_resolve(label_key(token[cursor:s]), token[s:e], is_email)
+        if kind is None:
+            contact_place(f, token, "other")
+            return
+        placements.append((token[s:e], kind))
+        cursor = e
+    if label_key(token[cursor:]):
+        contact_place(f, token, "other")
+        return
+    for value, kind in placements:
+        contact_place(f, value, kind)
+
+
+def contact_split(text: str) -> dict:
+    f = contact_fields()
+    for token in contact_tokens(text):
+        contact_sort(token, f)
+    return f
+
+
+# ── 명함 (BusinessCardParser) ────────────────────────────────────────────────
+
+ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전무", "상무", "이사", "본부장", "실장", "센터장",
+                 "부장", "차장", "과장", "팀장", "대리", "주임", "사원", "책임", "선임", "수석", "연구원", "교수",
+                 "원장", "매니저", "디자이너", "개발자", "엔지니어", "컨설턴트",
+                 "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
+                 "consultant", "president", "founder", "professor", "lead"]
+KOREAN_ORG = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
+LATIN_ORG = {"inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"}
+DEPARTMENT_SUFFIXES = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+PHONE_RE = re.compile(r"(?:\+82[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}")
+LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
+
+
+def latin_letters(token: str) -> str:
+    return "".join(ch for ch in token if ch.isascii() and ch.isalpha()).lower()
+
+
+def is_org(text: str) -> bool:
+    if any(k in text for k in KOREAN_ORG):
+        return True
+    return any(latin_letters(t) in LATIN_ORG for t in text.split(" "))
+
+
+def is_role_token(token: str) -> bool:
+    latin = latin_letters(token)
+    for k in ROLE_KEYWORDS:
+        if k[0].isascii():
+            if latin == k:
+                return True
+        elif token.endswith(k):
+            return True
+    return False
+
+
+def is_hangul_name(text: str) -> bool:
+    tokens = text.split(" ")
+    if not (len(tokens) == 1 or all(len(t) == 1 for t in tokens)):
+        return False
+    joined = "".join(tokens)
+    if not 2 <= len(joined) <= 4:
+        return False
+    if not all(0xAC00 <= ord(ch) <= 0xD7A3 for ch in joined):
+        return False
+    return not any(joined.endswith(s) for s in DEPARTMENT_SUFFIXES)
+
+
+def is_fax(lower: str) -> bool:
+    return lower.startswith(("fax", "팩스", "f.", "f "))
+
+
+def parse_card(lines: list[list]) -> dict:
+    out = {"name": None, "organization": None, "role": None, "phones": [], "emails": [], "lines": []}
+    contact_lines = []
+    candidate = None
+    def offer(name, height):
+        nonlocal candidate
+        if candidate is not None and candidate[1] >= height:
+            return
+        candidate = (name, height)
+    for raw, height in lines:
+        text = collapsed_spaces(normalized(raw))
+        if not text:
+            continue
+        out["lines"].append(text)
+        lower = text.lower()
+        emails = EMAIL_RE.findall(text)
+        phones = PHONE_RE.findall(text)
+        if emails or phones or "www." in lower or "http" in lower:
+            contact_lines.append(text)
+            for e in (x.lower() for x in emails):
+                if e not in out["emails"]:
+                    out["emails"].append(e)
+            if not is_fax(lower):
+                for p in (x.strip(" ") for x in phones):
+                    if p not in out["phones"]:
+                        out["phones"].append(p)
+            continue
+        if is_org(text):
+            if out["organization"] is None:
+                out["organization"] = text
+            continue
+        tokens = text.split(" ")
+        if len(tokens) >= 2 and is_hangul_name(tokens[0]) and any(is_role_token(t) for t in tokens[1:]):
+            offer(tokens[0], height)
+            if out["role"] is None:
+                out["role"] = " ".join(tokens[1:])
+            continue
+        if any(is_role_token(t) for t in tokens):
+            if out["role"] is None:
+                out["role"] = text
+            continue
+        if is_hangul_name(text):
+            offer(text.replace(" ", ""), height)
+        elif LATIN_NAME_RE.search(text):
+            offer(text, height)
+    out["name"] = candidate[0] if candidate else None
+    out["contact"] = contact_split("\n".join(contact_lines))
+    return out
+
+
 # ── 검증 (Validation) ────────────────────────────────────────────────────────
 
 def name_problem(name: str):
@@ -132,10 +1395,21 @@ def can_save_record(title, note) -> bool:
 # ── 날짜 (DayNormalizer) ─────────────────────────────────────────────────────
 
 def noon_epoch(iso: str, zone: str) -> float:
+    # 연 · 월 · 일은 그 시간대에서 읽고, 그 날의 12:00 UTC (이슈 20).
     instant = datetime.fromisoformat(iso)
     local = instant.astimezone(ZoneInfo(zone))
-    noon = local.replace(hour=12, minute=0, second=0, microsecond=0)
-    return noon.timestamp()
+    return datetime(local.year, local.month, local.day, 12, tzinfo=timezone.utc).timestamp()
+
+
+def approx_noon(iso: str, zone: str, precision: int):
+    """(정오 epoch, 보이는 글) — 날짜까지는 그날, 월까지는 그달 1일, 연도만은 1월 1일의 12:00 UTC (Swift `ApproximateDate`)."""
+    day = datetime.fromtimestamp(noon_epoch(iso, zone), tz=timezone.utc)
+    if precision not in (1, 2):  # 모르는 값은 날짜까지 (`DatePrecision.of`)
+        return day.timestamp(), None
+    month = 1 if precision == 2 else day.month
+    folded_day = datetime(day.year, month, 1, 12, tzinfo=timezone.utc)
+    label = f"{day.year}년" if precision == 2 else f"{day.year}년 {day.month}월"
+    return folded_day.timestamp(), label
 
 
 # ── 조사 (Josa) ──────────────────────────────────────────────────────────────
@@ -157,6 +1431,211 @@ def josa(text: str) -> dict:
             "iGa": pick("이", "가", "이(가)")}
 
 
+# ── 초성 (Chosung · FoldedText) ───────────────────────────────────────────────
+
+CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+
+
+def chosung_initials(text: str) -> str:
+    """한글 음절은 첫소리 자음으로, 나머지는 그대로 — Swift `Chosung.initials`."""
+    return "".join(CHOSUNG[(ord(c) - 0xAC00) // 588] if 0xAC00 <= ord(c) <= 0xD7A3 else c for c in text)
+
+
+def is_consonant(c: str) -> bool:
+    return 0x3131 <= ord(c) <= 0x314E
+
+
+def chosung_contains(text: str, term: str) -> bool:
+    """접은 글 `text` 에 접은 검색어 `term` 이 있는가. 검색어의 자음은 그 자리 음절의 첫소리와 견준다 —
+    Swift `FoldedText.contains` 와 같은 규칙을 다른 길(자리마다 훑기)로 센다."""
+    if not any(is_consonant(c) for c in term):
+        return term in text
+    firsts = chosung_initials(text)
+    n = len(term)
+    for start in range(len(text) - n + 1):
+        if all((firsts[start + k] == c) if is_consonant(c) else (text[start + k] == c) for k, c in enumerate(term)):
+            return True
+    return False
+
+
+# ── 태그 모음 · 거르기 (TagCatalog · ListFilter) ──────────────────────────────
+
+def tag_catalog(person_tags, record_tags) -> list[dict]:
+    """같은 열쇠는 하나로, 표기는 문자열 차례로 앞서는 것, 한 목록 안의 겹침은 한 번 — Swift `TagCatalog`."""
+    shown, counts = {}, {"people": {}, "records": {}}
+    for field, lists in (("people", person_tags), ("records", record_tags)):
+        for tags in lists:
+            seen = set()
+            for raw in tags:
+                tag = normalize_tag(raw)
+                if tag is None:
+                    continue
+                key = tag.lower()
+                if key not in shown or tag < shown[key]:
+                    shown[key] = tag
+                if key not in seen:
+                    seen.add(key)
+                    counts[field][key] = counts[field].get(key, 0) + 1
+    entries = [{"tag": tag, "people": counts["people"].get(key, 0), "records": counts["records"].get(key, 0)}
+               for key, tag in shown.items()]
+    entries.sort(key=lambda e: (-(e["people"] + e["records"]), folded(e["tag"]), e["tag"]))
+    return entries
+
+
+def tag_suggestions(entries, text, chosen, limit=8) -> list[str]:
+    term = folded(normalize_tag(text) or "")
+    if not term:
+        return []
+    taken = {tag_key(c) for c in chosen} - {None}
+    starts, inside = [], []
+    for entry in entries:
+        if tag_key(entry["tag"]) in taken:
+            continue
+        f = folded(entry["tag"])
+        if not chosung_contains(f, term):
+            continue
+        (starts if f.startswith(term) else inside).append(entry["tag"])
+    return (starts + inside)[:limit]
+
+
+def tag_renamed(tags, frm, to) -> list[str]:
+    target, key = normalize_tag(to), tag_key(frm)
+    if target is None or key is None:
+        return tags
+    return normalize_tags([target if tag_key(t) == key else t for t in tags])
+
+
+def list_filter_matches(kind, tags, wanted_kind, wanted_tag) -> bool:
+    if wanted_kind is not None:
+        if kind is None or folded(kind) != folded(wanted_kind):
+            return False
+    if wanted_tag is not None:
+        key = tag_key(wanted_tag)
+        if key is None or not any(tag_key(t) == key for t in tags):
+            return False
+    return True
+
+
+def type_choices(types) -> list[str]:
+    shown, counts, order = {}, {}, []
+    for kind in types:
+        if kind is None:
+            continue
+        cleaned = normalized(kind)
+        key = folded(cleaned)
+        if not key:
+            continue
+        if key not in shown:
+            shown[key] = cleaned
+            order.append(key)
+        counts[key] = counts.get(key, 0) + 1
+    order.sort(key=lambda k: (-counts[k], k))
+    return [shown[k] for k in order]
+
+
+# ── 사람 상세의 칸 차례 (DetailLayout · D-56) ─────────────────────────────────
+
+DETAIL_SECTIONS = ["card", "firstEncounter", "review", "introduced", "acquaintances", "timeline"]
+DETAIL_LABELS = {"card": "명함", "firstEncounter": "첫 인연", "review": "관계 돌아보기",
+                 "introduced": "소개한 인연", "acquaintances": "아는 사이", "timeline": "타임라인"}
+
+
+def detail_parse(stored):
+    """Swift `DetailLayout(stored:)` — 모르는 · 겹친 이름은 버리고, 빠진 칸은 보이게 처음 차례대로 끝에."""
+    order, hidden = [], set()
+    for raw in (stored or "").split(","):
+        token = raw.strip(" ")
+        if not token:
+            continue
+        hide = token.startswith("-")
+        if hide:
+            token = token[1:].strip(" ")
+        if token in DETAIL_SECTIONS and token not in order:
+            order.append(token)
+            if hide:
+                hidden.add(token)
+    order += [k for k in DETAIL_SECTIONS if k not in order]
+    return order, hidden
+
+
+def detail_layout(stored) -> dict:
+    order, hidden = detail_parse(stored)
+    return {"order": order,
+            "hidden": [k for k in order if k in hidden],
+            "visible": [k for k in order if k not in hidden],
+            "stored": ",".join(("-" + k) if k in hidden else k for k in order)}
+
+
+def detail_move(stored, source, destination) -> list[str]:
+    order, _ = detail_parse(stored)
+    moving = [order[i] for i in sorted(source) if 0 <= i < len(order)]
+    remaining = [k for i, k in enumerate(order) if i not in source]
+    at = destination - len([i for i in source if i < destination])
+    at = max(0, min(at, len(remaining)))
+    return remaining[:at] + moving + remaining[at:]
+
+
+# ── 한 사람 내보내기 (PersonExport) ───────────────────────────────────────────
+
+def person_export(p: dict) -> str:
+    """Swift `PersonExport.markdown` 과 같은 줄 차례 — 빈 칸은 줄을 쓰지 않는다."""
+    def filled(text):
+        if text is None:
+            return None
+        cleaned = normalized(text)
+        return cleaned or None
+
+    def hash_tags(tags):
+        return " ".join("#" + t for t in tags) if tags else None
+
+    lines = [f"# {normalized(p['name'])}", ""]
+    facts = []
+    if filled(p.get("nickname")):
+        facts.append(f"- 별명: {filled(p['nickname'])}")
+    work = [w for w in (filled(p.get("organization")), filled(p.get("role"))) if w]
+    if work:
+        facts.append(f"- 소속: {' · '.join(work)}")
+    if filled(p.get("relationshipType")):
+        facts.append(f"- 관계 유형: {filled(p['relationshipType'])}")
+    if filled(p.get("metThrough")):
+        path = filled(p["metThrough"])
+        intro = filled(p.get("introducer"))
+        facts.append(f"- 알게 된 경로: {path} ({intro}의 소개)" if intro else f"- 알게 된 경로: {path}")
+    if filled(p.get("birthday")):
+        facts.append(f"- 생일: {filled(p['birthday'])}")
+    if hash_tags(p.get("tags", [])):
+        facts.append(f"- 태그: {hash_tags(p['tags'])}")
+    if facts:
+        lines += facts + [""]
+    contacts = [f"- {c['label']}: {filled(c['value'])}" for c in p.get("contacts", []) if filled(c["value"])]
+    if contacts:
+        lines += ["## 연락 수단", ""] + contacts + [""]
+    first_met, first_note = filled(p.get("firstMet")), filled(p.get("firstNote"))
+    if first_met or first_note:
+        lines += ["## 첫 인연", "", first_met or "날짜 미상", ""]
+        if first_note:
+            lines += [first_note, ""]
+    records = p.get("records", [])
+    lines += [f"## 기록 {len(records)}건", ""]
+    if not records:
+        lines += ["아직 기록이 없습니다.", ""]
+    for r in records:
+        lines += [f"### {r['date']} · {r['type']} · {normalized(r['title'])}", ""]
+        details = []
+        if r.get("companions"):
+            details.append(f"- 함께한 사람: {', '.join(r['companions'])}")
+        if filled(r.get("location")):
+            details.append(f"- 장소: {filled(r['location'])}")
+        if hash_tags(r.get("tags", [])):
+            details.append(f"- 태그: {hash_tags(r['tags'])}")
+        if details:
+            lines += details + [""]
+        if filled(r.get("note")):
+            lines += [filled(r["note"]), ""]
+    lines += ["---", "", f"느린 인연에서 {p['exportedOn']}에 내보냄"]
+    return "\n".join(lines) + "\n"
+
+
 # ── 검색 (SearchQuery · SearchMatcher) ────────────────────────────────────────
 
 KIND_RANK = {"name": 0, "tag": 1, "person": 2, "record": 3}
@@ -174,34 +1653,35 @@ def parse_query(raw: str) -> list[tuple[str, bool]]:
 
 
 def best_match(term: tuple[str, bool], person: dict):
+    """(종류, 근거, 기록 id 또는 None)"""
     text, tag_only = term
 
     def has(value) -> bool:
-        return value is not None and text in folded(value)
+        return value is not None and chosung_contains(folded(value), text)
 
     if not tag_only and has(person["name"]):
-        return ("name", "이름 일치")
+        return ("name", "이름 일치", None)
     for tag in person.get("tags", []):
         if has(tag):
-            return ("tag", f"태그 #{tag} 일치")
+            return ("tag", f"태그 #{tag} 일치", None)
     if not tag_only:
         for field, evidence in (("nickname", "별명 일치"), ("organization", "소속 일치"),
                                 ("role", "직무 일치"), ("relationshipType", "관계 유형 일치"),
                                 ("metThrough", "알게 된 경로 일치"), ("firstNote", "첫 인연 메모 일치")):
             if has(person.get(field)):
-                return ("person", evidence)
+                return ("person", evidence, None)
     for record in person.get("records", []):
         shown = record["displayTitle"]
         if not tag_only:
             if has(record.get("title")):
-                return ("record", f"기록 '{shown}' 제목 일치")
+                return ("record", f"기록 '{shown}' 제목 일치", record["id"])
             if has(record.get("note")):
-                return ("record", f"기록 '{shown}' 메모 일치")
+                return ("record", f"기록 '{shown}' 메모 일치", record["id"])
             if has(record.get("location")):
-                return ("record", f"기록 '{shown}' 장소 일치")
+                return ("record", f"기록 '{shown}' 장소 일치", record["id"])
         for tag in record.get("tags", []):
             if has(tag):
-                return ("record", f"기록 '{shown}' 태그 #{tag} 일치")
+                return ("record", f"기록 '{shown}' 태그 #{tag} 일치", record["id"])
     return None
 
 
@@ -222,7 +1702,7 @@ def search(query: str, people: list[dict]) -> list[dict]:
                 worst = match
         if not matched or worst is None:
             continue
-        hits.append({"personID": person["id"], "kind": worst[0], "evidence": worst[1],
+        hits.append({"personID": person["id"], "kind": worst[0], "evidence": worst[1], "recordID": worst[2],
                      "_sort": (KIND_RANK[worst[0]], folded(person["name"]), person["id"].upper())})
     hits.sort(key=lambda h: h["_sort"])
     for hit in hits:
@@ -246,6 +1726,76 @@ def build() -> dict:
                            for c in cases["displayTitle"]]
     out["nameSort"] = [{"name": c["name"], "people": c["people"], "expected": sort_people(c["people"])}
                        for c in cases["nameSort"]]
+    from datetime import date
+    out["relativeDay"] = [{"from": c["from"], "to": c["to"],
+                           "expected": relative_day((date.fromisoformat(c["to"]) - date.fromisoformat(c["from"])).days)}
+                          for c in cases["relativeDay"]]
+    out["contactName"] = [{"given": c["given"], "family": c["family"], "expected": contact_name(c["given"], c["family"])}
+                          for c in cases["contactName"]]
+    out["contactNote"] = [{"phones": c["phones"], "emails": c["emails"], "expected": contact_note(c["phones"], c["emails"])}
+                          for c in cases["contactNote"]]
+    out["dyadMetrics"] = [{"name": c["name"], "records": c["records"], "firstMetDay": c.get("firstMetDay"),
+                           "today": c["today"], "expected": dyad_metrics(c["records"], c.get("firstMetDay"), c["today"])}
+                          for c in cases["dyadMetrics"]]
+    out["spanText"] = [{"days": d, "expected": span_text(d)} for d in cases["spanText"]]
+    out["networkOverview"] = [{"name": c["name"], "people": c["people"], "today": c["today"], "yearStart": c["yearStart"],
+                               "yearEnd": c["yearEnd"], "neglectDays": c["neglectDays"],
+                               "expected": network_overview(c["people"], c["today"], c["yearStart"], c["yearEnd"], c["neglectDays"])}
+                              for c in cases["networkOverview"]]
+    out["traitBuckets"] = [{"name": c["name"], "items": c["items"], "limit": c["limit"],
+                            "expected": trait_buckets(c["items"], c["limit"])} for c in cases["traitBuckets"]]
+    out["graphEdges"] = [{"name": c["name"], "people": c["people"], "records": c["records"], "cliqueLimit": c["cliqueLimit"],
+                          "ties": c.get("ties", []),
+                          "expected": graph_edges(c["people"], c["records"], c["cliqueLimit"], c.get("ties", []))} for c in cases["graphEdges"]]
+    out["acquaintanceSuggestions"] = [{"name": c["name"], "people": c["people"], "records": c["records"], "ties": c.get("ties", []),
+                                       "declined": c.get("declined", []), "limit": c.get("limit", SUGGESTION_LIMIT),
+                                       "expected": acquaintance_suggestions(c["people"], c["records"], c.get("ties", []),
+                                                                            c.get("declined", []), c.get("limit", SUGGESTION_LIMIT))}
+                                      for c in cases["acquaintanceSuggestions"]]
+    out["louvain"] = [{"name": c["name"], "nodeCount": c["nodeCount"], "links": c["links"],
+                       "resolution": c.get("resolution", 1.0),
+                       "expected": louvain(c["nodeCount"], c["links"], c.get("resolution", 1.0))} for c in cases["louvain"]]
+    out["splitConnected"] = [{"name": c["name"], "nodeCount": c["nodeCount"], "links": c["links"], "communities": c["communities"],
+                              "expected": split_connected(c["communities"], c["nodeCount"], c["links"])} for c in cases["splitConnected"]]
+    out["communityName"] = [{"name": c["name"], "members": c["members"], "expected": community_name(c["members"])}
+                            for c in cases["communityName"]]
+    out["temporal"] = []
+    for c in cases["temporal"]:
+        sl = temporal_slices(c["people"], c["records"], c.get("ties", []), c["sliceDays"])
+        out["temporal"].append({"name": c["name"], "people": c["people"], "records": c["records"],
+                                "ties": c.get("ties", []), "sliceDays": c["sliceDays"],
+                                "slices": sl, "changes": temporal_changes(sl),
+                                # 짝짓기 문턱 비교 (빌드 16 · 조사 보고서 지금 3) — 0.1 · 0.2 에서의 판정도 Swift 와 대조한다.
+                                "thresholdChanges": [{"threshold": th, "changes": temporal_changes(sl, th)} for th in (0.1, 0.2)]})
+    out["inputReadiness"] = [{"name": c["name"], "input": c["input"], "expected": input_readiness(c["input"]),
+                              "summary": readiness_summary(input_readiness(c["input"]))} for c in cases["inputReadiness"]]
+    out["presetChoices"] = [{"name": c["name"], "presets": c["presets"], "used": c["used"],
+                             "expected": preset_choices(c["presets"], c["used"])}
+                            for c in cases["presetChoices"]]
+    out["contactSplit"] = [{"text": t, "expected": contact_split(t)} for t in cases["contactSplit"]]
+    out["contactFromContact"] = [{"phones": c["phones"], "emails": c["emails"],
+                                  "expected": contact_from_contact(c["phones"], c["emails"])}
+                                 for c in cases["contactFromContact"]]
+    out["cardParse"] = [{"name": c["name"], "lines": c["lines"], "expected": parse_card(c["lines"])}
+                        for c in cases["cardParse"]]
+    out["recencySort"] = [{"name": c["name"], "people": c["people"], "expected": sort_recency(c["people"])}
+                          for c in cases["recencySort"]]
+    out["recentCompanions"] = [{"name": c["name"], "records": c["records"], "excluding": c.get("excluding", []),
+                                "limit": c.get("limit", 8),
+                                "expected": recent_companions(c["records"], c.get("excluding", []), c.get("limit", 8))}
+                               for c in cases["recentCompanions"]]
+    out["birthdays"] = [{"month": c[0], "day": c[1], "year": c[2], "valid": birthday_valid(c[0], c[1], c[2]),
+                         "text": birthday_text(c[0], c[1], c[2])} for c in cases["birthdays"]]
+    out["reminders"] = [{"name": c["name"], "people": c["people"], "today": c["today"], "options": c["options"],
+                         "limit": c.get("limit", REMINDER_LIMIT),
+                         "expected": reminder_plan(c["people"], c["today"], c["options"], c.get("limit", REMINDER_LIMIT))}
+                        for c in cases["reminders"]]
+    out["vcardEncode"] = [{"name": c["name"], "people": c["people"], "expected": vcard_encode(c["people"])} for c in cases["vcardEncode"]]
+    out["vcardParse"] = [{"name": c["name"], "text": c["text"], "expected": vcard_parse(c["text"])} for c in cases["vcardParse"]]
+    out["importMatch"] = [{"name": c["name"], "incoming": c["incoming"], "existing": c["existing"],
+                           "expected": import_match(c["incoming"], c["existing"])} for c in cases["importMatch"]]
+    out["timelineSort"] = [{"name": c["name"], "records": c["records"], "expected": sort_timeline(c["records"])}
+                           for c in cases["timelineSort"]]
     out["validation"] = [{"name": c["name"], "expected": name_problem(c["name"])}
                          for c in cases["validation"]]
     out["recordSave"] = [{"title": c["title"], "note": c["note"],
@@ -254,7 +1804,39 @@ def build() -> dict:
     out["dayNoon"] = [{"iso": c["iso"], "timeZone": c["timeZone"],
                        "expectedEpoch": noon_epoch(c["iso"], c["timeZone"])}
                       for c in cases["dayNoon"]]
+    out["approxDate"] = []
+    for c in cases["approxDate"]:
+        epoch, label = approx_noon(c["iso"], c["timeZone"], c["precision"])
+        out["approxDate"].append({**c, "expectedEpoch": epoch, "expectedLabel": label})
     out["josa"] = [{"text": t, "expected": josa(t)} for t in cases["josa"]]
+    out["folded"] = [{"input": t, "expected": folded(t)} for t in cases["folded"]]
+    out["tagCatalog"] = []
+    for c in cases["tagCatalog"]:
+        entries = tag_catalog(c["personTags"], c["recordTags"])
+        out["tagCatalog"].append({
+            "name": c["name"], "personTags": c["personTags"], "recordTags": c["recordTags"], "expected": entries,
+            "suggest": [{"input": s["input"], "chosen": s["chosen"],
+                         "expected": tag_suggestions(entries, s["input"], s["chosen"])} for s in c["suggest"]],
+        })
+    out["tagRename"] = [{"name": c["name"], "tags": c["tags"], "from": c["from"], "to": c["to"],
+                         "expected": tag_renamed(c["tags"], c["from"], c["to"])} for c in cases["tagRename"]]
+    out["listFilter"] = [{"name": c["name"], "items": c["items"], "filters": [
+        {"type": f.get("type"), "tag": f.get("tag"),
+         "expected": [i for i, item in enumerate(c["items"])
+                      if list_filter_matches(item.get("type"), item["tags"], f.get("type"), f.get("tag"))]}
+        for f in c["filters"]]} for c in cases["listFilter"]]
+    out["typeChoices"] = [{"input": c, "expected": type_choices(c)} for c in cases["typeChoices"]]
+    out["detailLayout"] = [{"input": c, **detail_layout(c)} for c in cases["detailLayout"]]
+    out["detailLabels"] = [{"key": k, "label": DETAIL_LABELS[k]} for k in DETAIL_SECTIONS]
+    out["detailMove"] = [{"stored": c["stored"], "source": c["source"], "destination": c["destination"],
+                          "expected": detail_move(c["stored"], c["source"], c["destination"])}
+                         for c in cases["detailMove"]]
+    out["personExport"] = [{"name": c["name"], "person": c["person"], "expected": person_export(c["person"])}
+                           for c in cases["personExport"]]
+    out["chosung"] = [{"text": c["text"], "initials": chosung_initials(folded(c["text"])),
+                       "terms": [{"term": term, "expected": chosung_contains(folded(c["text"]), folded(term))}
+                                 for term in c["terms"]]}
+                      for c in cases["chosung"]]
     people = cases["search"]["people"]
     out["search"] = {
         "people": people,

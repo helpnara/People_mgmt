@@ -14,13 +14,23 @@ public enum NameSort {
         TextNormalization.folded(name)
     }
 
+    /// 열쇠를 이미 만든 두 항목의 차례. 규칙은 이 함수 하나다.
+    static func precedes(_ lhs: (key: String, createdAt: Date), _ rhs: (key: String, createdAt: Date)) -> Bool {
+        if lhs.key != rhs.key { return lhs.key < rhs.key }
+        return lhs.createdAt < rhs.createdAt
+    }
+
     public static func areInIncreasingOrder(
         _ lhs: (name: String, createdAt: Date),
         _ rhs: (name: String, createdAt: Date)
     ) -> Bool {
-        let left = key(lhs.name)
-        let right = key(rhs.name)
-        if left != right { return left < right }
-        return lhs.createdAt < rhs.createdAt
+        precedes((key(lhs.name), lhs.createdAt), (key(rhs.name), rhs.createdAt))
+    }
+
+    /// 많은 항목을 정렬할 때 — 열쇠를 **항목마다 한 번만** 만든다 (이슈 6). 비교마다 만들면 5,000명에서 0.6초가 넘었다.
+    public static func sorted<T>(_ items: [T], name: (T) -> String, createdAt: (T) -> Date) -> [T] {
+        items.map { (key: key(name($0)), createdAt: createdAt($0), item: $0) }
+            .sorted { precedes(($0.key, $0.createdAt), ($1.key, $1.createdAt)) }
+            .map(\.item)
     }
 }

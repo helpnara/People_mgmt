@@ -141,6 +141,16 @@ jobs:
               exit 1
             }
 
+      # **기호 파일(dSYM)을 남긴다.** 실기기 크래시 로그는 앱 주소만 준다 — 이것이 있어야 함수 이름 · 줄 번호로 바뀐다.
+      # 빌드 4 의 크래시는 같은 커밋을 탐침에서 다시 아카이브해 UUID 를 맞춰 읽었다 (docs/06-ci.md §6).
+      - name: 기호 파일 보관
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsym-${{ github.run_number }}
+          path: build/SlowConnection.xcarchive/dSYMs/
+          if-no-files-found: warn
+          retention-days: 90
+
       - name: 내보내기 설정 만들기
         run: |
           cat > build/ExportOptions.plist <<PLIST
@@ -151,6 +161,8 @@ jobs:
             <key>method</key><string>app-store-connect</string>
             <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
             <key>signingStyle</key><string>automatic</string>
+            <!-- App Store Connect 로 내보내는 판은 Production 만 받는다 (빌드 20 실행이 Development 로 죽음 · ADR-0005). -->
+            <key>iCloudContainerEnvironment</key><string>Production</string>
             <key>uploadSymbols</key><true/>
             <key>destination</key><string>export</string>
             <!-- 이게 없으면 Xcode 가 빌드 번호를 App Store Connect 의 마지막 + 1 로 바꿔 버린다.
@@ -201,6 +213,10 @@ jobs:
             exit 1
           fi
           echo "APP_VERSION=$SHORT ($BUILD)" >> "$GITHUB_ENV"
+
+          # 앱 용량 (요구사항 8.5 · 50MB 이하 · 안정화 기준 5) — 내려받는 크기는 애플이 기기별로 줄여 더 작다. 로그만.
+          echo "── 용량 ──"
+          echo "IPA $(du -k "$IPA" | cut -f1)KB · 풀어 놓은 앱 $(du -sk "$APP" | cut -f1)KB"
 
           echo "── 개인정보 명세 ──"
           MANIFEST="$APP/PrivacyInfo.xcprivacy"
