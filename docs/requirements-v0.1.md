@@ -4,6 +4,7 @@
 - 목적: iPhone 중심 개인용 POC/파일럿 앱 개발
 - 앱 이름: 느린 인연
 - 문서 상태: 초기 요구사항 초안
+- **대체됨** — 확정본은 [requirements-v0.5.md](requirements-v0.5.md) (검토 의견은 requirements-review-v0.1.md)
 
 ---
 

@@ -36,9 +36,14 @@ final class PersonStoreTests: XCTestCase {
         draft.firstMetDate = Date(timeIntervalSince1970: 1_772_922_600) // 2026-03-08 08:30 KST 쯤 — 시간대는 기기 것
         let person = try fixture.store.create(draft)
         let stored = try XCTUnwrap(person.firstMetDate)
-        let components = Calendar.current.dateComponents([.hour, .minute], from: stored)
-        XCTAssertEqual(components.hour, 12)
-        XCTAssertEqual(components.minute, 0)
+        // 고른 날(기기 달력)의 12:00 UTC 로 저장한다 (이슈 20 · Core.DayNormalizer).
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let picked = Calendar.current.dateComponents([.year, .month, .day], from: draft.firstMetDate)
+        let saved = utc.dateComponents([.year, .month, .day, .hour, .minute], from: stored)
+        XCTAssertEqual([saved.year, saved.month, saved.day], [picked.year, picked.month, picked.day], "고른 날 그대로")
+        XCTAssertEqual(saved.hour, 12)
+        XCTAssertEqual(saved.minute, 0)
     }
 
     func testDeleteRemovesSoleRecordsAndLeavesSharedOnes() throws {
@@ -99,6 +104,46 @@ final class PersonStoreTests: XCTestCase {
         XCTAssertTrue(fixture.store.sameName(as: "   ").isEmpty)
     }
 
+    func testRecentSortPutsLatestRecordFirstAndPeopleWithoutRecordsLast() throws {
+        let fixture = try makeFixture()
+        let context = fixture.store.context
+        let quiet = Person(name: "가만")
+        let old = Person(name: "옛날")
+        let fresh = Person(name: "최근")
+        for person in [quiet, old, fresh] { context.insert(person) }
+        let oldRecord = Record(recordType: "meal", occurredAt: Date(timeIntervalSince1970: 1_000_000), title: "옛 기록")
+        let freshRecord = Record(recordType: "meal", occurredAt: Date(timeIntervalSince1970: 2_000_000), title: "새 기록")
+        context.insert(oldRecord)
+        context.insert(freshRecord)
+        oldRecord.participants = [old]
+        freshRecord.participants = [fresh]
+        try context.save()
+
+        XCTAssertEqual(PersonStore.sorted([quiet, old, fresh], by: .recent).map(\.name), ["최근", "옛날", "가만"])
+        XCTAssertEqual(PersonStore.sorted([quiet, old, fresh], by: .name).map(\.name), ["가만", "옛날", "최근"])
+        XCTAssertEqual(fresh.lastRecordAt, Date(timeIntervalSince1970: 2_000_000))
+        XCTAssertNil(quiet.lastRecordAt)
+    }
+
+    func testCardAndContactNoteAreSavedAndCleared() throws {
+        let fixture = try makeFixture()
+        var draft = PersonDraft()
+        draft.name = "명함 있는 사람"
+        draft.contactNote = "  010-1111-2222 · a@example.com  "
+        draft.businessCard = Data([1, 2, 3])
+        let person = try fixture.store.create(draft)
+        XCTAssertEqual(person.contactNote, "010-1111-2222 · a@example.com")
+        XCTAssertEqual(person.businessCard, Data([1, 2, 3]))
+
+        var edit = PersonDraft(person: person)
+        XCTAssertEqual(edit.businessCard, Data([1, 2, 3]))
+        edit.businessCard = nil
+        edit.contactNote = " "
+        try fixture.store.apply(edit, to: person)
+        XCTAssertNil(person.businessCard)
+        XCTAssertNil(person.contactNote)
+    }
+
     func testApplyDraftDropsIntroducerWhenPathIsNotIntroduction() throws {
         let fixture = try makeFixture()
         let context = fixture.store.context
@@ -115,4 +160,85 @@ final class PersonStoreTests: XCTestCase {
         try fixture.store.apply(draft, to: person)
         XCTAssertTrue(person.introducedBy === introducer)
     }
+
+    /// 연락 수단 네 칸이 저장되고, 빈칸으로 고치면 비워진다 (이슈 11).
+    func testContactFieldsAreSavedTrimmedAndCleared() throws {
+        let fixture = try makeFixture()
+        var draft = PersonDraft()
+        draft.name = "연락 칸"
+        draft.mobilePhone = " 010-1111-2222 "
+        draft.officePhone = "02-333-4444"
+        draft.faxNumber = "02-333-4445"
+        draft.email = " a@example.com"
+        let person = try fixture.store.create(draft)
+        XCTAssertEqual(person.mobilePhone, "010-1111-2222")
+        XCTAssertEqual(person.officePhone, "02-333-4444")
+        XCTAssertEqual(person.faxNumber, "02-333-4445")
+        XCTAssertEqual(person.email, "a@example.com")
+
+        var edit = PersonDraft(person: person)
+        XCTAssertEqual(edit.mobilePhone, "010-1111-2222", "수정 화면이 저장된 값을 읽는다")
+        edit.mobilePhone = " "
+        edit.email = ""
+        try fixture.store.apply(edit, to: person)
+        XCTAssertNil(person.mobilePhone)
+        XCTAssertNil(person.email)
+        XCTAssertEqual(person.officePhone, "02-333-4444", "건드리지 않은 칸은 그대로")
+    }
+
+    /// **나** 는 하나뿐이고, 사람 목록 · 같은 이름 안내에서 빠진다 (이슈 12).
+    func testMeIsSingleAndLeftOutOfPeople() throws {
+        let fixture = try makeFixture()
+        var mine = PersonDraft()
+        mine.name = "나의 이름"
+        let me = try fixture.store.create(mine, isMe: true)
+        XCTAssertTrue(me.isMe)
+
+        mine.name = "고친 내 이름"
+        let again = try fixture.store.create(mine, isMe: true)
+        XCTAssertTrue(again === me, "나를 또 만들면 있던 나를 고친다")
+        XCTAssertEqual(me.name, "고친 내 이름")
+
+        var other = PersonDraft()
+        other.name = "고친 내 이름"
+        _ = try fixture.store.create(other)
+
+        XCTAssertTrue(try fixture.store.me() === me)
+        XCTAssertEqual(try fixture.store.allPeople().count, 1, "나는 사람 수에 들지 않는다")
+        XCTAssertEqual(try fixture.store.sortedPeople().map(\.isMe), [false])
+        XCTAssertEqual(fixture.store.sameName(as: "고친 내 이름").count, 1, "같은 이름 안내에 나는 없다")
+    }
+
+    /// **아는 사이** (D-30) — 고른 대로 연결이 생기고 빠지며, 양쪽에서 보이고, 사람을 지우면 연결만 지워진다.
+    func testAcquaintancesAreSymmetricAndFollowTheDraft() throws {
+        let fixture = try makeFixture()
+        var draftA = PersonDraft()
+        draftA.name = "가"
+        let a = try fixture.store.create(draftA)
+        var draftB = PersonDraft()
+        draftB.name = "나"
+        let b = try fixture.store.create(draftB)
+        var draftC = PersonDraft()
+        draftC.name = "다"
+        let c = try fixture.store.create(draftC)
+
+        var edit = PersonDraft(person: a)
+        edit.acquaintances = [b, c, b, a]
+        try fixture.store.apply(edit, to: a)
+        XCTAssertEqual(Set(a.acquaintances.map(\.name)), ["나", "다"], "겹침 · 자기 자신은 빠진다")
+        XCTAssertEqual(b.acquaintances.map(\.name), ["가"], "상대 쪽에서도 보인다")
+
+        var again = PersonDraft(person: b)
+        XCTAssertEqual(again.acquaintances.map(\.name), ["가"])
+        again.acquaintances = []
+        try fixture.store.apply(again, to: b)
+        XCTAssertEqual(a.acquaintances.map(\.name), ["다"], "한쪽에서 빼면 연결이 지워진다")
+
+        try fixture.store.delete(c)
+        XCTAssertTrue(a.acquaintances.isEmpty, "사람을 지우면 그 사람의 연결도 지워진다")
+        XCTAssertFalse(a.isGone, "상대 사람은 남는다")
+        let ties = try fixture.container.mainContext.fetch(FetchDescriptor<Tie>())
+        XCTAssertTrue(ties.isEmpty, "남은 연결이 없다")
+    }
 }
+

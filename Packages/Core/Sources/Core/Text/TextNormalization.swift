@@ -12,10 +12,17 @@ public enum TextNormalization {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 비교 · 검색용 열쇠. `normalized` 에 소문자를 더한다.
-    /// 대소문자를 가리지 않는 것이 요구사항(5.3)이고, 한글은 그대로다.
+    /// 비교 · 검색용 열쇠. `normalized` 에 **발음 구별 기호 빼기**와 소문자를 더한다 (요구사항 5.3 — `cafe` 로 `café` 를 찾는다).
+    ///
+    /// NFD 로 풀어 결합 기호(일반 분류 Mn)만 빼고 NFC 로 다시 합친다. 한글 음절은 NFD 에서 자모(분류 Lo)로 풀리고
+    /// NFC 에서 그대로 다시 합쳐지므로 바뀌지 않는다 (정답표 `folded` 가 대조). 일본어 탁점(゛ · Mn)도 빠진다 — `が` 로 `か` 가 찾아진다.
     public static func folded(_ text: String) -> String {
-        normalized(text).lowercased()
+        var scalars = String.UnicodeScalarView()
+        for scalar in normalized(text).decomposedStringWithCanonicalMapping.unicodeScalars
+        where scalar.properties.generalCategory != .nonspacingMark {
+            scalars.append(scalar)
+        }
+        return String(scalars).precomposedStringWithCanonicalMapping.lowercased()
     }
 
     /// 안쪽의 연속 공백을 빈칸 하나로. 태그(`a   b` → `a b`)에 쓴다.

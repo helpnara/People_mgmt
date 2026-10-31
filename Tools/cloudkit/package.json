@@ -1,0 +1,11 @@
+{
+  "name": "slowconnection-cloudkit",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "맥 없이 CloudKit 스키마를 다루는 도구 (느린 인연 docs/06-ci.md §7 · 느린 부자에서 가져옴)",
+  "dependencies": {
+    "@apple/cktool.database": "1.3.2",
+    "@apple/cktool.target.nodejs": "1.3.2"
+  }
+}

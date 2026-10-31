@@ -13,23 +13,50 @@ enum Persistence {
         let failure: String?
     }
 
-    static func makeContainer(inMemory: Bool) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: SchemaV1.self)
-        let configuration = ModelConfiguration(
-            storeName,
-            schema: schema,
-            isStoredInMemoryOnly: inMemory,
-            // 동기화는 켜지 않는다 (D-1). 켤 때는 `.private("iCloud.com.helpnara.slow.connection")` 과
-            // CloudKit 스키마 배포 절차가 함께 온다 (docs/06-ci.md).
-            cloudKitDatabase: ModelConfiguration.CloudKitDatabase.none
-        )
-        return try ModelContainer(
+    /// 지금 판(5판) 저장소를 연다. 옛 판 저장소면 `SlowConnectionMigrationPlan` 으로 옮긴다.
+    /// `url` 은 시험용 — 앱은 이름(`storeName`)으로 기본 자리를 쓴다.
+    /// `cloudSync` 면 내 iCloud 비공개 영역과 잇는다 (D-42 · `CloudSync`). 메모리 저장소 · 시험은 잇지 않는다.
+    static func makeContainer(inMemory: Bool, url: URL? = nil, cloudSync: Bool = false) throws -> ModelContainer {
+        let schema = Schema(versionedSchema: SchemaV7.self)
+        let database: ModelConfiguration.CloudKitDatabase = (cloudSync && !inMemory && url == nil)
+            ? .private(CloudSync.containerID) : .none
+        let configuration: ModelConfiguration
+        if let url {
+            configuration = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
+        } else {
+            configuration = ModelConfiguration(storeName, schema: schema, isStoredInMemoryOnly: inMemory, cloudKitDatabase: database)
+        }
+        let container = try ModelContainer(
             for: schema,
             migrationPlan: SlowConnectionMigrationPlan.self,
             configurations: [configuration]
         )
+        if !inMemory { protectStoreFiles(at: configuration.url) }
+        return container
     }
 
+    /// 저장 파일에 **처음 잠금 해제 후 보호** 등급을 건다 (요구사항 8.4 · D-48 · 이슈 31). 기기를 켠 뒤 한 번 잠금을 풀기 전에는
+    /// 읽을 수 없고, 그 뒤로는 잠겨 있어도 읽힌다. SQLite 의 `-wal` · `-shm` 도 함께. 앱을 켤 때마다 다시 건다 —
+    /// 빌드 21 까지 **완전 보호**로 만든 파일도 이 등급으로 바뀐다.
+    ///
+    /// **완전 보호를 쓰지 않는 까닭 (이슈 31).** iCloud 동기화(빌드 21)부터 앱은 잠긴 동안에도 깨어난다 — 다른 기기의 변경이
+    /// 조용한 푸시로 오면 동기화가 저장소를 읽고, 목록은 요약을 다시 센다. 완전 보호 파일은 잠긴 동안 읽으면 시스템이 앱을 끈다
+    /// (빌드 21 아이패드 · `EXC_BAD_ACCESS (SIGBUS)` · `The inode's protection class does not allow pagein`). 애플이 동기화 앱에
+    /// 권하는 등급이 이것이다. 잠긴 동안 화면 쪽 셈은 따로 막는다(`StoreAccess`).
+    /// 실패해도 앱은 돈다 — 보호 등급은 덤이지 저장의 조건이 아니다.
+    private static func protectStoreFiles(at url: URL) {
+        let manager = FileManager.default
+        for path in [url.path, url.path + "-wal", url.path + "-shm"] where manager.fileExists(atPath: path) {
+            do {
+                try manager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                                          ofItemAtPath: path)
+            } catch {
+                print("⚠️ 파일 보호 등급을 못 걸었습니다: \(path) — \(error)")
+            }
+        }
+    }
+
+    @MainActor
     static func open(arguments: LaunchArguments) -> Opened {
         if arguments.simulateStoreFailure {
             return fallback(reason: "실행 인자로 일부러 실패시켰습니다 (-simulateStoreFailure)")
@@ -43,7 +70,16 @@ enum Persistence {
             }
         }
         do {
-            return Opened(container: try makeContainer(inMemory: false), isInMemory: false, failure: nil)
+            // iCloud 동기화 (D-42) — 이 판에서 쓸 수 있고 사용자가 끄지 않았을 때만.
+            let sync = CloudSync.mainStoreSyncAvailable && CloudSync.userWantsSync && CloudSync.canUseCloudKit
+            if sync { CloudSyncMonitor.shared.start() }
+            let container = try makeContainer(inMemory: false, cloudSync: sync)
+            CloudSync.markOpened(active: sync)
+            // 날짜 칸을 UTC 정오로 한 번 옮긴다 (이슈 20) — 진짜 저장소에만. 깃발이 이 저장소를 가리키게.
+            DateConvention.migrateIfNeeded(container.mainContext)
+            // 두 기기에서 따로 만든 나가 둘이면 먼저 만든 나만 남긴다 (D-43).
+            if sync { _ = try? PersonStore(context: container.mainContext).resolveDuplicateMe() }
+            return Opened(container: container, isInMemory: false, failure: nil)
         } catch {
             return fallback(reason: "\(error)")
         }
@@ -56,5 +92,22 @@ enum Persistence {
             // 인메모리마저 못 열면 더 할 수 있는 것이 없다 — 스키마가 깨진 것이고 CI 가 먼저 잡는다.
             fatalError("인메모리 저장소도 열지 못했습니다: \(error)")
         }
+    }
+}
+
+/// **저장 실패 모사** (AC-29 · 전수조사 이슈 19). `-failSaves` 로 켜면 `PersonStore` · `RecordStore` 의 모든 저장이
+/// 실패하고, 실패한 저장은 되돌린다 — 저장 실패 알림 · 입력 유지 · `다시 시도` 를 실기기 · 시험에서 본다.
+/// 앱 시험은 `isOn` 을 직접 켜고 끈다.
+@MainActor
+enum SaveFailure {
+    static var isOn = LaunchArguments.current.failSaves
+
+    struct Simulated: LocalizedError {
+        var errorDescription: String? { "저장 실패 시험 중입니다." }
+    }
+
+    /// 켜져 있으면 저장 전에 실패를 던진다.
+    static func check() throws {
+        if isOn { throw Simulated() }
     }
 }

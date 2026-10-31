@@ -1,8 +1,10 @@
 import SwiftUI
 
 /// 등록된 사람이 없을 때 (요구사항 7.1-6 · FR-020). 앱의 목적과 첫 등록 방법을 말한다.
+/// 아래의 `견본으로 둘러보기` 는 지어낸 자료로 앱을 먼저 본다 (D-55 · 심사와 처음 쓰는 사람).
 struct EmptyPeopleView: View {
     let onAdd: () -> Void
+    var onDemo: (() -> Void)?
 
     var body: some View {
         ContentUnavailableView {
@@ -13,6 +15,19 @@ struct EmptyPeopleView: View {
             Button("첫 사람 등록하기", action: onAdd)
                 .buttonStyle(.borderedProminent)
                 .tint(Color.accent)
+            if let onDemo {
+                VStack(spacing: 6) {
+                    Button("견본으로 둘러보기", action: onDemo)
+                        .buttonStyle(.bordered)
+                        .tint(Color.accent)
+                        .accessibilityHint("지어낸 사람과 기록으로 앱을 먼저 봅니다. 저장되지 않습니다")
+                    Text("지어낸 사람과 기록으로 먼저 둘러봅니다. 내 자료와 섞이지 않고, 끝내면 사라집니다.")
+                        .font(.scaled(12))
+                        .foregroundStyle(Color.muted)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 8)
+            }
         }
     }
 }

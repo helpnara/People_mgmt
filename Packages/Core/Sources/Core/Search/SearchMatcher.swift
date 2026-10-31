@@ -77,31 +77,57 @@ public struct SearchHit: Sendable, Equatable {
     public let evidence: String
     /// 정렬용 이름 열쇠.
     public let nameKey: String
+    /// 기록에서 일치했으면 그 기록 (FR-034 — 결과를 누르면 그 기록으로 바로 간다). 사람 칸에서 일치하면 `nil`.
+    public let recordID: UUID?
 }
 
-public enum SearchMatcher {
+/// 검색용으로 **미리 접어 둔** 사람들 (이슈 6). 검색할 때마다 칸을 NFC · 소문자로 다시 만들지 않는다 —
+/// 5,000명 · 50,000건에서 검색 한 번이 1.4~2.3초 걸린 원인이었다. 자료가 바뀔 때만 다시 만든다.
+/// 칸마다 초성 글도 함께 접어 둔다 — 초성 검색(`Chosung` · FR-036)은 모든 칸에서 된다.
+public struct SearchIndex: Sendable {
 
-    private struct Match {
-        let kind: MatchKind
+    struct Field: Sendable {
+        let text: FoldedText
         let evidence: String
     }
 
-    /// 사람 하나가 낱말 하나에 어디서 일치하는지 — **제일 앞서는 자리** 하나.
-    /// 검사 순서가 곧 순위다: 이름 → 태그 → 사람의 다른 칸 → 기록.
-    private static func bestMatch(of term: SearchQuery.Term, in person: SearchablePerson) -> Match? {
-        func has(_ value: String?) -> Bool {
-            guard let value else { return false }
-            return TextNormalization.folded(value).contains(term.text)
-        }
+    struct Tag: Sendable {
+        let original: String
+        let text: FoldedText
+    }
 
-        if !term.tagOnly, has(person.name) {
-            return Match(kind: .name, evidence: "이름 일치")
+    struct RecordEntry: Sendable {
+        let id: UUID
+        let displayTitle: String
+        let title: FoldedText?
+        let note: FoldedText?
+        let location: FoldedText?
+        let tags: [Tag]
+    }
+
+    struct Entry: Sendable {
+        let id: UUID
+        let nameKey: String
+        let name: FoldedText
+        let tags: [Tag]
+        let fields: [Field]
+        let records: [RecordEntry]
+    }
+
+    let entries: [Entry]
+
+    public var count: Int { entries.count }
+
+    public init(_ people: [SearchablePerson]) {
+        func fold(_ value: String?) -> FoldedText? {
+            guard let value, !value.isEmpty else { return nil }
+            return FoldedText(value)
         }
-        if let tag = person.tags.first(where: { has($0) }) {
-            return Match(kind: .tag, evidence: "태그 #\(tag) 일치")
+        func tags(_ values: [String]) -> [Tag] {
+            values.map { Tag(original: $0, text: FoldedText($0)) }
         }
-        if !term.tagOnly {
-            let fields: [(String?, String)] = [
+        entries = people.map { person in
+            let candidates: [(String?, String)] = [
                 (person.nickname, "별명 일치"),
                 (person.organization, "소속 일치"),
                 (person.role, "직무 일치"),
@@ -109,18 +135,48 @@ public enum SearchMatcher {
                 (person.metThrough, "알게 된 경로 일치"),
                 (person.firstNote, "첫 인연 메모 일치"),
             ]
-            for (value, evidence) in fields where has(value) {
-                return Match(kind: .personField, evidence: evidence)
+            let fields = candidates.compactMap { value, evidence in fold(value).map { Field(text: $0, evidence: evidence) } }
+            let records = person.records.map { record in
+                RecordEntry(id: record.id, displayTitle: record.displayTitle, title: fold(record.title),
+                            note: fold(record.note), location: fold(record.location), tags: tags(record.tags))
             }
+            let key = NameSort.key(person.name)
+            return Entry(id: person.id, nameKey: key, name: FoldedText(folded: key), tags: tags(person.tags), fields: fields, records: records)
         }
-        for record in person.records {
+    }
+}
+
+public enum SearchMatcher {
+
+    private struct Match {
+        let kind: MatchKind
+        let evidence: String
+        var recordID: UUID? = nil
+    }
+
+    /// 사람 하나가 낱말 하나에 어디서 일치하는지 — **제일 앞서는 자리** 하나.
+    /// 검사 순서가 곧 순위다: 이름 → 태그 → 사람의 다른 칸 → 기록.
+    private static func bestMatch(of term: SearchQuery.Term, in entry: SearchIndex.Entry) -> Match? {
+        let text = term.text
+        func has(_ field: FoldedText?) -> Bool { field?.contains(text) ?? false }
+
+        if !term.tagOnly, entry.name.contains(text) {
+            return Match(kind: .name, evidence: "이름 일치")
+        }
+        if let tag = entry.tags.first(where: { $0.text.contains(text) }) {
+            return Match(kind: .tag, evidence: "태그 #\(tag.original) 일치")
+        }
+        if !term.tagOnly, let field = entry.fields.first(where: { $0.text.contains(text) }) {
+            return Match(kind: .personField, evidence: field.evidence)
+        }
+        for record in entry.records {
             if !term.tagOnly {
-                if has(record.title) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 제목 일치") }
-                if has(record.note) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 메모 일치") }
-                if has(record.location) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 장소 일치") }
+                if has(record.title) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 제목 일치", recordID: record.id) }
+                if has(record.note) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 메모 일치", recordID: record.id) }
+                if has(record.location) { return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 장소 일치", recordID: record.id) }
             }
-            if let tag = record.tags.first(where: { has($0) }) {
-                return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 태그 #\(tag) 일치")
+            if let tag = record.tags.first(where: { $0.text.contains(text) }) {
+                return Match(kind: .recordField, evidence: "기록 '\(record.displayTitle)' 태그 #\(tag.original) 일치", recordID: record.id)
             }
         }
         return nil
@@ -128,14 +184,14 @@ public enum SearchMatcher {
 
     /// 낱말이 **모두** 일치하는 사람만. 결과의 등급은 낱말들 중 **가장 뒤처진 자리**다 —
     /// 한 낱말이 기록 메모에서만 걸렸으면 그 사람은 "기록 일치" 다. 근거도 그 낱말의 것을 쓴다.
-    public static func hits(_ query: SearchQuery, in people: [SearchablePerson]) -> [SearchHit] {
+    public static func hits(_ query: SearchQuery, in index: SearchIndex) -> [SearchHit] {
         guard !query.isEmpty else { return [] }
         var hits: [SearchHit] = []
-        for person in people {
+        for entry in index.entries {
             var worst: Match?
             var allMatched = true
             for term in query.terms {
-                guard let match = bestMatch(of: term, in: person) else {
+                guard let match = bestMatch(of: term, in: entry) else {
                     allMatched = false
                     break
                 }
@@ -146,13 +202,19 @@ public enum SearchMatcher {
                 }
             }
             guard allMatched, let decisive = worst else { continue }
-            hits.append(SearchHit(personID: person.id, kind: decisive.kind,
-                                  evidence: decisive.evidence, nameKey: NameSort.key(person.name)))
+            hits.append(SearchHit(personID: entry.id, kind: decisive.kind,
+                                  evidence: decisive.evidence, nameKey: entry.nameKey,
+                                  recordID: decisive.recordID))
         }
         return hits.sorted { lhs, rhs in
             if lhs.kind != rhs.kind { return lhs.kind < rhs.kind }
             if lhs.nameKey != rhs.nameKey { return lhs.nameKey < rhs.nameKey }
             return lhs.personID.uuidString < rhs.personID.uuidString
         }
+    }
+
+    /// 한 번만 찾을 때. 색인을 만들어 그대로 쓴다 — 규칙은 위 하나다.
+    public static func hits(_ query: SearchQuery, in people: [SearchablePerson]) -> [SearchHit] {
+        hits(query, in: SearchIndex(people))
     }
 }

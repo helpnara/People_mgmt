@@ -10,6 +10,10 @@ public enum Limits {
     public static let metThrough = 100
     public static let firstNote = 5_000
     public static let contactNote = 500
+    /// 전화 · 팩스 한 칸 (이슈 11). 내선 · 국가 번호를 붙여도 넉넉하다.
+    public static let phone = 40
+    /// 메일 주소의 최대 길이 (RFC 5321).
+    public static let email = 254
     public static let recordTitle = 100
     public static let recordNote = 20_000
     public static let location = 100

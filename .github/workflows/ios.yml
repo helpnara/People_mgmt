@@ -13,6 +13,8 @@ on:
       - "**.md"
       - "Tools/golden/**"
       - "Tools/site/**"
+      - "Tools/cloudkit/**"
+      - ".github/workflows/cloudkit-schema.yml"
       - ".github/workflows/core-test.yml"
       - ".github/workflows/probe.yml"
       - ".github/workflows/site.yml"
@@ -125,6 +127,33 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "선택한 시뮬레이터: $NAME ($UDID)"
 
+      # **스토어용 6.9형 iPhone** (빌드 18 · 1.0 준비) — App Store Connect 가 받는 가장 큰 iPhone 크기(1320×2868).
+      - name: 스토어용 iPhone 고르기
+        id: store
+        run: |
+          read -r UDID NAME <<< "$(xcrun simctl list devices available -j | python3 -c "
+          import json, re, sys
+          data = json.load(sys.stdin)['devices']
+          best = None
+          for runtime, devices in data.items():
+              if 'iOS' not in runtime:
+                  continue
+              m = re.search(r'iOS-(\\d+)-(\\d+)', runtime)
+              version = (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+              for d in devices:
+                  name = d.get('name', '')
+                  n = re.match(r'iPhone (\\d+) Pro Max\$', name)
+                  if not d.get('isAvailable') or not n:
+                      continue
+                  key = (version, int(n.group(1)))
+                  if best is None or key > best[0]:
+                      best = (key, d['udid'], name)
+          print(*(best[1], best[2]) if best else ('', ''))
+          ")"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "스토어용 iPhone: ${NAME:-없음} ($UDID)"
+
       # **iPad 도 한 대 고른다** (D-19 유니버설). 넓은 화면에서 늘어지는 자리를 본다.
       - name: iPad 시뮬레이터 고르기
         id: ipad
@@ -173,7 +202,8 @@ jobs:
             exit 1
           fi
 
-      # **앱 테스트** (인메모리 저장소) — 삭제 범위 · 소개자 비우기 · 같은 이름.
+      # **앱 테스트** (인메모리 저장소) — 삭제 범위 · 소개자 비우기 · 같은 이름 · 스키마 옮기기(1→4판) · 인맥 자료 ·
+      # 명함 읽기 · 저장 실패 되돌리기(-failSaves) · 검색 색인 · 채울 것 · 정렬.
       - name: 앱 테스트
         run: |
           status=0
@@ -271,7 +301,8 @@ jobs:
               xcrun simctl io "$UDID" screenshot "screenshots/$file"
               size=$(stat -f%z "screenshots/$file")
               # (2) 홈 화면은 벽지 때문에 PNG 가 유난히 크다 (3MB 안팎).
-              if [ "$size" -ge 2000000 ]; then
+              # 사진이 가득한 화면(사진첩 창)은 홈 화면이 아니어도 크다 — 그 화면만 SHOOT_MAX 로 문턱을 올린다.
+              if [ "$size" -ge "${SHOOT_MAX:-2000000}" ]; then
                 echo "  홈 화면 같습니다 ($size 바이트). 다시 ($attempt/${SHOOT_ATTEMPTS:-3})"
                 sleep 5
                 continue
@@ -305,14 +336,101 @@ jobs:
           # **빈 상태** — 진짜(시뮬레이터) 저장소. 위에서 앱을 지웠으므로 처음 설치한 모습이다.
           shoot 01-empty.png
           shoot 02-people.png -seedSampleData
-          shoot 03-person-detail.png -seedSampleData -openFirstPerson
+          shoot 03-person-detail.png -seedSampleData -openPerson 김하늘
           shoot 04-add-person.png -seedSampleData -addPerson
           shoot 05-search.png -seedSampleData -search 멘토
           # **큰 글씨** (접근성). 이 한 장이 없으면 Dynamic Type 이 아무것도 안 바꾸고 있는 것을 못 잡는다.
           shoot 06-large-text.png -seedSampleData \
             -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
-          shoot 07-large-text-detail.png -seedSampleData -openFirstPerson \
+          shoot 07-large-text-detail.png -seedSampleData -openPerson 박서연 \
             -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
+          # **가장 큰 글씨 AX5** (빌드 14 · D-33) — 앱 글자가 접근성 다섯 단계까지 커진다. 칩은 두 줄로 접히고
+          # 이름 옆의 날짜 · 막대 옆의 수는 아래로 내려가야 한다. 잘려서 몇 글자만 남으면 실패로 본다(눈으로).
+          AX5="-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL"
+          shoot 25-ax5-people.png -seedSampleData $AX5
+          shoot 26-ax5-detail.png -seedSampleData -openPerson 박서연 $AX5
+          shoot 27-ax5-add-person.png -seedSampleData -addPerson $AX5
+          shoot 28-ax5-overview.png -seedSampleData -openNetwork overview $AX5
+          # 관계도는 큰 글씨에서 둘레 글에 밀려 0 높이가 되었다 (빌드 14 · 이슈 26). 관계도 칸에 점 · 선이 보여야 한다.
+          shoot 29-ax5-graph.png -seedSampleData -seedCommunitySample -openNetwork graph $AX5
+          # **아는 사이 후보** (빌드 16) — 같은 기록에 함께 나온 두 사람 · 근거(함께한 기록 n건) · 잇기 · 아니요.
+          shoot 30-suggestions.png -seedSampleData -openSuggestions
+          # **채울 것 목록** (이슈 28) — 줄 사이 구분선이 왼쪽 끝부터 그어지는지 (오른쪽 채우기 글자 아래에만 짧게 보였다).
+          shoot 31-fill-first-met.png -seedSampleData -openFillFirstMet
+          # 빌드 27 — 태그 관리 · 목록 거르기 · 앱 잠금 가리개.
+          shoot 32-tags.png -seedSampleData -openSettings -openTags
+          shoot 33-people-filter.png -seedSampleData -filterTag 멘토
+          shoot 34-lock.png -seedSampleData -previewLock
+          # 이슈 34 — 자동완성 칩에 글자가 있는가(빌드 27 은 + 만 보였다). 초성으로 찾는 것까지.
+          shoot 35-tag-suggest.png -seedSampleData -openPerson 김하늘 -addRecord -tagInput ㅁㅌ
+          # 견본 둘러보기 (D-55) — 빈 진짜 저장소에서 열어 위의 띠 · 견본 목록이 보이는지. 견본은 메모리에만.
+          shoot 36-demo.png -startDemo
+          # 상세 화면 칸 (D-56) — 설정 화면과, 차례를 바꾸고 관계 돌아보기를 숨긴 상세(실행 인자로 UserDefaults 를 이번 실행에만 덮는다).
+          shoot 37-detail-layout.png -seedSampleData -openSettings -openDetailLayout
+          # **모든 자료 지우기** (할 일 54) — 첫 확인 창(지울 수 · 백업 권하기). 견본 메모리 저장소라 진짜 자료는 없다.
+          shoot 40-wipe-confirm.png -seedSampleData -openSettings -confirmWipe
+          shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
+          # 함께한 사람 고르기의 검색 (이슈 49) — 검색 칸이 늘 보이고, 초성 ㅈㅇ 으로 거른 결과.
+          shoot 39-participant-search.png -seedSampleData -openPerson 김하늘 -addRecord -pickParticipants -pickerSearch ㅈㅇ
+          # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
+          shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
+          shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
+          # **명함** (FR-050). 김하늘의 견본 명함이 수정 시트에 보이고, 글자를 읽어 제안 화면을 띄운다.
+          # 시뮬레이터에는 카메라가 없어 `명함 촬영` 단추는 안 보이는 것이 맞다.
+          shoot 11-edit-card.png -seedSampleData -openPerson 김하늘 -editPerson
+          shoot 12-card-reading.png -seedSampleData -openPerson 김하늘 -editPerson -readCard
+          # **나** (이슈 12) — 목록 맨 위 칸에서 연다. 첫 인연 · 타임라인 · 기록 추가가 없어야 한다.
+          shoot 14-me.png -seedSampleData -openMe
+          # **명함 크게 보기** (이슈 14) — 빌드 7 까지 빈 화면에 갇혔다. 명함 자리가 비면 화소 검사(screens.txt)가 잡는다.
+          shoot 15-card-viewer.png -seedSampleData -openPerson 김하늘 -viewCard
+          # **내 인맥** (6번째 묶음) — 관계도 · 특성 · 돌아보기, 사람 상세의 관계 돌아보기.
+          shoot 16-network-graph.png -seedSampleData -openNetwork graph
+          shoot 17-network-traits.png -seedSampleData -openNetwork traits
+          shoot 18-network-overview.png -seedSampleData -openNetwork overview
+          shoot 19-person-review.png -seedSampleData -openPerson 김하늘 -scrollToReview
+          # **입력 상태 · 모임** (빌드 10 · D-30 · D-31). 모임 견본(15명 · 아는 사이)을 더하면 관계도에 모임 테두리 넷이 그려져야 한다.
+          shoot 20-network-readiness.png -seedSampleData -openNetwork readiness
+          shoot 21-network-groups.png -seedSampleData -seedCommunitySample -openNetwork graph
+          # **지난 시점의 관계도 · 모임의 변화** (빌드 12 · D-32). 모임 견본의 2025년 3분기(시점 9) — 독서 · 등산 모임이 보이고
+          # 프로젝트 모임 사람들은 아직 없다. 돌아보기 아래에 모임의 변화(새로 생긴 모임 · 최근 기록 없음)가 보여야 한다.
+          shoot 22-network-timeline.png -seedSampleData -seedCommunitySample -openNetwork graph -timeSlice 2025
+          shoot 23-network-changes.png -seedSampleData -seedCommunitySample -openNetwork overview
+          # **설정** (빌드 13 · D-34) — 백업 · 복원 · 개인정보 안내 · 앱 버전.
+          shoot 24-settings.png -seedSampleData -openSettings
+          # **사진첩 고르기 창** (이슈 10). 빌드 4 · 5 실기기에서 이 길로 주 스레드가 쉬지 않고 돌다 꺼졌다.
+          # 시뮬레이터 사진첩의 견본 사진이 뜨면 PNG 가 2MB 를 넘는다 (빌드 7 CI 에서 잡힘 — 홈 화면으로 잘못 봤다).
+          SHOOT_MAX=6000000 shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto
+          # 시뮬레이터는 멈춘 앱을 끄지 않는다 — 스크린샷은 찍힌다. 그래서 **CPU 로 본다.**
+          # 창을 띄우고 기다린 뒤에도 앱이 코어 하나를 거의 다 쓰면 무엇인가 쉬지 않고 돈다.
+          busy_check() {
+            local label="$1"; shift
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            local pid
+            pid=$(xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@" | awk '{print $NF}')
+            # 큰 견본은 채우기(15초) · 목록 · 입력 상태 · 검색 색인을 뒤에서 만드는 데 1분 남짓 걸린다 — 그만큼 기다린다.
+            sleep "${BUSY_WAIT:-15}"
+            local samples=""
+            for _ in 1 2 3 4 5; do
+              samples="$samples $(ps -o %cpu= -p "$pid" 2>/dev/null || echo 0)"
+              sleep 2
+            done
+            local average
+            average=$(echo "$samples" | awk '{s=0; for (i=1;i<=NF;i++) s+=$i; printf "%d", (NF ? s/NF : 0)}')
+            echo "CPU ($label):$samples → 평균 ${average}%"
+            if [ "$average" -ge "${BUSY_LIMIT:-60}" ]; then
+              echo "::error::$label — 창을 띄우고 ${BUSY_WAIT:-15}초가 지나도 앱이 CPU ${average}% 를 쓴다. 실기기라면 10초 워치독에 꺼진다 (이슈 10)."
+              # 그때 화면을 남긴다 — 실패 목록은 파일 이름만 받는다 (아래 `못 찍은 사진을 브랜치에`).
+              xcrun simctl io "$UDID" screenshot "screenshots/busy-$label.png" >/dev/null 2>&1 || true
+              echo "busy-$label.png" >> /tmp/shoot-failures
+            fi
+          }
+          busy_check 사진첩-고르기 -seedSampleData -addPerson -pickCardPhoto
+          busy_check 사람-목록 -seedSampleData
+          busy_check 인맥-관계도 -seedSampleData -openNetwork graph
+          # 입력 시트를 사람 5,000명으로 (전수조사 이슈 18) — 빌드 11 까지 두 시트는 본문에서 사람 전원을 정렬했다.
+          # 글자를 쳐 볼 수는 없으니, 시트가 떠 있는 동안 다시 그리기가 쉬지 않고 도는지만 본다.
+          BUSY_WAIT=90 busy_check 사람-추가-큰견본 -seedSampleData -seedLargeSample -addPerson
+          BUSY_WAIT=90 busy_check 기록-추가-큰견본 -seedSampleData -seedLargeSample -openPerson 김하늘 -addRecord
           # 저장소를 끝내 못 열었을 때의 안내 화면 — 죽지 않고 이 화면이 뜨는지, 지우기 단추가 없는지.
           shoot 08-store-failure.png -simulateStoreFailure
 
@@ -320,7 +438,11 @@ jobs:
           xcrun simctl ui "$UDID" appearance dark
           mkdir -p screenshots/dark
           shoot dark/02-people.png -seedSampleData
-          shoot dark/03-person-detail.png -seedSampleData -openFirstPerson
+          shoot dark/03-person-detail.png -seedSampleData -openPerson 김하늘
+          # 새 화면도 다크로 (빌드 14 · 전수조사 이슈 21) — 관계도 · 입력 상태 · 설정.
+          shoot dark/16-network-graph.png -seedSampleData -seedCommunitySample -openNetwork graph
+          shoot dark/20-network-readiness.png -seedSampleData -openNetwork readiness
+          shoot dark/24-settings.png -seedSampleData -openSettings
           xcrun simctl ui "$UDID" appearance light
 
           # ── iPad ──
@@ -335,13 +457,68 @@ jobs:
             mkdir -p screenshots/ipad
             UDID="$IPAD"
             shoot ipad/02-people.png -seedSampleData
-            shoot ipad/03-person-detail.png -seedSampleData -openFirstPerson
+            shoot ipad/03-person-detail.png -seedSampleData -openPerson 김하늘
+            # **아이패드 칸 나누기** (이슈 32) — 왼쪽 바 · 관계도 크게 + 오른쪽 사람 칸 · 입력 상태.
+            shoot ipad/04-network-graph.png -seedSampleData -seedCommunitySample -openNetwork graph
+            # **관계도에서 누른 사람** (이슈 51) — 관계도 위에 떠 있는 요약 카드.
+            shoot ipad/06-graph-card.png -seedSampleData -seedCommunitySample -openNetwork graph -graphSelect 김하늘
+            shoot ipad/05-readiness.png -seedSampleData -openNetwork readiness
             UDID="${{ steps.sim.outputs.udid }}"
           else
             echo "::warning::iPad 시뮬레이터가 없어 iPad 스크린샷을 건너뜁니다"
           fi
 
-          ls -la screenshots screenshots/dark screenshots/ipad 2>/dev/null || true
+          # 스토어용 기기는 언어 · 지역을 한국어로 — 아이패드 상태 바의 날짜(Fri Oct 30)와 날짜 고르개(10/30/26)가
+          # 영어 형식으로 나오지 않게. 바꾼 뒤 다시 켜야 시스템 화면에 든다 (이슈 56).
+          korean() {
+            xcrun simctl spawn "$1" defaults write -g AppleLanguages -array ko-KR en
+            xcrun simctl spawn "$1" defaults write -g AppleLocale ko_KR
+            xcrun simctl shutdown "$1" || true
+            xcrun simctl boot "$1" || true
+            xcrun simctl bootstatus "$1" -b
+            status_bar "$1"
+          }
+
+          # ── 스토어용 (6.9형 iPhone · 13형 iPad) — 견본 안내 띠를 숨긴다(-storeShots). 사람은 모두 지어낸 견본이다. ──
+          STORE="${{ steps.store.outputs.udid }}"
+          if [ -n "$STORE" ]; then
+            echo "── 스토어: ${{ steps.store.outputs.name }} ──"
+            # iPad 단계의 SHOOT_MIN(250,000)이 남으면 글이 적은 기록 상세(215,302 바이트)를 빈 화면으로 본다 (빌드 18 CI).
+            SHOOT_WAIT=12; SHOOT_ATTEMPTS=4; SHOOT_MIN=150000
+            xcrun simctl boot "$STORE" || true
+            xcrun simctl bootstatus "$STORE" -b
+            korean "$STORE"
+            xcrun simctl install "$STORE" "$APP"
+            # **원본**(raw) — 스토어에 올릴 합성 이미지는 다음 단계의 Tools/store/compose.py 가 만든다 (2026-10-30 · 설명 + 앱 화면).
+            # 6.3형 칸(1206 × 2622)도 이 원본을 줄여 만든다 — 가로세로 비가 거의 같다.
+            mkdir -p screenshots/store/raw/iphone
+            UDID="$STORE"
+            shoot store/raw/iphone/01-people.png -seedSampleData -storeShots
+            shoot store/raw/iphone/02-person-detail.png -seedSampleData -storeShots -openPerson 김하늘
+            shoot store/raw/iphone/03-add-record.png -seedSampleData -storeShots -openPerson 김하늘 -addRecord
+            shoot store/raw/iphone/04-network-graph.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph
+            shoot store/raw/iphone/05-timeline.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -timeSlice 2025
+            shoot store/raw/iphone/06-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
+            xcrun simctl shutdown "$STORE" || true
+            UDID="${{ steps.sim.outputs.udid }}"
+          else
+            echo "::warning::Pro Max 시뮬레이터가 없어 스토어용 스크린샷을 건너뜁니다"
+          fi
+          if [ -n "$IPAD" ]; then
+            UDID="$IPAD"
+            SHOOT_MIN=250000
+            # 다음 단계(앱 미리보기 녹화)까지 한국어 그대로 쓰고, 그 단계 끝에서 되돌린다.
+            korean "$IPAD"
+            mkdir -p screenshots/store/raw/ipad
+            shoot store/raw/ipad/01-people.png -seedSampleData -storeShots -openPerson 김하늘
+            shoot store/raw/ipad/02-graph-card.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -graphSelect 김하늘
+            shoot store/raw/ipad/03-timeline.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -timeSlice 2025
+            shoot store/raw/ipad/04-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
+            shoot store/raw/ipad/05-add-record.png -seedSampleData -storeShots -openPerson 김하늘 -addRecord
+            UDID="${{ steps.sim.outputs.udid }}"
+          fi
+
+          ls -la screenshots screenshots/dark screenshots/ipad screenshots/store 2>/dev/null || true
 
           # 한 장이라도 못 찍었으면 막는다. 스크린샷은 원격 세션에서 앱이 실제로 도는지 보는 유일한 창구다.
           if [ -s /tmp/shoot-failures ]; then
@@ -351,6 +528,141 @@ jobs:
             exit 1
           fi
           echo "전부 찍었습니다."
+
+      # **화면 이동 시험 (UI)** (이슈 50) — 아이폰 · 아이패드에서 앱을 띄워 실제로 눌러 다음 화면이 뜨는지 본다.
+      # 이제 막는 시험이다(이슈 50 고친 뒤 · 아이패드 4개 통과) — 실패하면 CI 가 붉다.
+      # **스토어 자산** (2026-10-30 사용자 — 아이폰 · 아이패드 스크린샷과 앱 미리보기, 올리기 거부가 없게).
+      # 1) 앱 미리보기: `-previewTour` 로 앱이 스스로 화면을 넘기는 동안 녹화 → ffmpeg 로 칸이 받는 크기 · 초당 30장 ·
+      #    15~30초 · H.264 · 무음 AAC 스테레오 칸으로. 2) 스크린샷: 원본에 설명을 얹어 칸마다의 크기로 · 알파 없는 RGB.
+      # 3) Tools/store/check-assets.py 가 크기 · 색 칸 · 길이 · 코덱 · 소리 칸을 검사한다. 처음 판이라 막지 않는다(로그로 본다).
+      - name: 스토어 이미지 · 앱 미리보기
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          command -v ffmpeg >/dev/null || brew install ffmpeg
+          mkdir -p screenshots/store/upload build/preview
+          status_bar() {
+            xcrun simctl status_bar "$1" override --time "9:41" \
+              --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100
+          }
+          record_tour() {   # $1 기기 · $2 원본 영상 · $3 녹화 초
+            xcrun simctl boot "$1" 2>/dev/null || true
+            xcrun simctl bootstatus "$1" -b
+            status_bar "$1"
+            xcrun simctl terminate "$1" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            # 한 번 띄웠다 닫아 첫 실행의 느린 준비를 녹화에서 뺀다.
+            xcrun simctl launch "$1" "$BUNDLE_ID" -seedSampleData -storeShots >/dev/null
+            sleep 6
+            xcrun simctl terminate "$1" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            sleep 1
+            xcrun simctl launch "$1" "$BUNDLE_ID" -seedSampleData -seedCommunitySample -storeShots -previewTour >/dev/null
+            sleep 1.5
+            xcrun simctl io "$1" recordVideo --codec=h264 --force "$2" &
+            local rec=$!
+            sleep "$3"
+            kill -INT "$rec"
+            wait "$rec" || true
+            xcrun simctl terminate "$1" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            ls -la "$2"
+          }
+          encode() {        # $1 원본 · $2 결과 · $3 크기 거르기 · $4 길이
+            ffmpeg -hide_banner -loglevel error -y -ss 0.5 -t "$4" -i "$1" \
+              -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 \
+              -map 0:v:0 -map 1:a:0 -vf "fps=30,$3,format=yuv420p" \
+              -c:v libx264 -profile:v high -level:v 4.0 -preset slow -b:v 10M -maxrate 12M -bufsize 20M \
+              -c:a aac -b:a 256k -ar 48000 -ac 2 -shortest -movflags +faststart "$2"
+            ls -la "$2"
+          }
+          STORE="${{ steps.store.outputs.udid }}"
+          IPAD="${{ steps.ipad.outputs.udid }}"
+          # 스크린샷 단계에서 한국어로 바꾼 아이패드를 이 단계가 어떻게 끝나든 되돌린다 (다음 화면 이동 시험은 원래 설정으로).
+          restore_ipad_locale() {
+            if [ -n "$IPAD" ]; then
+              xcrun simctl spawn "$IPAD" defaults delete -g AppleLanguages >/dev/null 2>&1 || true
+              xcrun simctl spawn "$IPAD" defaults delete -g AppleLocale >/dev/null 2>&1 || true
+            fi
+          }
+          trap restore_ipad_locale EXIT
+          if [ -n "$STORE" ]; then
+            record_tour "$STORE" build/preview/iphone.mov 29
+            encode build/preview/iphone.mov screenshots/store/upload/preview-iphone.mp4 "scale=886:-2:flags=lanczos,crop=886:1920" 26
+            xcrun simctl shutdown "$STORE" || true
+          fi
+          if [ -n "$IPAD" ]; then
+            record_tour "$IPAD" build/preview/ipad.mov 30
+            encode build/preview/ipad.mov screenshots/store/upload/preview-ipad.mp4 "scale=1200:1600:flags=lanczos" 27
+          fi
+          .ci-venv/bin/python Tools/store/compose.py
+          .ci-venv/bin/python Tools/store/check-assets.py
+
+      - name: 화면 이동 시험 (아이폰 · 아이패드)
+        run: |
+          status=0
+          # 스크린샷 단계가 띄워 둔 시뮬레이터(아이폰 · 스토어용 아이폰 · 아이패드)를 모두 끄고 시작한다 — 셋이 켜진 채로는
+          # 기계가 무거워 시험 도구가 화면을 읽다 시간 초과가 났다(실행 88 · 아이패드 1개). 필요한 기기는 xcodebuild 가 다시 켠다.
+          xcrun simctl shutdown all >/dev/null 2>&1 || true
+          DESTS=(-destination "id=${{ steps.sim.outputs.udid }}")
+          if [ -n "${{ steps.ipad.outputs.udid }}" ]; then
+            DESTS+=(-destination "id=${{ steps.ipad.outputs.udid }}")
+          fi
+          xcodebuild \
+            -project SlowConnection.xcodeproj \
+            -scheme SlowConnectionUITests \
+            -configuration Debug \
+            "${DESTS[@]}" \
+            -derivedDataPath build \
+            -disable-concurrent-destination-testing \
+            CODE_SIGNING_ALLOWED=NO \
+            test > /tmp/ui-tests.log 2>&1 || status=$?
+          # 기기를 차례로 돌려 실패 문구(제목 막대 · 화면 구조)가 로그에 찍히게 한다.
+          grep -iE "Test Case .*(passed|failed)|Executed|error:|XCTAssert|Testing (failed|passed)|TEST (SUCCEEDED|FAILED)" /tmp/ui-tests.log | tail -80 || true
+          RESULT=$(ls -td build/Logs/Test/*SlowConnectionUITests*.xcresult 2>/dev/null | head -1)
+          if [ -n "$RESULT" ]; then
+            echo "── 실패 까닭 (xcresult) ──"
+            xcrun xcresulttool get test-results tests --path "$RESULT" 2>/dev/null | head -c 30000 || true
+            echo
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo "── 실패 — 로그 꼬리 ──"
+            tail -150 /tmp/ui-tests.log
+            exit "$status"
+          fi
+
+      # **큰 견본으로 화면 시간** (요구사항 8.5 · 사람 5,000 · 기록 50,000). 로그에만 남긴다 — 막는 검사가 아니라
+      # "느린 곳만 고친다" 의 숫자를 모으는 자리다. 견본 채우기 자체가 수십 초라 넉넉히 기다린다.
+      # **Release 로 잰다** (2026-10-22 사용자 · 기준 5) — 내려받는 판과 같은 최적화. Debug 는 수치가 부풀어 판단에 못 쓴다.
+      - name: 큰 견본으로 화면 시간 재기 (로그만)
+        continue-on-error: true
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          set -o pipefail
+          if xcodebuild \
+            -project SlowConnection.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "id=$UDID" \
+            -derivedDataPath build-release \
+            CODE_SIGNING_ALLOWED=NO \
+            build > /tmp/build-release.log 2>&1; then
+            RELEASE_APP=$(find build-release/Build/Products/Release-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+            echo "Release 설치: $RELEASE_APP"
+            xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            xcrun simctl install "$UDID" "$RELEASE_APP"
+          else
+            echo "::warning::Release 빌드 실패 — Debug 판으로 잰다"
+            grep -E "error:" /tmp/build-release.log | head -20 || true
+          fi
+          set +o pipefail
+          # 첫 줄은 목록이 뜬 뒤 사람 한 명 · 기록 한 건을 저장해 본다(-measureSave). 상세는 기록 500건인 견본상세로.
+          for args in "-seedSampleData -seedLargeSample -measureSave" "-seedSampleData -seedLargeSample -search 견본" "-seedSampleData -seedLargeSample -openPerson 견본상세" "-seedSampleData -seedLargeSample -openNetwork graph"; do
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            echo "── $args ──"
+            # shellcheck disable=SC2086
+            perl -e 'alarm 150; exec @ARGV' \
+              xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" $args 2>&1 \
+              | grep --line-buffered "⏱" || echo "  (찍힌 시간 없음 — 150초 안에 못 띄웠거나 로그가 없다)"
+          done
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 
       # **아티팩트 업로드를 커밋보다 앞에** — 커밋이 실패하면 결과물을 못 받는다.
       - name: 빌드 산출물 보관
