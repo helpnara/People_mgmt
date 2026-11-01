@@ -1,3 +1,4 @@
+import Core
 import SwiftData
 import XCTest
 @testable import SlowConnection
@@ -208,5 +209,45 @@ final class MigrationTests: XCTestCase {
         edit.birthYear = 2023   // 평년 — 2월 29일은 없는 날
         try PersonStore(context: context).apply(edit, to: friend)
         XCTAssertNil(friend.birthMonth, "없는 날은 저장하지 않는다")
+    }
+
+    /// 7판(App Store 1.0) 저장소 → 8판: 사람 · 사진 · 기록 · 정밀도가 남고, 새 시각 칸은 비어 있다가 적을 수 있다 (D-63).
+    func testVersionSevenStoreOpensWithEmptyTime() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("v7.store")
+
+        do {
+            let schema = Schema(versionedSchema: SchemaV7.self)
+            let configuration = ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
+            let container = try ModelContainer(for: schema, configurations: [configuration])
+            let context = container.mainContext
+            let friend = SchemaV7.Person(name: "7판 친구")
+            friend.photo = Data([0xFF, 0xD8, 0xFF])
+            context.insert(friend)
+            let record = SchemaV7.Record(recordType: "meal", title: "7판 점심")
+            record.occurredPrecision = 1
+            context.insert(record)
+            record.participants = [friend]
+            try context.save()
+        }
+
+        let container = try Persistence.makeContainer(inMemory: false, url: url)
+        let context = container.mainContext
+        let friend = try XCTUnwrap(try context.fetch(FetchDescriptor<Person>()).first)
+        XCTAssertEqual(friend.name, "7판 친구")
+        XCTAssertEqual(friend.photo, Data([0xFF, 0xD8, 0xFF]), "사진이 남는다")
+        let record = try XCTUnwrap(try context.fetch(FetchDescriptor<Record>()).first)
+        XCTAssertEqual(record.displayTitle, "7판 점심")
+        XCTAssertEqual(record.occurredPrecision, 1, "정밀도가 남는다")
+        XCTAssertEqual(record.participants?.count, 1)
+        XCTAssertNil(record.occurredMinute, "옮긴 직후 시각은 비어 있다")
+
+        var draft = RecordDraft(record: record)
+        draft.occurredPrecision = .day
+        draft.occurredMinute = 14 * 60 + 30
+        try RecordStore(context: context).apply(draft, to: record)
+        XCTAssertEqual(record.occurredMinute, 870, "시각을 적을 수 있다")
     }
 }

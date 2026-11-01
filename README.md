@@ -8,7 +8,7 @@
 |---|---|
 | 플랫폼 | iOS 17+ · iPhone 우선 · iPad 도 설치됨 (유니버설) |
 | UI | SwiftUI |
-| 영속성 | SwiftData, 기기 내 저장 · 스키마 7판. CloudKit 제약을 첫 모델부터 지켰고([ADR-0001](docs/adr/0001-swiftdata-local-first.md)) 빌드 21 부터 내 iCloud 비공개 영역과 동기화한다([ADR-0005](docs/adr/0005-icloud-sync.md)) |
+| 영속성 | SwiftData, 기기 내 저장 · 스키마 8판. CloudKit 제약을 첫 모델부터 지켰고([ADR-0001](docs/adr/0001-swiftdata-local-first.md)) 빌드 21 부터 내 iCloud 비공개 영역과 동기화한다([ADR-0005](docs/adr/0005-icloud-sync.md)) |
 | 백엔드 | 없음. 앱의 통신은 사용자 본인 iCloud 와의 동기화 하나 — 개발자 서버 · 분석 · 추적 없음 |
 | 개발 환경 | 맥 없음 — 리눅스 원격 세션이 코드를 쓰고 GitHub Actions 의 macOS 러너가 빌드 · 스크린샷 · TestFlight 를 한다 ([06-ci](docs/06-ci.md)) |
 | 번들 ID | `com.helpnara.slow.connection` · 타깃 `SlowConnection` · 표시 이름 `느린 인연` |

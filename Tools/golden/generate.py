@@ -129,8 +129,24 @@ def sort_recency(people: list[dict]) -> list[str]:
     return [p["name"] for p in sorted(people, key=key)]
 
 
+NO_TIME = 24 * 60  # 시각 없는 기록은 그날의 끝 (8판 · D-63)
+
+
+def time_key(minute):
+    return NO_TIME if minute is None else min(max(minute, 0), NO_TIME - 1)
+
+
+def time_text(minute: int) -> str:
+    m = min(max(minute, 0), NO_TIME - 1)
+    hour = m // 60
+    half = "오전" if hour < 12 else "오후"
+    shown = 12 if hour % 12 == 0 else hour % 12
+    return f"{half} {shown}:{m % 60:02d}"
+
+
 def sort_timeline(records: list[dict]) -> list[str]:
-    ordered = sorted(records, key=lambda r: (-r["occurredAt"], -r["createdAt"]))
+    # 최신 날짜 먼저 · 같은 날은 늦은 시각 먼저(시각 없음 = 그날의 끝 → 맨 위) · 그다음 나중에 만든 것 먼저.
+    ordered = sorted(records, key=lambda r: (-r["occurredAt"], -time_key(r.get("minute")), -r["createdAt"]))
     return [r["id"] for r in ordered]
 
 
@@ -163,11 +179,11 @@ PLANNED_WINDOW = 60
 
 def planned_meetings(records, today, window=PLANNED_WINDOW):
     upcoming = sorted((r for r in records if r["day"] > today),
-                      key=lambda r: (r["day"], r["createdDay"], r["id"].upper()))
+                      key=lambda r: (r["day"], time_key(r.get("minute")), r["createdDay"], r["id"].upper()))
     awaiting = [r for r in records
                 if r["dayPrecise"] and today - window <= r["day"] <= today
                 and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
-    awaiting.sort(key=lambda r: (-r["day"], r["id"].upper()))
+    awaiting.sort(key=lambda r: (-r["day"], -time_key(r.get("minute")), r["id"].upper()))
     return {"upcoming": [r["id"].upper() for r in upcoming], "awaiting": [r["id"].upper() for r in awaiting]}
 
 
@@ -178,7 +194,7 @@ def planned_follow_ups(records, today, limit=FOLLOW_UP_LIMIT):
     """결과 적기 알림 — 그날 다음 날에 울릴 예정. 날짜까지 · 미리 만듦 · 그날 이후 안 고침 · 그날이 어제 이후. 가까운 날 → id."""
     picked = [r for r in records if r["dayPrecise"] and r["day"] >= today - 1
               and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
-    picked.sort(key=lambda r: (r["day"], r["id"].upper()))
+    picked.sort(key=lambda r: (r["day"], time_key(r.get("minute")), r["id"].upper()))
     return [r["id"].upper() for r in picked[:limit]]
 
 
@@ -1818,6 +1834,7 @@ def build() -> dict:
                                "followUps": planned_follow_ups(c["records"], c["today"]),
                                "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}
                               for c in cases["plannedMeetings"]]
+    out["timeOfDay"] = [{"minute": m, "text": time_text(m), "sortKey": time_key(m)} for m in cases["timeOfDay"]]
     out["birthdays"] = [{"month": c[0], "day": c[1], "year": c[2], "valid": birthday_valid(c[0], c[1], c[2]),
                          "text": birthday_text(c[0], c[1], c[2])} for c in cases["birthdays"]]
     out["reminders"] = [{"name": c["name"], "people": c["people"], "today": c["today"], "options": c["options"],

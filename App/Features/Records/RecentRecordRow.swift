@@ -39,7 +39,7 @@ struct RecentRecordRow: View {
                             .font(.scaled(13, weight: .semibold))
                             .foregroundStyle(Color.accent)
                     }
-                    Text(record.occurredAt.shown(precision: record.occurredPrecision, style: .abbreviated))
+                    Text(record.whenText(style: .abbreviated))
                     if !companions.isEmpty {
                         Text("· \(companions)")
                             .readableLineLimit(1)

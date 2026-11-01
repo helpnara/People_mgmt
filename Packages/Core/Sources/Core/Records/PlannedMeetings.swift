@@ -3,10 +3,10 @@ import Foundation
 /// **예정된 만남** (빌드 38 · 1.1 · D-62) — 앞날짜 기록을 다가오는 만남으로 보이고, 그날이 온 뒤 결과를 적게 이끈다.
 ///
 /// 스키마는 그대로다(2026-11-01 사용자). 기록에 이미 있는 만든 때 · 고친 때로 가른다:
-/// - **다가오는 만남** — 기록 날이 오늘보다 뒤. 가까운 날부터.
+/// - **다가오는 만남** — 기록 날이 오늘보다 뒤. 가까운 날부터, 같은 날은 이른 시각부터(시각 없음은 그날의 끝 · D-63).
 /// - **결과를 적을 만남** — 날짜까지 정한 기록(월까지 · 연도만은 빼고)이 그날보다 **앞서 만들어졌고**(미리 적은 예정),
 ///   그날이 온 뒤로 **한 번도 고치지 않았고**, 그날이 지난 `window` 일 안이다. 최근 날부터.
-///   결과를 적거나 `그대로 만났어요` 로 고친 때가 그날 이후가 되면 빠진다.
+///   결과를 적거나 `그대로 만났어요` 로 고친 때가 그날 이후가 되면 빠진다. 같은 날은 늦은 시각부터(타임라인과 같은 차례).
 ///
 /// 날은 모두 같은 달력의 **날 번호**(부르는 쪽이 `DayIndex` 로 센다)라 시각 · 시간대는 셈에 들지 않는다.
 /// 오늘 날짜의 예정은 다가오는 만남이 아니라 결과를 적을 만남이다 — 목록의 마지막 기록일 · 최근 기록이
@@ -22,12 +22,15 @@ public enum PlannedMeetings {
         public let createdDay: Int
         public let updatedDay: Int
         public let isDayPrecise: Bool
-        public init(id: UUID, day: Int, createdDay: Int, updatedDay: Int, isDayPrecise: Bool) {
+        /// 그날의 시각 (8판 · D-63). 같은 날 안의 차례 — 없으면 그날의 끝.
+        public let minute: Int?
+        public init(id: UUID, day: Int, createdDay: Int, updatedDay: Int, isDayPrecise: Bool, minute: Int? = nil) {
             self.id = id
             self.day = day
             self.createdDay = createdDay
             self.updatedDay = updatedDay
             self.isDayPrecise = isDayPrecise
+            self.minute = minute
         }
     }
 
@@ -47,10 +50,17 @@ public enum PlannedMeetings {
     public static func plan(_ entries: [Entry], today: Int, window: Int = window) -> Plan {
         let upcoming = entries
             .filter { $0.day > today }
-            .sorted { ($0.day, $0.createdDay, $0.id.uuidString) < ($1.day, $1.createdDay, $1.id.uuidString) }
+            .sorted {
+                ($0.day, TimeOfDay.sortKey($0.minute), $0.createdDay, $0.id.uuidString)
+                    < ($1.day, TimeOfDay.sortKey($1.minute), $1.createdDay, $1.id.uuidString)
+            }
         let awaiting = entries
             .filter { isAwaiting($0, today: today, window: window) }
-            .sorted { $0.day != $1.day ? $0.day > $1.day : $0.id.uuidString < $1.id.uuidString }
+            .sorted {
+                if $0.day != $1.day { return $0.day > $1.day }
+                let l = TimeOfDay.sortKey($0.minute), r = TimeOfDay.sortKey($1.minute)
+                return l != r ? l > r : $0.id.uuidString < $1.id.uuidString
+            }
         return Plan(upcoming: upcoming.map(\.id), awaiting: awaiting.map(\.id))
     }
 
@@ -63,7 +73,9 @@ public enum PlannedMeetings {
     public static func followUps(_ entries: [Entry], today: Int, limit: Int = followUpLimit) -> [UUID] {
         entries
             .filter { $0.isDayPrecise && $0.day >= today - 1 && $0.createdDay < $0.day && $0.updatedDay < $0.day }
-            .sorted { $0.day != $1.day ? $0.day < $1.day : $0.id.uuidString < $1.id.uuidString }
+            .sorted {
+                ($0.day, TimeOfDay.sortKey($0.minute), $0.id.uuidString) < ($1.day, TimeOfDay.sortKey($1.minute), $1.id.uuidString)
+            }
             .prefix(limit)
             .map(\.id)
     }

@@ -398,6 +398,17 @@
   ],
   "timelineSort": [
     {
+      "name": "같은 날은 늦은 시각 먼저 · 시각 없는 기록은 그날의 끝이라 맨 위 · 시각이 같으면 나중에 만든 것 먼저",
+      "records": [
+        {"id": "a", "occurredAt": 300, "createdAt": 1, "minute": 600},
+        {"id": "b", "occurredAt": 300, "createdAt": 2, "minute": 900},
+        {"id": "c", "occurredAt": 300, "createdAt": 3},
+        {"id": "d", "occurredAt": 200, "createdAt": 9, "minute": 1200},
+        {"id": "e", "occurredAt": 300, "createdAt": 4, "minute": 900},
+        {"id": "f", "occurredAt": 400, "createdAt": 1, "minute": 0}
+      ]
+    },
+    {
       "name": "최신 날짜 먼저 · 같은 날짜는 나중에 만든 것 먼저",
       "records": [
         {
@@ -4844,6 +4855,20 @@
         {"id": "00000000-0000-0000-0000-000000000378", "day": 999, "createdDay": 995, "updatedDay": 999, "dayPrecise": true},
         {"id": "00000000-0000-0000-0000-000000000379", "day": 1030, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true}
       ]
+    },
+    {
+      "name": "같은 날은 시각 순 — 다가오는 만남 · 알림은 이른 시각부터, 결과를 적을 만남은 늦은 시각부터, 시각 없음은 그날의 끝",
+      "today": 1000,
+      "records": [
+        {"id": "00000000-0000-0000-0000-000000000381", "day": 1002, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true, "minute": 900},
+        {"id": "00000000-0000-0000-0000-000000000382", "day": 1002, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true, "minute": 540},
+        {"id": "00000000-0000-0000-0000-000000000383", "day": 1002, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000384", "day": 1001, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true, "minute": 1200},
+        {"id": "00000000-0000-0000-0000-000000000385", "day": 1000, "createdDay": 997, "updatedDay": 997, "dayPrecise": true, "minute": 600},
+        {"id": "00000000-0000-0000-0000-000000000386", "day": 1000, "createdDay": 997, "updatedDay": 997, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000387", "day": 1000, "createdDay": 997, "updatedDay": 997, "dayPrecise": true, "minute": 1000}
+      ]
     }
-  ]
+  ],
+  "timeOfDay": [0, 5, 59, 540, 545, 719, 720, 721, 870, 1439, 1500, -3]
 }

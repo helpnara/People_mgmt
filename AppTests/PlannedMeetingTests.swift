@@ -29,7 +29,9 @@ final class PlannedMeetingTests: XCTestCase {
     func testSampleShowsUpcomingAndAwaiting() throws {
         let context = try seeded()
         let found = try plan(context)
-        XCTAssertEqual(found.upcoming.map(\.displayTitle), ["점심 약속", "독서모임 송년회"], "가까운 날부터")
+        XCTAssertEqual(found.upcoming.map(\.displayTitle), ["커피 약속", "점심 약속", "독서모임 송년회"],
+                       "가까운 날부터 · 같은 날은 이른 시각부터 (D-63)")
+        XCTAssertEqual(found.upcoming.first?.timeText, "오전 10:00")
         XCTAssertEqual(found.awaiting.map(\.displayTitle), ["프로젝트 시작 회의"])
         XCTAssertTrue(found.upcoming.allSatisfy(\.isUpcoming))
         XCTAssertTrue(found.awaiting.allSatisfy(\.isAwaitingResult))

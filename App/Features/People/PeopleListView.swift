@@ -552,7 +552,12 @@ struct PeopleListView: View {
         // 결과를 적을 만남(D-62)에 이미 보이는 기록은 빼고 셋 — 홈에 같은 기록이 두 번 서지 않게.
         descriptor.fetchLimit = 3 + Self.plannedShown
         let awaiting = Set(awaitingRecords.map(\.uuid))
-        recentRecords = Array(((try? context.fetch(descriptor)) ?? []).filter { !awaiting.contains($0.uuid) }.prefix(3))
+        // 같은 날 안의 차례는 시각까지 (8판 · D-63) — 규칙은 `Core.TimelineSort` 하나다.
+        let fetchedRecent = ((try? context.fetch(descriptor)) ?? []).filter { !awaiting.contains($0.uuid) }.sorted {
+            TimelineSort.areInIncreasingOrder((occurredAt: $0.occurredAt, minute: $0.occurredMinute, createdAt: $0.createdAt),
+                                              (occurredAt: $1.occurredAt, minute: $1.occurredMinute, createdAt: $1.createdAt))
+        }
+        recentRecords = Array(fetchedRecent.prefix(3))
     }
 
     /// 예정된 만남 (D-62) — 다가오는 만남(오늘보다 뒤)과 결과를 적을 만남(지난 60일 안 · 미리 적고 그날 이후 안 고친 것).

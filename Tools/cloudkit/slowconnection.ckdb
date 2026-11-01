@@ -77,6 +77,7 @@ DEFINE SCHEMA
         CD_recordType_ckAsset ASSET,
         CD_occurredAt TIMESTAMP,
         CD_occurredPrecision INT64,
+        CD_occurredMinute INT64,
         CD_location STRING,
         CD_location_ckAsset ASSET,
         CD_note STRING,

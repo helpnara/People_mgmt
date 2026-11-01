@@ -145,25 +145,28 @@ enum SampleData {
         if LaunchArguments.current.largeSample { seedLarge(into: context) }
     }
 
-    /// **예정된 만남 견본** (빌드 38 · D-62) — 다가오는 만남 둘(3일 · 12일 뒤)과 결과를 적을 만남 하나(어제 · 엿새 전에 적어 둠).
+    /// **예정된 만남 견본** (빌드 38 · D-62) — 다가오는 만남 셋(3일 뒤 오전 10시 · 오후 12:30, 12일 뒤)과 결과를 적을 만남 하나(어제 · 엿새 전에 적어 둠).
     /// 날은 오늘에서 센다. 미리 적어 둔 예정이라 만든 때 · 고친 때를 그날보다 앞으로 둔다.
     @MainActor
     static func seedPlanned(into context: ModelContext, haneul: Person, yujin: Person) {
         let calendar = Calendar.current
-        func make(_ type: String, in days: Int, title: String, note: String?, location: String?,
+        func make(_ type: String, in days: Int, at minute: Int? = nil, title: String, note: String?, location: String?,
                   with people: [Person], writtenDaysAgo: Int) {
             let occurred = calendar.date(byAdding: .day, value: days, to: Date()) ?? Date()
             let item = Record(recordType: type, occurredAt: DayNormalizer.noon(of: occurred, calendar: calendar),
                               title: title, note: note)
             item.location = location
+            item.occurredMinute = minute
             let written = calendar.date(byAdding: .day, value: -writtenDaysAgo, to: Date()) ?? Date()
             item.createdAt = written
             item.updatedAt = written
             context.insert(item)
             item.participants = people
         }
-        make("meal", in: 3, title: "점심 약속", note: "새 프로젝트 이야기를 나누기로.", location: "국숫집",
+        // 같은 날 약속 둘 — 시각 순으로 선다 (8판 · D-63).
+        make("meal", in: 3, at: 12 * 60 + 30, title: "점심 약속", note: "새 프로젝트 이야기를 나누기로.", location: "국숫집",
              with: [haneul], writtenDaysAgo: 0)
+        make("conversation", in: 3, at: 10 * 60, title: "커피 약속", note: nil, location: nil, with: [yujin], writtenDaysAgo: 0)
         make("social", in: 12, title: "독서모임 송년회", note: nil, location: nil, with: [haneul, yujin], writtenDaysAgo: 0)
         make("meeting", in: -1, title: "프로젝트 시작 회의", note: "일정과 역할을 정하기로.", location: "본사 3층",
              with: [yujin], writtenDaysAgo: 6)
