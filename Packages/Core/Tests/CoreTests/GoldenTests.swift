@@ -123,7 +123,7 @@ final class GoldenTests: XCTestCase {
         struct CardCase: Decodable { let name: String; let lines: [CardLineRaw]; let expected: CardExpected }
         struct RecencyPerson: Decodable { let name: String; let createdAt: Double; let lastRecordAt: Double? }
         struct RecencyCase: Decodable { let name: String; let people: [RecencyPerson]; let expected: [String] }
-        struct TimelineRecord: Decodable { let id: String; let occurredAt: Double; let createdAt: Double }
+        struct TimelineRecord: Decodable { let id: String; let occurredAt: Double; let createdAt: Double; let minute: Int? }
         struct TimelineCase: Decodable { let name: String; let records: [TimelineRecord]; let expected: [String] }
         struct ValidationCase: Decodable { let name: String; let expected: String? }
         struct RecordSaveCase: Decodable { let title: String?; let note: String?; let expected: Bool }
@@ -175,9 +175,10 @@ final class GoldenTests: XCTestCase {
             let tags: [String]?; let contacts: [ExportContact]?; let firstMet: String?; let firstNote: String?
             let records: [ExportRecord]?; let exportedOn: String
         }
-        struct PlannedRecordRaw: Decodable { let id: UUID; let day: Int; let createdDay: Int; let updatedDay: Int; let dayPrecise: Bool }
+        struct PlannedRecordRaw: Decodable { let id: UUID; let day: Int; let createdDay: Int; let updatedDay: Int; let dayPrecise: Bool; let minute: Int? }
         struct PlannedExpected: Decodable { let upcoming: [UUID]; let awaiting: [UUID] }
         struct PlannedPhrase: Decodable { let day: Int; let expected: String }
+        struct TimeCase: Decodable { let minute: Int; let text: String; let sortKey: Int }
         struct PlannedCase: Decodable {
             let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int
             let expected: PlannedExpected; let followUps: [UUID]; let phrases: [PlannedPhrase]
@@ -208,6 +209,7 @@ final class GoldenTests: XCTestCase {
         let acquaintanceSuggestions: [SuggestionCase]
         let recentCompanions: [RecentCompanionsCase]
         let plannedMeetings: [PlannedCase]
+        let timeOfDay: [TimeCase]
         let birthdays: [BirthdayCase]
         let reminders: [ReminderCase]
         let vcardEncode: [VEncodeCase]
@@ -429,7 +431,7 @@ final class GoldenTests: XCTestCase {
         for c in try Self.loadGolden().plannedMeetings {
             let entries = c.records.map {
                 PlannedMeetings.Entry(id: $0.id, day: $0.day, createdDay: $0.createdDay, updatedDay: $0.updatedDay,
-                                      isDayPrecise: $0.dayPrecise)
+                                      isDayPrecise: $0.dayPrecise, minute: $0.minute)
             }
             let got = PlannedMeetings.plan(entries, today: c.today, window: c.window)
             XCTAssertEqual(got.upcoming, c.expected.upcoming, "\(c.name) — 다가오는 만남")
@@ -441,6 +443,15 @@ final class GoldenTests: XCTestCase {
         }
         XCTAssertEqual(PlannedMeetings.window, 60, "정답표의 PLANNED_WINDOW 와 같다")
         XCTAssertEqual(PlannedMeetings.followUpLimit, 4, "정답표의 FOLLOW_UP_LIMIT 와 같다")
+    }
+
+    func testTimeOfDay() throws {
+        for c in try Self.loadGolden().timeOfDay {
+            XCTAssertEqual(TimeOfDay.text(c.minute), c.text, "\(c.minute)분")
+            XCTAssertEqual(TimeOfDay.sortKey(c.minute), c.sortKey, "\(c.minute)분 차례")
+        }
+        XCTAssertEqual(TimeOfDay.sortKey(nil), TimeOfDay.noTime, "시각 없음은 그날의 끝")
+        XCTAssertEqual(TimeOfDay.noTime, 1440)
     }
 
     func testBirthdayRule() throws {
@@ -612,8 +623,8 @@ final class GoldenTests: XCTestCase {
         for c in try Self.loadGolden().timelineSort {
             let sorted = c.records.sorted {
                 TimelineSort.areInIncreasingOrder(
-                    (occurredAt: Date(timeIntervalSince1970: $0.occurredAt), createdAt: Date(timeIntervalSince1970: $0.createdAt)),
-                    (occurredAt: Date(timeIntervalSince1970: $1.occurredAt), createdAt: Date(timeIntervalSince1970: $1.createdAt)))
+                    (occurredAt: Date(timeIntervalSince1970: $0.occurredAt), minute: $0.minute, createdAt: Date(timeIntervalSince1970: $0.createdAt)),
+                    (occurredAt: Date(timeIntervalSince1970: $1.occurredAt), minute: $1.minute, createdAt: Date(timeIntervalSince1970: $1.createdAt)))
             }.map(\.id)
             XCTAssertEqual(sorted, c.expected, c.name)
         }

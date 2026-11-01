@@ -7,6 +7,8 @@ struct RecordDraft: Equatable {
     var occurredAt = Date()
     /// 날짜의 정밀도 (FR-033).
     var occurredPrecision = DatePrecision.day
+    /// 그날의 시각 (8판 · D-63) — 자정부터 센 분. 비우면 시각 없음. 날짜까지일 때만 저장한다.
+    var occurredMinute: Int?
     var recordType = RecordType.defaultKey
     var title = ""
     var note = ""
@@ -23,6 +25,7 @@ struct RecordDraft: Equatable {
     init(record: Record) {
         occurredAt = record.occurredAt
         occurredPrecision = .of(record.occurredPrecision)
+        occurredMinute = record.occurredMinute
         recordType = record.recordType
         title = record.title ?? ""
         note = record.note ?? ""
@@ -47,8 +50,8 @@ struct RecordStore {
     /// (빌드 16 실기기 크래시 · 이슈 27).
     static func timeline(of person: Person) -> [Record] {
         (person.records ?? []).filter { !$0.isGone }.sorted {
-            TimelineSort.areInIncreasingOrder((occurredAt: $0.occurredAt, createdAt: $0.createdAt),
-                                              (occurredAt: $1.occurredAt, createdAt: $1.createdAt))
+            TimelineSort.areInIncreasingOrder((occurredAt: $0.occurredAt, minute: $0.occurredMinute, createdAt: $0.createdAt),
+                                              (occurredAt: $1.occurredAt, minute: $1.occurredMinute, createdAt: $1.createdAt))
         }
     }
 
@@ -109,6 +112,8 @@ struct RecordStore {
         record.recordType = RecordType.named(draft.recordType).key
         record.occurredAt = ApproximateDate.noon(of: draft.occurredAt, precision: draft.occurredPrecision, calendar: .current)
         record.occurredPrecision = draft.occurredPrecision.rawValue
+        // 월까지 · 연도만이면 시각은 뜻이 없다 — 지운다.
+        record.occurredMinute = draft.occurredPrecision == .day ? TimeOfDay.clamped(draft.occurredMinute) : nil
         record.title = clipped(draft.title, Limits.recordTitle)
         record.note = clipped(draft.note, Limits.recordNote)
         record.location = clipped(draft.location, Limits.location)
@@ -128,7 +133,7 @@ struct RecordStore {
     }
 }
 
-extension SchemaV7.Record {
+extension SchemaV8.Record {
     /// 목록에 보일 이름 (요구사항 6.2). 규칙은 `Core.DisplayTitle` 하나다.
     var displayTitle: String { DisplayTitle.make(title: title, note: note) }
 
@@ -155,7 +160,20 @@ extension SchemaV7.Record {
                               day: DayIndex.of(occurredAt, calendar: calendar),
                               createdDay: DayIndex.of(createdAt, calendar: calendar),
                               updatedDay: DayIndex.of(updatedAt, calendar: calendar),
-                              isDayPrecise: DatePrecision.of(occurredPrecision) == .day)
+                              isDayPrecise: DatePrecision.of(occurredPrecision) == .day,
+                              minute: occurredMinute)
+    }
+
+    /// 그날의 시각 글자 (8판 · D-63) — `오후 2:30`. 날짜까지 정한 기록에만.
+    var timeText: String? {
+        guard DatePrecision.of(occurredPrecision) == .day, let minute = occurredMinute else { return nil }
+        return TimeOfDay.text(minute)
+    }
+
+    /// 날짜 · 시각 글자 — 목록 줄 · 상세 머리가 모두 이것을 쓴다.
+    func whenText(style: Date.FormatStyle.DateStyle) -> String {
+        let date = occurredAt.shown(precision: occurredPrecision, style: style)
+        return timeText.map { "\(date) \($0)" } ?? date
     }
 
     /// 아직 오지 않은 날의 기록 — 다가오는 만남 · 타임라인의 `예정` 표시.

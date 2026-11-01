@@ -62,6 +62,29 @@ struct RecordEditView: View {
     private var hasChanges: Bool { draft != original }
     private var store: RecordStore { RecordStore(context: context) }
 
+    /// 시각 넣기 — 켜면 지금 시각을 30분 단위로 내린 값에서 시작한다. 끄면 시각을 비운다.
+    private var hasTime: Binding<Bool> {
+        Binding(get: { draft.occurredMinute != nil }, set: { on in
+            if on {
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: Date())
+                draft.occurredMinute = (parts.hour ?? 12) * 60 + ((parts.minute ?? 0) / 30) * 30
+            } else {
+                draft.occurredMinute = nil
+            }
+        })
+    }
+
+    /// 시각 고르개 ↔ 자정부터 센 분. 날짜는 쓰지 않는다(날짜는 위 칸).
+    private var timeOfDay: Binding<Date> {
+        Binding(get: {
+            let minute = draft.occurredMinute ?? 12 * 60
+            return Calendar.current.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: Date()) ?? Date()
+        }, set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            draft.occurredMinute = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+        })
+    }
+
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
@@ -69,8 +92,16 @@ struct RecordEditView: View {
                 Section {
                     DatePicker("날짜", selection: $draft.occurredAt, displayedComponents: .date)
                     PrecisionPicker(date: draft.occurredAt, selection: $draft.occurredPrecision)
+                    // 시각 (8판 · D-63) — 날짜까지 정한 기록에만. 같은 날 약속이 여럿이면 차례가 이것으로 정해진다.
+                    if draft.occurredPrecision == .day {
+                        Toggle("시각 넣기", isOn: hasTime)
+                            .accessibilityIdentifier("recordTimeToggle")
+                        if draft.occurredMinute != nil {
+                            DatePicker("시각", selection: timeOfDay, displayedComponents: .hourAndMinute)
+                        }
+                    }
                 } footer: {
-                    Text("기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다. 날짜가 정확하지 않으면 월까지 · 연도만을 고르세요.")
+                    Text("기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다. 같은 날 약속이 여럿이면 시각을 넣어 두면 차례대로 보입니다. 날짜가 정확하지 않으면 월까지 · 연도만을 고르세요.")
                 }
                 Section("기록 유형") {
                     RecordTypeChips(selection: $draft.recordType)
