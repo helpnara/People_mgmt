@@ -54,6 +54,20 @@ public enum PlannedMeetings {
         return Plan(upcoming: upcoming.map(\.id), awaiting: awaiting.map(\.id))
     }
 
+    /// 결과 적기 알림을 한 번에 걸어 두는 수 — 기기는 앱 하나에 알림을 64개까지만 둔다(`ReminderPlanner.limit` 60 + 4).
+    public static let followUpLimit = 4
+
+    /// **결과 적기 알림** (설정 → 알림 · 기본 꺼짐) — 그날 **다음 날** 아침에 울릴 예정들. 날짜까지 정한 기록을 그날보다
+    /// 앞서 만들었고 그날 이후 고친 적이 없고, 그날이 어제이거나 그 뒤. 가까운 날부터 `limit` 개.
+    /// 울릴 시각이 이미 지났는지는 부르는 쪽이 본다(시각은 날 번호에 없다).
+    public static func followUps(_ entries: [Entry], today: Int, limit: Int = followUpLimit) -> [UUID] {
+        entries
+            .filter { $0.isDayPrecise && $0.day >= today - 1 && $0.createdDay < $0.day && $0.updatedDay < $0.day }
+            .sorted { $0.day != $1.day ? $0.day < $1.day : $0.id.uuidString < $1.id.uuidString }
+            .prefix(limit)
+            .map(\.id)
+    }
+
     /// 다가오는 만남 줄의 앞말 — `내일` · `3일 후` · `2주 후`.
     public static func upcomingPhrase(day: Int, today: Int) -> String {
         RelativeDay.phrase(days: today - day)

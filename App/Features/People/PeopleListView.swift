@@ -56,6 +56,9 @@ struct PeopleListView: View {
     @State private var readinessLine: String?
     /// 최근 기록 3건 (FR-028) — 오늘까지의 기록 가운데 날짜가 늦은 것부터. 자료가 바뀔 때만 읽는다.
     @State private var recentRecords: [Record] = []
+    /// 예정된 만남 (D-62) — 다가오는 만남 · 결과를 적을 만남. 규칙은 `Core.PlannedMeetings`, 자료가 바뀔 때만 읽는다.
+    @State private var upcomingRecords: [Record] = []
+    @State private var awaitingRecords: [Record] = []
     /// 목록 거르기 (FR-013) — 관계 유형 · 태그. 둘 다 고르면 둘 다 맞는 사람. 기기 편의라 저장하지 않는다.
     @State private var filterType: String?
     @State private var filterTag: String?
@@ -202,6 +205,8 @@ struct PeopleListView: View {
             }
             if !sortedPeople.isEmpty { LaunchTiming.once("목록 정렬 끝 (\(sortedPeople.count)명)") }
             refreshFilter()
+            // 예정을 먼저 — 최근 기록은 결과를 적을 만남과 겹치는 기록을 뺀다.
+            LaunchTiming.measure("예정된 만남 읽기") { loadPlannedRecords() }
             LaunchTiming.measure("최근 기록 3건 읽기") { loadRecentRecords() }
         }
         .task(id: SearchKey(text: searchText, version: dataVersion)) {
@@ -390,8 +395,14 @@ struct PeopleListView: View {
                         }
                     }
                 }
+                if !awaitingRecords.isEmpty {
+                    recordSection(awaitingRecords, title: "결과를 적을 만남", id: "awaitingSection") { _ in "결과 적기" }
+                }
+                if !upcomingRecords.isEmpty {
+                    recordSection(upcomingRecords, title: "다가오는 만남", id: "upcomingSection") { $0.upcomingPhrase }
+                }
                 if !recentRecords.isEmpty {
-                    recentSection
+                    recordSection(recentRecords, title: "최근 기록", id: "recentSection", lead: nil)
                 }
                 Section {
                     if isFiltering {
@@ -461,17 +472,22 @@ struct PeopleListView: View {
         .scrollContentBackground(.hidden)
     }
 
-    /// 최근 기록 (FR-028) — 누르면 그 기록으로. 아이패드는 함께한 사람의 상세를 오른쪽에 열고 그 위에 기록을 연다.
-    private var recentSection: some View {
+    /// 홈에 보이는 예정 · 결과 대기 기록의 수. 더 있으면 칸 머리에 모두 몇 건인지 적는다.
+    static let plannedShown = 5
+
+    /// 최근 기록 (FR-028) · 결과를 적을 만남 · 다가오는 만남 (D-62) — 누르면 그 기록으로.
+    /// 아이패드는 함께한 사람의 상세를 오른쪽에 열고 그 위에 기록을 연다. `lead` 는 날짜 앞의 말(`3일 후` · `결과 적기`).
+    private func recordSection(_ records: [Record], title: String, id: String,
+                               lead: ((Record) -> String)?) -> some View {
         Section {
-            ForEach(recentRecords) { record in
+            ForEach(records.prefix(Self.plannedShown)) { record in
                 if !record.isGone {
                     if isWide {
                         Button {
                             if let person = Self.firstCompanion(of: record) { open(person, recordID: record.uuid) }
                         } label: {
                             HStack {
-                                RecentRecordRow(record: record)
+                                RecentRecordRow(record: record, lead: lead?(record))
                                 Spacer(minLength: 0)
                             }
                             .contentShape(Rectangle())
@@ -479,13 +495,14 @@ struct PeopleListView: View {
                         .buttonStyle(.plain)
                     } else {
                         NavigationLink(value: record) {
-                            RecentRecordRow(record: record)
+                            RecentRecordRow(record: record, lead: lead?(record))
                         }
                     }
                 }
             }
         } header: {
-            Text("최근 기록")
+            Text(records.count > Self.plannedShown ? "\(title) · 모두 \(records.count)건" : title)
+                .accessibilityIdentifier(id)
         }
     }
 
@@ -532,8 +549,29 @@ struct PeopleListView: View {
             predicate: #Predicate<Record> { $0.occurredAt < endOfToday },
             sortBy: [SortDescriptor(\.occurredAt, order: .reverse), SortDescriptor(\.createdAt, order: .reverse)]
         )
-        descriptor.fetchLimit = 3
-        recentRecords = (try? context.fetch(descriptor)) ?? []
+        // 결과를 적을 만남(D-62)에 이미 보이는 기록은 빼고 셋 — 홈에 같은 기록이 두 번 서지 않게.
+        descriptor.fetchLimit = 3 + Self.plannedShown
+        let awaiting = Set(awaitingRecords.map(\.uuid))
+        recentRecords = Array(((try? context.fetch(descriptor)) ?? []).filter { !awaiting.contains($0.uuid) }.prefix(3))
+    }
+
+    /// 예정된 만남 (D-62) — 다가오는 만남(오늘보다 뒤)과 결과를 적을 만남(지난 60일 안 · 미리 적고 그날 이후 안 고친 것).
+    /// 지난 60일부터의 기록만 읽는다 — 그보다 앞은 어느 쪽에도 들지 않는다. 가르는 규칙은 `Core.PlannedMeetings` 하나다.
+    private func loadPlannedRecords() {
+        guard StoreAccess.isReadable(scenePhase) else {
+            pendingChange = true
+            return
+        }
+        let calendar = Calendar.current
+        let today = DayIndex.of(Date(), calendar: calendar)
+        let from = calendar.date(byAdding: .day, value: -(PlannedMeetings.window + 1),
+                                 to: calendar.startOfDay(for: Date())) ?? .distantPast
+        let descriptor = FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= from })
+        let records = ((try? context.fetch(descriptor)) ?? []).filter { !$0.isGone }
+        let plan = PlannedMeetings.plan(records.map { $0.plannedEntry(calendar: calendar) }, today: today)
+        let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
+        upcomingRecords = plan.upcoming.compactMap { byID[$0] }
+        awaitingRecords = plan.awaiting.compactMap { byID[$0] }
     }
 
     /// **나** (이슈 12). 인맥은 나를 기준으로 그린다 — 목록 맨 위에 늘 있다.
@@ -807,6 +845,9 @@ struct PeopleListView: View {
             show(opened)
             if arguments.openRecord, let latest = RecordStore.timeline(of: opened).first {
                 if isWide { detailPath.append(latest) } else { path.append(latest) }
+            } else if let title = arguments.openRecordTitle,
+                      let record = RecordStore.timeline(of: opened).first(where: { $0.displayTitle == title }) {
+                if isWide { detailPath.append(record) } else { path.append(record) }
             }
         }
     }

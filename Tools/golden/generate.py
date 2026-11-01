@@ -171,6 +171,17 @@ def planned_meetings(records, today, window=PLANNED_WINDOW):
     return {"upcoming": [r["id"].upper() for r in upcoming], "awaiting": [r["id"].upper() for r in awaiting]}
 
 
+FOLLOW_UP_LIMIT = 4
+
+
+def planned_follow_ups(records, today, limit=FOLLOW_UP_LIMIT):
+    """결과 적기 알림 — 그날 다음 날에 울릴 예정. 날짜까지 · 미리 만듦 · 그날 이후 안 고침 · 그날이 어제 이후. 가까운 날 → id."""
+    picked = [r for r in records if r["dayPrecise"] and r["day"] >= today - 1
+              and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+    picked.sort(key=lambda r: (r["day"], r["id"].upper()))
+    return [r["id"].upper() for r in picked[:limit]]
+
+
 # ── 생일 · 알림 계획 (BirthdayRule · ReminderPlanner · 빌드 18 · D-40) ───────────────────────
 # 달력의 날만 센다(시간대 없음). 생일 당일 · 알게 된 지 n주년 · 연락 주기(고른 사람만, 지났으면 오늘로 한 번).
 # 오늘부터 366일 안, 날짜 → 종류(생일 · n주년 · 연락 주기) → 이름 순, 한도까지.
@@ -1804,6 +1815,7 @@ def build() -> dict:
     out["plannedMeetings"] = [{"name": c["name"], "records": c["records"], "today": c["today"],
                                "window": c.get("window", PLANNED_WINDOW),
                                "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW)),
+                               "followUps": planned_follow_ups(c["records"], c["today"]),
                                "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}
                               for c in cases["plannedMeetings"]]
     out["birthdays"] = [{"month": c[0], "day": c[1], "year": c[2], "valid": birthday_valid(c[0], c[1], c[2]),

@@ -13,6 +13,9 @@ struct RecordDetailView: View {
     /// 삭제 확인 문구 — 단추를 누를 때 만든다 (이슈 19).
     @State private var deleteMessage = ""
     @State private var errorMessage: String?
+    @State private var errorTitle = "삭제하지 못했습니다"
+    /// 예정이던 만남을 안 만났을 때 — 날짜 바꾸기 · 기록 지우기 (D-62).
+    @State private var confirmingNoShow = false
 
     var body: some View {
         Group {
@@ -26,6 +29,16 @@ struct RecordDetailView: View {
 
     private var content: some View {
         List {
+            // 예정된 만남 (D-62) — 날이 왔는데 결과를 적지 않았으면 띠, 아직 오지 않았으면 한 줄.
+            if record.isAwaitingResult {
+                Section { awaitingBanner }
+            } else if record.isUpcoming {
+                Section {
+                    Label("예정된 만남 · \(record.upcomingPhrase)", systemImage: "calendar")
+                        .font(.scaled(15, weight: .medium))
+                        .foregroundStyle(Color.accent)
+                }
+            }
             Section {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
@@ -109,10 +122,73 @@ struct RecordDetailView: View {
         } message: {
             Text(deleteMessage)
         }
-        .alert("삭제하지 못했습니다", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+        .confirmationDialog("안 만난 약속", isPresented: $confirmingNoShow, titleVisibility: .visible) {
+            Button("날짜 바꾸기") { editing = true }
+            Button("기록 지우기", role: .destructive) {
+                deleteMessage = record.deletionMessage(viewer: nil)
+                // 이 창이 내려간 뒤에 삭제 확인을 띄운다 — 내려가는 중에 띄우면 묻힌다.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    confirmingDelete = true
+                }
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("날짜를 바꿔 다시 예정으로 두거나, 기록을 지울 수 있습니다.")
+        }
+        .alert(errorTitle, isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("닫기", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
+        }
+    }
+
+    /// 결과를 적을 만남의 띠 (D-62) — 결과 적기(편집) · 그대로 만났어요 · 안 만났어요.
+    /// 한 줄에 단추가 여럿이라 저마다 테두리 모양을 준다 — 꾸밈 없는 단추는 줄 전체를 눌러 모두 실행된다.
+    private var awaitingBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("예정이던 만남입니다", systemImage: "calendar.badge.clock")
+                .font(.scaled(16, weight: .semibold))
+                .foregroundStyle(Color.accent)
+            Text("만난 결과를 메모 · 함께한 사람 · 장소에 적어 두세요. 고칠 것이 없으면 그대로 만났어요를 누르면 됩니다.")
+                .font(.scaled(14))
+                .foregroundStyle(Color.bodyText)
+            HStack(spacing: 10) {
+                Button {
+                    editing = true
+                } label: {
+                    Text("결과 적기").font(.scaled(15, weight: .semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.accent)
+                .accessibilityIdentifier("plannedWriteResult")
+                Button {
+                    confirmMet()
+                } label: {
+                    Text("그대로 만났어요").font(.scaled(15, weight: .medium))
+                }
+                .buttonStyle(.bordered)
+                .tint(Color.accent)
+                .accessibilityIdentifier("plannedMet")
+            }
+            Button {
+                confirmingNoShow = true
+            } label: {
+                Text("안 만났어요").font(.scaled(14))
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(Color.muted)
+            .accessibilityIdentifier("plannedNoShow")
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func confirmMet() {
+        do {
+            try RecordStore(context: context).confirmMet(record)
+        } catch {
+            errorTitle = "저장하지 못했습니다"
+            errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
         }
     }
 
@@ -121,6 +197,7 @@ struct RecordDetailView: View {
             try DeletionUndo.shared.delete(record, in: context)
             dismiss()
         } catch {
+            errorTitle = "삭제하지 못했습니다"
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
         }
     }
