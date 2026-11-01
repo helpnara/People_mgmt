@@ -154,6 +154,23 @@ def recent_companions(records, excluding, limit=8):
     return out
 
 
+# ── 예정된 만남 (PlannedMeetings · 빌드 38 · 1.1 · D-62) ──────────────────────────────
+# 날 번호만 센다. 다가오는 만남 = 오늘보다 뒤(가까운 날 → 만든 날 → id). 결과를 적을 만남 = 날짜까지 정한 기록이
+# 그날보다 앞서 만들어졌고 그날 이후 고친 적이 없고, 오늘 이전 window 일 안(그날 포함 · 오늘 포함). 최근 날 → id.
+
+PLANNED_WINDOW = 60
+
+
+def planned_meetings(records, today, window=PLANNED_WINDOW):
+    upcoming = sorted((r for r in records if r["day"] > today),
+                      key=lambda r: (r["day"], r["createdDay"], r["id"].upper()))
+    awaiting = [r for r in records
+                if r["dayPrecise"] and today - window <= r["day"] <= today
+                and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+    awaiting.sort(key=lambda r: (-r["day"], r["id"].upper()))
+    return {"upcoming": [r["id"].upper() for r in upcoming], "awaiting": [r["id"].upper() for r in awaiting]}
+
+
 # ── 생일 · 알림 계획 (BirthdayRule · ReminderPlanner · 빌드 18 · D-40) ───────────────────────
 # 달력의 날만 센다(시간대 없음). 생일 당일 · 알게 된 지 n주년 · 연락 주기(고른 사람만, 지났으면 오늘로 한 번).
 # 오늘부터 366일 안, 날짜 → 종류(생일 · n주년 · 연락 주기) → 이름 순, 한도까지.
@@ -1784,6 +1801,11 @@ def build() -> dict:
                                 "limit": c.get("limit", 8),
                                 "expected": recent_companions(c["records"], c.get("excluding", []), c.get("limit", 8))}
                                for c in cases["recentCompanions"]]
+    out["plannedMeetings"] = [{"name": c["name"], "records": c["records"], "today": c["today"],
+                               "window": c.get("window", PLANNED_WINDOW),
+                               "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW)),
+                               "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}
+                              for c in cases["plannedMeetings"]]
     out["birthdays"] = [{"month": c[0], "day": c[1], "year": c[2], "valid": birthday_valid(c[0], c[1], c[2]),
                          "text": birthday_text(c[0], c[1], c[2])} for c in cases["birthdays"]]
     out["reminders"] = [{"name": c["name"], "people": c["people"], "today": c["today"], "options": c["options"],

@@ -4064,6 +4064,302 @@
       }
     }
   ],
+  "plannedMeetings": [
+    {
+      "expected": {
+        "awaiting": [],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000304",
+          "00000000-0000-0000-0000-000000000303",
+          "00000000-0000-0000-0000-000000000302",
+          "00000000-0000-0000-0000-000000000301"
+        ]
+      },
+      "name": "앞날짜는 다가오는 만남 · 가까운 날부터 · 같은 날은 먼저 만든 것부터",
+      "phrases": [
+        {
+          "day": 1001,
+          "expected": "내일"
+        },
+        {
+          "day": 1003,
+          "expected": "3일 후"
+        },
+        {
+          "day": 1010,
+          "expected": "1주 후"
+        },
+        {
+          "day": 1045,
+          "expected": "1개월 후"
+        },
+        {
+          "day": 1400,
+          "expected": "1년 후"
+        }
+      ],
+      "records": [
+        {
+          "createdDay": 995,
+          "day": 1010,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000301",
+          "updatedDay": 995
+        },
+        {
+          "createdDay": 999,
+          "day": 1003,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000302",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 996,
+          "day": 1003,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000303",
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 1000,
+          "day": 1001,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000304",
+          "updatedDay": 1000
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000311"
+        ],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000312"
+        ]
+      },
+      "name": "오늘 날짜의 예정은 다가오는 만남이 아니라 결과를 적을 만남",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 998,
+          "day": 1000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000311",
+          "updatedDay": 998
+        },
+        {
+          "createdDay": 998,
+          "day": 1001,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000312",
+          "updatedDay": 998
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000323"
+        ],
+        "upcoming": []
+      },
+      "name": "그날 뒤에 만든 기록(지난 일을 적은 것)은 묻지 않는다",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 997,
+          "day": 997,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000321",
+          "updatedDay": 997
+        },
+        {
+          "createdDay": 999,
+          "day": 997,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000322",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 996,
+          "day": 997,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000323",
+          "updatedDay": 996
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000333"
+        ],
+        "upcoming": []
+      },
+      "name": "그날 이후 고쳤으면(결과를 적었거나 그대로 만났어요) 빠진다",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 991,
+          "day": 995,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000331",
+          "updatedDay": 995
+        },
+        {
+          "createdDay": 991,
+          "day": 995,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000332",
+          "updatedDay": 998
+        },
+        {
+          "createdDay": 991,
+          "day": 995,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000333",
+          "updatedDay": 994
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000343"
+        ],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000342"
+        ]
+      },
+      "name": "월까지 · 연도만 정한 예정은 결과를 묻지 않지만 다가오는 만남에는 보인다",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 970,
+          "day": 998,
+          "dayPrecise": false,
+          "id": "00000000-0000-0000-0000-000000000341",
+          "updatedDay": 970
+        },
+        {
+          "createdDay": 999,
+          "day": 1020,
+          "dayPrecise": false,
+          "id": "00000000-0000-0000-0000-000000000342",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 970,
+          "day": 998,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000343",
+          "updatedDay": 970
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000353",
+          "00000000-0000-0000-0000-000000000354",
+          "00000000-0000-0000-0000-000000000355",
+          "00000000-0000-0000-0000-000000000351"
+        ],
+        "upcoming": []
+      },
+      "name": "60일 안까지만 묻는다 · 최근 날부터 · 같은 날은 id 순",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 930,
+          "day": 940,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000351",
+          "updatedDay": 930
+        },
+        {
+          "createdDay": 930,
+          "day": 939,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000352",
+          "updatedDay": 930
+        },
+        {
+          "createdDay": 991,
+          "day": 999,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000354",
+          "updatedDay": 991
+        },
+        {
+          "createdDay": 991,
+          "day": 999,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000353",
+          "updatedDay": 991
+        },
+        {
+          "createdDay": 969,
+          "day": 970,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000355",
+          "updatedDay": 969
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000361"
+        ],
+        "upcoming": []
+      },
+      "name": "window 를 바꾸면 그만큼만",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 992,
+          "day": 993,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000361",
+          "updatedDay": 992
+        },
+        {
+          "createdDay": 991,
+          "day": 992,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000362",
+          "updatedDay": 991
+        }
+      ],
+      "today": 1000,
+      "window": 7
+    },
+    {
+      "expected": {
+        "awaiting": [],
+        "upcoming": []
+      },
+      "name": "빈 목록",
+      "phrases": [],
+      "records": [],
+      "today": 1000,
+      "window": 60
+    }
+  ],
   "presetChoices": [
     {
       "expected": [
