@@ -90,7 +90,7 @@ struct RecordEditView: View {
             ScrollViewReader { proxy in
             Form {
                 Section {
-                    DatePicker("날짜", selection: $draft.occurredAt, displayedComponents: .date)
+                    DayPicker("날짜", selection: $draft.occurredAt)
                     PrecisionPicker(date: draft.occurredAt, selection: $draft.occurredPrecision)
                     // 시각 (8판 · D-63) — 날짜까지 정한 기록에만. 같은 날 약속이 여럿이면 차례가 이것으로 정해진다.
                     if draft.occurredPrecision == .day {
