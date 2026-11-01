@@ -175,6 +175,13 @@ final class GoldenTests: XCTestCase {
             let tags: [String]?; let contacts: [ExportContact]?; let firstMet: String?; let firstNote: String?
             let records: [ExportRecord]?; let exportedOn: String
         }
+        struct PlannedRecordRaw: Decodable { let id: UUID; let day: Int; let createdDay: Int; let updatedDay: Int; let dayPrecise: Bool }
+        struct PlannedExpected: Decodable { let upcoming: [UUID]; let awaiting: [UUID] }
+        struct PlannedPhrase: Decodable { let day: Int; let expected: String }
+        struct PlannedCase: Decodable {
+            let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int
+            let expected: PlannedExpected; let phrases: [PlannedPhrase]
+        }
         struct ExportCase: Decodable { let name: String; let person: ExportPerson; let expected: String }
 
         let tags: [TagCase]
@@ -200,6 +207,7 @@ final class GoldenTests: XCTestCase {
         let graphEdges: [GraphCase]
         let acquaintanceSuggestions: [SuggestionCase]
         let recentCompanions: [RecentCompanionsCase]
+        let plannedMeetings: [PlannedCase]
         let birthdays: [BirthdayCase]
         let reminders: [ReminderCase]
         let vcardEncode: [VEncodeCase]
@@ -415,6 +423,22 @@ final class GoldenTests: XCTestCase {
             }
             XCTAssertEqual(RecentCompanions.pick(entries, excluding: Set(c.excluding), limit: c.limit), c.expected, c.name)
         }
+    }
+
+    func testPlannedMeetings() throws {
+        for c in try Self.loadGolden().plannedMeetings {
+            let entries = c.records.map {
+                PlannedMeetings.Entry(id: $0.id, day: $0.day, createdDay: $0.createdDay, updatedDay: $0.updatedDay,
+                                      isDayPrecise: $0.dayPrecise)
+            }
+            let got = PlannedMeetings.plan(entries, today: c.today, window: c.window)
+            XCTAssertEqual(got.upcoming, c.expected.upcoming, "\(c.name) — 다가오는 만남")
+            XCTAssertEqual(got.awaiting, c.expected.awaiting, "\(c.name) — 결과를 적을 만남")
+            for p in c.phrases {
+                XCTAssertEqual(PlannedMeetings.upcomingPhrase(day: p.day, today: c.today), p.expected, c.name)
+            }
+        }
+        XCTAssertEqual(PlannedMeetings.window, 60, "정답표의 PLANNED_WINDOW 와 같다")
     }
 
     func testBirthdayRule() throws {
