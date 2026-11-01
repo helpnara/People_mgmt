@@ -2,8 +2,10 @@ import Core
 import SwiftUI
 
 /// 홈의 최근 기록 한 줄 (FR-028): 유형 아이콘 · 날짜 · 함께한 사람 · 표시명.
+/// 다가오는 만남 · 결과를 적을 만남(D-62)도 같은 줄이다 — 날짜 앞에 `lead`(`3일 후` · `결과 적기`)를 붙인다.
 struct RecentRecordRow: View {
     let record: Record
+    var lead: String?
 
     var body: some View {
         // 지운 기록은 다시 그리지 않는다 (CLAUDE.md · 이슈 27).
@@ -32,6 +34,11 @@ struct RecentRecordRow: View {
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
+                    if let lead {
+                        Text(lead)
+                            .font(.scaled(13, weight: .semibold))
+                            .foregroundStyle(Color.accent)
+                    }
                     Text(record.occurredAt.shown(precision: record.occurredPrecision, style: .abbreviated))
                     if !companions.isEmpty {
                         Text("· \(companions)")

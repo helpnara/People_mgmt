@@ -11,7 +11,8 @@ enum SampleData {
 
     /// `communities` — 모임 견본(15명 · 세 모임)도 채운다. 견본 둘러보기(D-55)는 늘 채운다.
     @MainActor
-    static func seed(into context: ModelContext, communities: Bool = LaunchArguments.current.communitySample) {
+    static func seed(into context: ModelContext, communities: Bool = LaunchArguments.current.communitySample,
+                     planned: Bool = LaunchArguments.current.plannedSample) {
         let calendar = Calendar.current
         func day(_ year: Int, _ month: Int, _ day: Int) -> Date {
             let components = DateComponents(year: year, month: month, day: day)
@@ -140,7 +141,33 @@ enum SampleData {
 
         try? context.save()
         if communities { seedCommunities(into: context, doyun: doyun, jiwoo: jiwoo, alice: alice) }
+        if planned { seedPlanned(into: context, haneul: haneul, yujin: yujin) }
         if LaunchArguments.current.largeSample { seedLarge(into: context) }
+    }
+
+    /// **예정된 만남 견본** (빌드 38 · D-62) — 다가오는 만남 둘(3일 · 12일 뒤)과 결과를 적을 만남 하나(어제 · 엿새 전에 적어 둠).
+    /// 날은 오늘에서 센다. 미리 적어 둔 예정이라 만든 때 · 고친 때를 그날보다 앞으로 둔다.
+    @MainActor
+    static func seedPlanned(into context: ModelContext, haneul: Person, yujin: Person) {
+        let calendar = Calendar.current
+        func make(_ type: String, in days: Int, title: String, note: String?, location: String?,
+                  with people: [Person], writtenDaysAgo: Int) {
+            let occurred = calendar.date(byAdding: .day, value: days, to: Date()) ?? Date()
+            let item = Record(recordType: type, occurredAt: DayNormalizer.noon(of: occurred, calendar: calendar),
+                              title: title, note: note)
+            item.location = location
+            let written = calendar.date(byAdding: .day, value: -writtenDaysAgo, to: Date()) ?? Date()
+            item.createdAt = written
+            item.updatedAt = written
+            context.insert(item)
+            item.participants = people
+        }
+        make("meal", in: 3, title: "점심 약속", note: "새 프로젝트 이야기를 나누기로.", location: "국숫집",
+             with: [haneul], writtenDaysAgo: 0)
+        make("social", in: 12, title: "독서모임 송년회", note: nil, location: nil, with: [haneul, yujin], writtenDaysAgo: 0)
+        make("meeting", in: -1, title: "프로젝트 시작 회의", note: "일정과 역할을 정하기로.", location: "본사 3층",
+             with: [yujin], writtenDaysAgo: 6)
+        try? context.save()
     }
 
     /// **모임 견본** (D-30) — 지어낸 15명을 다섯씩 세 모임으로, 모임 안은 아는 사이로 촘촘히, 모임 사이는 한 줄씩.

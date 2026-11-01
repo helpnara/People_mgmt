@@ -86,6 +86,19 @@ struct RecordStore {
         }
     }
 
+    /// 예정이던 만남을 **그대로 만났다**고 확인한다 (D-62) — 내용은 그대로 두고 고친 때만 지금으로 바꾼다.
+    /// 그날 이후 고친 기록이 되어 결과를 적을 만남에서 빠진다 (`Core.PlannedMeetings`). 실패하면 고친 때를 되돌린다.
+    func confirmMet(_ record: Record) throws {
+        let updatedAt = record.updatedAt
+        record.updatedAt = Date()
+        do {
+            try commit()
+        } catch {
+            record.updatedAt = updatedAt
+            throw error
+        }
+    }
+
     /// 기록만 지운다. 참여자는 남는다 (6.5).
     func delete(_ record: Record) throws {
         context.delete(record)
@@ -134,6 +147,30 @@ extension SchemaV7.Record {
             text += " 함께한 \(people.count)명의 타임라인에서 모두 사라집니다."
         }
         return text + " 지운 뒤 5초 안에는 되돌릴 수 있습니다."
+    }
+
+    /// 예정된 만남 판정에 넣을 값 (D-62). 날은 모두 `DayIndex` 로 센다 — 규칙은 `Core.PlannedMeetings` 하나다.
+    func plannedEntry(calendar: Calendar = .current) -> PlannedMeetings.Entry {
+        PlannedMeetings.Entry(id: uuid,
+                              day: DayIndex.of(occurredAt, calendar: calendar),
+                              createdDay: DayIndex.of(createdAt, calendar: calendar),
+                              updatedDay: DayIndex.of(updatedAt, calendar: calendar),
+                              isDayPrecise: DatePrecision.of(occurredPrecision) == .day)
+    }
+
+    /// 아직 오지 않은 날의 기록 — 다가오는 만남 · 타임라인의 `예정` 표시.
+    var isUpcoming: Bool {
+        DayIndex.of(occurredAt) > DayIndex.of(Date())
+    }
+
+    /// 미리 적어 둔 만남의 날이 왔는데 아직 결과를 적지 않았다 — 기록 상세의 결과 적기 띠.
+    var isAwaitingResult: Bool {
+        PlannedMeetings.isAwaiting(plannedEntry(), today: DayIndex.of(Date()))
+    }
+
+    /// 다가오는 만남의 앞말 — `내일` · `3일 후`.
+    var upcomingPhrase: String {
+        PlannedMeetings.upcomingPhrase(day: DayIndex.of(occurredAt), today: DayIndex.of(Date()))
     }
 
     /// 이 사람 말고 함께한 사람 수 — 타임라인 행의 "외 N명".

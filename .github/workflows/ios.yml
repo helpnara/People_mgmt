@@ -369,6 +369,10 @@ jobs:
           shoot 37-detail-layout.png -seedSampleData -openSettings -openDetailLayout
           # **모든 자료 지우기** (할 일 54) — 첫 확인 창(지울 수 · 백업 권하기). 견본 메모리 저장소라 진짜 자료는 없다.
           shoot 40-wipe-confirm.png -seedSampleData -openSettings -confirmWipe
+          # **예정된 만남** (빌드 38 · D-62) — 홈의 결과를 적을 만남 · 다가오는 만남, 기록 상세의 결과 적기 띠, 타임라인의 예정 표시.
+          shoot 41-planned-home.png -seedSampleData -seedPlannedSample
+          shoot 42-planned-awaiting.png -seedSampleData -seedPlannedSample -openPerson 정유진 -openRecordTitle "프로젝트 시작 회의"
+          shoot 43-planned-timeline.png -seedSampleData -seedPlannedSample -openPerson 김하늘
           shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
           # 함께한 사람 고르기의 검색 (이슈 49) — 검색 칸이 늘 보이고, 초성 ㅈㅇ 으로 거른 결과.
           shoot 39-participant-search.png -seedSampleData -openPerson 김하늘 -addRecord -pickParticipants -pickerSearch ㅈㅇ

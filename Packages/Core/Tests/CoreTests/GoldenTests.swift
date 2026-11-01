@@ -180,7 +180,7 @@ final class GoldenTests: XCTestCase {
         struct PlannedPhrase: Decodable { let day: Int; let expected: String }
         struct PlannedCase: Decodable {
             let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int
-            let expected: PlannedExpected; let phrases: [PlannedPhrase]
+            let expected: PlannedExpected; let followUps: [UUID]; let phrases: [PlannedPhrase]
         }
         struct ExportCase: Decodable { let name: String; let person: ExportPerson; let expected: String }
 
@@ -434,11 +434,13 @@ final class GoldenTests: XCTestCase {
             let got = PlannedMeetings.plan(entries, today: c.today, window: c.window)
             XCTAssertEqual(got.upcoming, c.expected.upcoming, "\(c.name) — 다가오는 만남")
             XCTAssertEqual(got.awaiting, c.expected.awaiting, "\(c.name) — 결과를 적을 만남")
+            XCTAssertEqual(PlannedMeetings.followUps(entries, today: c.today), c.followUps, "\(c.name) — 결과 적기 알림")
             for p in c.phrases {
                 XCTAssertEqual(PlannedMeetings.upcomingPhrase(day: p.day, today: c.today), p.expected, c.name)
             }
         }
         XCTAssertEqual(PlannedMeetings.window, 60, "정답표의 PLANNED_WINDOW 와 같다")
+        XCTAssertEqual(PlannedMeetings.followUpLimit, 4, "정답표의 FOLLOW_UP_LIMIT 와 같다")
     }
 
     func testBirthdayRule() throws {

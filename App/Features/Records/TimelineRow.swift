@@ -25,6 +25,12 @@ struct TimelineRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(record.occurredAt.shown(precision: record.occurredPrecision, style: .abbreviated))
+                    // 아직 오지 않은 날 — 예정된 만남 (D-62).
+                    if record.isUpcoming {
+                        Text("· 예정 \(record.upcomingPhrase)")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.accent)
+                    }
                     if record.otherParticipantCount(besides: viewer) > 0 {
                         Text("· 외 \(record.otherParticipantCount(besides: viewer))명")
                     }

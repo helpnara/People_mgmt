@@ -4829,6 +4829,21 @@
       "name": "빈 목록",
       "today": 1000,
       "records": []
+    },
+    {
+      "name": "결과 적기 알림은 어제부터 · 가까운 날부터 넷 · 이미 고친 것 · 월까지는 빼고",
+      "today": 1000,
+      "records": [
+        {"id": "00000000-0000-0000-0000-000000000371", "day": 999, "createdDay": 995, "updatedDay": 995, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000372", "day": 998, "createdDay": 995, "updatedDay": 995, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000373", "day": 1000, "createdDay": 999, "updatedDay": 999, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000374", "day": 1002, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000375", "day": 1002, "createdDay": 999, "updatedDay": 999, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000376", "day": 1009, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000377", "day": 1001, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": false},
+        {"id": "00000000-0000-0000-0000-000000000378", "day": 999, "createdDay": 995, "updatedDay": 999, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000379", "day": 1030, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true}
+      ]
     }
   ]
 }

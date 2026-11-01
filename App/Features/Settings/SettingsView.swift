@@ -34,6 +34,7 @@ struct SettingsView: View {
     @AppStorage(ReminderSettings.birthdaysKey) private var remindBirthdays = false
     @AppStorage(ReminderSettings.anniversariesKey) private var remindAnniversaries = false
     @AppStorage(ReminderSettings.cadenceKey) private var remindCadence = false
+    @AppStorage(ReminderSettings.followUpKey) private var remindFollowUp = false
     @AppStorage(ReminderSettings.hourKey) private var remindHour = ReminderSettings.defaultHour
     @AppStorage(ReminderSettings.minuteKey) private var remindMinute = 0
     /// iCloud 동기화 (D-42 — 기본 켬). 바꾸면 앱을 다시 열 때 적용된다.
@@ -142,17 +143,19 @@ struct SettingsView: View {
                 Toggle("생일 당일", isOn: $remindBirthdays)
                 Toggle("알게 된 지 n주년", isOn: $remindAnniversaries)
                 Toggle("연락 주기 (고른 사람만)", isOn: $remindCadence)
-                if remindBirthdays || remindAnniversaries || remindCadence {
+                Toggle("만난 뒤 결과 적기", isOn: $remindFollowUp)
+                if remindBirthdays || remindAnniversaries || remindCadence || remindFollowUp {
                     DatePicker("알림 시각", selection: reminderTime, displayedComponents: .hourAndMinute)
                 }
             } header: {
                 Text("알림")
             } footer: {
-                Text("기본은 모두 꺼져 있습니다. 생일은 생일을 적은 사람, n주년은 처음 만난 날을 적은 사람, 연락 주기는 사람 수정에서 주기를 고른 사람만 그날 알립니다. 밀린 알림을 쌓지 않고 앱 아이콘에 숫자를 달지 않습니다. 알림은 이 기기 안에서만 만들어집니다.")
+                Text("기본은 모두 꺼져 있습니다. 생일은 생일을 적은 사람, n주년은 처음 만난 날을 적은 사람, 연락 주기는 사람 수정에서 주기를 고른 사람만 그날 알립니다. 만난 뒤 결과 적기는 미리 적어 둔 예정의 다음 날, 아직 결과를 적지 않았으면 알립니다. 밀린 알림을 쌓지 않고 앱 아이콘에 숫자를 달지 않습니다. 알림은 이 기기 안에서만 만들어집니다.")
             }
             .onChange(of: remindBirthdays) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindAnniversaries) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindCadence) { _, on in reminderChanged(turnedOn: on) }
+            .onChange(of: remindFollowUp) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindHour) { _, _ in refreshReminders() }
             .onChange(of: remindMinute) { _, _ in refreshReminders() }
 
@@ -296,6 +299,7 @@ struct SettingsView: View {
                 remindBirthdays = false
                 remindAnniversaries = false
                 remindCadence = false
+                remindFollowUp = false
                 message = ("알림이 꺼져 있습니다", "기기의 설정 앱 → 알림 → 느린 인연에서 알림을 허용한 뒤 다시 켜 주세요.")
             }
         }
