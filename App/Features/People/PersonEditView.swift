@@ -288,7 +288,7 @@ struct PersonEditView: View {
         Section("첫 인연") {
             Toggle("처음 만난 날짜", isOn: $draft.hasFirstMetDate)
             if draft.hasFirstMetDate {
-                DatePicker("날짜", selection: $draft.firstMetDate, displayedComponents: .date)
+                DayPicker("날짜", selection: $draft.firstMetDate)
                 PrecisionPicker(date: draft.firstMetDate, selection: $draft.firstMetPrecision)
             }
             TextField("어떤 계기로 알게 되었나요?", text: $draft.firstNote, axis: .vertical)
