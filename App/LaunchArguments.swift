@@ -60,6 +60,10 @@ struct LaunchArguments: Sendable {
     let openTags: Bool
     /// 설정의 상세 화면 칸을 바로 연다 (`-openSettings -openDetailLayout` · D-56).
     let openDetailLayout: Bool
+    /// 설정의 관계 유형 선택지를 바로 연다 (`-openSettings -openChoices` · FR-035 · 빌드 45).
+    let openChoices: Bool
+    /// 내 인맥 → 돌아보기의 한 해 돌아보기를 바로 연다 (`-openNetwork overview -openYearReview` · 빌드 45).
+    let openYearReview: Bool
     /// 앱 잠금 가리개를 확인 없이 띄운다 (`-previewLock` · 빌드 27) — 가리개 모양만 찍는다.
     let previewLock: Bool
     /// 기록 추가 · 수정의 태그 칸에 이 글자를 넣고 그 자리까지 내린다 (`-tagInput ㅁㅌ` · 이슈 34 — 자동완성 칩을 찍으려고).
@@ -106,6 +110,8 @@ struct LaunchArguments: Sendable {
         storeShots = arguments.contains("-storeShots")
         openTags = arguments.contains("-openTags")
         openDetailLayout = arguments.contains("-openDetailLayout")
+        openChoices = arguments.contains("-openChoices")
+        openYearReview = arguments.contains("-openYearReview")
         previewLock = arguments.contains("-previewLock")
         measureSave = arguments.contains("-measureSave")
         pickParticipants = arguments.contains("-pickParticipants")

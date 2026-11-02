@@ -126,6 +126,7 @@ final class DeletionUndo {
         context.insert(record)
         Backup.fill(record, from: item)
         record.participants = participants
+        Backup.attachPhotos(to: record, from: item, in: context)
     }
 
     private func show(_ message: String, _ value: Snapshot, _ context: ModelContext) {

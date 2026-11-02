@@ -1,5 +1,29 @@
 DEFINE SCHEMA
 
+    RECORD TYPE CD_ChoiceList (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_entityName   STRING,
+        CD_moveReceipt  BYTES,
+        CD_moveReceipt_ckAsset ASSET,
+        CD_uuid STRING,
+        CD_uuid_ckAsset ASSET,
+        CD_kind STRING,
+        CD_kind_ckAsset ASSET,
+        CD_items BYTES,
+        CD_items_ckAsset ASSET,
+        CD_hidden BYTES,
+        CD_hidden_ckAsset ASSET,
+        CD_updatedAt TIMESTAMP,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_creator",
+        GRANT READ TO "_creator"
+    );
+
     RECORD TYPE CD_Person (
         "___createTime" TIMESTAMP,
         "___createdBy"  REFERENCE,
@@ -86,6 +110,28 @@ DEFINE SCHEMA
         CD_tags_ckAsset ASSET,
         CD_createdAt TIMESTAMP,
         CD_updatedAt TIMESTAMP,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_creator",
+        GRANT READ TO "_creator"
+    );
+
+    RECORD TYPE CD_RecordPhoto (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_entityName   STRING,
+        CD_moveReceipt  BYTES,
+        CD_moveReceipt_ckAsset ASSET,
+        CD_uuid STRING,
+        CD_uuid_ckAsset ASSET,
+        CD_data BYTES,
+        CD_data_ckAsset ASSET,
+        CD_position INT64,
+        CD_createdAt TIMESTAMP,
+        CD_record STRING,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_creator",
         GRANT READ TO "_creator"

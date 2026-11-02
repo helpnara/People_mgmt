@@ -1254,6 +1254,102 @@ def preset_choices(presets: list[str], used: list[str]) -> list[str]:
     return presets + extras
 
 
+# ── 선택지 내 맘대로 (ChoiceEditing · FR-035 · 9판) ──────────────────────────
+# 숨긴 것을 먼저 모으고, 보일 후보를 차례대로 한 줄에 세운 뒤 숨긴 것 · 겹침을 걸러 낸다(Swift 는 하나씩 붙이며 거른다).
+
+def choice_hidden(fixed, setting):
+    if setting is None:
+        return []
+    seen = []
+    for v in (normalized(x) for x in setting["hidden"]):
+        if v and v not in fixed and v not in seen:
+            seen.append(v)
+    return seen
+
+
+def choice_visible(presets, fixed, setting):
+    if setting is None:
+        return presets + [f for f in fixed if f not in presets]
+    hidden = set(choice_hidden(fixed, setting))
+    line = [normalized(x) for x in setting["items"]] + presets + fixed
+    out = []
+    for v in line:
+        if v and v not in hidden and v not in out:
+            out.append(v)
+    return out
+
+
+def choice_list(presets, fixed, setting, used):
+    shown = choice_visible(presets, fixed, setting)
+    hidden = set(choice_hidden(fixed, setting))
+    counts: dict = {}
+    for v in (normalized(x) for x in used):
+        if v and v not in shown and v not in hidden:
+            counts[v] = counts.get(v, 0) + 1
+    return shown + sorted(counts, key=lambda v: (-counts[v], folded(v), v))
+
+
+def choice_op(case):
+    items, hidden, value = list(case["items"]), list(case["hidden"]), case["value"]
+    if case["op"] == "add":
+        v = normalized(value)
+        if v and v not in items:
+            items.append(v)
+            hidden = [h for h in hidden if h != v]
+    elif case["op"] == "hide":
+        if value not in case["fixed"] and value in items:
+            items = [i for i in items if i != value]
+            if value not in hidden:
+                hidden.append(value)
+    elif case["op"] == "show":
+        if value in hidden:
+            hidden = [h for h in hidden if h != value]
+            if value not in items:
+                items.append(value)
+    return {"items": items, "hidden": hidden}
+
+
+# ── 한 해 돌아보기 (YearInReview · FR-059) ───────────────────────────────────
+# 사람마다 기록한 해의 집합을 먼저 만들고 거기서 새로 · 다시를 가른다(Swift 는 처음 해 하나만 기억한다).
+
+def year_review_years(records, people, today, current_year):
+    years = {current_year}
+    years |= {r["year"] for r in records if r["day"] <= today and r["year"] <= current_year}
+    years |= {p["firstMetYear"] for p in people
+              if p["firstMetYear"] is not None and p["firstMetDay"] is not None
+              and p["firstMetDay"] <= today and p["firstMetYear"] <= current_year}
+    return sorted(years)
+
+
+def year_review(year, records, people, today):
+    past = [r for r in records if r["day"] <= today]
+    in_year = [r for r in past if r["year"] == year]
+    prev = [r for r in past if r["year"] == year - 1]
+    years_of: dict = {}
+    for r in past:
+        for pid in r["participants"]:
+            years_of.setdefault(pid, set()).add(r["year"])
+    met = {pid for r in in_year for pid in r["participants"]}
+    met_before = {pid for r in prev for pid in r["participants"]}
+    returning = sum(1 for pid in met if any(y < year for y in years_of[pid]))
+    big = 1 << 62
+    newly = [p for p in people if p["firstMetYear"] == year
+             and (p["firstMetDay"] if p["firstMetDay"] is not None else -big) <= today]
+    newly.sort(key=lambda p: (p["firstMetDay"] if p["firstMetDay"] is not None else big, p["sortKey"], p["id"].upper()))
+    monthly = [sum(1 for r in in_year if r["month"] == m) for m in range(1, 13)]
+    unknown = sum(1 for r in in_year if r["month"] is None or not 1 <= r["month"] <= 12)
+    top = max(monthly)
+    busiest = monthly.index(top) + 1 if top > 0 else None
+    counts: dict = {}
+    for r in in_year:
+        counts[r["type"]] = counts.get(r["type"], 0) + 1
+    types = [{"type": t, "count": c} for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    return {"year": year, "recordCount": len(in_year), "previousRecordCount": len(prev), "peopleCount": len(met),
+            "newlyMet": [p["id"] for p in newly], "fresh": len(met) - returning, "returning": returning,
+            "resting": len(met_before - met), "monthly": monthly, "unknownMonth": unknown,
+            "busiestMonth": busiest, "types": types}
+
+
 # ── 연락 수단 다섯 칸 (ContactFields · ContactSorter) ─────────────────────────
 
 CONTACT_KINDS = ("mobile", "office", "fax", "email")
@@ -1872,6 +1968,14 @@ def build() -> dict:
     out["presetChoices"] = [{"name": c["name"], "presets": c["presets"], "used": c["used"],
                              "expected": preset_choices(c["presets"], c["used"])}
                             for c in cases["presetChoices"]]
+    out["choiceEditing"] = [{"name": c["name"], "presets": c["presets"], "fixed": c["fixed"], "setting": c["setting"],
+                             "used": c["used"], "hidden": choice_hidden(c["fixed"], c["setting"]),
+                             "expected": choice_list(c["presets"], c["fixed"], c["setting"], c["used"])}
+                            for c in cases["choiceEditing"]]
+    out["choiceOps"] = [dict(c, expected=choice_op(c)) for c in cases["choiceOps"]]
+    out["yearInReview"] = [dict(c, expected=year_review(c["year"], c["records"], c["people"], c["today"]),
+                                years=year_review_years(c["records"], c["people"], c["today"], c["currentYear"]))
+                           for c in cases["yearInReview"]]
     out["contactSplit"] = [{"text": t, "expected": contact_split(t)} for t in cases["contactSplit"]]
     out["contactFromContact"] = [{"phones": c["phones"], "emails": c["emails"],
                                   "expected": contact_from_contact(c["phones"], c["emails"])}

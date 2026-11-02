@@ -1,3 +1,4 @@
+import Core
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -47,6 +48,8 @@ struct SettingsView: View {
     @State private var openTagsOnLaunch = LaunchArguments.current.openTags
     /// CI 스크린샷 — 상세 화면 칸을 바로 연다 (`-openDetailLayout`).
     @State private var openDetailLayoutOnLaunch = LaunchArguments.current.openDetailLayout
+    /// CI 스크린샷 — 관계 유형 선택지를 바로 연다 (`-openChoices`).
+    @State private var openChoicesOnLaunch = LaunchArguments.current.openChoices
     private let syncMonitor = CloudSyncMonitor.shared
 
     var body: some View {
@@ -63,7 +66,7 @@ struct SettingsView: View {
             } header: {
                 Text("백업")
             } footer: {
-                Text("사람 · 기록 · 아는 사이 · 명함과 사람 사진을 파일 하나(.json)로 만듭니다. 파일 앱이나 iCloud Drive 에 저장해 두면 기기를 바꾸거나 앱을 다시 설치해도 되살릴 수 있습니다. 이 파일에는 인연의 기록이 그대로 들어 있으니 믿을 수 있는 곳에만 두세요.")
+                Text("사람 · 기록 · 아는 사이 · 명함 · 사람 사진 · 기록 사진 · 내가 고친 선택지를 파일 하나(.json)로 만듭니다. 파일 앱이나 iCloud Drive 에 저장해 두면 기기를 바꾸거나 앱을 다시 설치해도 되살릴 수 있습니다. 이 파일에는 인연의 기록이 그대로 들어 있으니 믿을 수 있는 곳에만 두세요.")
             }
 
             Section {
@@ -109,10 +112,25 @@ struct SettingsView: View {
             } header: {
                 Text("연락처 파일 (vCard)")
             } footer: {
-                Text("내보내기는 나를 뺀 사람의 이름 · 별명 · 소속 · 직무 · 연락 수단 · 생일을 .vcf 파일 하나로 만듭니다. 기록 · 첫 인연 · 태그 · 명함과 사람 사진은 들어가지 않습니다 — 그것은 백업 파일이 맡습니다. 가져오기는 넣기 전에 새 사람 · 같은 사람 후보 · 이미 있는 사람을 나눠 보여 주고, 고른 사람만 넣습니다.")
+                Text("내보내기는 나를 뺀 사람의 이름 · 별명 · 소속 · 직무 · 연락 수단 · 생일을 .vcf 파일 하나로 만듭니다. 기록 · 첫 인연 · 태그 · 명함 · 사진은 들어가지 않습니다 — 그것은 백업 파일이 맡습니다. 가져오기는 넣기 전에 새 사람 · 같은 사람 후보 · 이미 있는 사람을 나눠 보여 주고, 고른 사람만 넣습니다.")
             }
 
             lockSection
+
+            // 관계 유형 · 알게 된 경로 선택지 (FR-035 · 9판 · D-66).
+            Section {
+                ForEach(ChoiceKind.allCases, id: \.self) { kind in
+                    NavigationLink {
+                        ChoiceEditorView(kind: kind)
+                    } label: {
+                        Label("\(kind.title) 선택지", systemImage: kind == .relationshipType ? "person.2" : "signpost.right")
+                    }
+                }
+            } header: {
+                Text("선택지")
+            } footer: {
+                Text("사람 수정 화면의 칩을 더하고, 차례를 바꾸고, 숨깁니다. 내 iCloud 로 아이폰 · 아이패드에 함께 적용됩니다.")
+            }
 
             Section {
                 NavigationLink {
@@ -228,6 +246,9 @@ struct SettingsView: View {
         .navigationDestination(isPresented: $openDetailLayoutOnLaunch) {
             DetailLayoutView()
         }
+        .navigationDestination(isPresented: $openChoicesOnLaunch) {
+            ChoiceEditorView(kind: .relationshipType)
+        }
         .task {
             // CI 스크린샷 — 모든 자료 지우기의 첫 확인 창 (`-confirmWipe`).
             guard LaunchArguments.current.confirmWipe else { return }
@@ -266,7 +287,7 @@ struct SettingsView: View {
             Button("취소", role: .cancel) { pendingRestore = nil }
         } message: { file in
             let summary = Backup.summary(of: file)
-            Text("\(file.exportedAt.formatted(date: .long, time: .shortened))에 만든 백업입니다. 사람 \(summary.people)명 · 기록 \(summary.records)건 · 아는 사이 \(summary.ties)줄 · 명함 \(summary.cards)장 · 사람 사진 \(summary.photos)장을 복원할까요?")
+            Text("\(file.exportedAt.formatted(date: .long, time: .shortened))에 만든 백업입니다. 사람 \(summary.people)명 · 기록 \(summary.records)건 · 아는 사이 \(summary.ties)줄 · 명함 \(summary.cards)장 · 사람 사진 \(summary.photos)장 · 기록 사진 \(summary.recordPhotos)장을 복원할까요?")
         }
         .alert(message?.title ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
             Button("닫기", role: .cancel) {}
@@ -391,8 +412,8 @@ struct SettingsView: View {
             Text("자료 지우기")
         } footer: {
             Text(CloudSync.isActive
-                 ? "사람 · 기록 · 아는 사이 · 명함과 사람 사진을 모두 지웁니다. iCloud 동기화가 켜져 있어 같은 Apple 계정의 다른 기기와 iCloud 에서도 지워집니다. 앱 잠금 · 알림 · 보기 같은 설정은 그대로 둡니다."
-                 : "사람 · 기록 · 아는 사이 · 명함과 사람 사진을 모두 지웁니다. 앱 잠금 · 알림 · 보기 같은 설정은 그대로 둡니다.")
+                 ? "사람 · 기록 · 아는 사이 · 명함 · 사람 사진 · 기록 사진을 모두 지웁니다. iCloud 동기화가 켜져 있어 같은 Apple 계정의 다른 기기와 iCloud 에서도 지워집니다. 앱 잠금 · 알림 · 보기 · 선택지 같은 설정은 그대로 둡니다."
+                 : "사람 · 기록 · 아는 사이 · 명함 · 사람 사진 · 기록 사진을 모두 지웁니다. 앱 잠금 · 알림 · 보기 · 선택지 같은 설정은 그대로 둡니다.")
         }
     }
 
@@ -579,7 +600,7 @@ struct SettingsView: View {
             do {
                 let summary = try await Backup.restore(file, container: container)
                 working = nil
-                message = ("복원했습니다", "사람 \(summary.people)명 · 기록 \(summary.records)건 · 아는 사이 \(summary.ties)줄 · 명함 \(summary.cards)장 · 사람 사진 \(summary.photos)장을 되살렸습니다.")
+                message = ("복원했습니다", "사람 \(summary.people)명 · 기록 \(summary.records)건 · 아는 사이 \(summary.ties)줄 · 명함 \(summary.cards)장 · 사람 사진 \(summary.photos)장 · 기록 사진 \(summary.recordPhotos)장을 되살렸습니다.")
             } catch {
                 working = nil
                 message = ("복원하지 못했습니다", error.localizedDescription)
