@@ -25,6 +25,8 @@ struct ApproxDateField: View {
     var body: some View {
         LabeledContent(title) {
             Button {
+                // 입력 칸의 초점을 먼저 놓는다 — 말풍선이 닫힐 때 화면이 그 칸으로 튀지 않게 (이슈 61).
+                Keyboard.dismiss()
                 picking = true
             } label: {
                 DateChip(text: valueText)
