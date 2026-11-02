@@ -43,11 +43,17 @@ struct RecordDetailView: View {
             }
             Section {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: record.type.symbol).foregroundStyle(Color.accent)
-                        Text(record.type.label).foregroundStyle(Color.accent)
-                        Text("·").foregroundStyle(Color.faint)
-                        Text(record.whenText(style: .long)).foregroundStyle(Color.muted)
+                    // 한 줄에 안 들어가면 유형 다음에서 꺾어 날짜 · 시각을 한 덩어리로 (이슈 68).
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) {
+                            typeLabel
+                            Text("·").foregroundStyle(Color.faint)
+                            Text(record.whenText(style: .long)).foregroundStyle(Color.muted)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            typeLabel
+                            Text(record.whenText(style: .long)).foregroundStyle(Color.muted)
+                        }
                     }
                     .font(.scaled(14, weight: .medium))
                     Text(record.displayTitle)
@@ -146,6 +152,13 @@ struct RecordDetailView: View {
             Button("닫기", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
+        }
+    }
+
+    private var typeLabel: some View {
+        HStack(spacing: 8) {
+            Image(systemName: record.type.symbol).foregroundStyle(Color.accent)
+            Text(record.type.label).foregroundStyle(Color.accent)
         }
     }
 
