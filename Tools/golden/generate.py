@@ -1633,13 +1633,14 @@ def type_choices(types) -> list[str]:
 
 # ── 사람 상세의 칸 차례 (DetailLayout · D-56) ─────────────────────────────────
 
-DETAIL_SECTIONS = ["card", "firstEncounter", "review", "introduced", "acquaintances", "timeline"]
-DETAIL_LABELS = {"card": "명함", "firstEncounter": "첫 인연", "review": "관계 돌아보기",
+DETAIL_SECTIONS = ["milestones", "card", "firstEncounter", "review", "introduced", "acquaintances", "timeline"]
+DETAIL_LABELS = {"milestones": "인연 연표", "card": "명함", "firstEncounter": "첫 인연", "review": "관계 돌아보기",
                  "introduced": "소개한 인연", "acquaintances": "아는 사이", "timeline": "타임라인"}
 
 
 def detail_parse(stored):
-    """Swift `DetailLayout(stored:)` — 모르는 · 겹친 이름은 버리고, 빠진 칸은 보이게 처음 차례대로 끝에."""
+    """Swift `DetailLayout(stored:)` — 모르는 · 겹친 이름은 버리고, 빠진 칸은 보이게 처음 차례대로 끝에.
+    단 인연 연표(빌드 41)는 빠져 있으면 맨 앞."""
     order, hidden = [], set()
     for raw in (stored or "").split(","):
         token = raw.strip(" ")
@@ -1652,7 +1653,8 @@ def detail_parse(stored):
             order.append(token)
             if hide:
                 hidden.add(token)
-    order += [k for k in DETAIL_SECTIONS if k not in order]
+    missing = [k for k in DETAIL_SECTIONS if k not in order]
+    order = [k for k in missing if k == "milestones"] + order + [k for k in missing if k != "milestones"]
     return order, hidden
 
 

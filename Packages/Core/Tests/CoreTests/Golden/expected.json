@@ -1535,6 +1535,10 @@
   ],
   "detailLabels": [
     {
+      "key": "milestones",
+      "label": "인연 연표"
+    },
+    {
       "key": "card",
       "label": "명함"
     },
@@ -1564,6 +1568,7 @@
       "hidden": [],
       "input": null,
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1571,8 +1576,9 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "stored": "milestones,card,firstEncounter,review,introduced,acquaintances,timeline",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1585,6 +1591,7 @@
       "hidden": [],
       "input": "",
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1592,8 +1599,9 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "stored": "milestones,card,firstEncounter,review,introduced,acquaintances,timeline",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1606,6 +1614,7 @@
       "hidden": [],
       "input": "timeline,card",
       "order": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
@@ -1613,8 +1622,9 @@
         "introduced",
         "acquaintances"
       ],
-      "stored": "timeline,card,firstEncounter,review,introduced,acquaintances",
+      "stored": "milestones,timeline,card,firstEncounter,review,introduced,acquaintances",
       "visible": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
@@ -1629,6 +1639,7 @@
       ],
       "input": "-review,timeline",
       "order": [
+        "milestones",
         "review",
         "timeline",
         "card",
@@ -1636,8 +1647,9 @@
         "introduced",
         "acquaintances"
       ],
-      "stored": "-review,timeline,card,firstEncounter,introduced,acquaintances",
+      "stored": "milestones,-review,timeline,card,firstEncounter,introduced,acquaintances",
       "visible": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
@@ -1651,6 +1663,7 @@
       ],
       "input": "card,card,unknown,-timeline",
       "order": [
+        "milestones",
         "card",
         "timeline",
         "firstEncounter",
@@ -1658,8 +1671,9 @@
         "introduced",
         "acquaintances"
       ],
-      "stored": "card,-timeline,firstEncounter,review,introduced,acquaintances",
+      "stored": "milestones,card,-timeline,firstEncounter,review,introduced,acquaintances",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1673,6 +1687,7 @@
       ],
       "input": " timeline , - card ",
       "order": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
@@ -1680,8 +1695,9 @@
         "introduced",
         "acquaintances"
       ],
-      "stored": "timeline,-card,firstEncounter,review,introduced,acquaintances",
+      "stored": "milestones,timeline,-card,firstEncounter,review,introduced,acquaintances",
       "visible": [
+        "milestones",
         "timeline",
         "firstEncounter",
         "review",
@@ -1693,6 +1709,7 @@
       "hidden": [],
       "input": "-",
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1700,8 +1717,9 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "stored": "milestones,card,firstEncounter,review,introduced,acquaintances,timeline",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1714,6 +1732,7 @@
       "hidden": [],
       "input": ",,",
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1721,8 +1740,9 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "stored": "milestones,card,firstEncounter,review,introduced,acquaintances,timeline",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1735,6 +1755,7 @@
       "hidden": [],
       "input": "acquaintances,introduced,review,firstEncounter,card,timeline",
       "order": [
+        "milestones",
         "acquaintances",
         "introduced",
         "review",
@@ -1742,8 +1763,9 @@
         "card",
         "timeline"
       ],
-      "stored": "acquaintances,introduced,review,firstEncounter,card,timeline",
+      "stored": "milestones,acquaintances,introduced,review,firstEncounter,card,timeline",
       "visible": [
+        "milestones",
         "acquaintances",
         "introduced",
         "review",
@@ -1763,6 +1785,7 @@
       ],
       "input": "-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline",
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1770,20 +1793,94 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline",
-      "visible": []
-    }
-  ],
-  "detailMove": [
+      "stored": "milestones,-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline",
+      "visible": [
+        "milestones"
+      ]
+    },
     {
-      "destination": 0,
-      "expected": [
+      "hidden": [
+        "review"
+      ],
+      "input": "timeline,-review,firstEncounter,card,introduced,acquaintances",
+      "order": [
+        "milestones",
+        "timeline",
+        "review",
+        "firstEncounter",
+        "card",
+        "introduced",
+        "acquaintances"
+      ],
+      "stored": "milestones,timeline,-review,firstEncounter,card,introduced,acquaintances",
+      "visible": [
+        "milestones",
+        "timeline",
+        "firstEncounter",
+        "card",
+        "introduced",
+        "acquaintances"
+      ]
+    },
+    {
+      "hidden": [
+        "milestones"
+      ],
+      "input": "-milestones,timeline,card,firstEncounter,review,introduced,acquaintances",
+      "order": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
         "review",
         "introduced",
         "acquaintances"
+      ],
+      "stored": "-milestones,timeline,card,firstEncounter,review,introduced,acquaintances",
+      "visible": [
+        "timeline",
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ]
+    },
+    {
+      "hidden": [],
+      "input": "card,milestones,timeline",
+      "order": [
+        "card",
+        "milestones",
+        "timeline",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ],
+      "stored": "card,milestones,timeline,firstEncounter,review,introduced,acquaintances",
+      "visible": [
+        "card",
+        "milestones",
+        "timeline",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ]
+    }
+  ],
+  "detailMove": [
+    {
+      "destination": 0,
+      "expected": [
+        "acquaintances",
+        "milestones",
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "timeline"
       ],
       "source": [
         5
@@ -1793,12 +1890,13 @@
     {
       "destination": 6,
       "expected": [
+        "card",
         "firstEncounter",
         "review",
         "introduced",
         "acquaintances",
-        "timeline",
-        "card"
+        "milestones",
+        "timeline"
       ],
       "source": [
         0
@@ -1808,11 +1906,12 @@
     {
       "destination": 5,
       "expected": [
+        "milestones",
+        "firstEncounter",
+        "introduced",
         "card",
         "review",
         "acquaintances",
-        "firstEncounter",
-        "introduced",
         "timeline"
       ],
       "source": [
@@ -1824,6 +1923,7 @@
     {
       "destination": 2,
       "expected": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1839,8 +1939,9 @@
     {
       "destination": 2,
       "expected": [
-        "timeline",
         "review",
+        "milestones",
+        "timeline",
         "card",
         "firstEncounter",
         "introduced",

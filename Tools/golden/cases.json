@@ -4761,7 +4761,7 @@
   ],
   "detailLayout": [null, "", "timeline,card", "-review,timeline", "card,card,unknown,-timeline", " timeline , - card ", "-", ",,",
     "acquaintances,introduced,review,firstEncounter,card,timeline",
-    "-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline"],
+    "-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline", "timeline,-review,firstEncounter,card,introduced,acquaintances", "-milestones,timeline,card,firstEncounter,review,introduced,acquaintances", "card,milestones,timeline"],
   "detailMove": [
     {"stored": null, "source": [5], "destination": 0},
     {"stored": null, "source": [0], "destination": 6},
