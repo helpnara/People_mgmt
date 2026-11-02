@@ -196,6 +196,11 @@ extension SchemaV9.Record {
         return TimeOfDay.text(minute)
     }
 
+    /// 날짜 글자만 — 목록 줄이 시각과 따로 둔다(길면 날짜 다음에서 꺾으려고 · 이슈 68).
+    func dateText(style: Date.FormatStyle.DateStyle) -> String {
+        occurredAt.shown(precision: occurredPrecision, style: style)
+    }
+
     /// 날짜 · 시각 글자 — 목록 줄 · 상세 머리가 모두 이것을 쓴다.
     func whenText(style: Date.FormatStyle.DateStyle) -> String {
         let date = occurredAt.shown(precision: occurredPrecision, style: style)

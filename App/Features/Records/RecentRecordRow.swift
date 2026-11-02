@@ -33,18 +33,9 @@ struct RecentRecordRow: View {
                 .frame(width: Font.scaledLength(22))
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    if let lead {
-                        Text(lead)
-                            .font(.scaled(13, weight: .semibold))
-                            .foregroundStyle(Color.accent)
-                    }
-                    Text(record.whenText(style: .abbreviated))
-                    if !companions.isEmpty {
-                        Text("· \(companions)")
-                            .readableLineLimit(1)
-                    }
-                }
+                // 길면 날짜 다음에서만 꺾는다 (이슈 68).
+                RecordWhenLine(date: record.dateText(style: .abbreviated), time: record.timeText,
+                               lead: lead, extra: companions)
                 .font(.scaled(13))
                 .foregroundStyle(Color.muted)
                 Text(record.displayTitle)

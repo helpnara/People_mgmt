@@ -15,6 +15,12 @@ struct TimelineRow: View {
         }
     }
 
+    /// 이 사람 말고 함께한 사람 — `외 2명`. 없으면 nil.
+    private var othersText: String? {
+        let others = record.otherParticipantCount(besides: viewer)
+        return others > 0 ? "외 " + String(others) + "명" : nil
+    }
+
     private var row: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: record.type.symbol)
@@ -23,18 +29,10 @@ struct TimelineRow: View {
                 .frame(width: Font.scaledLength(22))
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(record.whenText(style: .abbreviated))
-                    // 아직 오지 않은 날 — 예정된 만남 (D-62).
-                    if record.isUpcoming {
-                        Text("· 예정 \(record.upcomingPhrase)")
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.accent)
-                    }
-                    if record.otherParticipantCount(besides: viewer) > 0 {
-                        Text("· 외 \(record.otherParticipantCount(besides: viewer))명")
-                    }
-                }
+                // 아직 오지 않은 날은 예정 표시 (D-62). 길면 날짜 다음에서만 꺾는다 (이슈 68).
+                RecordWhenLine(date: record.dateText(style: .abbreviated), time: record.timeText,
+                               badge: record.isUpcoming ? "예정 " + record.upcomingPhrase : nil,
+                               extra: othersText)
                 .font(.scaled(13))
                 .foregroundStyle(Color.muted)
                 Text(record.displayTitle)
