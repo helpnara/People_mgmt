@@ -118,7 +118,7 @@ https://apps.apple.com/kr/app/%EB%8A%90%EB%A6%B0-%EC%9D%B8%EC%97%B0/id6824067748
 | 사진 6 | `iphone-6.9/06-overview.png` |
 | 사진 7 | `ipad-13/02-graph-card.png` |
 
-한 번에 받기: `screenshots/store/slow-ties-store-assets.zip` (위 사진 + 앱 미리보기 영상 · 쇼츠는 https://youtube.com/shorts/yER0ySH7nzw).
+블로그 사진만 받기(사진1~7 로 이름을 바꿔 묶음): `screenshots/store/blog-photos.zip`. 스토어 자산 전체는 `screenshots/store/slow-ties-store-assets.zip` (위 사진 + 앱 미리보기 영상 · 쇼츠는 https://youtube.com/shorts/yER0ySH7nzw).
 
 ## 태그
 
