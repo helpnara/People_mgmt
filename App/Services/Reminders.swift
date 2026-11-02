@@ -9,6 +9,8 @@ enum ReminderSettings {
     static let birthdaysKey = "reminders.birthdays"
     static let anniversariesKey = "reminders.anniversaries"
     static let cadenceKey = "reminders.cadence"
+    /// 결과 적기 (빌드 38 · D-62) — 예정이던 만남의 다음 날 같은 시각에 결과를 적으라고 알린다. 기본은 꺼짐.
+    static let followUpKey = "reminders.followUp"
     static let hourKey = "reminders.hour"
     static let minuteKey = "reminders.minute"
     static let defaultHour = 9
@@ -20,6 +22,8 @@ enum ReminderSettings {
                                        cadence: defaults.bool(forKey: cadenceKey))
     }
 
+    static var followUp: Bool { UserDefaults.standard.bool(forKey: followUpKey) }
+
     static var hour: Int {
         (UserDefaults.standard.object(forKey: hourKey) as? Int).map { min(max($0, 0), 23) } ?? defaultHour
     }
@@ -27,6 +31,15 @@ enum ReminderSettings {
     static var minute: Int {
         (UserDefaults.standard.object(forKey: minuteKey) as? Int).map { min(max($0, 0), 59) } ?? 0
     }
+}
+
+/// 결과 적기 알림 하나 (빌드 38 · D-62).
+struct ReminderFollowUp: Sendable {
+    /// `followUp|UUID|날 번호` — 날짜를 옮기면 이름도 바뀐다.
+    let id: String
+    /// 울릴 날 (그날 다음 날).
+    let date: CivilDate
+    let body: String
 }
 
 /// 알림을 **이 기기 안에서** 건다 — 서버도 네트워크도 없다. 계획은 `Core.ReminderPlanner` 한 곳에서 세고(정답표),
@@ -49,7 +62,8 @@ enum ReminderScheduler {
         if DemoMode.shared.isActive { return }
         let center = UNUserNotificationCenter.current()
         let options = ReminderSettings.options
-        guard options.any else {
+        let followUp = ReminderSettings.followUp
+        guard options.any || followUp else {
             center.removeAllPendingNotificationRequests()
             UserDefaults.standard.removeObject(forKey: scheduledKey)
             return
@@ -63,6 +77,12 @@ enum ReminderScheduler {
         let plan = await Task.detached(priority: .utility) {
             makePlan(container: container, options: options, today: today)
         }.value
+        var followUps: [ReminderFollowUp] = []
+        if followUp {
+            followUps = await Task.detached(priority: .utility) {
+                makeFollowUps(container: container, now: now)
+            }.value
+        }
 
         let defaults = UserDefaults.standard
         var fired = Set(defaults.stringArray(forKey: firedKey) ?? [])
@@ -97,8 +117,49 @@ enum ReminderScheduler {
                 continue
             }
         }
+        // 결과 적기 — 그날 다음 날의 고른 시각. 시각이 지났으면 걸지 않는다(밀린 알림을 쌓지 않는다).
+        for item in followUps {
+            guard let when = fireDate(item.date, calendar: calendar), when > now else { continue }
+            let content = UNMutableNotificationContent()
+            content.title = "만난 결과를 적어 둘까요?"
+            content.body = item.body
+            content.sound = .default
+            content.threadIdentifier = "followUp"
+            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: when)
+            let request = UNNotificationRequest(identifier: item.id, content: content,
+                                                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
+            do {
+                try await center.add(request)
+                next[item.id] = when.timeIntervalSince1970
+            } catch {
+                continue
+            }
+        }
         defaults.set(next, forKey: scheduledKey)
         defaults.set(Array(fired), forKey: firedKey)
+    }
+
+    /// 결과 적기 알림에 넣을 예정 — 어제부터의 기록만 읽는다(따로 연 문맥 · 주 스레드 밖). 고르는 규칙은 `Core.PlannedMeetings`.
+    nonisolated private static func makeFollowUps(container: ModelContainer, now: Date) -> [ReminderFollowUp] {
+        let context = ModelContext(container)
+        let calendar = Calendar.current
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: now)) else { return [] }
+        let records = (try? context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= yesterday }))) ?? []
+        let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
+        let picked = PlannedMeetings.followUps(records.map { $0.plannedEntry(calendar: calendar) },
+                                               today: DayIndex.of(now, calendar: calendar))
+        return picked.compactMap { id -> ReminderFollowUp? in
+            guard let record = byID[id],
+                  let next = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: record.occurredAt)) else { return nil }
+            let parts = calendar.dateComponents([.year, .month, .day], from: next)
+            let others = (record.participants ?? []).filter { !$0.isMe }
+            let names = NameSort.sorted(others, name: \.name, createdAt: \.createdAt).map(\.name)
+            let who = names.isEmpty ? "" : " · " + (names.count > 2 ? "\(names.prefix(2).joined(separator: ", ")) 외 \(names.count - 2)명"
+                                                                       : names.joined(separator: ", "))
+            return ReminderFollowUp(id: "followUp|\(record.uuid.uuidString)|\(DayIndex.of(record.occurredAt, calendar: calendar))",
+                            date: CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1),
+                            body: "어제 예정이던 \(record.displayTitle)\(who). 느린 인연에 결과를 남겨 두세요.")
+        }
     }
 
     /// 그 날의 고른 시각 (기기 시간대).

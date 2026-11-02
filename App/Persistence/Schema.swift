@@ -2,15 +2,15 @@ import Core
 import Foundation
 import SwiftData
 
-/// 스키마 **7판** — 지금 쓰는 판 (요구사항 6절 · FR-012 · 빌드 29).
+/// 스키마 **8판** — 지금 쓰는 판 (요구사항 6절 · FR-054 · 빌드 39 · D-63).
 ///
-/// 6판에서 사람에 **사진**(`photo` · 긴 변 1,024px JPEG · 저장소 밖 파일) 칸 하나를 더했다 — 옵셔널이라 가벼운 옮기기.
+/// 7판에서 기록에 **시각**(`occurredMinute` · 옵셔널) 칸 하나를 더했다 — 옵셔널이라 가벼운 옮기기.
 /// 1판부터 있던 `photoReference`(글자)는 쓰지 않은 채 그대로 둔다 — 지우면 옛 판과 모양이 달라진다.
-/// 나머지는 6판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV8` 을 더하고 이 판은 얼린다.
+/// 나머지는 7판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV9` 를 더하고 이 판은 얼린다.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
-enum SchemaV7: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(7, 0, 0) }
+enum SchemaV8: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(8, 0, 0) }
     static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self] }
 
     /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
@@ -94,6 +94,10 @@ enum SchemaV7: VersionedSchema {
         var occurredAt: Date = Date()
         /// 기록 날짜의 정밀도 (6판 · FR-033) — `Person.firstMetPrecision` 과 같은 뜻.
         var occurredPrecision: Int = 0
+        /// 그날의 **시각** (8판 · 빌드 39 · D-63) — 자정부터 센 분(0 ~ 1439). 비우면 시각 없음. 날짜까지 정한 기록에만 둔다.
+        /// 날짜 칸(`occurredAt` · 그날 정오 UTC)은 그대로 둔다 — 시각을 거기 섞으면 시차 · 날짜 정리(`DateConvention`)가 흔들린다.
+        /// 같은 날 안의 차례를 정한다 (`Core.TimelineSort` · `PlannedMeetings` · 시각 없는 기록은 그날의 끝).
+        var occurredMinute: Int?
         var location: String?
         var note: String?
         var tags: [String] = []
@@ -136,9 +140,9 @@ enum SchemaV7: VersionedSchema {
     }
 }
 
-typealias Person = SchemaV7.Person
-typealias Record = SchemaV7.Record
-typealias Tie = SchemaV7.Tie
+typealias Person = SchemaV8.Person
+typealias Record = SchemaV8.Record
+typealias Tie = SchemaV8.Tie
 
 /// 판 사이의 이사 계획.
 /// - 1판 → 2판: 칸 하나를 더하는 **가벼운 옮기기**
@@ -146,12 +150,13 @@ typealias Tie = SchemaV7.Tie
 /// - 4판 → 5판: 생일 · 연락 주기 칸을 더하는 가벼운 옮기기 (D-40)
 /// - 5판 → 6판: 날짜 정밀도 칸 둘을 더하는 가벼운 옮기기 (FR-033)
 /// - 6판 → 7판: 사람 사진 칸을 더하는 가벼운 옮기기 (FR-012)
+/// - 7판 → 8판: 기록 시각 칸을 더하는 가벼운 옮기기 (D-63)
 /// - 2판 → 3판: 칸을 더하고(가벼운 옮기기와 같다), 옮긴 뒤 **한 칸에 들어 있던 연락 수단을 네 칸으로 나눈다** (이슈 11).
 ///   나누지 못한 글은 기타(`contactNote`)에 그대로 남는다 — 잃는 글이 없다. 이미 네 칸 중 하나라도 찬 사람은 건드리지 않는다.
 ///
 /// 실제 옮겨지는지는 `AppTests/MigrationTests.swift` 가 1판 · 2판 저장소를 디스크에 만들어 연다.
 enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self] }
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self),
@@ -166,6 +171,8 @@ enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
             .lightweight(fromVersion: SchemaV5.self, toVersion: SchemaV6.self),
             // 6판 → 7판: 사람에 옵셔널 사진 칸 하나를 더할 뿐 — 가벼운 옮기기 (FR-012).
             .lightweight(fromVersion: SchemaV6.self, toVersion: SchemaV7.self),
+            // 7판 → 8판: 기록에 옵셔널 시각 칸 하나를 더할 뿐 — 가벼운 옮기기 (D-63).
+            .lightweight(fromVersion: SchemaV7.self, toVersion: SchemaV8.self),
         ]
     }
 }
@@ -200,7 +207,7 @@ extension PersistentModel {
     var isGone: Bool { isDeleted || modelContext == nil }
 }
 
-extension SchemaV7.Person {
+extension SchemaV8.Person {
     /// 목록 보조 정보 (요구사항 6.1 `subtitle`): 소속 · 직무, 둘 다 없으면 관계 유형.
     var subtitle: String? {
         let parts = [organization, role].compactMap { $0 }.filter { !$0.isEmpty }

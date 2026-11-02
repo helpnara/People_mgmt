@@ -61,6 +61,8 @@ struct BackupFile: Codable, Sendable {
         var updatedAt: Date
         /// 6판(빌드 28)부터 — 기록 날짜의 정밀도(FR-033). 옛 백업에는 없으니 옵셔널.
         var occurredPrecision: Int?
+        /// 8판(빌드 39)부터 — 그날의 시각(자정부터 센 분 · D-63). 옛 백업에는 없으니 옵셔널(없으면 시각 없음).
+        var occurredMinute: Int?
     }
 
     struct TieItem: Codable, Sendable {
@@ -161,7 +163,8 @@ enum Backup {
         BackupFile.RecordItem(
             uuid: r.uuid, title: r.title, recordType: r.recordType, occurredAt: r.occurredAt,
             location: r.location, note: r.note, tags: r.tags, participants: (r.participants ?? []).map(\.uuid),
-            createdAt: r.createdAt, updatedAt: r.updatedAt, occurredPrecision: r.occurredPrecision)
+            createdAt: r.createdAt, updatedAt: r.updatedAt, occurredPrecision: r.occurredPrecision,
+            occurredMinute: r.occurredMinute)
     }
 
     static func item(of t: Tie) -> BackupFile.TieItem? {
@@ -206,6 +209,7 @@ enum Backup {
         record.note = item.note
         record.location = item.location
         record.occurredPrecision = DatePrecision.of(item.occurredPrecision ?? 0).rawValue
+        record.occurredMinute = record.occurredPrecision == DatePrecision.day.rawValue ? TimeOfDay.clamped(item.occurredMinute) : nil
         record.tags = item.tags
         record.createdAt = item.createdAt
         record.updatedAt = item.updatedAt

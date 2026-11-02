@@ -98,7 +98,7 @@ struct GraphPersonCard: View {
         }
         .padding(16)
         .background(Color.raised, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.rule, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.rule, lineWidth: 1))
         .shadow(color: Color.ink.opacity(0.12), radius: 12, y: 4)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("graphPersonCard")

@@ -129,8 +129,24 @@ def sort_recency(people: list[dict]) -> list[str]:
     return [p["name"] for p in sorted(people, key=key)]
 
 
+NO_TIME = 24 * 60  # 시각 없는 기록은 그날의 끝 (8판 · D-63)
+
+
+def time_key(minute):
+    return NO_TIME if minute is None else min(max(minute, 0), NO_TIME - 1)
+
+
+def time_text(minute: int) -> str:
+    m = min(max(minute, 0), NO_TIME - 1)
+    hour = m // 60
+    half = "오전" if hour < 12 else "오후"
+    shown = 12 if hour % 12 == 0 else hour % 12
+    return f"{half} {shown}:{m % 60:02d}"
+
+
 def sort_timeline(records: list[dict]) -> list[str]:
-    ordered = sorted(records, key=lambda r: (-r["occurredAt"], -r["createdAt"]))
+    # 최신 날짜 먼저 · 같은 날은 늦은 시각 먼저(시각 없음 = 그날의 끝 → 맨 위) · 그다음 나중에 만든 것 먼저.
+    ordered = sorted(records, key=lambda r: (-r["occurredAt"], -time_key(r.get("minute")), -r["createdAt"]))
     return [r["id"] for r in ordered]
 
 
@@ -152,6 +168,34 @@ def recent_companions(records, excluding, limit=8):
             if len(out) >= limit:
                 return out
     return out
+
+
+# ── 예정된 만남 (PlannedMeetings · 빌드 38 · 1.1 · D-62) ──────────────────────────────
+# 날 번호만 센다. 다가오는 만남 = 오늘보다 뒤(가까운 날 → 만든 날 → id). 결과를 적을 만남 = 날짜까지 정한 기록이
+# 그날보다 앞서 만들어졌고 그날 이후 고친 적이 없고, 오늘 이전 window 일 안(그날 포함 · 오늘 포함). 최근 날 → id.
+
+PLANNED_WINDOW = 60
+
+
+def planned_meetings(records, today, window=PLANNED_WINDOW):
+    upcoming = sorted((r for r in records if r["day"] > today),
+                      key=lambda r: (r["day"], time_key(r.get("minute")), r["createdDay"], r["id"].upper()))
+    awaiting = [r for r in records
+                if r["dayPrecise"] and today - window <= r["day"] <= today
+                and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+    awaiting.sort(key=lambda r: (-r["day"], -time_key(r.get("minute")), r["id"].upper()))
+    return {"upcoming": [r["id"].upper() for r in upcoming], "awaiting": [r["id"].upper() for r in awaiting]}
+
+
+FOLLOW_UP_LIMIT = 4
+
+
+def planned_follow_ups(records, today, limit=FOLLOW_UP_LIMIT):
+    """결과 적기 알림 — 그날 다음 날에 울릴 예정. 날짜까지 · 미리 만듦 · 그날 이후 안 고침 · 그날이 어제 이후. 가까운 날 → id."""
+    picked = [r for r in records if r["dayPrecise"] and r["day"] >= today - 1
+              and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+    picked.sort(key=lambda r: (r["day"], time_key(r.get("minute")), r["id"].upper()))
+    return [r["id"].upper() for r in picked[:limit]]
 
 
 # ── 생일 · 알림 계획 (BirthdayRule · ReminderPlanner · 빌드 18 · D-40) ───────────────────────
@@ -588,6 +632,60 @@ def span_text(days: int) -> str:
     if years > 0:
         return f"{years}년"
     return f"{months}개월"
+
+
+# ── 인연 연표 (RelationshipMilestones · 빌드 41 · 1.1 · FR-056) ─────────────────────────
+# 처음 만남 · 첫 기록(처음 만난 날과 같은 날이면 뺌) · 10/50/100/200/500/1000번째 기록 · 가장 많이 만난 해(3건 이상 · 두 해 이상 ·
+# 같으면 늦은 해 · 그해 마지막 기록 날) · 마지막 기록(2건 이상) · 다가오는 만남. 차례는 날 → 종류 → 만든 순서.
+
+MILESTONE_THRESHOLDS = [10, 50, 100, 200, 500, 1000]
+MILESTONE_KINDS = ["firstMet", "firstRecord", "countReached", "busiestYear", "lastRecord", "upcoming"]
+MILESTONE_TITLES = {"firstMet": "처음 만남", "firstRecord": "첫 기록", "busiestYear": "가장 많이 만난 해",
+                    "lastRecord": "마지막 기록", "upcoming": "다가오는 만남"}
+
+
+def milestones(records, first_met_day, first_met_year, today):
+    key = lambda r: (r["day"], r["id"].upper())
+    past = sorted((r for r in records if r["day"] <= today), key=key)
+    future = sorted((r for r in records if r["day"] > today), key=key)
+    out = []
+    def add(kind, day, year, count=None, rid=None):
+        title = f"{count}번째 기록" if kind == "countReached" else MILESTONE_TITLES[kind]
+        out.append({"kind": kind, "day": day, "year": year, "count": count,
+                    "recordID": rid.upper() if rid else None, "title": title})
+    if first_met_day is not None:
+        add("firstMet", first_met_day, first_met_year if first_met_year is not None else 0)
+    if past and past[0]["day"] != first_met_day:
+        add("firstRecord", past[0]["day"], past[0]["year"], rid=past[0]["id"])
+    for t in MILESTONE_THRESHOLDS:
+        if len(past) >= t:
+            r = past[t - 1]
+            add("countReached", r["day"], r["year"], count=t, rid=r["id"])
+    years = {}
+    for r in past:
+        years.setdefault(r["year"], []).append(r)
+    if len(past) >= 3 and len(years) >= 2:
+        best_year = max(years, key=lambda y: (len(years[y]), y))
+        add("busiestYear", max(r["day"] for r in years[best_year]), best_year, count=len(years[best_year]))
+    if len(past) >= 2:
+        add("lastRecord", past[-1]["day"], past[-1]["year"], rid=past[-1]["id"])
+    if future:
+        add("upcoming", future[0]["day"], future[0]["year"], rid=future[0]["id"])
+    order = {k: i for i, k in enumerate(MILESTONE_KINDS)}
+    ranked = sorted(enumerate(out), key=lambda e: (e[1]["day"], order[e[1]["kind"]], e[0]))
+    return [m for _, m in ranked]
+
+
+def milestone_summary(records, first_met_day, first_met_year, today):
+    past = [r for r in records if r["day"] <= today]
+    if first_met_day is not None and first_met_year is not None:
+        start_day, start_year = first_met_day, first_met_year
+    elif past:
+        first = min(past, key=lambda r: (r["day"], r["id"].upper()))
+        start_day, start_year = first["day"], first["year"]
+    else:
+        return None
+    return f"{start_year}년부터 · 인연 {span_text(today - start_day)} · 기록 {len(past)}건"
 
 
 def frequency_text(per_month: float) -> str:
@@ -1535,13 +1633,14 @@ def type_choices(types) -> list[str]:
 
 # ── 사람 상세의 칸 차례 (DetailLayout · D-56) ─────────────────────────────────
 
-DETAIL_SECTIONS = ["card", "firstEncounter", "review", "introduced", "acquaintances", "timeline"]
-DETAIL_LABELS = {"card": "명함", "firstEncounter": "첫 인연", "review": "관계 돌아보기",
+DETAIL_SECTIONS = ["milestones", "card", "firstEncounter", "review", "introduced", "acquaintances", "timeline"]
+DETAIL_LABELS = {"milestones": "인연 연표", "card": "명함", "firstEncounter": "첫 인연", "review": "관계 돌아보기",
                  "introduced": "소개한 인연", "acquaintances": "아는 사이", "timeline": "타임라인"}
 
 
 def detail_parse(stored):
-    """Swift `DetailLayout(stored:)` — 모르는 · 겹친 이름은 버리고, 빠진 칸은 보이게 처음 차례대로 끝에."""
+    """Swift `DetailLayout(stored:)` — 모르는 · 겹친 이름은 버리고, 빠진 칸은 보이게 처음 차례대로 끝에.
+    단 인연 연표(빌드 41)는 빠져 있으면 맨 앞."""
     order, hidden = [], set()
     for raw in (stored or "").split(","):
         token = raw.strip(" ")
@@ -1554,7 +1653,8 @@ def detail_parse(stored):
             order.append(token)
             if hide:
                 hidden.add(token)
-    order += [k for k in DETAIL_SECTIONS if k not in order]
+    missing = [k for k in DETAIL_SECTIONS if k not in order]
+    order = [k for k in missing if k == "milestones"] + order + [k for k in missing if k != "milestones"]
     return order, hidden
 
 
@@ -1784,6 +1884,18 @@ def build() -> dict:
                                 "limit": c.get("limit", 8),
                                 "expected": recent_companions(c["records"], c.get("excluding", []), c.get("limit", 8))}
                                for c in cases["recentCompanions"]]
+    out["plannedMeetings"] = [{"name": c["name"], "records": c["records"], "today": c["today"],
+                               "window": c.get("window", PLANNED_WINDOW),
+                               "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW)),
+                               "followUps": planned_follow_ups(c["records"], c["today"]),
+                               "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}
+                              for c in cases["plannedMeetings"]]
+    out["timeOfDay"] = [{"minute": m, "text": time_text(m), "sortKey": time_key(m)} for m in cases["timeOfDay"]]
+    out["milestones"] = [{"name": c["name"], "records": c["records"], "firstMetDay": c.get("firstMetDay"),
+                          "firstMetYear": c.get("firstMetYear"), "today": c["today"],
+                          "expected": milestones(c["records"], c.get("firstMetDay"), c.get("firstMetYear"), c["today"]),
+                          "summary": milestone_summary(c["records"], c.get("firstMetDay"), c.get("firstMetYear"), c["today"])}
+                         for c in cases["milestones"]]
     out["birthdays"] = [{"month": c[0], "day": c[1], "year": c[2], "valid": birthday_valid(c[0], c[1], c[2]),
                          "text": birthday_text(c[0], c[1], c[2])} for c in cases["birthdays"]]
     out["reminders"] = [{"name": c["name"], "people": c["people"], "today": c["today"], "options": c["options"],

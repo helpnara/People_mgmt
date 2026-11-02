@@ -69,6 +69,9 @@ struct PersonEditView: View {
     @State private var photoFailed = false
     /// 이름을 한 번이라도 쳤는가 — 쳤다가 지웠을 때만 `이름을 입력하세요` 를 보인다 (처음 열 때는 조르지 않는다 · 7.2).
     @State private var nameEverTyped = false
+    /// 생일 · 태어난 해 말풍선 (빌드 39 · 이슈 60).
+    @State private var pickingBirthday = false
+    @State private var pickingBirthYear = false
 
     /// 열자마자 명함 촬영을 띄운다 — 단축어 `명함 찍기` (빌드 16 · 조사 보고서 지금 6).
     private let startsScan: Bool
@@ -288,8 +291,8 @@ struct PersonEditView: View {
         Section("첫 인연") {
             Toggle("처음 만난 날짜", isOn: $draft.hasFirstMetDate)
             if draft.hasFirstMetDate {
-                DatePicker("날짜", selection: $draft.firstMetDate, displayedComponents: .date)
-                PrecisionPicker(date: draft.firstMetDate, selection: $draft.firstMetPrecision)
+                PrecisionPicker(selection: $draft.firstMetPrecision)
+                ApproxDateField("날짜", date: $draft.firstMetDate, precision: draft.firstMetPrecision)
             }
             TextField("어떤 계기로 알게 되었나요?", text: $draft.firstNote, axis: .vertical)
                 .lineLimit(3...8)
@@ -305,15 +308,44 @@ struct PersonEditView: View {
         Section {
             Toggle("생일", isOn: $draft.hasBirthday)
             if draft.hasBirthday {
-                Picker("월", selection: $draft.birthMonth) {
-                    ForEach(1...12, id: \.self) { Text("\($0)월").tag($0) }
+                // 날짜 칸과 같은 꼴 (빌드 39 · 이슈 60) — 칩을 누르면 말풍선, 고르는 순간 닫힌다.
+                LabeledContent("날짜") {
+                    Button {
+                        Keyboard.dismiss()
+                        pickingBirthday = true
+                    } label: {
+                        DateChip(text: "\(draft.birthMonth)월 \(draft.birthDay)일")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("눌러서 고릅니다")
+                    .popover(isPresented: $pickingBirthday) {
+                        MonthDayGrid(selectedMonth: draft.birthMonth, selectedDay: draft.birthDay,
+                                     dayLimit: { birthDayLimit(month: $0) }) { month, day in
+                            draft.birthMonth = month
+                            draft.birthDay = day
+                            pickingBirthday = false
+                        }
+                        .padding(12)
+                        .presentationCompactAdaptation(.popover)
+                    }
                 }
-                Picker("일", selection: $draft.birthDay) {
-                    ForEach(1...birthDayLimit, id: \.self) { Text("\($0)일").tag($0) }
-                }
-                Picker("태어난 해", selection: $draft.birthYear) {
-                    Text("모름").tag(Int?.none)
-                    ForEach(Self.birthYears, id: \.self) { Text(String($0) + "년").tag(Int?.some($0)) }
+                LabeledContent("태어난 해") {
+                    Button {
+                        Keyboard.dismiss()
+                        pickingBirthYear = true
+                    } label: {
+                        DateChip(text: draft.birthYear.map { "\($0)년" } ?? "모름")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("눌러서 고릅니다")
+                    .popover(isPresented: $pickingBirthYear) {
+                        YearGrid(selected: draft.birthYear, range: Self.birthYearRange, unknownLabel: "모름") { year in
+                            draft.birthYear = year
+                            pickingBirthYear = false
+                        }
+                        .padding(12)
+                        .presentationCompactAdaptation(.popover)
+                    }
                 }
             }
         } header: {
@@ -328,19 +360,20 @@ struct PersonEditView: View {
     }
 
     /// 그 달의 마지막 날 — 연도를 모르면 2월은 29일까지.
-    private var birthDayLimit: Int {
-        if let year = draft.birthYear { return CivilDate.daysIn(month: draft.birthMonth, year: year) }
-        return draft.birthMonth == 2 ? 29 : CivilDate.daysIn(month: draft.birthMonth, year: 2001)
+    private func birthDayLimit(month: Int) -> Int {
+        if let year = draft.birthYear { return CivilDate.daysIn(month: month, year: year) }
+        return month == 2 ? 29 : CivilDate.daysIn(month: month, year: 2001)
     }
 
     private func clampBirthDay() {
-        if draft.birthDay > birthDayLimit { draft.birthDay = birthDayLimit }
+        let limit = birthDayLimit(month: draft.birthMonth)
+        if draft.birthDay > limit { draft.birthDay = limit }
     }
 
-    /// 올해부터 1900년까지 — 화면을 열 때 한 번 만든다.
-    private static let birthYears: [Int] = {
+    /// 1900년부터 올해까지.
+    private static let birthYearRange: ClosedRange<Int> = {
         let now = Calendar(identifier: .gregorian).component(.year, from: Date())
-        return Array(stride(from: now, through: 1900, by: -1))
+        return 1900...now
     }()
 
     /// 연락 수단 다섯 칸 (FR-032 · 이슈 11). 칸 이름이 왼쪽에 늘 보인다 — 채운 뒤에도 무슨 칸인지 알게.
