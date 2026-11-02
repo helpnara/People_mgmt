@@ -104,95 +104,62 @@ struct RecordEditView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
+            photoHandling(editor)
+                .confirmationDialog("변경 사항을 버리시겠습니까?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
+                    Button("버리기", role: .destructive) { dismiss() }
+                    Button("계속 편집", role: .cancel) {}
+                }
+                .alert("저장하지 못했습니다", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                    Button("다시 시도", action: save)
+                    Button("닫기", role: .cancel) {}
+                } message: {
+                    Text("\(saveError ?? "") 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요. 입력한 내용은 그대로 남아 있습니다.")
+                }
+        }
+        .interactiveDismissDisabled(hasChanges)
+        .task(id: everyone.count) {
+            candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
+            loadRecentPeople()
+        }
+    }
+
+    /// 양식과 그 둘레(키보드 · 고르기 화면 · 제목 · 단추). 칸마다 따로 떼어 둔다 — 한 식이 길면 컴파일러가 형식을 제때 못 맞춘다
+    /// (빌드 45 첫 CI · `unable to type-check this expression in reasonable time`).
+    private var editor: some View {
+        ScrollViewReader { proxy in
             Form {
-                Section {
-                    PrecisionPicker(selection: $draft.occurredPrecision)
-                    ApproxDateField("날짜", date: $draft.occurredAt, precision: draft.occurredPrecision)
-                    // 시각 (8판 · D-63) — 날짜까지 정한 기록에만. 같은 날 약속이 여럿이면 차례가 이것으로 정해진다.
-                    if draft.occurredPrecision == .day {
-                        Toggle("시각 넣기", isOn: hasTime)
-                            .accessibilityIdentifier("recordTimeToggle")
-                        if draft.occurredMinute != nil {
-                            DatePicker("시각", selection: timeOfDay, displayedComponents: .hourAndMinute)
-                        }
-                    }
-                } footer: {
-                    Text("기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다. 같은 날 약속이 여럿이면 시각을 넣어 두면 차례대로 보입니다. 날짜가 정확하지 않으면 월까지 · 연도만을 고르세요.")
-                }
-                Section("기록 유형") {
-                    RecordTypeChips(selection: $draft.recordType)
-                }
-                Section {
-                    TextField("제목", text: $draft.title)
-                        .focused($titleFocused)
-                        .font(.scaled(17, weight: .semibold))
-                        .limited($draft.title, to: Limits.recordTitle)
-                    TextField("함께한 일이나 나눈 이야기", text: $draft.note, axis: .vertical)
-                        .lineLimit(4...12)
-                        .limited($draft.note, to: Limits.recordNote)
-                } header: {
-                    Text("내용")
-                } footer: {
-                    Text("제목이나 메모 중 하나만 있으면 저장할 수 있습니다.")
-                }
+                dateSection
+                typeSection
+                contentSection
                 photoSection
-                Section("장소") {
-                    TextField("장소", text: $draft.location)
-                        .limited($draft.location, to: Limits.location)
-                    if isCreate, draft.location.isEmpty, let lastLocation {
-                        Button {
-                            draft.location = lastLocation
-                        } label: {
-                            Label("지난 장소: \(lastLocation)", systemImage: "arrow.uturn.backward")
-                                .font(.scaled(14))
-                                .lineLimit(2)
-                        }
-                    }
-                }
-                Section("함께한 사람") {
-                    NavigationLink {
-                        PeopleMultiPickerView(people: candidates, selection: $draft.participants, locked: anchor)
-                    } label: {
-                        LabeledContent("함께한 사람", value: participantSummary)
-                    }
-                    if !draft.participants.isEmpty {
-                        WrapLayout(spacing: 8) {
-                            ForEach(draft.participants) { person in
-                                Chip(text: person.name, selected: person === anchor)
-                            }
-                        }
-                    }
-                    recentChips
-                }
-                Section("태그") {
-                    TagEditor(tags: $draft.tags, input: $pendingTag, catalog: tagCatalog)
-                        .task {
-                            guard tagCatalog == nil else { return }
-                            tagCatalog = await TagCatalogBuilder.build(container: context.container)
-                        }
-                        .id(Self.tagSectionID)
-                }
+                placeSection
+                participantSection
+                tagSection
             }
             .task { await showTagInputForScreenshot(proxy) }
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .navigationDestination(isPresented: $pickingParticipants) {
-                PeopleMultiPickerView(people: candidates, selection: $draft.participants, locked: anchor)
-            }
-            .navigationTitle(isCreate ? "기록 추가" : "기록 수정")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("취소") {
-                        if hasChanges { confirmingDiscard = true } else { dismiss() }
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("저장", action: save)
-                        .disabled(!draft.canSave)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .navigationDestination(isPresented: $pickingParticipants) {
+            PeopleMultiPickerView(people: candidates, selection: $draft.participants, locked: anchor)
+        }
+        .navigationTitle(isCreate ? "기록 추가" : "기록 수정")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("취소") {
+                    if hasChanges { confirmingDiscard = true } else { dismiss() }
                 }
             }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("저장", action: save)
+                    .disabled(!draft.canSave)
+            }
+        }
+    }
+
+    /// 기록 사진의 사진첩 창 · 빼기 확인 · 실패 안내 (9판 · FR-058).
+    private func photoHandling<Content: View>(_ content: Content) -> some View {
+        content
             .photosPicker(isPresented: $pickingPhotos, selection: $photoItems,
                           maxSelectionCount: max(1, RecordPhotos.limit - draft.photos.count), matching: .images)
             .onChange(of: photoItems) { _, items in
@@ -215,21 +182,89 @@ struct RecordEditView: View {
             } message: {
                 Text("다른 사진을 골라 주세요. iCloud 에만 있는 사진은 내려받은 뒤에 고를 수 있습니다.")
             }
-            .confirmationDialog("변경 사항을 버리시겠습니까?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
-                Button("버리기", role: .destructive) { dismiss() }
-                Button("계속 편집", role: .cancel) {}
+    }
+
+    private var dateSection: some View {
+        Section {
+            PrecisionPicker(selection: $draft.occurredPrecision)
+            ApproxDateField("날짜", date: $draft.occurredAt, precision: draft.occurredPrecision)
+            // 시각 (8판 · D-63) — 날짜까지 정한 기록에만. 같은 날 약속이 여럿이면 차례가 이것으로 정해진다.
+            if draft.occurredPrecision == .day {
+                Toggle("시각 넣기", isOn: hasTime)
+                    .accessibilityIdentifier("recordTimeToggle")
+                if draft.occurredMinute != nil {
+                    DatePicker("시각", selection: timeOfDay, displayedComponents: .hourAndMinute)
+                }
             }
-            .alert("저장하지 못했습니다", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
-                Button("다시 시도", action: save)
-                Button("닫기", role: .cancel) {}
-            } message: {
-                Text("\(saveError ?? "") 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요. 입력한 내용은 그대로 남아 있습니다.")
+        } footer: {
+            Text("기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다. 같은 날 약속이 여럿이면 시각을 넣어 두면 차례대로 보입니다. 날짜가 정확하지 않으면 월까지 · 연도만을 고르세요.")
+        }
+    }
+
+    private var typeSection: some View {
+        Section("기록 유형") {
+            RecordTypeChips(selection: $draft.recordType)
+        }
+    }
+
+    private var contentSection: some View {
+        Section {
+            TextField("제목", text: $draft.title)
+                .focused($titleFocused)
+                .font(.scaled(17, weight: .semibold))
+                .limited($draft.title, to: Limits.recordTitle)
+            TextField("함께한 일이나 나눈 이야기", text: $draft.note, axis: .vertical)
+                .lineLimit(4...12)
+                .limited($draft.note, to: Limits.recordNote)
+        } header: {
+            Text("내용")
+        } footer: {
+            Text("제목이나 메모 중 하나만 있으면 저장할 수 있습니다.")
+        }
+    }
+
+    private var placeSection: some View {
+        Section("장소") {
+            TextField("장소", text: $draft.location)
+                .limited($draft.location, to: Limits.location)
+            if isCreate, draft.location.isEmpty, let lastLocation {
+                Button {
+                    draft.location = lastLocation
+                } label: {
+                    Label("지난 장소: \(lastLocation)", systemImage: "arrow.uturn.backward")
+                        .font(.scaled(14))
+                        .lineLimit(2)
+                }
             }
         }
-        .interactiveDismissDisabled(hasChanges)
-        .task(id: everyone.count) {
-            candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
-            loadRecentPeople()
+    }
+
+    private var participantSection: some View {
+        Section("함께한 사람") {
+            NavigationLink {
+                PeopleMultiPickerView(people: candidates, selection: $draft.participants, locked: anchor)
+            } label: {
+                LabeledContent("함께한 사람", value: participantSummary)
+            }
+            if !draft.participants.isEmpty {
+                WrapLayout(spacing: 8) {
+                    ForEach(draft.participants) { person in
+                        Chip(text: person.name, selected: person === anchor)
+                    }
+                }
+            }
+            recentChips
+        }
+    }
+
+    private var tagSection: some View {
+        Section("태그") {
+            TagEditor(tags: $draft.tags, input: $pendingTag, catalog: tagCatalog)
+                .task {
+                    guard tagCatalog == nil else { return }
+                    tagCatalog = await TagCatalogBuilder.build(container: context.container)
+                }
+                .id(Self.tagSectionID)
         }
     }
 
