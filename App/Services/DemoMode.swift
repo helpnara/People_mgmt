@@ -23,7 +23,7 @@ final class DemoMode {
         guard container == nil else { return }
         do {
             let demo = try Persistence.makeContainer(inMemory: true)
-            SampleData.seed(into: demo.mainContext, communities: true)
+            SampleData.seed(into: demo.mainContext, communities: true, planned: true)
             container = demo
         } catch {
             // 메모리 저장소를 못 여는 일은 스키마가 깨졌을 때뿐이다 — CI 가 먼저 잡는다. 둘러보기만 열리지 않는다.

@@ -3,6 +3,8 @@ import Foundation
 /// 사람 상세에서 차례를 바꾸거나 숨길 수 있는 칸 (D-56 · 2026-10-27 사용자).
 /// 맨 위 칸(사진 · 이름 · 소속 · 연락 수단 · 생일)은 늘 맨 위라 여기에 들지 않는다.
 public enum DetailSection: String, CaseIterable, Sendable, Identifiable {
+    /// 인연 연표 (빌드 41 · FR-056) — 처음 차례는 맨 앞.
+    case milestones
     case card
     case firstEncounter
     case review
@@ -15,6 +17,7 @@ public enum DetailSection: String, CaseIterable, Sendable, Identifiable {
     /// 설정 · 상세에 보이는 이름 — 상세의 칸 머리와 같은 말.
     public var label: String {
         switch self {
+        case .milestones: return "인연 연표"
         case .card: return "명함"
         case .firstEncounter: return "첫 인연"
         case .review: return "관계 돌아보기"
@@ -29,6 +32,7 @@ public enum DetailSection: String, CaseIterable, Sendable, Identifiable {
 ///
 /// - 이 기기에만 둔다 — `UserDefaults` 의 글 하나(`stored`). 칸 이름을 쉼표로 잇고, 숨긴 칸은 앞에 `-`.
 /// - 읽을 때 모르는 이름 · 겹친 이름은 버리고, 빠진 칸(앞으로 더해질 칸)은 보이게 처음 차례대로 끝에 붙인다.
+///   단 **인연 연표**(빌드 41)는 빠져 있으면 맨 앞에 둔다 — 이미 차례를 바꿔 둔 기기에서도 처음 차례(맨 위)로 보이게.
 /// - 숨겨도 자료는 그대로다 — 화면에만 안 보인다. 정답표 `detailLayout` · `detailMove` 가 대조한다.
 public struct DetailLayout: Equatable, Sendable {
     public private(set) var order: [DetailSection]
@@ -47,9 +51,8 @@ public struct DetailLayout: Equatable, Sendable {
             order.append(section)
             if hide { hidden.insert(section) }
         }
-        for section in DetailSection.allCases where !order.contains(section) {
-            order.append(section)
-        }
+        let missing = DetailSection.allCases.filter { !order.contains($0) }
+        order = missing.filter { $0 == .milestones } + order + missing.filter { $0 != .milestones }
         self.order = order
         self.hidden = hidden
     }

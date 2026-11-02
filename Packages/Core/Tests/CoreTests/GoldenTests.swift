@@ -123,7 +123,7 @@ final class GoldenTests: XCTestCase {
         struct CardCase: Decodable { let name: String; let lines: [CardLineRaw]; let expected: CardExpected }
         struct RecencyPerson: Decodable { let name: String; let createdAt: Double; let lastRecordAt: Double? }
         struct RecencyCase: Decodable { let name: String; let people: [RecencyPerson]; let expected: [String] }
-        struct TimelineRecord: Decodable { let id: String; let occurredAt: Double; let createdAt: Double }
+        struct TimelineRecord: Decodable { let id: String; let occurredAt: Double; let createdAt: Double; let minute: Int? }
         struct TimelineCase: Decodable { let name: String; let records: [TimelineRecord]; let expected: [String] }
         struct ValidationCase: Decodable { let name: String; let expected: String? }
         struct RecordSaveCase: Decodable { let title: String?; let note: String?; let expected: Bool }
@@ -175,6 +175,20 @@ final class GoldenTests: XCTestCase {
             let tags: [String]?; let contacts: [ExportContact]?; let firstMet: String?; let firstNote: String?
             let records: [ExportRecord]?; let exportedOn: String
         }
+        struct PlannedRecordRaw: Decodable { let id: UUID; let day: Int; let createdDay: Int; let updatedDay: Int; let dayPrecise: Bool; let minute: Int? }
+        struct PlannedExpected: Decodable { let upcoming: [UUID]; let awaiting: [UUID] }
+        struct PlannedPhrase: Decodable { let day: Int; let expected: String }
+        struct TimeCase: Decodable { let minute: Int; let text: String; let sortKey: Int }
+        struct MilestoneRecordRaw: Decodable { let id: UUID; let day: Int; let year: Int }
+        struct MilestoneRaw: Decodable { let kind: String; let day: Int; let year: Int; let count: Int?; let recordID: UUID?; let title: String }
+        struct MilestoneCase: Decodable {
+            let name: String; let records: [MilestoneRecordRaw]; let firstMetDay: Int?; let firstMetYear: Int?; let today: Int
+            let expected: [MilestoneRaw]; let summary: String?
+        }
+        struct PlannedCase: Decodable {
+            let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int
+            let expected: PlannedExpected; let followUps: [UUID]; let phrases: [PlannedPhrase]
+        }
         struct ExportCase: Decodable { let name: String; let person: ExportPerson; let expected: String }
 
         let tags: [TagCase]
@@ -200,6 +214,9 @@ final class GoldenTests: XCTestCase {
         let graphEdges: [GraphCase]
         let acquaintanceSuggestions: [SuggestionCase]
         let recentCompanions: [RecentCompanionsCase]
+        let plannedMeetings: [PlannedCase]
+        let timeOfDay: [TimeCase]
+        let milestones: [MilestoneCase]
         let birthdays: [BirthdayCase]
         let reminders: [ReminderCase]
         let vcardEncode: [VEncodeCase]
@@ -417,6 +434,49 @@ final class GoldenTests: XCTestCase {
         }
     }
 
+    func testPlannedMeetings() throws {
+        for c in try Self.loadGolden().plannedMeetings {
+            let entries = c.records.map {
+                PlannedMeetings.Entry(id: $0.id, day: $0.day, createdDay: $0.createdDay, updatedDay: $0.updatedDay,
+                                      isDayPrecise: $0.dayPrecise, minute: $0.minute)
+            }
+            let got = PlannedMeetings.plan(entries, today: c.today, window: c.window)
+            XCTAssertEqual(got.upcoming, c.expected.upcoming, "\(c.name) — 다가오는 만남")
+            XCTAssertEqual(got.awaiting, c.expected.awaiting, "\(c.name) — 결과를 적을 만남")
+            XCTAssertEqual(PlannedMeetings.followUps(entries, today: c.today), c.followUps, "\(c.name) — 결과 적기 알림")
+            for p in c.phrases {
+                XCTAssertEqual(PlannedMeetings.upcomingPhrase(day: p.day, today: c.today), p.expected, c.name)
+            }
+        }
+        XCTAssertEqual(PlannedMeetings.window, 60, "정답표의 PLANNED_WINDOW 와 같다")
+        XCTAssertEqual(PlannedMeetings.followUpLimit, 4, "정답표의 FOLLOW_UP_LIMIT 와 같다")
+    }
+
+    func testRelationshipMilestones() throws {
+        for c in try Self.loadGolden().milestones {
+            let records = c.records.map { RelationshipMilestones.Record(id: $0.id, day: $0.day, year: $0.year) }
+            let got = RelationshipMilestones.make(records: records, firstMetDay: c.firstMetDay, firstMetYear: c.firstMetYear, today: c.today)
+            XCTAssertEqual(got.map(\.kind.rawValue), c.expected.map(\.kind), "\(c.name) — 종류")
+            XCTAssertEqual(got.map(\.day), c.expected.map(\.day), "\(c.name) — 날")
+            XCTAssertEqual(got.map(\.year), c.expected.map(\.year), "\(c.name) — 해")
+            XCTAssertEqual(got.map(\.count), c.expected.map(\.count), "\(c.name) — 수")
+            XCTAssertEqual(got.map(\.recordID), c.expected.map(\.recordID), "\(c.name) — 기록")
+            XCTAssertEqual(got.map(\.title), c.expected.map(\.title), "\(c.name) — 이름")
+            XCTAssertEqual(RelationshipMilestones.summary(records: records, firstMetDay: c.firstMetDay, firstMetYear: c.firstMetYear,
+                                                          today: c.today), c.summary, "\(c.name) — 한 줄")
+        }
+        XCTAssertEqual(RelationshipMilestones.countThresholds, [10, 50, 100, 200, 500, 1000], "정답표의 MILESTONE_THRESHOLDS 와 같다")
+    }
+
+    func testTimeOfDay() throws {
+        for c in try Self.loadGolden().timeOfDay {
+            XCTAssertEqual(TimeOfDay.text(c.minute), c.text, "\(c.minute)분")
+            XCTAssertEqual(TimeOfDay.sortKey(c.minute), c.sortKey, "\(c.minute)분 차례")
+        }
+        XCTAssertEqual(TimeOfDay.sortKey(nil), TimeOfDay.noTime, "시각 없음은 그날의 끝")
+        XCTAssertEqual(TimeOfDay.noTime, 1440)
+    }
+
     func testBirthdayRule() throws {
         for c in try Self.loadGolden().birthdays {
             XCTAssertEqual(BirthdayRule.isValid(month: c.month, day: c.day, year: c.year), c.valid, "\(c.text) 맞는 날인가")
@@ -586,8 +646,8 @@ final class GoldenTests: XCTestCase {
         for c in try Self.loadGolden().timelineSort {
             let sorted = c.records.sorted {
                 TimelineSort.areInIncreasingOrder(
-                    (occurredAt: Date(timeIntervalSince1970: $0.occurredAt), createdAt: Date(timeIntervalSince1970: $0.createdAt)),
-                    (occurredAt: Date(timeIntervalSince1970: $1.occurredAt), createdAt: Date(timeIntervalSince1970: $1.createdAt)))
+                    (occurredAt: Date(timeIntervalSince1970: $0.occurredAt), minute: $0.minute, createdAt: Date(timeIntervalSince1970: $0.createdAt)),
+                    (occurredAt: Date(timeIntervalSince1970: $1.occurredAt), minute: $1.minute, createdAt: Date(timeIntervalSince1970: $1.createdAt)))
             }.map(\.id)
             XCTAssertEqual(sorted, c.expected, c.name)
         }

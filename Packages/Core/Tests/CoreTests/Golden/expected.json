@@ -1535,6 +1535,10 @@
   ],
   "detailLabels": [
     {
+      "key": "milestones",
+      "label": "인연 연표"
+    },
+    {
       "key": "card",
       "label": "명함"
     },
@@ -1564,6 +1568,7 @@
       "hidden": [],
       "input": null,
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1571,8 +1576,9 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "stored": "milestones,card,firstEncounter,review,introduced,acquaintances,timeline",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1585,6 +1591,7 @@
       "hidden": [],
       "input": "",
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1592,8 +1599,9 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "stored": "milestones,card,firstEncounter,review,introduced,acquaintances,timeline",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1606,6 +1614,7 @@
       "hidden": [],
       "input": "timeline,card",
       "order": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
@@ -1613,8 +1622,9 @@
         "introduced",
         "acquaintances"
       ],
-      "stored": "timeline,card,firstEncounter,review,introduced,acquaintances",
+      "stored": "milestones,timeline,card,firstEncounter,review,introduced,acquaintances",
       "visible": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
@@ -1629,6 +1639,7 @@
       ],
       "input": "-review,timeline",
       "order": [
+        "milestones",
         "review",
         "timeline",
         "card",
@@ -1636,8 +1647,9 @@
         "introduced",
         "acquaintances"
       ],
-      "stored": "-review,timeline,card,firstEncounter,introduced,acquaintances",
+      "stored": "milestones,-review,timeline,card,firstEncounter,introduced,acquaintances",
       "visible": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
@@ -1651,6 +1663,7 @@
       ],
       "input": "card,card,unknown,-timeline",
       "order": [
+        "milestones",
         "card",
         "timeline",
         "firstEncounter",
@@ -1658,8 +1671,9 @@
         "introduced",
         "acquaintances"
       ],
-      "stored": "card,-timeline,firstEncounter,review,introduced,acquaintances",
+      "stored": "milestones,card,-timeline,firstEncounter,review,introduced,acquaintances",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1673,6 +1687,7 @@
       ],
       "input": " timeline , - card ",
       "order": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
@@ -1680,8 +1695,9 @@
         "introduced",
         "acquaintances"
       ],
-      "stored": "timeline,-card,firstEncounter,review,introduced,acquaintances",
+      "stored": "milestones,timeline,-card,firstEncounter,review,introduced,acquaintances",
       "visible": [
+        "milestones",
         "timeline",
         "firstEncounter",
         "review",
@@ -1693,6 +1709,7 @@
       "hidden": [],
       "input": "-",
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1700,8 +1717,9 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "stored": "milestones,card,firstEncounter,review,introduced,acquaintances,timeline",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1714,6 +1732,7 @@
       "hidden": [],
       "input": ",,",
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1721,8 +1740,9 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "card,firstEncounter,review,introduced,acquaintances,timeline",
+      "stored": "milestones,card,firstEncounter,review,introduced,acquaintances,timeline",
       "visible": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1735,6 +1755,7 @@
       "hidden": [],
       "input": "acquaintances,introduced,review,firstEncounter,card,timeline",
       "order": [
+        "milestones",
         "acquaintances",
         "introduced",
         "review",
@@ -1742,8 +1763,9 @@
         "card",
         "timeline"
       ],
-      "stored": "acquaintances,introduced,review,firstEncounter,card,timeline",
+      "stored": "milestones,acquaintances,introduced,review,firstEncounter,card,timeline",
       "visible": [
+        "milestones",
         "acquaintances",
         "introduced",
         "review",
@@ -1763,6 +1785,7 @@
       ],
       "input": "-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline",
       "order": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1770,20 +1793,94 @@
         "acquaintances",
         "timeline"
       ],
-      "stored": "-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline",
-      "visible": []
-    }
-  ],
-  "detailMove": [
+      "stored": "milestones,-card,-firstEncounter,-review,-introduced,-acquaintances,-timeline",
+      "visible": [
+        "milestones"
+      ]
+    },
     {
-      "destination": 0,
-      "expected": [
+      "hidden": [
+        "review"
+      ],
+      "input": "timeline,-review,firstEncounter,card,introduced,acquaintances",
+      "order": [
+        "milestones",
+        "timeline",
+        "review",
+        "firstEncounter",
+        "card",
+        "introduced",
+        "acquaintances"
+      ],
+      "stored": "milestones,timeline,-review,firstEncounter,card,introduced,acquaintances",
+      "visible": [
+        "milestones",
+        "timeline",
+        "firstEncounter",
+        "card",
+        "introduced",
+        "acquaintances"
+      ]
+    },
+    {
+      "hidden": [
+        "milestones"
+      ],
+      "input": "-milestones,timeline,card,firstEncounter,review,introduced,acquaintances",
+      "order": [
+        "milestones",
         "timeline",
         "card",
         "firstEncounter",
         "review",
         "introduced",
         "acquaintances"
+      ],
+      "stored": "-milestones,timeline,card,firstEncounter,review,introduced,acquaintances",
+      "visible": [
+        "timeline",
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ]
+    },
+    {
+      "hidden": [],
+      "input": "card,milestones,timeline",
+      "order": [
+        "card",
+        "milestones",
+        "timeline",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ],
+      "stored": "card,milestones,timeline,firstEncounter,review,introduced,acquaintances",
+      "visible": [
+        "card",
+        "milestones",
+        "timeline",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "acquaintances"
+      ]
+    }
+  ],
+  "detailMove": [
+    {
+      "destination": 0,
+      "expected": [
+        "acquaintances",
+        "milestones",
+        "card",
+        "firstEncounter",
+        "review",
+        "introduced",
+        "timeline"
       ],
       "source": [
         5
@@ -1793,12 +1890,13 @@
     {
       "destination": 6,
       "expected": [
+        "card",
         "firstEncounter",
         "review",
         "introduced",
         "acquaintances",
-        "timeline",
-        "card"
+        "milestones",
+        "timeline"
       ],
       "source": [
         0
@@ -1808,11 +1906,12 @@
     {
       "destination": 5,
       "expected": [
+        "milestones",
+        "firstEncounter",
+        "introduced",
         "card",
         "review",
         "acquaintances",
-        "firstEncounter",
-        "introduced",
         "timeline"
       ],
       "source": [
@@ -1824,6 +1923,7 @@
     {
       "destination": 2,
       "expected": [
+        "milestones",
         "card",
         "firstEncounter",
         "review",
@@ -1839,8 +1939,9 @@
     {
       "destination": 2,
       "expected": [
-        "timeline",
         "review",
+        "milestones",
+        "timeline",
         "card",
         "firstEncounter",
         "introduced",
@@ -3848,6 +3949,580 @@
       "resolution": 2.0
     }
   ],
+  "milestones": [
+    {
+      "expected": [],
+      "firstMetDay": null,
+      "firstMetYear": null,
+      "name": "아무것도 없으면 표식도 한 줄도 없다",
+      "records": [],
+      "summary": null,
+      "today": 10000
+    },
+    {
+      "expected": [
+        {
+          "count": null,
+          "day": 9200,
+          "kind": "firstMet",
+          "recordID": null,
+          "title": "처음 만남",
+          "year": 2024
+        }
+      ],
+      "firstMetDay": 9200,
+      "firstMetYear": 2024,
+      "name": "처음 만난 날만 적었다",
+      "records": [],
+      "summary": "2024년부터 · 인연 2년 2개월 · 기록 0건",
+      "today": 10000
+    },
+    {
+      "expected": [
+        {
+          "count": null,
+          "day": 9970,
+          "kind": "firstRecord",
+          "recordID": "00000000-0000-0000-0000-000000000401",
+          "title": "첫 기록",
+          "year": 2026
+        }
+      ],
+      "firstMetDay": null,
+      "firstMetYear": null,
+      "name": "기록 하나 — 첫 기록만(마지막 기록은 두 건부터)",
+      "records": [
+        {
+          "day": 9970,
+          "id": "00000000-0000-0000-0000-000000000401",
+          "year": 2026
+        }
+      ],
+      "summary": "2026년부터 · 인연 1개월 · 기록 1건",
+      "today": 10000
+    },
+    {
+      "expected": [
+        {
+          "count": null,
+          "day": 9500,
+          "kind": "firstMet",
+          "recordID": null,
+          "title": "처음 만남",
+          "year": 2025
+        },
+        {
+          "count": null,
+          "day": 9990,
+          "kind": "lastRecord",
+          "recordID": "00000000-0000-0000-0000-000000000403",
+          "title": "마지막 기록",
+          "year": 2026
+        }
+      ],
+      "firstMetDay": 9500,
+      "firstMetYear": 2025,
+      "name": "처음 만난 날과 첫 기록이 같은 날이면 처음 만남 하나로",
+      "records": [
+        {
+          "day": 9500,
+          "id": "00000000-0000-0000-0000-000000000402",
+          "year": 2025
+        },
+        {
+          "day": 9990,
+          "id": "00000000-0000-0000-0000-000000000403",
+          "year": 2026
+        }
+      ],
+      "summary": "2025년부터 · 인연 1년 4개월 · 기록 2건",
+      "today": 10000
+    },
+    {
+      "expected": [
+        {
+          "count": null,
+          "day": 9100,
+          "kind": "firstMet",
+          "recordID": null,
+          "title": "처음 만남",
+          "year": 2023
+        },
+        {
+          "count": null,
+          "day": 9300,
+          "kind": "firstRecord",
+          "recordID": "00000000-0000-0000-0000-000000000410",
+          "title": "첫 기록",
+          "year": 2024
+        },
+        {
+          "count": 2,
+          "day": 9750,
+          "kind": "busiestYear",
+          "recordID": null,
+          "title": "가장 많이 만난 해",
+          "year": 2025
+        },
+        {
+          "count": null,
+          "day": 9980,
+          "kind": "lastRecord",
+          "recordID": "00000000-0000-0000-0000-000000000414",
+          "title": "마지막 기록",
+          "year": 2026
+        }
+      ],
+      "firstMetDay": 9100,
+      "firstMetYear": 2023,
+      "name": "가장 많이 만난 해 — 같으면 늦은 해, 그해 마지막 기록 날에 선다",
+      "records": [
+        {
+          "day": 9300,
+          "id": "00000000-0000-0000-0000-000000000410",
+          "year": 2024
+        },
+        {
+          "day": 9350,
+          "id": "00000000-0000-0000-0000-000000000411",
+          "year": 2024
+        },
+        {
+          "day": 9700,
+          "id": "00000000-0000-0000-0000-000000000412",
+          "year": 2025
+        },
+        {
+          "day": 9750,
+          "id": "00000000-0000-0000-0000-000000000413",
+          "year": 2025
+        },
+        {
+          "day": 9980,
+          "id": "00000000-0000-0000-0000-000000000414",
+          "year": 2026
+        }
+      ],
+      "summary": "2023년부터 · 인연 2년 5개월 · 기록 5건",
+      "today": 10000
+    },
+    {
+      "expected": [
+        {
+          "count": null,
+          "day": 9940,
+          "kind": "firstRecord",
+          "recordID": "00000000-0000-0000-0000-000000000420",
+          "title": "첫 기록",
+          "year": 2026
+        },
+        {
+          "count": null,
+          "day": 9995,
+          "kind": "lastRecord",
+          "recordID": "00000000-0000-0000-0000-000000000422",
+          "title": "마지막 기록",
+          "year": 2026
+        }
+      ],
+      "firstMetDay": null,
+      "firstMetYear": null,
+      "name": "한 해에만 있으면 가장 많이 만난 해는 없다",
+      "records": [
+        {
+          "day": 9940,
+          "id": "00000000-0000-0000-0000-000000000420",
+          "year": 2026
+        },
+        {
+          "day": 9960,
+          "id": "00000000-0000-0000-0000-000000000421",
+          "year": 2026
+        },
+        {
+          "day": 9995,
+          "id": "00000000-0000-0000-0000-000000000422",
+          "year": 2026
+        }
+      ],
+      "summary": "2026년부터 · 인연 2개월 · 기록 3건",
+      "today": 10000
+    },
+    {
+      "expected": [
+        {
+          "count": null,
+          "day": 9900,
+          "kind": "firstRecord",
+          "recordID": "00000000-0000-0000-0000-000000000430",
+          "title": "첫 기록",
+          "year": 2025
+        },
+        {
+          "count": null,
+          "day": 9998,
+          "kind": "lastRecord",
+          "recordID": "00000000-0000-0000-0000-000000000433",
+          "title": "마지막 기록",
+          "year": 2026
+        },
+        {
+          "count": null,
+          "day": 10001,
+          "kind": "upcoming",
+          "recordID": "00000000-0000-0000-0000-000000000432",
+          "title": "다가오는 만남",
+          "year": 2026
+        }
+      ],
+      "firstMetDay": null,
+      "firstMetYear": null,
+      "name": "다가오는 만남은 가장 이른 앞날 하나 · 앞날은 기록 수에 들지 않는다",
+      "records": [
+        {
+          "day": 9900,
+          "id": "00000000-0000-0000-0000-000000000430",
+          "year": 2025
+        },
+        {
+          "day": 10003,
+          "id": "00000000-0000-0000-0000-000000000431",
+          "year": 2026
+        },
+        {
+          "day": 10001,
+          "id": "00000000-0000-0000-0000-000000000432",
+          "year": 2026
+        },
+        {
+          "day": 9998,
+          "id": "00000000-0000-0000-0000-000000000433",
+          "year": 2026
+        }
+      ],
+      "summary": "2025년부터 · 인연 3개월 · 기록 2건",
+      "today": 10000
+    },
+    {
+      "expected": [
+        {
+          "count": null,
+          "day": 8800,
+          "kind": "firstMet",
+          "recordID": null,
+          "title": "처음 만남",
+          "year": 2023
+        },
+        {
+          "count": null,
+          "day": 9600,
+          "kind": "firstRecord",
+          "recordID": "00000000-0000-0000-0000-000000000440",
+          "title": "첫 기록",
+          "year": 2025
+        },
+        {
+          "count": 10,
+          "day": 9645,
+          "kind": "countReached",
+          "recordID": "00000000-0000-0000-0000-000000000449",
+          "title": "10번째 기록",
+          "year": 2025
+        },
+        {
+          "count": 50,
+          "day": 9845,
+          "kind": "countReached",
+          "recordID": "00000000-0000-0000-0000-000000000489",
+          "title": "50번째 기록",
+          "year": 2026
+        },
+        {
+          "count": 27,
+          "day": 9855,
+          "kind": "busiestYear",
+          "recordID": null,
+          "title": "가장 많이 만난 해",
+          "year": 2026
+        },
+        {
+          "count": null,
+          "day": 9855,
+          "kind": "lastRecord",
+          "recordID": "00000000-0000-0000-0000-000000000491",
+          "title": "마지막 기록",
+          "year": 2026
+        }
+      ],
+      "firstMetDay": 8800,
+      "firstMetYear": 2023,
+      "name": "10번째 · 50번째 기록에 닿은 그 기록",
+      "records": [
+        {
+          "day": 9600,
+          "id": "00000000-0000-0000-0000-000000000440",
+          "year": 2025
+        },
+        {
+          "day": 9605,
+          "id": "00000000-0000-0000-0000-000000000441",
+          "year": 2025
+        },
+        {
+          "day": 9610,
+          "id": "00000000-0000-0000-0000-000000000442",
+          "year": 2025
+        },
+        {
+          "day": 9615,
+          "id": "00000000-0000-0000-0000-000000000443",
+          "year": 2025
+        },
+        {
+          "day": 9620,
+          "id": "00000000-0000-0000-0000-000000000444",
+          "year": 2025
+        },
+        {
+          "day": 9625,
+          "id": "00000000-0000-0000-0000-000000000445",
+          "year": 2025
+        },
+        {
+          "day": 9630,
+          "id": "00000000-0000-0000-0000-000000000446",
+          "year": 2025
+        },
+        {
+          "day": 9635,
+          "id": "00000000-0000-0000-0000-000000000447",
+          "year": 2025
+        },
+        {
+          "day": 9640,
+          "id": "00000000-0000-0000-0000-000000000448",
+          "year": 2025
+        },
+        {
+          "day": 9645,
+          "id": "00000000-0000-0000-0000-000000000449",
+          "year": 2025
+        },
+        {
+          "day": 9650,
+          "id": "00000000-0000-0000-0000-000000000450",
+          "year": 2025
+        },
+        {
+          "day": 9655,
+          "id": "00000000-0000-0000-0000-000000000451",
+          "year": 2025
+        },
+        {
+          "day": 9660,
+          "id": "00000000-0000-0000-0000-000000000452",
+          "year": 2025
+        },
+        {
+          "day": 9665,
+          "id": "00000000-0000-0000-0000-000000000453",
+          "year": 2025
+        },
+        {
+          "day": 9670,
+          "id": "00000000-0000-0000-0000-000000000454",
+          "year": 2025
+        },
+        {
+          "day": 9675,
+          "id": "00000000-0000-0000-0000-000000000455",
+          "year": 2025
+        },
+        {
+          "day": 9680,
+          "id": "00000000-0000-0000-0000-000000000456",
+          "year": 2025
+        },
+        {
+          "day": 9685,
+          "id": "00000000-0000-0000-0000-000000000457",
+          "year": 2025
+        },
+        {
+          "day": 9690,
+          "id": "00000000-0000-0000-0000-000000000458",
+          "year": 2025
+        },
+        {
+          "day": 9695,
+          "id": "00000000-0000-0000-0000-000000000459",
+          "year": 2025
+        },
+        {
+          "day": 9700,
+          "id": "00000000-0000-0000-0000-000000000460",
+          "year": 2025
+        },
+        {
+          "day": 9705,
+          "id": "00000000-0000-0000-0000-000000000461",
+          "year": 2025
+        },
+        {
+          "day": 9710,
+          "id": "00000000-0000-0000-0000-000000000462",
+          "year": 2025
+        },
+        {
+          "day": 9715,
+          "id": "00000000-0000-0000-0000-000000000463",
+          "year": 2025
+        },
+        {
+          "day": 9720,
+          "id": "00000000-0000-0000-0000-000000000464",
+          "year": 2025
+        },
+        {
+          "day": 9725,
+          "id": "00000000-0000-0000-0000-000000000465",
+          "year": 2026
+        },
+        {
+          "day": 9730,
+          "id": "00000000-0000-0000-0000-000000000466",
+          "year": 2026
+        },
+        {
+          "day": 9735,
+          "id": "00000000-0000-0000-0000-000000000467",
+          "year": 2026
+        },
+        {
+          "day": 9740,
+          "id": "00000000-0000-0000-0000-000000000468",
+          "year": 2026
+        },
+        {
+          "day": 9745,
+          "id": "00000000-0000-0000-0000-000000000469",
+          "year": 2026
+        },
+        {
+          "day": 9750,
+          "id": "00000000-0000-0000-0000-000000000470",
+          "year": 2026
+        },
+        {
+          "day": 9755,
+          "id": "00000000-0000-0000-0000-000000000471",
+          "year": 2026
+        },
+        {
+          "day": 9760,
+          "id": "00000000-0000-0000-0000-000000000472",
+          "year": 2026
+        },
+        {
+          "day": 9765,
+          "id": "00000000-0000-0000-0000-000000000473",
+          "year": 2026
+        },
+        {
+          "day": 9770,
+          "id": "00000000-0000-0000-0000-000000000474",
+          "year": 2026
+        },
+        {
+          "day": 9775,
+          "id": "00000000-0000-0000-0000-000000000475",
+          "year": 2026
+        },
+        {
+          "day": 9780,
+          "id": "00000000-0000-0000-0000-000000000476",
+          "year": 2026
+        },
+        {
+          "day": 9785,
+          "id": "00000000-0000-0000-0000-000000000477",
+          "year": 2026
+        },
+        {
+          "day": 9790,
+          "id": "00000000-0000-0000-0000-000000000478",
+          "year": 2026
+        },
+        {
+          "day": 9795,
+          "id": "00000000-0000-0000-0000-000000000479",
+          "year": 2026
+        },
+        {
+          "day": 9800,
+          "id": "00000000-0000-0000-0000-000000000480",
+          "year": 2026
+        },
+        {
+          "day": 9805,
+          "id": "00000000-0000-0000-0000-000000000481",
+          "year": 2026
+        },
+        {
+          "day": 9810,
+          "id": "00000000-0000-0000-0000-000000000482",
+          "year": 2026
+        },
+        {
+          "day": 9815,
+          "id": "00000000-0000-0000-0000-000000000483",
+          "year": 2026
+        },
+        {
+          "day": 9820,
+          "id": "00000000-0000-0000-0000-000000000484",
+          "year": 2026
+        },
+        {
+          "day": 9825,
+          "id": "00000000-0000-0000-0000-000000000485",
+          "year": 2026
+        },
+        {
+          "day": 9830,
+          "id": "00000000-0000-0000-0000-000000000486",
+          "year": 2026
+        },
+        {
+          "day": 9835,
+          "id": "00000000-0000-0000-0000-000000000487",
+          "year": 2026
+        },
+        {
+          "day": 9840,
+          "id": "00000000-0000-0000-0000-000000000488",
+          "year": 2026
+        },
+        {
+          "day": 9845,
+          "id": "00000000-0000-0000-0000-000000000489",
+          "year": 2026
+        },
+        {
+          "day": 9850,
+          "id": "00000000-0000-0000-0000-000000000490",
+          "year": 2026
+        },
+        {
+          "day": 9855,
+          "id": "00000000-0000-0000-0000-000000000491",
+          "year": 2026
+        }
+      ],
+      "summary": "2023년부터 · 인연 3년 3개월 · 기록 52건",
+      "today": 10000
+    }
+  ],
   "nameSort": [
     {
       "expected": [
@@ -4062,6 +4737,493 @@
         "organization": " ",
         "role": "연구원"
       }
+    }
+  ],
+  "plannedMeetings": [
+    {
+      "expected": {
+        "awaiting": [],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000304",
+          "00000000-0000-0000-0000-000000000303",
+          "00000000-0000-0000-0000-000000000302",
+          "00000000-0000-0000-0000-000000000301"
+        ]
+      },
+      "followUps": [
+        "00000000-0000-0000-0000-000000000304",
+        "00000000-0000-0000-0000-000000000302",
+        "00000000-0000-0000-0000-000000000303",
+        "00000000-0000-0000-0000-000000000301"
+      ],
+      "name": "앞날짜는 다가오는 만남 · 가까운 날부터 · 같은 날은 먼저 만든 것부터",
+      "phrases": [
+        {
+          "day": 1001,
+          "expected": "내일"
+        },
+        {
+          "day": 1003,
+          "expected": "3일 후"
+        },
+        {
+          "day": 1010,
+          "expected": "1주 후"
+        },
+        {
+          "day": 1045,
+          "expected": "1개월 후"
+        },
+        {
+          "day": 1400,
+          "expected": "1년 후"
+        }
+      ],
+      "records": [
+        {
+          "createdDay": 995,
+          "day": 1010,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000301",
+          "updatedDay": 995
+        },
+        {
+          "createdDay": 999,
+          "day": 1003,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000302",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 996,
+          "day": 1003,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000303",
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 1000,
+          "day": 1001,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000304",
+          "updatedDay": 1000
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000311"
+        ],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000312"
+        ]
+      },
+      "followUps": [
+        "00000000-0000-0000-0000-000000000311",
+        "00000000-0000-0000-0000-000000000312"
+      ],
+      "name": "오늘 날짜의 예정은 다가오는 만남이 아니라 결과를 적을 만남",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 998,
+          "day": 1000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000311",
+          "updatedDay": 998
+        },
+        {
+          "createdDay": 998,
+          "day": 1001,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000312",
+          "updatedDay": 998
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000323"
+        ],
+        "upcoming": []
+      },
+      "followUps": [],
+      "name": "그날 뒤에 만든 기록(지난 일을 적은 것)은 묻지 않는다",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 997,
+          "day": 997,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000321",
+          "updatedDay": 997
+        },
+        {
+          "createdDay": 999,
+          "day": 997,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000322",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 996,
+          "day": 997,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000323",
+          "updatedDay": 996
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000333"
+        ],
+        "upcoming": []
+      },
+      "followUps": [],
+      "name": "그날 이후 고쳤으면(결과를 적었거나 그대로 만났어요) 빠진다",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 991,
+          "day": 995,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000331",
+          "updatedDay": 995
+        },
+        {
+          "createdDay": 991,
+          "day": 995,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000332",
+          "updatedDay": 998
+        },
+        {
+          "createdDay": 991,
+          "day": 995,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000333",
+          "updatedDay": 994
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000343"
+        ],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000342"
+        ]
+      },
+      "followUps": [],
+      "name": "월까지 · 연도만 정한 예정은 결과를 묻지 않지만 다가오는 만남에는 보인다",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 970,
+          "day": 998,
+          "dayPrecise": false,
+          "id": "00000000-0000-0000-0000-000000000341",
+          "updatedDay": 970
+        },
+        {
+          "createdDay": 999,
+          "day": 1020,
+          "dayPrecise": false,
+          "id": "00000000-0000-0000-0000-000000000342",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 970,
+          "day": 998,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000343",
+          "updatedDay": 970
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000353",
+          "00000000-0000-0000-0000-000000000354",
+          "00000000-0000-0000-0000-000000000355",
+          "00000000-0000-0000-0000-000000000351"
+        ],
+        "upcoming": []
+      },
+      "followUps": [
+        "00000000-0000-0000-0000-000000000353",
+        "00000000-0000-0000-0000-000000000354"
+      ],
+      "name": "60일 안까지만 묻는다 · 최근 날부터 · 같은 날은 id 순",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 930,
+          "day": 940,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000351",
+          "updatedDay": 930
+        },
+        {
+          "createdDay": 930,
+          "day": 939,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000352",
+          "updatedDay": 930
+        },
+        {
+          "createdDay": 991,
+          "day": 999,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000354",
+          "updatedDay": 991
+        },
+        {
+          "createdDay": 991,
+          "day": 999,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000353",
+          "updatedDay": 991
+        },
+        {
+          "createdDay": 969,
+          "day": 970,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000355",
+          "updatedDay": 969
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000361"
+        ],
+        "upcoming": []
+      },
+      "followUps": [],
+      "name": "window 를 바꾸면 그만큼만",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 992,
+          "day": 993,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000361",
+          "updatedDay": 992
+        },
+        {
+          "createdDay": 991,
+          "day": 992,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000362",
+          "updatedDay": 991
+        }
+      ],
+      "today": 1000,
+      "window": 7
+    },
+    {
+      "expected": {
+        "awaiting": [],
+        "upcoming": []
+      },
+      "followUps": [],
+      "name": "빈 목록",
+      "phrases": [],
+      "records": [],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000373",
+          "00000000-0000-0000-0000-000000000371",
+          "00000000-0000-0000-0000-000000000372"
+        ],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000377",
+          "00000000-0000-0000-0000-000000000375",
+          "00000000-0000-0000-0000-000000000374",
+          "00000000-0000-0000-0000-000000000376",
+          "00000000-0000-0000-0000-000000000379"
+        ]
+      },
+      "followUps": [
+        "00000000-0000-0000-0000-000000000371",
+        "00000000-0000-0000-0000-000000000373",
+        "00000000-0000-0000-0000-000000000374",
+        "00000000-0000-0000-0000-000000000375"
+      ],
+      "name": "결과 적기 알림은 어제부터 · 가까운 날부터 넷 · 이미 고친 것 · 월까지는 빼고",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 995,
+          "day": 999,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000371",
+          "updatedDay": 995
+        },
+        {
+          "createdDay": 995,
+          "day": 998,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000372",
+          "updatedDay": 995
+        },
+        {
+          "createdDay": 999,
+          "day": 1000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000373",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 1000,
+          "day": 1002,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000374",
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 999,
+          "day": 1002,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000375",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 1000,
+          "day": 1009,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000376",
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 1000,
+          "day": 1001,
+          "dayPrecise": false,
+          "id": "00000000-0000-0000-0000-000000000377",
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 995,
+          "day": 999,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000378",
+          "updatedDay": 999
+        },
+        {
+          "createdDay": 1000,
+          "day": 1030,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000379",
+          "updatedDay": 1000
+        }
+      ],
+      "today": 1000,
+      "window": 60
+    },
+    {
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000386",
+          "00000000-0000-0000-0000-000000000387",
+          "00000000-0000-0000-0000-000000000385"
+        ],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000384",
+          "00000000-0000-0000-0000-000000000382",
+          "00000000-0000-0000-0000-000000000381",
+          "00000000-0000-0000-0000-000000000383"
+        ]
+      },
+      "followUps": [
+        "00000000-0000-0000-0000-000000000385",
+        "00000000-0000-0000-0000-000000000387",
+        "00000000-0000-0000-0000-000000000386",
+        "00000000-0000-0000-0000-000000000384"
+      ],
+      "name": "같은 날은 시각 순 — 다가오는 만남 · 알림은 이른 시각부터, 결과를 적을 만남은 늦은 시각부터, 시각 없음은 그날의 끝",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 1000,
+          "day": 1002,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000381",
+          "minute": 900,
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 1000,
+          "day": 1002,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000382",
+          "minute": 540,
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 1000,
+          "day": 1002,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000383",
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 1000,
+          "day": 1001,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000384",
+          "minute": 1200,
+          "updatedDay": 1000
+        },
+        {
+          "createdDay": 997,
+          "day": 1000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000385",
+          "minute": 600,
+          "updatedDay": 997
+        },
+        {
+          "createdDay": 997,
+          "day": 1000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000386",
+          "updatedDay": 997
+        },
+        {
+          "createdDay": 997,
+          "day": 1000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000387",
+          "minute": 1000,
+          "updatedDay": 997
+        }
+      ],
+      "today": 1000,
+      "window": 60
     }
   ],
   "presetChoices": [
@@ -12224,7 +13386,117 @@
       "ties": []
     }
   ],
+  "timeOfDay": [
+    {
+      "minute": 0,
+      "sortKey": 0,
+      "text": "오전 12:00"
+    },
+    {
+      "minute": 5,
+      "sortKey": 5,
+      "text": "오전 12:05"
+    },
+    {
+      "minute": 59,
+      "sortKey": 59,
+      "text": "오전 12:59"
+    },
+    {
+      "minute": 540,
+      "sortKey": 540,
+      "text": "오전 9:00"
+    },
+    {
+      "minute": 545,
+      "sortKey": 545,
+      "text": "오전 9:05"
+    },
+    {
+      "minute": 719,
+      "sortKey": 719,
+      "text": "오전 11:59"
+    },
+    {
+      "minute": 720,
+      "sortKey": 720,
+      "text": "오후 12:00"
+    },
+    {
+      "minute": 721,
+      "sortKey": 721,
+      "text": "오후 12:01"
+    },
+    {
+      "minute": 870,
+      "sortKey": 870,
+      "text": "오후 2:30"
+    },
+    {
+      "minute": 1439,
+      "sortKey": 1439,
+      "text": "오후 11:59"
+    },
+    {
+      "minute": 1500,
+      "sortKey": 1439,
+      "text": "오후 11:59"
+    },
+    {
+      "minute": -3,
+      "sortKey": 0,
+      "text": "오전 12:00"
+    }
+  ],
   "timelineSort": [
+    {
+      "expected": [
+        "f",
+        "c",
+        "e",
+        "b",
+        "a",
+        "d"
+      ],
+      "name": "같은 날은 늦은 시각 먼저 · 시각 없는 기록은 그날의 끝이라 맨 위 · 시각이 같으면 나중에 만든 것 먼저",
+      "records": [
+        {
+          "createdAt": 1,
+          "id": "a",
+          "minute": 600,
+          "occurredAt": 300
+        },
+        {
+          "createdAt": 2,
+          "id": "b",
+          "minute": 900,
+          "occurredAt": 300
+        },
+        {
+          "createdAt": 3,
+          "id": "c",
+          "occurredAt": 300
+        },
+        {
+          "createdAt": 9,
+          "id": "d",
+          "minute": 1200,
+          "occurredAt": 200
+        },
+        {
+          "createdAt": 4,
+          "id": "e",
+          "minute": 900,
+          "occurredAt": 300
+        },
+        {
+          "createdAt": 1,
+          "id": "f",
+          "minute": 0,
+          "occurredAt": 400
+        }
+      ]
+    },
     {
       "expected": [
         "c",

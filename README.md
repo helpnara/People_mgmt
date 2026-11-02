@@ -8,14 +8,14 @@
 |---|---|
 | 플랫폼 | iOS 17+ · iPhone 우선 · iPad 도 설치됨 (유니버설) |
 | UI | SwiftUI |
-| 영속성 | SwiftData, 기기 내 저장 · 스키마 7판. CloudKit 제약을 첫 모델부터 지켰고([ADR-0001](docs/adr/0001-swiftdata-local-first.md)) 빌드 21 부터 내 iCloud 비공개 영역과 동기화한다([ADR-0005](docs/adr/0005-icloud-sync.md)) |
+| 영속성 | SwiftData, 기기 내 저장 · 스키마 8판. CloudKit 제약을 첫 모델부터 지켰고([ADR-0001](docs/adr/0001-swiftdata-local-first.md)) 빌드 21 부터 내 iCloud 비공개 영역과 동기화한다([ADR-0005](docs/adr/0005-icloud-sync.md)) |
 | 백엔드 | 없음. 앱의 통신은 사용자 본인 iCloud 와의 동기화 하나 — 개발자 서버 · 분석 · 추적 없음 |
 | 개발 환경 | 맥 없음 — 리눅스 원격 세션이 코드를 쓰고 GitHub Actions 의 macOS 러너가 빌드 · 스크린샷 · TestFlight 를 한다 ([06-ci](docs/06-ci.md)) |
 | 번들 ID | `com.helpnara.slow.connection` · 타깃 `SlowConnection` · 표시 이름 `느린 인연` |
 
 ## 지금 무엇이 만들어져 있나
 
-**빌드 31 (TestFlight · 실사용 중)** — 사람 · 기록(참여자 여럿) · 타임라인 · 검색(초성 포함) · 태그 관리 · 거르기 · 명함 읽기 · 연락처 가져오기 · 사람 사진 · 대략 날짜 · 내 인맥(관계도 · 모임 찾기 · 시점에 따른 변화) · 생일 · 연락 주기 알림 · 백업 · 복원 · vCard · 한 사람 내보내기 · 삭제 실행취소 · 앱 잠금 · iCloud 동기화 · 아이패드 칸 나누기.
+**1.0 (빌드 37) — [App Store 출시](https://apps.apple.com/kr/app/%EB%8A%90%EB%A6%B0-%EC%9D%B8%EC%97%B0/id6824067748) 2026-11-01 (대한민국 · 무료)** — 모든 자료 지우기 · 앱 안 처리방침 링크까지. 빌드 31 기준 기능: 사람 · 기록(참여자 여럿) · 타임라인 · 검색(초성 포함) · 태그 관리 · 거르기 · 명함 읽기 · 연락처 가져오기 · 사람 사진 · 대략 날짜 · 내 인맥(관계도 · 모임 찾기 · 시점에 따른 변화) · 생일 · 연락 주기 알림 · 백업 · 복원 · vCard · 한 사람 내보내기 · 삭제 실행취소 · 앱 잠금 · iCloud 동기화 · 아이패드 칸 나누기.
 최신은 [로드맵](docs/roadmap.md)의 "지금 어디까지".
 
 화면은 매 푸시마다 CI 가 시뮬레이터에서 찍어 [`screenshots/`](screenshots/)에 되돌려 커밋합니다.

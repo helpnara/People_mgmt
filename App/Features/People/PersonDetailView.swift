@@ -165,6 +165,9 @@ struct PersonDetailView: View {
     @ViewBuilder
     private func detailSection(_ section: DetailSection) -> some View {
         switch section {
+        case .milestones:
+            // 인연 연표 (빌드 41 · FR-056) — 처음 차례는 맨 앞. 설정의 상세 화면 칸에서 숨기거나 옮긴다. 나는 없다.
+            if !person.isMe { MilestoneSection(person: person) }
         case .card:
             if let card = person.businessCard {
                 Section("명함") {

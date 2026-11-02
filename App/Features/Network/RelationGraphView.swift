@@ -157,7 +157,8 @@ struct RelationGraphView: View {
                     }
                     .id(selectedID)
                     .frame(maxWidth: min(Font.scaledLength(340), 460))
-                    .padding(16)
+                    // 관계도 칸은 바깥을 잘라 낸다(`clipped`) — 카드 그림자(아래로 4 + 흐림 12)가 잘리지 않게 여백을 그보다 넉넉히 (이슈 63 전수조사).
+                    .padding(20)
                     .transition(.opacity)
                 }
             }

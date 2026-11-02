@@ -25,7 +25,7 @@ enum PersonExporter {
         let records = RecordStore.timeline(of: person).map { record -> PersonExport.Record in
             let others = (record.participants ?? []).filter { !$0.isGone && !$0.isMe && $0 !== person }
             return PersonExport.Record(
-                date: record.occurredAt.shown(precision: record.occurredPrecision, style: .long),
+                date: record.whenText(style: .long),
                 type: record.type.label,
                 title: record.displayTitle,
                 note: record.note,

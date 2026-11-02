@@ -13,10 +13,14 @@ struct LaunchArguments: Sendable {
     let largeSample: Bool
     /// 견본에 모임 셋(15명 · 아는 사이)을 더 채운다 — 모임 찾기를 찍으려고 (D-30). `-seedSampleData` 와 함께.
     let communitySample: Bool
+    /// 견본에 예정된 만남(다가오는 만남 둘 · 결과를 적을 만남 하나)을 더 채운다 — 빌드 38 · D-62 화면을 찍으려고. `-seedSampleData` 와 함께.
+    let plannedSample: Bool
     /// 목록의 첫 사람 상세를 바로 연다.
     let openFirstPerson: Bool
     /// 이 이름의 사람 상세를 바로 연다 (`-openPerson 김하늘`). 첫 인연 · 소개 관계가 있는 사람을 찍으려고.
     let openPerson: String?
+    /// 연 사람의 타임라인에서 이 표시명의 기록을 연다 (`-openRecordTitle 프로젝트 시작 회의` · 빌드 38 결과 적기 띠를 찍으려고).
+    let openRecordTitle: String?
     /// 사람 추가 시트를 바로 연다.
     let addPerson: Bool
     /// 나(이슈 12)의 상세를 바로 연다.
@@ -83,6 +87,7 @@ struct LaunchArguments: Sendable {
         seedSampleData = arguments.contains("-seedSampleData")
         largeSample = arguments.contains("-seedLargeSample")
         communitySample = arguments.contains("-seedCommunitySample")
+        plannedSample = arguments.contains("-seedPlannedSample")
         openFirstPerson = arguments.contains("-openFirstPerson")
         addPerson = arguments.contains("-addPerson")
         openMe = arguments.contains("-openMe")
@@ -111,6 +116,7 @@ struct LaunchArguments: Sendable {
         }
         search = value(after: "-search")
         openPerson = value(after: "-openPerson")
+        openRecordTitle = value(after: "-openRecordTitle")
         openNetwork = value(after: "-openNetwork")
         timeSlice = value(after: "-timeSlice").flatMap { Int($0) }
         filterTag = value(after: "-filterTag")
