@@ -43,8 +43,6 @@ struct PersonDetailView: View {
         ScrollViewReader { proxy in
         List {
             headerSection
-            // 인연 연표 (빌드 41 · FR-056) — 맨 위 칸 바로 아래에 늘 선다(칸 차례 설정에 들지 않는다). 나는 없다.
-            if !person.isMe { MilestoneSection(person: person) }
             // 그 아래 칸은 설정의 상세 화면 칸에서 고른 차례 · 보이기대로 (D-56 · 이 기기에만).
             ForEach(DetailLayout(stored: layoutStored).visible) { section in
                 detailSection(section)
@@ -167,6 +165,9 @@ struct PersonDetailView: View {
     @ViewBuilder
     private func detailSection(_ section: DetailSection) -> some View {
         switch section {
+        case .milestones:
+            // 인연 연표 (빌드 41 · FR-056) — 처음 차례는 맨 앞. 설정의 상세 화면 칸에서 숨기거나 옮긴다. 나는 없다.
+            if !person.isMe { MilestoneSection(person: person) }
         case .card:
             if let card = person.businessCard {
                 Section("명함") {
