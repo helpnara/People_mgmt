@@ -54,6 +54,8 @@ struct MilestoneSection: View {
                                 .accessibilityHint("그해 기록을 봅니다")
                             }
                         }
+                        // 가로 스크롤 칸은 내용 밖을 잘라 낸다 — 위아래에 여유를 두어 동그라미가 온전히 보이게.
+                        .padding(.vertical, 4)
                     }
                 }
                 .padding(.vertical, 4)
@@ -81,8 +83,9 @@ struct MilestoneSection: View {
                 ZStack {
                     Circle()
                         .fill(upcoming ? Color.raised : Color.accent)
+                    // 테두리는 원 안쪽에 — 바깥으로 그리면 가로 스크롤 칸이 위아래 1pt 를 잘랐다 (빌드 41 실기기).
                     Circle()
-                        .stroke(Color.accent, lineWidth: 2)
+                        .strokeBorder(Color.accent, lineWidth: 2)
                     Image(systemName: Self.symbol(milestone.kind))
                         .font(.scaled(12, weight: .semibold))
                         .foregroundStyle(upcoming ? Color.accent : Color.raised)
@@ -139,16 +142,21 @@ struct MilestoneSection: View {
         for milestone in milestones {
             switch milestone.kind {
             case .firstMet:
-                text[milestone.id] = person.firstMetDate?.shown(precision: person.firstMetPrecision, style: .abbreviated)
+                text[milestone.id] = person.firstMetDate.map { Self.compactDate($0, precision: person.firstMetPrecision) }
             case .busiestYear:
                 text[milestone.id] = String(milestone.year) + "년 · " + String(milestone.count ?? 0) + "건"
             case .lastRecord, .upcoming:
                 text[milestone.id] = RelativeDay.phrase(days: today - milestone.day)
             case .firstRecord, .countReached:
-                text[milestone.id] = milestone.recordID.flatMap { byID[$0] }?.whenText(style: .abbreviated)
+                text[milestone.id] = milestone.recordID.flatMap { byID[$0] }.map { Self.compactDate($0.occurredAt, precision: $0.occurredPrecision) }
             }
         }
         details = text
+    }
+
+    /// 표식 아래의 짧은 날 — `2026. 10. 31.` (좁은 칸에서 두 줄로 꺾이지 않게). 월까지 · 연도만은 `2021년 3월` · `2019년`.
+    private static func compactDate(_ date: Date, precision: Int) -> String {
+        ApproximateDate.label(of: date, precision: .of(precision)) ?? date.formatted(.dateTime.year().month(.defaultDigits).day())
     }
 }
 
