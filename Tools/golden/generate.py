@@ -634,6 +634,60 @@ def span_text(days: int) -> str:
     return f"{months}개월"
 
 
+# ── 인연 연표 (RelationshipMilestones · 빌드 41 · 1.1 · FR-056) ─────────────────────────
+# 처음 만남 · 첫 기록(처음 만난 날과 같은 날이면 뺌) · 10/50/100/200/500/1000번째 기록 · 가장 많이 만난 해(3건 이상 · 두 해 이상 ·
+# 같으면 늦은 해 · 그해 마지막 기록 날) · 마지막 기록(2건 이상) · 다가오는 만남. 차례는 날 → 종류 → 만든 순서.
+
+MILESTONE_THRESHOLDS = [10, 50, 100, 200, 500, 1000]
+MILESTONE_KINDS = ["firstMet", "firstRecord", "countReached", "busiestYear", "lastRecord", "upcoming"]
+MILESTONE_TITLES = {"firstMet": "처음 만남", "firstRecord": "첫 기록", "busiestYear": "가장 많이 만난 해",
+                    "lastRecord": "마지막 기록", "upcoming": "다가오는 만남"}
+
+
+def milestones(records, first_met_day, first_met_year, today):
+    key = lambda r: (r["day"], r["id"].upper())
+    past = sorted((r for r in records if r["day"] <= today), key=key)
+    future = sorted((r for r in records if r["day"] > today), key=key)
+    out = []
+    def add(kind, day, year, count=None, rid=None):
+        title = f"{count}번째 기록" if kind == "countReached" else MILESTONE_TITLES[kind]
+        out.append({"kind": kind, "day": day, "year": year, "count": count,
+                    "recordID": rid.upper() if rid else None, "title": title})
+    if first_met_day is not None:
+        add("firstMet", first_met_day, first_met_year if first_met_year is not None else 0)
+    if past and past[0]["day"] != first_met_day:
+        add("firstRecord", past[0]["day"], past[0]["year"], rid=past[0]["id"])
+    for t in MILESTONE_THRESHOLDS:
+        if len(past) >= t:
+            r = past[t - 1]
+            add("countReached", r["day"], r["year"], count=t, rid=r["id"])
+    years = {}
+    for r in past:
+        years.setdefault(r["year"], []).append(r)
+    if len(past) >= 3 and len(years) >= 2:
+        best_year = max(years, key=lambda y: (len(years[y]), y))
+        add("busiestYear", max(r["day"] for r in years[best_year]), best_year, count=len(years[best_year]))
+    if len(past) >= 2:
+        add("lastRecord", past[-1]["day"], past[-1]["year"], rid=past[-1]["id"])
+    if future:
+        add("upcoming", future[0]["day"], future[0]["year"], rid=future[0]["id"])
+    order = {k: i for i, k in enumerate(MILESTONE_KINDS)}
+    ranked = sorted(enumerate(out), key=lambda e: (e[1]["day"], order[e[1]["kind"]], e[0]))
+    return [m for _, m in ranked]
+
+
+def milestone_summary(records, first_met_day, first_met_year, today):
+    past = [r for r in records if r["day"] <= today]
+    if first_met_day is not None and first_met_year is not None:
+        start_day, start_year = first_met_day, first_met_year
+    elif past:
+        first = min(past, key=lambda r: (r["day"], r["id"].upper()))
+        start_day, start_year = first["day"], first["year"]
+    else:
+        return None
+    return f"{start_year}년부터 · 인연 {span_text(today - start_day)} · 기록 {len(past)}건"
+
+
 def frequency_text(per_month: float) -> str:
     tenths = math.floor(per_month * 10 + 0.5)
     if tenths >= 10:
@@ -1835,6 +1889,11 @@ def build() -> dict:
                                "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}
                               for c in cases["plannedMeetings"]]
     out["timeOfDay"] = [{"minute": m, "text": time_text(m), "sortKey": time_key(m)} for m in cases["timeOfDay"]]
+    out["milestones"] = [{"name": c["name"], "records": c["records"], "firstMetDay": c.get("firstMetDay"),
+                          "firstMetYear": c.get("firstMetYear"), "today": c["today"],
+                          "expected": milestones(c["records"], c.get("firstMetDay"), c.get("firstMetYear"), c["today"]),
+                          "summary": milestone_summary(c["records"], c.get("firstMetDay"), c.get("firstMetYear"), c["today"])}
+                         for c in cases["milestones"]]
     out["birthdays"] = [{"month": c[0], "day": c[1], "year": c[2], "valid": birthday_valid(c[0], c[1], c[2]),
                          "text": birthday_text(c[0], c[1], c[2])} for c in cases["birthdays"]]
     out["reminders"] = [{"name": c["name"], "people": c["people"], "today": c["today"], "options": c["options"],

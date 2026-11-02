@@ -179,6 +179,12 @@ final class GoldenTests: XCTestCase {
         struct PlannedExpected: Decodable { let upcoming: [UUID]; let awaiting: [UUID] }
         struct PlannedPhrase: Decodable { let day: Int; let expected: String }
         struct TimeCase: Decodable { let minute: Int; let text: String; let sortKey: Int }
+        struct MilestoneRecordRaw: Decodable { let id: UUID; let day: Int; let year: Int }
+        struct MilestoneRaw: Decodable { let kind: String; let day: Int; let year: Int; let count: Int?; let recordID: UUID?; let title: String }
+        struct MilestoneCase: Decodable {
+            let name: String; let records: [MilestoneRecordRaw]; let firstMetDay: Int?; let firstMetYear: Int?; let today: Int
+            let expected: [MilestoneRaw]; let summary: String?
+        }
         struct PlannedCase: Decodable {
             let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int
             let expected: PlannedExpected; let followUps: [UUID]; let phrases: [PlannedPhrase]
@@ -210,6 +216,7 @@ final class GoldenTests: XCTestCase {
         let recentCompanions: [RecentCompanionsCase]
         let plannedMeetings: [PlannedCase]
         let timeOfDay: [TimeCase]
+        let milestones: [MilestoneCase]
         let birthdays: [BirthdayCase]
         let reminders: [ReminderCase]
         let vcardEncode: [VEncodeCase]
@@ -443,6 +450,22 @@ final class GoldenTests: XCTestCase {
         }
         XCTAssertEqual(PlannedMeetings.window, 60, "정답표의 PLANNED_WINDOW 와 같다")
         XCTAssertEqual(PlannedMeetings.followUpLimit, 4, "정답표의 FOLLOW_UP_LIMIT 와 같다")
+    }
+
+    func testRelationshipMilestones() throws {
+        for c in try Self.loadGolden().milestones {
+            let records = c.records.map { RelationshipMilestones.Record(id: $0.id, day: $0.day, year: $0.year) }
+            let got = RelationshipMilestones.make(records: records, firstMetDay: c.firstMetDay, firstMetYear: c.firstMetYear, today: c.today)
+            XCTAssertEqual(got.map(\.kind.rawValue), c.expected.map(\.kind), "\(c.name) — 종류")
+            XCTAssertEqual(got.map(\.day), c.expected.map(\.day), "\(c.name) — 날")
+            XCTAssertEqual(got.map(\.year), c.expected.map(\.year), "\(c.name) — 해")
+            XCTAssertEqual(got.map(\.count), c.expected.map(\.count), "\(c.name) — 수")
+            XCTAssertEqual(got.map(\.recordID), c.expected.map(\.recordID), "\(c.name) — 기록")
+            XCTAssertEqual(got.map(\.title), c.expected.map(\.title), "\(c.name) — 이름")
+            XCTAssertEqual(RelationshipMilestones.summary(records: records, firstMetDay: c.firstMetDay, firstMetYear: c.firstMetYear,
+                                                          today: c.today), c.summary, "\(c.name) — 한 줄")
+        }
+        XCTAssertEqual(RelationshipMilestones.countThresholds, [10, 50, 100, 200, 500, 1000], "정답표의 MILESTONE_THRESHOLDS 와 같다")
     }
 
     func testTimeOfDay() throws {
