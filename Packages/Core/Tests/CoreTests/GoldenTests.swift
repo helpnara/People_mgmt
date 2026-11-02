@@ -104,6 +104,27 @@ final class GoldenTests: XCTestCase {
         }
         struct ReadinessCase: Decodable { let name: String; let input: ReadinessInputRaw; let expected: [ReadinessItemRaw]; let summary: String }
         struct PresetChoicesCase: Decodable { let name: String; let presets: [String]; let used: [String]; let expected: [String] }
+        struct YearRecordRaw: Decodable { let id: UUID; let day: Int; let year: Int; let month: Int?; let type: String; let participants: [UUID] }
+        struct YearPersonRaw: Decodable { let id: UUID; let firstMetDay: Int?; let firstMetYear: Int?; let sortKey: String }
+        struct YearTypeRaw: Decodable { let type: String; let count: Int }
+        struct YearExpected: Decodable {
+            let year: Int; let recordCount: Int; let previousRecordCount: Int; let peopleCount: Int; let newlyMet: [UUID]
+            let fresh: Int; let returning: Int; let resting: Int; let monthly: [Int]; let unknownMonth: Int
+            let busiestMonth: Int?; let types: [YearTypeRaw]
+        }
+        struct YearReviewCase: Decodable {
+            let name: String; let year: Int; let today: Int; let currentYear: Int
+            let records: [YearRecordRaw]; let people: [YearPersonRaw]; let expected: YearExpected; let years: [Int]
+        }
+        struct ChoiceSettingRaw: Decodable { let items: [String]; let hidden: [String] }
+        struct ChoiceEditingCase: Decodable {
+            let name: String; let presets: [String]; let fixed: [String]; let setting: ChoiceSettingRaw?; let used: [String]
+            let hidden: [String]; let expected: [String]
+        }
+        struct ChoiceOpsCase: Decodable {
+            let name: String; let op: String; let value: String; let items: [String]; let hidden: [String]; let fixed: [String]
+            let expected: ChoiceSettingRaw
+        }
         struct ContactSplitCase: Decodable { let text: String; let expected: FieldsExpected }
         struct LabeledRaw: Decodable { let label: String; let value: String }
         struct ContactFromContactCase: Decodable { let phones: [LabeledRaw]; let emails: [String]; let expected: FieldsExpected }
@@ -202,6 +223,9 @@ final class GoldenTests: XCTestCase {
         let contactSplit: [ContactSplitCase]
         let contactFromContact: [ContactFromContactCase]
         let presetChoices: [PresetChoicesCase]
+        let choiceEditing: [ChoiceEditingCase]
+        let yearInReview: [YearReviewCase]
+        let choiceOps: [ChoiceOpsCase]
         let louvain: [LouvainCase]
         let splitConnected: [ComponentSplitCase]
         let communityName: [NamingCase]
@@ -614,6 +638,57 @@ final class GoldenTests: XCTestCase {
     func testPresetChoices() throws {
         for c in try Self.loadGolden().presetChoices {
             XCTAssertEqual(RelationshipPresets.choices(presets: c.presets, used: c.used), c.expected, c.name)
+        }
+    }
+
+    func testChoiceEditing() throws {
+        for c in try Self.loadGolden().choiceEditing {
+            let setting = c.setting.map { ChoiceSetting(items: $0.items, hidden: $0.hidden) }
+            XCTAssertEqual(ChoiceEditing.choices(presets: c.presets, fixed: c.fixed, setting: setting, used: c.used), c.expected, c.name)
+            XCTAssertEqual(ChoiceEditing.hidden(fixed: c.fixed, setting: setting), c.hidden, "\(c.name) — 숨긴 것")
+        }
+        XCTAssertEqual(ChoiceKind.metThrough.fixed, [RelationshipPresets.introducedLabel])
+        XCTAssertEqual(ChoiceKind.relationshipType.presets, RelationshipPresets.relationshipTypes)
+    }
+
+    func testYearInReview() throws {
+        for c in try Self.loadGolden().yearInReview {
+            let records = c.records.map {
+                YearInReview.Record(id: $0.id, day: $0.day, year: $0.year, month: $0.month, type: $0.type, participants: $0.participants)
+            }
+            let people = c.people.map {
+                YearInReview.Person(id: $0.id, firstMetDay: $0.firstMetDay, firstMetYear: $0.firstMetYear, sortKey: $0.sortKey)
+            }
+            XCTAssertEqual(YearInReview.years(records: records, people: people, today: c.today, currentYear: c.currentYear), c.years,
+                           "\(c.name) — 고를 수 있는 해")
+            let got = YearInReview.make(year: c.year, records: records, people: people, today: c.today)
+            let e = c.expected
+            XCTAssertEqual(got.year, e.year, c.name)
+            XCTAssertEqual(got.recordCount, e.recordCount, "\(c.name) — 기록")
+            XCTAssertEqual(got.previousRecordCount, e.previousRecordCount, "\(c.name) — 작년 기록")
+            XCTAssertEqual(got.peopleCount, e.peopleCount, "\(c.name) — 함께한 사람")
+            XCTAssertEqual(got.newlyMet, e.newlyMet, "\(c.name) — 처음 만난 사람")
+            XCTAssertEqual(got.fresh, e.fresh, "\(c.name) — 새로")
+            XCTAssertEqual(got.returning, e.returning, "\(c.name) — 다시")
+            XCTAssertEqual(got.resting, e.resting, "\(c.name) — 쉬어 간")
+            XCTAssertEqual(got.monthly, e.monthly, "\(c.name) — 달마다")
+            XCTAssertEqual(got.unknownMonth, e.unknownMonth, "\(c.name) — 달 모름")
+            XCTAssertEqual(got.busiestMonth, e.busiestMonth, "\(c.name) — 가장 많은 달")
+            XCTAssertEqual(got.types.map(\.type), e.types.map(\.type), "\(c.name) — 유형")
+            XCTAssertEqual(got.types.map(\.count), e.types.map(\.count), "\(c.name) — 유형 수")
+        }
+    }
+
+    func testChoiceOps() throws {
+        for c in try Self.loadGolden().choiceOps {
+            let got: (items: [String], hidden: [String])
+            switch c.op {
+            case "add": got = ChoiceEditing.adding(c.value, to: c.items, hidden: c.hidden)
+            case "hide": got = ChoiceEditing.hiding(c.value, in: c.items, hidden: c.hidden, fixed: c.fixed)
+            default: got = ChoiceEditing.showing(c.value, in: c.items, hidden: c.hidden)
+            }
+            XCTAssertEqual(got.items, c.expected.items, "\(c.name) — 보이는 것")
+            XCTAssertEqual(got.hidden, c.expected.hidden, "\(c.name) — 숨긴 것")
         }
     }
 

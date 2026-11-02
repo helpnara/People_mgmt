@@ -1,4 +1,5 @@
 import Core
+import PhotosUI
 import SwiftData
 import SwiftUI
 
@@ -36,6 +37,12 @@ struct RecordEditView: View {
     @State private var pickingParticipants = LaunchArguments.current.pickParticipants
     /// 지난 기록의 장소 — 눌러야 들어간다 (빌드 16). 저절로 채우면 틀린 장소가 저장되기 쉽다.
     private let lastLocation = RecordMemory.lastLocation
+    // 기록 사진 (9판 · FR-058). 사진첩 창은 양식(Form) 줄 안이 아니라 바깥 수식어가 띄운다 (사람 수정과 같은 길 · 이슈 10).
+    @State private var pickingPhotos = false
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var processingPhotos = false
+    @State private var photoFailed = false
+    @State private var removingPhoto: DraftPhoto?
 
     init(mode: Mode, onSaved: @escaping (Record) -> Void) {
         self.mode = mode
@@ -59,6 +66,14 @@ struct RecordEditView: View {
     }
 
     private var isCreate: Bool { anchor != nil }
+
+    /// 고치는 기록 — 저장된 사진을 찾을 곳. 새 기록이면 nil.
+    private var editingRecord: Record? {
+        if case .edit(let record) = mode { return record }
+        return nil
+    }
+
+    private var canAddPhoto: Bool { draft.photos.count < RecordPhotos.limit && !processingPhotos }
     private var hasChanges: Bool { draft != original }
     private var store: RecordStore { RecordStore(context: context) }
 
@@ -121,6 +136,7 @@ struct RecordEditView: View {
                 } footer: {
                     Text("제목이나 메모 중 하나만 있으면 저장할 수 있습니다.")
                 }
+                photoSection
                 Section("장소") {
                     TextField("장소", text: $draft.location)
                         .limited($draft.location, to: Limits.location)
@@ -177,6 +193,28 @@ struct RecordEditView: View {
                         .disabled(!draft.canSave)
                 }
             }
+            .photosPicker(isPresented: $pickingPhotos, selection: $photoItems,
+                          maxSelectionCount: max(1, RecordPhotos.limit - draft.photos.count), matching: .images)
+            .onChange(of: photoItems) { _, items in
+                guard !items.isEmpty else { return }
+                photoItems = []
+                Task { await ingestPhotos(items) }
+            }
+            .confirmationDialog("사진을 뺄까요?", isPresented: Binding(get: { removingPhoto != nil }, set: { if !$0 { removingPhoto = nil } }),
+                                titleVisibility: .visible, presenting: removingPhoto) { photo in
+                Button("사진 빼기", role: .destructive) {
+                    draft.photos.removeAll { $0.id == photo.id }
+                    removingPhoto = nil
+                }
+                Button("취소", role: .cancel) { removingPhoto = nil }
+            } message: { _ in
+                Text("저장하면 이 기록에서 사진이 지워집니다. 저장하기 전에는 취소로 되돌릴 수 있습니다.")
+            }
+            .alert("사진을 읽지 못했습니다", isPresented: $photoFailed) {
+                Button("닫기", role: .cancel) {}
+            } message: {
+                Text("다른 사진을 골라 주세요. iCloud 에만 있는 사진은 내려받은 뒤에 고를 수 있습니다.")
+            }
             .confirmationDialog("변경 사항을 버리시겠습니까?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
                 Button("버리기", role: .destructive) { dismiss() }
                 Button("계속 편집", role: .cancel) {}
@@ -196,6 +234,91 @@ struct RecordEditView: View {
     }
 
     private static let tagSectionID = "tags"
+
+    /// 기록 사진 (9판 · FR-058) — 최대 4장. 줄 하나에 단추 하나(사람 사진 칸과 같은 까닭 · 빌드 29).
+    private var photoSection: some View {
+        Section {
+            if !draft.photos.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(draft.photos) { photo in
+                            RecordPhotoTile(draft: photo, record: editingRecord, side: 76)
+                                .overlay(alignment: .topTrailing) {
+                                    // 역할 없는 단추 + 확인 창 — 확인 전에 빼지 않는다 (CLAUDE.md).
+                                    Button {
+                                        removingPhoto = photo
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.scaled(20))
+                                            .symbolRenderingMode(.palette)
+                                            .foregroundStyle(Color.raised, Color.ink.opacity(0.7))
+                                            .padding(4)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("사진 빼기")
+                                }
+                        }
+                    }
+                    // 가로 스크롤 칸은 위아래를 자른다 — 테두리 · 단추가 깎이지 않게 여백을 둔다 (이슈 63).
+                    .padding(.vertical, 4)
+                }
+            }
+            if PhotoCamera.isAvailable {
+                Button {
+                    Keyboard.dismiss()
+                    PhotoCamera.shared.start(front: false) { data in
+                        guard let data else { return }
+                        Task { await ingestPhotoData([data]) }
+                    }
+                } label: {
+                    Label("사진 찍기", systemImage: "camera")
+                }
+                .disabled(!canAddPhoto)
+            }
+            Button {
+                Keyboard.dismiss()
+                pickingPhotos = true
+            } label: {
+                Label("사진첩에서 고르기", systemImage: "photo.on.rectangle")
+            }
+            .disabled(!canAddPhoto)
+            if processingPhotos {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("사진을 줄이는 중…").font(.scaled(14)).foregroundStyle(Color.muted)
+                }
+            }
+        } header: {
+            Text("사진 \(draft.photos.count)/\(RecordPhotos.limit)")
+        } footer: {
+            Text("한 기록에 4장까지 붙입니다. 긴 변 1,024px 로 줄여 이 기기(동기화를 켜면 내 iCloud)에만 저장합니다.")
+        }
+    }
+
+    private func ingestPhotos(_ items: [PhotosPickerItem]) async {
+        processingPhotos = true
+        var loaded: [Data] = []
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self) { loaded.append(data) } else { photoFailed = true }
+        }
+        processingPhotos = false
+        await ingestPhotoData(loaded)
+    }
+
+    /// 줄여서 넣는다 — 4장이 차면 나머지는 버린다. 줄이지 못한 사진이 있으면 알린다.
+    private func ingestPhotoData(_ raw: [Data]) async {
+        processingPhotos = true
+        defer { processingPhotos = false }
+        for data in raw {
+            guard draft.photos.count < RecordPhotos.limit else { break }
+            guard let photo = await RecordPhotos.normalized(from: data) else {
+                photoFailed = true
+                continue
+            }
+            draft.photos.append(DraftPhoto(data: photo))
+        }
+    }
 
     /// CI 스크린샷 (`-tagInput ㅁㅌ` · 빌드 27 이슈 34) — 태그 칸에 글자를 넣고 그 자리까지 내려 자동완성 칩을 찍는다.
     /// 빌드 27 은 칩 글자가 빠진 채 나갔다 — 자동완성이 뜬 화면이 스크린샷에 없었다.

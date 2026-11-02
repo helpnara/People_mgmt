@@ -16,6 +16,8 @@ struct RecordDetailView: View {
     @State private var errorTitle = "삭제하지 못했습니다"
     /// 예정이던 만남을 안 만났을 때 — 날짜 바꾸기 · 기록 지우기 (D-62).
     @State private var confirmingNoShow = false
+    /// 크게 볼 사진 (9판 · FR-058).
+    @State private var viewingPhoto: RecordPhoto?
 
     var body: some View {
         Group {
@@ -59,6 +61,7 @@ struct RecordDetailView: View {
                 }
                 .padding(.vertical, 6)
             }
+            photoSection
             Section("함께한 사람") {
                 ForEach(record.participants ?? []) { person in
                     NavigationLink(value: person) {
@@ -116,6 +119,9 @@ struct RecordDetailView: View {
         .sheet(isPresented: $editing) {
             RecordEditView(mode: .edit(record)) { _ in }
         }
+        .fullScreenCover(item: $viewingPhoto) { photo in
+            RecordPhotoViewer(photos: record.isGone ? [] : record.sortedPhotos, selection: photo.uuid)
+        }
         .confirmationDialog("삭제", isPresented: $confirmingDelete, titleVisibility: .hidden) {
             Button("삭제", role: .destructive) { deleteRecord() }
             Button("취소", role: .cancel) {}
@@ -140,6 +146,28 @@ struct RecordDetailView: View {
             Button("닫기", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
+        }
+    }
+
+    /// 기록 사진 (9판 · FR-058) — 두 줄 격자, 누르면 크게. 사진이 없으면 칸이 없다.
+    @ViewBuilder
+    private var photoSection: some View {
+        let photos = record.sortedPhotos
+        if !photos.isEmpty {
+            Section("사진") {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach(photos, id: \.uuid) { photo in
+                        Button {
+                            viewingPhoto = photo
+                        } label: {
+                            RecordPhotoTile(draft: DraftPhoto(existing: photo), record: record, fills: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("사진 크게 보기")
+                    }
+                }
+                .padding(.vertical, 6)
+            }
         }
     }
 

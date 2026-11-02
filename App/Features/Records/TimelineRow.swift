@@ -61,6 +61,11 @@ struct TimelineRow: View {
                     }
                 }
             }
+            // 첫 사진 작은 그림 (9판 · FR-058) — 사진이 없으면 자리를 차지하지 않는다(함께한 사람처럼 관계만 본다 · 풀기는 .task).
+            if record.hasPhotos {
+                Spacer(minLength: 0)
+                RecordRowThumbnail(record: record)
+            }
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)

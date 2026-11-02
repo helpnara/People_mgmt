@@ -33,6 +33,9 @@ extension View {
             .navigationDestination(for: AcquaintanceSuggestionRoute.self) { route in
                 AcquaintanceSuggestionsView(route: route)
             }
+            .navigationDestination(for: YearReviewRoute.self) { route in
+                YearReviewView(route: route)
+            }
     }
 }
 

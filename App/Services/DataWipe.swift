@@ -3,8 +3,8 @@ import SwiftData
 
 /// **전체 데이터 삭제** (할 일 54 · 2026-10-30 사용자 — 출시 판에 넣는다).
 ///
-/// - 사람(나 포함) · 기록 · 아는 사이를 모두 지운다. 명함 · 사람 사진은 사람에 붙어 함께 사라진다.
-/// - **설정은 둔다** (사용자 결정) — 앱 잠금 · 알림 켜기 · 상세 화면 칸 · 정렬은 그대로. 걸어 둔 알림만 다시 걸어 비운다
+/// - 사람(나 포함) · 기록 · 아는 사이를 모두 지운다. 명함 · 사람 사진은 사람에, 기록 사진(9판)은 기록에 붙어 함께 사라진다.
+/// - **설정은 둔다** (사용자 결정) — 앱 잠금 · 알림 켜기 · 상세 화면 칸 · 정렬 · 내 선택지(9판)는 그대로. 걸어 둔 알림만 다시 걸어 비운다
 ///   (지운 사람의 생일 알림이 오지 않게 — 부르는 쪽이 `ReminderScheduler.refresh`).
 /// - 하나씩 지운다 — 한꺼번에 지우기(batch)는 iCloud 로 지움이 건너가지 않을 수 있다. 동기화가 켜져 있으면
 ///   같은 Apple 계정의 다른 기기와 iCloud 에서도 지워진다(확인 창이 먼저 말한다).
@@ -37,6 +37,9 @@ enum DataWipe {
         let ties = try context.fetch(FetchDescriptor<Tie>())
         let records = try context.fetch(FetchDescriptor<Record>())
         let people = try context.fetch(FetchDescriptor<Person>())
+        // 기록 사진(9판)은 기록과 함께 지워지지만(cascade) 떨어진 사진이 남지 않게 따로도 지운다.
+        // 내 선택지(9판 · `ChoiceList`)는 설정이라 둔다 — 아래 설정은 둔다와 같은 결정.
+        for photo in try context.fetch(FetchDescriptor<RecordPhoto>()) { context.delete(photo) }
         // 아는 사이 · 기록을 먼저 — 사람을 지울 때 이어진 것을 따로 정리하지 않게.
         for tie in ties { context.delete(tie) }
         for record in records { context.delete(record) }

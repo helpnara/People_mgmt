@@ -4,7 +4,7 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// **백업 · 복원** (FR-018 · D-34) — 사람 · 기록 · 아는 사이 · 명함과 사람 사진을 **파일 하나(.json)** 로.
+/// **백업 · 복원** (FR-018 · D-34) — 사람 · 기록 · 아는 사이 · 명함 · 사람 사진 · 기록 사진(9판) · 내 선택지(9판)를 **파일 하나(.json)** 로.
 ///
 /// - 고유 식별자(`uuid`)와 만든 날을 그대로 담아, 복원하면 소개 관계 · 함께한 사람 · 아는 사이가 그대로 이어진다.
 /// - 명함 · 사람 사진은 JSON 안에 base64 로 들어간다 — 사람이 많으면 파일이 커진다(명함 1장에 수백 KB).
@@ -63,6 +63,16 @@ struct BackupFile: Codable, Sendable {
         var occurredPrecision: Int?
         /// 8판(빌드 39)부터 — 그날의 시각(자정부터 센 분 · D-63). 옛 백업에는 없으니 옵셔널(없으면 시각 없음).
         var occurredMinute: Int?
+        /// 9판(빌드 45)부터 — 기록 사진(FR-058 · 차례대로 · 최대 4장). 옛 백업에는 없으니 옵셔널.
+        var photos: [Data]?
+    }
+
+    /// 9판(빌드 45)부터 — 내 선택지(FR-035). 종류마다 보이는 차례 · 숨긴 것.
+    struct ChoiceItem: Codable, Sendable {
+        var kind: String
+        var items: [String]
+        var hidden: [String]
+        var updatedAt: Date
     }
 
     struct TieItem: Codable, Sendable {
@@ -79,6 +89,8 @@ struct BackupFile: Codable, Sendable {
     var people: [PersonItem]
     var records: [RecordItem]
     var ties: [TieItem]
+    /// 9판(빌드 45)부터 — 옛 백업에는 없으니 옵셔널.
+    var choices: [ChoiceItem]?
 }
 
 enum Backup {
@@ -106,6 +118,8 @@ enum Backup {
         let cards: Int
         /// 사람 사진 (7판 · 빌드 29) — 이슈 45.
         let photos: Int
+        /// 기록 사진 (9판 · 빌드 45 · FR-058).
+        var recordPhotos: Int = 0
     }
 
     /// 파일 이름 — `느린인연-백업-2026-10-18.json`.
@@ -135,6 +149,9 @@ enum Backup {
         var tieDescriptor = FetchDescriptor<Tie>()
         tieDescriptor.relationshipKeyPathsForPrefetching = [\.first, \.second]
         let ties = (try? context.fetch(tieDescriptor)) ?? []
+        let choices = ChoiceStore.current(in: context).map {
+            BackupFile.ChoiceItem(kind: $0.kind, items: $0.items, hidden: $0.hidden, updatedAt: $0.updatedAt)
+        }
 
         return BackupFile(
             format: BackupFile.format,
@@ -142,7 +159,8 @@ enum Backup {
             exportedAt: now,
             people: people.map { item(of: $0) },
             records: records.map { item(of: $0) },
-            ties: ties.compactMap { item(of: $0) })
+            ties: ties.compactMap { item(of: $0) },
+            choices: choices.isEmpty ? nil : choices)
     }
 
     // MARK: - 값으로 옮기기 — 백업 · 삭제 실행취소(`DeletionUndo`)가 같은 길을 쓴다
@@ -164,7 +182,17 @@ enum Backup {
             uuid: r.uuid, title: r.title, recordType: r.recordType, occurredAt: r.occurredAt,
             location: r.location, note: r.note, tags: r.tags, participants: (r.participants ?? []).map(\.uuid),
             createdAt: r.createdAt, updatedAt: r.updatedAt, occurredPrecision: r.occurredPrecision,
-            occurredMinute: r.occurredMinute)
+            occurredMinute: r.occurredMinute,
+            photos: { let data = r.sortedPhotos.compactMap(\.data); return data.isEmpty ? nil : data }())
+    }
+
+    /// 기록 사진을 값에서 다시 붙인다 — 기록을 저장소에 넣은 **뒤에**. 많으면 앞의 `RecordPhotos.limit` 장만.
+    static func attachPhotos(to record: Record, from item: BackupFile.RecordItem, in context: ModelContext) {
+        for (index, data) in (item.photos ?? []).prefix(RecordPhotos.limit).enumerated() {
+            let photo = RecordPhoto(data: data, position: index)
+            context.insert(photo)
+            photo.record = record
+        }
     }
 
     static func item(of t: Tie) -> BackupFile.TieItem? {
@@ -218,7 +246,8 @@ enum Backup {
     static func summary(of file: BackupFile) -> Summary {
         Summary(people: file.people.count, records: file.records.count, ties: file.ties.count,
                 cards: file.people.filter { $0.businessCard != nil }.count,
-                photos: file.people.filter { $0.photo != nil }.count)
+                photos: file.people.filter { $0.photo != nil }.count,
+                recordPhotos: file.records.reduce(0) { $0 + min($1.photos?.count ?? 0, RecordPhotos.limit) })
     }
 
     // MARK: - 글로 · 글에서
@@ -292,6 +321,7 @@ enum Backup {
             context.insert(record)
             fill(record, from: item)
             record.participants = participants
+            attachPhotos(to: record, from: item, in: context)
             restoredRecords += 1
         }
         var restoredTies = 0
@@ -307,6 +337,18 @@ enum Backup {
             tie.second = b
             restoredTies += 1
         }
+        // 내 선택지는 백업의 것으로 — 같은 종류가 이미 있으면 지우고 넣는다(종류마다 하나).
+        let restoringKinds = Set((file.choices ?? []).map(\.kind))
+        for list in (try? context.fetch(FetchDescriptor<ChoiceList>())) ?? [] where restoringKinds.contains(list.kind) {
+            context.delete(list)
+        }
+        for choice in file.choices ?? [] where ChoiceKind(rawValue: choice.kind) != nil {
+            let list = ChoiceList(kind: choice.kind)
+            context.insert(list)
+            list.items = choice.items
+            list.hidden = choice.hidden
+            list.updatedAt = choice.updatedAt
+        }
         do {
             try context.save()
         } catch {
@@ -315,7 +357,8 @@ enum Backup {
         }
         return Summary(people: byID.count, records: restoredRecords, ties: restoredTies,
                        cards: byID.values.filter { $0.businessCard != nil }.count,
-                       photos: byID.values.filter { $0.photo != nil }.count)
+                       photos: byID.values.filter { $0.photo != nil }.count,
+                       recordPhotos: file.records.reduce(0) { $0 + min($1.photos?.count ?? 0, RecordPhotos.limit) })
     }
 }
 

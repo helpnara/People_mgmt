@@ -409,13 +409,11 @@ struct PersonEditView: View {
         }
     }
 
-    /// 직접 입력해 쓴 값을 선택지로 (이슈 13). 저장소를 읽으므로 **동작에서만** 부른다.
+    /// 내가 정한 선택지(설정 → 선택지 · FR-035) + 직접 입력해 쓴 값(이슈 13). 저장소를 읽으므로 **동작에서만** 부른다.
     private func refreshChoices() {
         let people = (try? store.allPeople()) ?? []
-        relationshipChoices = RelationshipPresets.choices(presets: RelationshipPresets.relationshipTypes,
-                                                          used: people.compactMap(\.relationshipType))
-        metThroughChoices = RelationshipPresets.choices(presets: RelationshipPresets.metThroughOptions,
-                                                        used: people.compactMap(\.metThrough))
+        relationshipChoices = ChoiceStore.choices(.relationshipType, used: people.compactMap(\.relationshipType), in: context)
+        metThroughChoices = ChoiceStore.choices(.metThrough, used: people.compactMap(\.metThrough), in: context)
     }
 
     private var importSection: some View {
