@@ -311,6 +311,7 @@ struct PersonEditView: View {
                 // 날짜 칸과 같은 꼴 (빌드 39 · 이슈 60) — 칩을 누르면 말풍선, 고르는 순간 닫힌다.
                 LabeledContent("날짜") {
                     Button {
+                        Keyboard.dismiss()
                         pickingBirthday = true
                     } label: {
                         DateChip(text: "\(draft.birthMonth)월 \(draft.birthDay)일")
@@ -330,6 +331,7 @@ struct PersonEditView: View {
                 }
                 LabeledContent("태어난 해") {
                     Button {
+                        Keyboard.dismiss()
                         pickingBirthYear = true
                     } label: {
                         DateChip(text: draft.birthYear.map { "\($0)년" } ?? "모름")

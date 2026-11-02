@@ -66,6 +66,8 @@ struct RecordEditView: View {
     private var hasTime: Binding<Bool> {
         Binding(get: { draft.occurredMinute != nil }, set: { on in
             if on {
+                // 시각 고르개를 쓰기 전에 키보드를 내린다 — 초점이 제목 칸에 남아 화면이 튀지 않게 (이슈 61).
+                Keyboard.dismiss()
                 let parts = Calendar.current.dateComponents([.hour, .minute], from: Date())
                 draft.occurredMinute = (parts.hour ?? 12) * 60 + ((parts.minute ?? 0) / 30) * 30
             } else {
@@ -187,11 +189,6 @@ struct RecordEditView: View {
             }
         }
         .interactiveDismissDisabled(hasChanges)
-        .onAppear {
-            // 스토어 스크린샷(-storeShots)은 키보드 없이 — 키보드가 입력 칸을 가리고 시뮬레이터의 영문 안내가 뜬다 (이슈 56).
-            let arguments = LaunchArguments.current
-            if isCreate && arguments.tagInput == nil && !arguments.storeShots { titleFocused = true }
-        }
         .task(id: everyone.count) {
             candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
             loadRecentPeople()
