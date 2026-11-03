@@ -118,6 +118,7 @@ final class GoldenTests: XCTestCase {
         }
         struct LabelItemRaw: Decodable { let index: Int; let community: Int?; let records: Int; let nameKey: String }
         struct LabelPriorityCase: Decodable { let name: String; let items: [LabelItemRaw]; let first: Int?; let expected: [Int] }
+        struct CommunityColorCase: Decodable { let name: String; let expected: Int }
         struct ChoiceSettingRaw: Decodable { let items: [String]; let hidden: [String] }
         struct ChoiceEditingCase: Decodable {
             let name: String; let presets: [String]; let fixed: [String]; let setting: ChoiceSettingRaw?; let used: [String]
@@ -228,6 +229,7 @@ final class GoldenTests: XCTestCase {
         let choiceEditing: [ChoiceEditingCase]
         let yearInReview: [YearReviewCase]
         let labelPriority: [LabelPriorityCase]
+        let communityColor: [CommunityColorCase]
         let choiceOps: [ChoiceOpsCase]
         let louvain: [LouvainCase]
         let splitConnected: [ComponentSplitCase]
@@ -687,6 +689,13 @@ final class GoldenTests: XCTestCase {
             let items = c.items.map { LabelPriority.Item(index: $0.index, community: $0.community, records: $0.records, nameKey: $0.nameKey) }
             XCTAssertEqual(LabelPriority.order(items, first: c.first), c.expected, c.name)
         }
+    }
+
+    func testCommunityColor() throws {
+        for c in try Self.loadGolden().communityColor {
+            XCTAssertEqual(CommunityColor.index(for: c.name), c.expected, c.name)
+        }
+        XCTAssertEqual(CommunityColor.count, 8, "Palette 의 모임 색 여덟과 같다")
     }
 
     func testChoiceOps() throws {
