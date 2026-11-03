@@ -32,6 +32,15 @@ PAIRS = [
     ("accent", "raised"), ("accent", "ground"), ("accent", "accentSoft"),
     ("chipInk", "chip"),
     ("danger", "raised"),
+    # 관계도 모임 색 (이슈 76) — 이름 알약 글자/바탕.
+    ("clusterBlueInk", "clusterBlueSoft"),
+    ("clusterOrangeInk", "clusterOrangeSoft"),
+    ("clusterGreenInk", "clusterGreenSoft"),
+    ("clusterMagentaInk", "clusterMagentaSoft"),
+    ("clusterTealInk", "clusterTealSoft"),
+    ("clusterVermilionInk", "clusterVermilionSoft"),
+    ("clusterPurpleInk", "clusterPurpleSoft"),
+    ("clusterMustardInk", "clusterMustardSoft"),
 ]
 
 

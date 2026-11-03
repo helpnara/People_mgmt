@@ -71,8 +71,13 @@ struct RelationGraphView: View {
     @State private var moveStart: Date?
     /// 지금이나 어느 시점에든 모임이 있는가 — 모임 줄을 시점마다 넣었다 뺐다 하지 않는다 (이슈 29).
     @State private var hasAnyCommunities = false
-    /// 사람 자리 → 이름 순 차례 (이슈 30). 이름표를 놓는 차례 — 누가 더 중요한지가 아니라 이름 순이다 (ADR-0004).
+    /// 사람 자리 → 이름표를 놓는 차례 (이슈 73 · `Core.LabelPriority`) — 모임마다 돌아가며, 모임 안은 나와의 기록이 많은 사람부터.
+    /// 이름이 다 들어가지 않을 때 어느 모임이든 대표 이름이 보이게. 차례는 화면에 드러내지 않는다(ADR-0004). 모임이 바뀔 때 센다.
     @State private var nameRank: [Int] = []
+    /// 이번 크기에서 자리가 없어 이름을 비운 사람 수 (이슈 73) — 관계도 아래 안내 한 줄. 그림을 그리며 센다.
+    @State private var omittedNames = 0
+    /// 모임 번호 → 색 번호 (이슈 76 · `Core.CommunityColor.assign`) — 이름 색 기본, 한 화면의 모임끼리 겹치면 빈 색. 모임이 바뀔 때 센다.
+    @State private var communityTint: [Int: Int] = [:]
     /// 지금 자리가 나(0.5)에서 가로 · 세로로 퍼진 거리 — 그림 칸에 고루 펴는 데 쓴다 (이슈 32). 자료가 바뀔 때만 센다 —
     /// 시점마다 다시 세면 시점 막대를 옮길 때 그림이 커졌다 작아졌다 한다 (이슈 29).
     @State private var spreadX = 0.5
@@ -84,6 +89,9 @@ struct RelationGraphView: View {
     /// 아이패드 관계도 칸 (이슈 32 · 빌드 25 사용자 — 관계도가 여전히 작다). 위 거르기를 한 줄로, 시점 설명을 한 줄로 줄여
     /// 관계도 칸이 높이를 갖는다. 누른 사람은 관계도 위에 떠 있는 카드가 맡는다 (이슈 51).
     private var wide: Bool { floatsCard && !compact }
+    /// 누른 사람을 관계도 위 카드로 보이는가 — 큰 글씨가 아니면 아이폰도 (이슈 76 · 2026-11-03 사용자: 관계도 칸을 넓히려고
+    /// 아래에 늘 잡아 두던 사람 칸 자리를 없앴다). 큰 글씨는 전처럼 관계도 아래 칸.
+    private var overlaysCard: Bool { floatsCard || !compact }
     private var meIndex: Int { snapshot.people.count }
     private var timeline: NetworkSnapshot.Timeline { snapshot.timeline }
     private var slice: NetworkSnapshot.Timeline.Slice? {
@@ -150,7 +158,7 @@ struct RelationGraphView: View {
                 .accessibilityLabel("관계도 \(slice?.label ?? "지금") — 사람 \(snapshot.people.count)명. 위의 특성 · 돌아보기 칸에서 목록으로 볼 수 있습니다.")
             }
             .overlay(alignment: cardAlignment) {
-                if floatsCard, let selectedID, let selected, selected < snapshot.people.count {
+                if overlaysCard, let selectedID, let selected, selected < snapshot.people.count {
                     GraphPersonCard(id: selectedID, detail: selectedDetail) {
                         self.selected = nil
                         self.selectedID = nil
@@ -206,11 +214,6 @@ struct RelationGraphView: View {
             spreadX = reachX
             spreadY = reachY
             hasAnyCommunities = !snapshot.communities.isEmpty || timeline.slices.contains { !$0.communities.isEmpty }
-            let byName = NameSort.sorted(Array(snapshot.people.indices), name: { snapshot.people[$0].name },
-                                         createdAt: { _ in Date.distantPast })
-            var rank = [Int](repeating: 0, count: snapshot.people.count)
-            for (order, i) in byName.enumerated() { rank[i] = order }
-            nameRank = rank
             sliderValue = Double(timeline.slices.count)
             // CI 스크린샷 — 지난 시점의 관계도를 바로 연다 (`-timeSlice`).
             if let k = LaunchArguments.current.timeSlice,
@@ -221,7 +224,7 @@ struct RelationGraphView: View {
             refreshMembership()
             groupsItem = InputReadiness.evaluate(snapshot.readiness).first { $0.feature == .groups }
             // 떠 있는 카드는 같은 사람을 새 자료에서 다시 찾는다 (이슈 51). CI 스크린샷은 이름으로 미리 고른다 (`-graphSelect`).
-            if floatsCard {
+            if overlaysCard {
                 if selectedID == nil, let name = LaunchArguments.current.graphSelect {
                     selectedID = snapshot.people.first { $0.name == name }?.id
                 }
@@ -232,7 +235,7 @@ struct RelationGraphView: View {
         }
         // 스토어 미리보기 영상 (`-previewTour`) — 점 고르기 · 시점 막대를 바깥에서 움직인다.
         .onReceive(NotificationCenter.default.publisher(for: PreviewTour.selectPerson)) { note in
-            guard floatsCard, let name = note.object as? String,
+            guard overlaysCard, let name = note.object as? String,
                   let i = snapshot.people.firstIndex(where: { $0.name == name }) else { return }
             selected = i
             selectedID = snapshot.people[i].id
@@ -294,6 +297,16 @@ struct RelationGraphView: View {
                             toggleType(type)
                         }
                     }
+                    // 같은 소속 선 켜기 — 줄 하나를 따로 쓰던 것을 칩으로 (이슈 76 · 관계도 칸을 넓히려고).
+                    // 지난 시점에는 소속 선을 그리지 않는다(소속에는 날짜가 없다) — 칩은 두고 흐리게.
+                    Divider()
+                        .frame(height: Font.scaledLength(20))
+                    chip("같은 소속 선", selected: showsOrganization) {
+                        showsOrganization.toggle()
+                    }
+                    .disabled(sliceIndex != nil)
+                    .opacity(sliceIndex != nil ? 0.4 : 1)
+                    .accessibilityLabel("같은 소속도 옅은 선으로 잇기")
                 }
                 .padding(.horizontal, 16)
             }
@@ -315,13 +328,6 @@ struct RelationGraphView: View {
                     .padding(.horizontal, 16)
                 }
             }
-            // 지난 시점에는 같은 소속 선을 그리지 않는다(소속에는 날짜가 없다) — 줄은 두고 흐리게.
-            Toggle(isOn: $showsOrganization) {
-                Text("같은 소속도 옅은 선으로 잇기").font(.scaled(14)).foregroundStyle(Color.bodyText)
-            }
-            .tint(Color.accent)
-            .disabled(sliceIndex != nil)
-            .padding(.horizontal, 16)
         }
         .padding(.bottom, 8)
     }
@@ -403,19 +409,24 @@ struct RelationGraphView: View {
             }
             .accessibilityLabel("보기 거르기, 지금 \(filterTitle)")
             Spacer(minLength: 0)
-            Button {
-                showsGuide = true
-            } label: {
-                Image(systemName: "info.circle")
-                    .font(.scaled(17))
-                    .foregroundStyle(Color.accent)
-                    .frame(minWidth: Font.scaledLength(44))
-                    .tapTarget()
-            }
-            .accessibilityLabel("관계도 설명")
+            guideButton
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 4)
+    }
+
+    /// 관계도 설명 창을 여는 단추 — 큰 글씨의 위 줄과 아이폰의 아래 줄 (이슈 26 · 76).
+    private var guideButton: some View {
+        Button {
+            showsGuide = true
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.scaled(17))
+                .foregroundStyle(Color.accent)
+                .frame(minWidth: Font.scaledLength(44))
+                .tapTarget()
+        }
+        .accessibilityLabel("관계도 설명")
     }
 
     /// 차림표 단추에 비치는 지금 고른 것.
@@ -495,16 +506,18 @@ struct RelationGraphView: View {
                 }
                 .tint(Color.accent)
                 .accessibilityValue(slice?.label ?? "지금")
-                Text(timeLine)
-                    .font(.scaled(12))
-                    .foregroundStyle(Color.muted)
-                    // 시점마다 글 길이가 달라도 같은 줄 수 자리를 늘 잡는다 (이슈 29). 아이패드는 폭이 넓어 한 줄 (이슈 32).
-                    .lineLimit(wide ? 1 : 3, reservesSpace: true)
-                    .minimumScaleFactor(wide ? 0.7 : 0.8)
+                // 아이패드는 폭이 넓어 한 줄로 늘 둔다 (이슈 32). 아이폰은 관계도 칸을 넓히려고 설명 창으로 옮겼다 (이슈 76).
+                if wide {
+                    Text(timeLine)
+                        .font(.scaled(12))
+                        .foregroundStyle(Color.muted)
+                        .lineLimit(1, reservesSpace: true)
+                        .minimumScaleFactor(0.7)
+                }
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, compact || wide ? 4 : 10)
+        .padding(.top, compact || wide ? 4 : 8)
     }
 
     /// 시점 막대 아래 한 줄 — 그 시점에 무엇을 보고 있나.
@@ -539,50 +552,40 @@ struct RelationGraphView: View {
 
     @ViewBuilder
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // 누른 사람 칸과 안내 글이 같은 자리를 쓴다 — 사람 칸 높이를 늘 잡아 두어, 누르거나 시점을 옮겨도
-            // 관계도 칸 높이가 바뀌지 않게 (이슈 29).
-            ZStack(alignment: .topLeading) {
-                // 큰 글씨에서는 잡아 두지 않는다 — 관계도 칸이 먼저 자리를 갖는다 (이슈 26).
-                // 아이패드(누른 사람을 떠 있는 카드로 보이는 때)도 잡아 두지 않는다 (이슈 32 · 51).
-                if !compact && !floatsCard {
-                    personCard(name: " ", detail: " \n ")
-                        .hidden()
-                        .accessibilityHidden(true)
-                }
-                if let selected, selected < snapshot.people.count, !floatsCard {
+        VStack(alignment: .leading, spacing: 6) {
+            if compact {
+                // 큰 글씨는 누른 사람을 관계도 아래 칸으로 (이슈 26) — 설명은 위 줄의 설명 단추가 연다.
+                if let selected, selected < snapshot.people.count {
                     let person = snapshot.people[selected]
                     NavigationLink(value: PersonID(id: person.id)) {
                         personCard(name: person.name, detail: selectedDetail)
                     }
                     .buttonStyle(.plain)
-                } else if !compact && !floatsCard {
-                    Text(Self.hint)
-                        .font(.scaled(13))
-                        .foregroundStyle(Color.muted)
                 }
-            }
-            // 아이패드는 누른 사람을 관계도 위 카드로 보인다 (이슈 51) — 아래에는 안내 한 줄만, 늘 같은 높이로.
-            if wide {
-                Text(Self.hint)
+            } else if wide {
+                // 아이패드는 누른 사람을 관계도 위 카드로 (이슈 51) — 아래에는 안내 한 줄과 기록 범위만, 늘 같은 높이로.
+                Text(hintText)
                     .font(.scaled(13))
                     .foregroundStyle(Color.muted)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-            }
-            // 큰 글씨에서는 설명 글을 시트로 (이슈 26) — 위 줄 오른쪽의 설명 단추.
-            if !compact && !floatsCard {
-                // 지난 시점에는 지금의 숫자를 감추되 자리는 둔다 (이슈 29).
-                readiness
-                    .opacity(sliceIndex == nil ? 1 : 0)
-                    .accessibilityHidden(sliceIndex != nil)
-            }
-            if !compact {
                 RecordedScopeNotice()
+            } else {
+                // 아이폰 (이슈 76 · 2026-11-03 사용자) — 관계도 칸을 넓히려고 누른 사람은 관계도 위 카드로, 시점 설명 · 입력 상태 ·
+                // 기록 범위는 설명 창으로 옮겼다. 아래에는 안내(또는 비운 이름 수) 한 줄 자리와 설명 단추만. 글 길이가 바뀌어도 두 줄 자리를 잡아
+                // 관계도 칸 높이가 흔들리지 않게 (이슈 29).
+                HStack(alignment: .top, spacing: 8) {
+                    Text(hintText)
+                        .font(.scaled(13))
+                        .foregroundStyle(Color.muted)
+                        .lineLimit(2, reservesSpace: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    guideButton
+                }
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, compact ? 8 : (wide ? 6 : 16))
+        .padding(.vertical, compact ? 8 : 6)
     }
 
     private func personCard(name: String, detail: String) -> some View {
@@ -600,6 +603,13 @@ struct RelationGraphView: View {
     }
 
     private static let hint = "점을 누르면 그 사람을 봅니다. 두 손가락으로 키우고 옮기고, 두 번 누르면 처음 크기로."
+
+    /// 관계도 아래 안내 — 이름을 비운 사람이 있으면 그 수와 보는 길(이슈 73), 없으면 쓰는 법.
+    /// 아이폰은 사람 약 30명, 아이패드 가로는 약 60명까지 이름을 거의 다 쓴다(`Tools/label-density.py` · 11pt).
+    private var hintText: String {
+        guard omittedNames > 0 else { return Self.hint }
+        return "이름 " + String(omittedNames) + "명은 자리가 없어 비웠습니다. 두 손가락으로 키우거나 위의 모임을 누르면 보입니다."
+    }
 
     /// 관계도 설명 시트 — 큰 글씨에서 관계도 아래에 두던 글을 그대로 모은다 (이슈 26).
     private var guide: some View {
@@ -702,6 +712,23 @@ struct RelationGraphView: View {
         }
         membership = map
         if let id = highlightCommunity, !activeCommunities.contains(where: { $0.id == id }) { highlightCommunity = nil }
+        // 모임 색 (이슈 76) — 가운데 자리는 지금 자리로 센다(지난 시점도 사람 자리는 지금 가까이에 있다).
+        let groups = activeCommunities.map { community -> CommunityColor.Group in
+            let points = community.memberIndices.compactMap { $0 < snapshot.positions.count ? snapshot.positions[$0] : nil }
+            let count = Double(max(points.count, 1))
+            return CommunityColor.Group(name: community.name, size: community.memberIndices.count,
+                                        x: points.map(\.x).reduce(0, +) / count, y: points.map(\.y).reduce(0, +) / count)
+        }
+        let colors = CommunityColor.assign(groups, count: Color.clusterEdges.count)
+        communityTint = Dictionary(zip(activeCommunities.map(\.id), colors), uniquingKeysWith: { first, _ in first })
+        // 이름표를 놓는 차례 (이슈 73) — 그리는 모임이 바뀌면(지금 ↔ 지난 시점) 다시 센다.
+        let items = snapshot.people.indices.map { i in
+            LabelPriority.Item(index: i, community: map[i], records: snapshot.people[i].recordCount,
+                               nameKey: NameSort.key(snapshot.people[i].name))
+        }
+        var rank = [Int](repeating: 0, count: snapshot.people.count)
+        for (order, i) in LabelPriority.order(items).enumerated() where i < rank.count { rank[i] = order }
+        nameRank = rank
     }
 
     /// 지난 시점의 자리 — 지금 자리에서 출발해 낮은 온도로 조금만 움직인다 (주 스레드 밖).
@@ -746,6 +773,11 @@ struct RelationGraphView: View {
 
         // 모임 — 옅은 테두리. 채운 볼록 껍질에 굵고 둥근 선을 겹쳐 점 둘레에 여백을 둔다. 한 층으로 그려 겹친 곳이 진해지지 않게.
         for community in activeCommunities {
+            // 모임마다 또렷한 색 (이슈 75 → 76) — 테두리 · 둘레 선 · 이름 알약이 같은 색이고 점 · 선 · 사람 이름은 그대로.
+            let tint = communityTint[community.id] ?? CommunityColor.index(for: community.name, count: Color.clusterEdges.count)
+            let edge = Color.clusterEdges[tint]
+            let ink = Color.clusterInks[tint]
+            let soft = Color.clusterSofts[tint]
             let points = community.memberIndices.map { screenPoint(positions[$0], size: size) }
             let hull = Self.convexHull(points)
             guard let first = hull.first else { continue }
@@ -753,20 +785,38 @@ struct RelationGraphView: View {
             path.move(to: first)
             for point in hull.dropFirst() { path.addLine(to: point) }
             path.closeSubpath()
+            // 채움은 전보다 진하게(10 → 16%), 바깥에 가는 둘레 선 — 모임이 많아도 테두리끼리 갈리게 (이슈 76).
+            let emphasis: (fill: Double, ring: Double) = highlightCommunity == nil
+                ? (0.16, 0.6)
+                : (highlightCommunity == community.id ? (0.26, 0.9) : (0.05, 0.15))
             var layer = context
-            layer.opacity *= highlightCommunity == nil ? 0.10 : (highlightCommunity == community.id ? 0.22 : 0.04)
+            layer.opacity *= emphasis.fill
             layer.drawLayer { inner in
-                inner.fill(path, with: .color(Color.accent))
-                inner.stroke(path, with: .color(Color.accent), style: StrokeStyle(lineWidth: 28, lineCap: .round, lineJoin: .round))
+                inner.fill(path, with: .color(edge))
+                inner.stroke(path, with: .color(edge), style: StrokeStyle(lineWidth: 28, lineCap: .round, lineJoin: .round))
+            }
+            // 둘레 선 — 굵게 그린 띠에서 안쪽을 지워 1.5pt 테만 남긴다(지우는 색은 가리개일 뿐 보이지 않는다).
+            var ring = context
+            ring.opacity *= emphasis.ring
+            ring.drawLayer { inner in
+                inner.stroke(path, with: .color(edge), style: StrokeStyle(lineWidth: 31, lineCap: .round, lineJoin: .round))
+                inner.blendMode = .destinationOut
+                inner.fill(path, with: .color(Color.ink))
+                inner.stroke(path, with: .color(Color.ink), style: StrokeStyle(lineWidth: 28, lineCap: .round, lineJoin: .round))
             }
             if highlightCommunity == nil || highlightCommunity == community.id,
                let top = hull.min(by: { $0.y < $1.y }) {
                 let centerX = hull.map(\.x).reduce(0, +) / CGFloat(hull.count)
-                let title = context.resolve(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(Color.muted))
+                // 모임 이름은 그 모임 색의 연한 알약에 진한 굵은 글자 — 회색 사람 이름과 한눈에 갈리게 (이슈 74 · 75).
+                // 글자 대비 라이트 5.3 ~ 6.3 · 다크 7.1 ~ 8.7 (`Tools/contrast.py` 의 clusterXInk on clusterXSoft).
+                let title = context.resolve(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(ink))
                 let titleSize = title.measure(in: CGSize(width: 400, height: 100))
-                context.draw(title, at: CGPoint(x: centerX, y: top.y - 20), anchor: .center)
-                reserved.append(LabelPlacement.Box(centerX: centerX, centerY: top.y - 20,
-                                                   width: titleSize.width, height: titleSize.height))
+                let titleCenter = CGPoint(x: centerX, y: top.y - 20)
+                let pill = CGRect(x: titleCenter.x - titleSize.width / 2 - 7, y: titleCenter.y - titleSize.height / 2 - 2.5,
+                                  width: titleSize.width + 14, height: titleSize.height + 5)
+                context.fill(Path(roundedRect: pill, cornerRadius: pill.height / 2), with: .color(soft))
+                context.draw(title, at: titleCenter, anchor: .center)
+                reserved.append(LabelPlacement.Box(centerX: pill.midX, centerY: pill.midY, width: pill.width, height: pill.height))
             }
         }
 
@@ -791,7 +841,6 @@ struct RelationGraphView: View {
 
         // 점
         let radius: CGFloat = 5
-        let showsNames = snapshot.people.count <= 40 || scale >= 2.5
         var visible: [(index: Int, point: CGPoint)] = []
         for i in snapshot.people.indices where isShown(i) {
             let p = screenPoint(positions[i], size: size)
@@ -816,19 +865,24 @@ struct RelationGraphView: View {
         reserved.append(LabelPlacement.Box(centerX: me.x, centerY: me.y, width: 24, height: 24))
         reserved.append(LabelPlacement.Box(centerX: me.x, centerY: me.y + 22, width: meTitleSize.width, height: meTitleSize.height))
 
-        if showsNames {
-            drawNames(in: &context, size: size, visible: visible, radius: radius, reserved: reserved, highlighting: highlighting)
+        // 사람 수와 상관없이 늘 쓴다 (이슈 73) — 전에는 40명을 넘으면 2.5배 넘게 키울 때만 썼다(이름표 자리 찾기 · 이슈 30 전의 문턱).
+        // 겹치는 이름은 자리 찾기가 비우고, 키울수록 더 나온다. 비운 수는 관계도 아래 한 줄로 알린다 — 그리는 중에 상태를 바꾸지 않고 다음 차례에.
+        let omitted = drawNames(in: &context, size: size, visible: visible, radius: radius, reserved: reserved, highlighting: highlighting)
+        if omitted != omittedNames {
+            Task { @MainActor in omittedNames = omitted }
         }
     }
 
     /// 사람 이름표 (이슈 30) — 이름끼리 · 점과 겹치지 않는 자리에만 쓴다(`Core.LabelPlacement`). 놓을 자리가 없으면 이번 크기에서는
-    /// 비운다 — 두 손가락으로 키우면 자리가 생긴다. 차례는 누른 사람 → 강조한 사람 → 이름 순. 한 번에 150개까지.
+    /// 비운다 — 두 손가락으로 키우면 자리가 생긴다. 차례는 누른 사람 → 강조한 사람 → 모임마다 돌아가며(`nameRank` · 이슈 73).
+    /// 한 번에 150개까지. 돌려주는 값은 이름을 써야 했는데 비운 사람 수(150개 밖 포함).
+    @discardableResult
     private func drawNames(in context: inout GraphicsContext, size: CGSize, visible: [(index: Int, point: CGPoint)],
-                           radius: CGFloat, reserved: [LabelPlacement.Box], highlighting: Bool) {
+                           radius: CGFloat, reserved: [LabelPlacement.Box], highlighting: Bool) -> Int {
         func group(_ i: Int) -> Int { i == selected ? 0 : (highlighting ? 1 : 2) }
         func order(_ i: Int) -> Int { i < nameRank.count ? nameRank[i] : i }
-        let named = visible
-            .filter { !highlighting || matches($0.index) || $0.index == selected }
+        let wanted = visible.filter { !highlighting || matches($0.index) || $0.index == selected }
+        let named = wanted
             .sorted { (group($0.index), order($0.index)) < (group($1.index), order($1.index)) }
             .prefix(150)
         var texts: [GraphicsContext.ResolvedText] = []
@@ -843,10 +897,13 @@ struct RelationGraphView: View {
         let dots = visible.map { LabelPlacement.Box(centerX: $0.point.x, centerY: $0.point.y, width: radius * 2, height: radius * 2) }
         let placed = LabelPlacement.place(requests, obstacles: dots + reserved,
                                           bounds: LabelPlacement.Box(x: 0, y: 0, width: size.width, height: size.height))
+        var drawn = 0
         for (k, box) in placed.enumerated() {
             guard let box else { continue }
             context.draw(texts[k], at: CGPoint(x: box.centerX, y: box.centerY), anchor: .center)
+            drawn += 1
         }
+        return wanted.count - drawn
     }
 
     private func matches(_ i: Int) -> Bool {

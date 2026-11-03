@@ -1511,6 +1511,202 @@
       "text": "청림소프트"
     }
   ],
+  "communityColor": [
+    {
+      "expected": 1,
+      "name": "독서모임"
+    },
+    {
+      "expected": 5,
+      "name": "청림소프트"
+    },
+    {
+      "expected": 7,
+      "name": "#등산"
+    },
+    {
+      "expected": 3,
+      "name": "한빛대학교"
+    },
+    {
+      "expected": 2,
+      "name": "나비랩스"
+    },
+    {
+      "expected": 2,
+      "name": "동호회·모임"
+    },
+    {
+      "expected": 5,
+      "name": ""
+    },
+    {
+      "expected": 7,
+      "name": "Nabi Labs"
+    },
+    {
+      "expected": 1,
+      "name": "독서모임"
+    },
+    {
+      "expected": 5,
+      "name": "가족"
+    }
+  ],
+  "communityColorAssign": [
+    {
+      "expected": [],
+      "groups": [],
+      "name": "빈 화면"
+    },
+    {
+      "expected": [
+        1,
+        5,
+        7
+      ],
+      "groups": [
+        {
+          "name": "독서모임",
+          "size": 6,
+          "x": 0.2,
+          "y": 0.2
+        },
+        {
+          "name": "청림소프트",
+          "size": 8,
+          "x": 0.7,
+          "y": 0.3
+        },
+        {
+          "name": "#등산",
+          "size": 4,
+          "x": 0.5,
+          "y": 0.8
+        }
+      ],
+      "name": "이름 색이 겹치지 않으면 그대로"
+    },
+    {
+      "expected": [
+        3,
+        2
+      ],
+      "groups": [
+        {
+          "name": "나비랩스",
+          "size": 5,
+          "x": 0.2,
+          "y": 0.2
+        },
+        {
+          "name": "동호회·모임",
+          "size": 9,
+          "x": 0.8,
+          "y": 0.8
+        }
+      ],
+      "name": "같은 이름 색이면 작은 모임이 빈 색으로"
+    },
+    {
+      "expected": [
+        5,
+        0,
+        6,
+        3,
+        7,
+        1,
+        2,
+        4,
+        5
+      ],
+      "groups": [
+        {
+          "name": "가",
+          "size": 9,
+          "x": 0.1,
+          "y": 0.1
+        },
+        {
+          "name": "나",
+          "size": 8,
+          "x": 0.5,
+          "y": 0.1
+        },
+        {
+          "name": "다",
+          "size": 7,
+          "x": 0.9,
+          "y": 0.1
+        },
+        {
+          "name": "라",
+          "size": 6,
+          "x": 0.1,
+          "y": 0.5
+        },
+        {
+          "name": "마",
+          "size": 5,
+          "x": 0.5,
+          "y": 0.5
+        },
+        {
+          "name": "바",
+          "size": 4,
+          "x": 0.9,
+          "y": 0.5
+        },
+        {
+          "name": "사",
+          "size": 3,
+          "x": 0.1,
+          "y": 0.9
+        },
+        {
+          "name": "아",
+          "size": 3,
+          "x": 0.5,
+          "y": 0.9
+        },
+        {
+          "name": "자",
+          "size": 2,
+          "x": 0.92,
+          "y": 0.92
+        }
+      ],
+      "name": "아홉 모임 — 아홉째는 가장 먼 같은 색"
+    },
+    {
+      "expected": [
+        0,
+        5,
+        6
+      ],
+      "groups": [
+        {
+          "name": "하늘",
+          "size": 4,
+          "x": 0.3,
+          "y": 0.3
+        },
+        {
+          "name": "가족",
+          "size": 4,
+          "x": 0.6,
+          "y": 0.6
+        },
+        {
+          "name": "가족",
+          "size": 4,
+          "x": 0.9,
+          "y": 0.1
+        }
+      ],
+      "name": "크기 같으면 이름 순으로 먼저"
+    }
+  ],
   "communityName": [
     {
       "expected": "청림소프트",
@@ -3933,6 +4129,208 @@
         "iGa": "가"
       },
       "text": "김하나"
+    }
+  ],
+  "labelPriority": [
+    {
+      "expected": [],
+      "first": null,
+      "items": [],
+      "name": "빈 목록"
+    },
+    {
+      "expected": [
+        1,
+        3,
+        5,
+        6,
+        0,
+        4,
+        7,
+        2
+      ],
+      "first": null,
+      "items": [
+        {
+          "community": 1,
+          "index": 0,
+          "nameKey": "가",
+          "records": 3
+        },
+        {
+          "community": 1,
+          "index": 1,
+          "nameKey": "나",
+          "records": 9
+        },
+        {
+          "community": 1,
+          "index": 2,
+          "nameKey": "다",
+          "records": 1
+        },
+        {
+          "community": 2,
+          "index": 3,
+          "nameKey": "라",
+          "records": 5
+        },
+        {
+          "community": 2,
+          "index": 4,
+          "nameKey": "마",
+          "records": 5
+        },
+        {
+          "community": 3,
+          "index": 5,
+          "nameKey": "바",
+          "records": 2
+        },
+        {
+          "community": null,
+          "index": 6,
+          "nameKey": "사",
+          "records": 7
+        },
+        {
+          "community": null,
+          "index": 7,
+          "nameKey": "아",
+          "records": 0
+        }
+      ],
+      "name": "모임마다 돌아가며 · 모임 안은 기록 많은 사람부터"
+    },
+    {
+      "expected": [
+        4,
+        1,
+        3,
+        0
+      ],
+      "first": 4,
+      "items": [
+        {
+          "community": 1,
+          "index": 0,
+          "nameKey": "가",
+          "records": 3
+        },
+        {
+          "community": 1,
+          "index": 1,
+          "nameKey": "나",
+          "records": 9
+        },
+        {
+          "community": 2,
+          "index": 3,
+          "nameKey": "라",
+          "records": 5
+        },
+        {
+          "community": 2,
+          "index": 4,
+          "nameKey": "마",
+          "records": 5
+        }
+      ],
+      "name": "누른 사람이 맨 먼저"
+    },
+    {
+      "expected": [
+        3,
+        1,
+        9,
+        5
+      ],
+      "first": null,
+      "items": [
+        {
+          "community": 1,
+          "index": 5,
+          "nameKey": "하",
+          "records": 2
+        },
+        {
+          "community": 1,
+          "index": 3,
+          "nameKey": "가",
+          "records": 2
+        },
+        {
+          "community": 1,
+          "index": 9,
+          "nameKey": "가",
+          "records": 2
+        },
+        {
+          "community": 2,
+          "index": 1,
+          "nameKey": "나",
+          "records": 2
+        }
+      ],
+      "name": "기록 같으면 이름 · 같은 이름은 자리 번호"
+    },
+    {
+      "expected": [
+        1,
+        0,
+        2,
+        3
+      ],
+      "first": null,
+      "items": [
+        {
+          "community": 7,
+          "index": 0,
+          "nameKey": "가",
+          "records": 4
+        },
+        {
+          "community": 3,
+          "index": 1,
+          "nameKey": "나",
+          "records": 4
+        },
+        {
+          "community": 3,
+          "index": 2,
+          "nameKey": "다",
+          "records": 1
+        },
+        {
+          "community": 7,
+          "index": 3,
+          "nameKey": "라",
+          "records": 0
+        }
+      ],
+      "name": "모임 차례 — 첫 사람 기록이 같으면 모임 번호"
+    },
+    {
+      "expected": [
+        1,
+        0
+      ],
+      "first": 42,
+      "items": [
+        {
+          "community": null,
+          "index": 0,
+          "nameKey": "가",
+          "records": 1
+        },
+        {
+          "community": null,
+          "index": 1,
+          "nameKey": "나",
+          "records": 2
+        }
+      ],
+      "name": "누른 사람이 목록에 없으면 무시"
     }
   ],
   "listFilter": [
