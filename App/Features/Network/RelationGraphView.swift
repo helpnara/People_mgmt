@@ -775,11 +775,16 @@ struct RelationGraphView: View {
             if highlightCommunity == nil || highlightCommunity == community.id,
                let top = hull.min(by: { $0.y < $1.y }) {
                 let centerX = hull.map(\.x).reduce(0, +) / CGFloat(hull.count)
-                let title = context.resolve(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(Color.muted))
+                // 모임 이름은 연한 초록 알약에 초록 굵은 글자 — 회색 사람 이름과 한눈에 갈리게 (2026-11-03 사용자 · 빌드 49 확인).
+                // 글자 대비 accent on accentSoft 라이트 5.31 · 다크 7.07 (`Tools/contrast.py`).
+                let title = context.resolve(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(Color.accent))
                 let titleSize = title.measure(in: CGSize(width: 400, height: 100))
-                context.draw(title, at: CGPoint(x: centerX, y: top.y - 20), anchor: .center)
-                reserved.append(LabelPlacement.Box(centerX: centerX, centerY: top.y - 20,
-                                                   width: titleSize.width, height: titleSize.height))
+                let titleCenter = CGPoint(x: centerX, y: top.y - 20)
+                let pill = CGRect(x: titleCenter.x - titleSize.width / 2 - 7, y: titleCenter.y - titleSize.height / 2 - 2.5,
+                                  width: titleSize.width + 14, height: titleSize.height + 5)
+                context.fill(Path(roundedRect: pill, cornerRadius: pill.height / 2), with: .color(Color.accentSoft))
+                context.draw(title, at: titleCenter, anchor: .center)
+                reserved.append(LabelPlacement.Box(centerX: pill.midX, centerY: pill.midY, width: pill.width, height: pill.height))
             }
         }
 
