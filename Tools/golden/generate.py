@@ -1384,6 +1384,26 @@ def community_color(name, count=8):
     return h % count
 
 
+def community_color_assign(groups, count=8):
+    """이름 색이 기본 · 겹치면 빈 색 · 다 차면 가장 먼 같은 색 (이슈 76). 큰 모임 → 이름 → 차례로 정한다."""
+    order = sorted(range(len(groups)), key=lambda i: (-groups[i]["size"], groups[i]["name"], i))
+    users = {c: [] for c in range(count)}
+    out = [0] * len(groups)
+    for g in order:
+        pref = community_color(groups[g]["name"], count)
+        free = [(pref + s) % count for s in range(count) if not users[(pref + s) % count]]
+        if free:
+            color = free[0]
+        else:
+            def nearest(c):
+                return min(math.dist((groups[g]["x"], groups[g]["y"]), (groups[o]["x"], groups[o]["y"])) for o in users[c])
+            cands = [(pref + s) % count for s in range(count)]
+            color = max(cands, key=lambda c: (nearest(c), -cands.index(c)))
+        out[g] = color
+        users[color].append(g)
+    return out
+
+
 # ── 연락 수단 다섯 칸 (ContactFields · ContactSorter) ─────────────────────────
 
 CONTACT_KINDS = ("mobile", "office", "fax", "email")
@@ -2012,6 +2032,7 @@ def build() -> dict:
                            for c in cases["yearInReview"]]
     out["labelPriority"] = [dict(c, expected=label_priority(c["items"], c["first"])) for c in cases["labelPriority"]]
     out["communityColor"] = [{"name": n, "expected": community_color(n)} for n in cases["communityColor"]]
+    out["communityColorAssign"] = [dict(c, expected=community_color_assign(c["groups"])) for c in cases["communityColorAssign"]]
     out["contactSplit"] = [{"text": t, "expected": contact_split(t)} for t in cases["contactSplit"]]
     out["contactFromContact"] = [{"phones": c["phones"], "emails": c["emails"],
                                   "expected": contact_from_contact(c["phones"], c["emails"])}

@@ -119,6 +119,8 @@ final class GoldenTests: XCTestCase {
         struct LabelItemRaw: Decodable { let index: Int; let community: Int?; let records: Int; let nameKey: String }
         struct LabelPriorityCase: Decodable { let name: String; let items: [LabelItemRaw]; let first: Int?; let expected: [Int] }
         struct CommunityColorCase: Decodable { let name: String; let expected: Int }
+        struct ColorGroupRaw: Decodable { let name: String; let size: Int; let x: Double; let y: Double }
+        struct ColorAssignCase: Decodable { let name: String; let groups: [ColorGroupRaw]; let expected: [Int] }
         struct ChoiceSettingRaw: Decodable { let items: [String]; let hidden: [String] }
         struct ChoiceEditingCase: Decodable {
             let name: String; let presets: [String]; let fixed: [String]; let setting: ChoiceSettingRaw?; let used: [String]
@@ -230,6 +232,7 @@ final class GoldenTests: XCTestCase {
         let yearInReview: [YearReviewCase]
         let labelPriority: [LabelPriorityCase]
         let communityColor: [CommunityColorCase]
+        let communityColorAssign: [ColorAssignCase]
         let choiceOps: [ChoiceOpsCase]
         let louvain: [LouvainCase]
         let splitConnected: [ComponentSplitCase]
@@ -696,6 +699,10 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(CommunityColor.index(for: c.name), c.expected, c.name)
         }
         XCTAssertEqual(CommunityColor.count, 8, "Palette 의 모임 색 여덟과 같다")
+        for c in try Self.loadGolden().communityColorAssign {
+            let groups = c.groups.map { CommunityColor.Group(name: $0.name, size: $0.size, x: $0.x, y: $0.y) }
+            XCTAssertEqual(CommunityColor.assign(groups), c.expected, c.name)
+        }
     }
 
     func testChoiceOps() throws {
