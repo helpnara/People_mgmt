@@ -5523,5 +5523,174 @@
         }
       ]
     }
+  ],
+  "labelPriority": [
+    {
+      "name": "빈 목록",
+      "items": [],
+      "first": null
+    },
+    {
+      "name": "모임마다 돌아가며 · 모임 안은 기록 많은 사람부터",
+      "first": null,
+      "items": [
+        {
+          "index": 0,
+          "community": 1,
+          "records": 3,
+          "nameKey": "가"
+        },
+        {
+          "index": 1,
+          "community": 1,
+          "records": 9,
+          "nameKey": "나"
+        },
+        {
+          "index": 2,
+          "community": 1,
+          "records": 1,
+          "nameKey": "다"
+        },
+        {
+          "index": 3,
+          "community": 2,
+          "records": 5,
+          "nameKey": "라"
+        },
+        {
+          "index": 4,
+          "community": 2,
+          "records": 5,
+          "nameKey": "마"
+        },
+        {
+          "index": 5,
+          "community": 3,
+          "records": 2,
+          "nameKey": "바"
+        },
+        {
+          "index": 6,
+          "community": null,
+          "records": 7,
+          "nameKey": "사"
+        },
+        {
+          "index": 7,
+          "community": null,
+          "records": 0,
+          "nameKey": "아"
+        }
+      ]
+    },
+    {
+      "name": "누른 사람이 맨 먼저",
+      "first": 4,
+      "items": [
+        {
+          "index": 0,
+          "community": 1,
+          "records": 3,
+          "nameKey": "가"
+        },
+        {
+          "index": 1,
+          "community": 1,
+          "records": 9,
+          "nameKey": "나"
+        },
+        {
+          "index": 3,
+          "community": 2,
+          "records": 5,
+          "nameKey": "라"
+        },
+        {
+          "index": 4,
+          "community": 2,
+          "records": 5,
+          "nameKey": "마"
+        }
+      ]
+    },
+    {
+      "name": "기록 같으면 이름 · 같은 이름은 자리 번호",
+      "first": null,
+      "items": [
+        {
+          "index": 5,
+          "community": 1,
+          "records": 2,
+          "nameKey": "하"
+        },
+        {
+          "index": 3,
+          "community": 1,
+          "records": 2,
+          "nameKey": "가"
+        },
+        {
+          "index": 9,
+          "community": 1,
+          "records": 2,
+          "nameKey": "가"
+        },
+        {
+          "index": 1,
+          "community": 2,
+          "records": 2,
+          "nameKey": "나"
+        }
+      ]
+    },
+    {
+      "name": "모임 차례 — 첫 사람 기록이 같으면 모임 번호",
+      "first": null,
+      "items": [
+        {
+          "index": 0,
+          "community": 7,
+          "records": 4,
+          "nameKey": "가"
+        },
+        {
+          "index": 1,
+          "community": 3,
+          "records": 4,
+          "nameKey": "나"
+        },
+        {
+          "index": 2,
+          "community": 3,
+          "records": 1,
+          "nameKey": "다"
+        },
+        {
+          "index": 3,
+          "community": 7,
+          "records": 0,
+          "nameKey": "라"
+        }
+      ]
+    },
+    {
+      "name": "누른 사람이 목록에 없으면 무시",
+      "first": 42,
+      "items": [
+        {
+          "index": 0,
+          "community": null,
+          "records": 1,
+          "nameKey": "가"
+        },
+        {
+          "index": 1,
+          "community": null,
+          "records": 2,
+          "nameKey": "나"
+        }
+      ]
+    }
   ]
 }
