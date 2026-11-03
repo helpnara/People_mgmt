@@ -47,12 +47,12 @@ struct DraftPhoto: Equatable, Identifiable {
 }
 
 extension SchemaV9.Record {
-    /// 차례대로 · 지운 사진은 빼고.
     /// 사진이 있는가 — 목록 줄이 작은 그림 자리를 둘지 정한다. 사진 파일은 읽지 않는다.
     var hasPhotos: Bool {
         (photos ?? []).contains { !$0.isGone }
     }
 
+    /// 차례대로 · 지운 사진은 빼고.
     var sortedPhotos: [RecordPhoto] {
         (photos ?? []).filter { !$0.isGone }.sorted { ($0.position, $0.createdAt) < ($1.position, $1.createdAt) }
     }
@@ -87,16 +87,17 @@ struct RecordPhotoTile: View {
             .aspectRatio(1, contentMode: .fit)
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.rule, lineWidth: 1))
-        .task(id: draft.id) {
-            let pixel = length * 3
-            if let data = draft.data {
-                image = CardImaging.thumbnail(data, maxPixel: pixel).map { UIImage(cgImage: $0) }
-            } else if let record, !record.isGone,
-                      let photo = record.sortedPhotos.first(where: { $0.uuid == draft.id }) {
-                image = RecordPhotos.thumbnail(of: photo, pixel: pixel)
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.rule, lineWidth: 1))
+            .task(id: draft.id) {
+                // 격자 칸은 폭이 정해지지 않아(채우기) 넉넉히 — 화면 폭의 절반 × 3배.
+                let pixel = fills ? Font.scaledLength(220) * 3 : length * 3
+                if let data = draft.data {
+                    image = CardImaging.thumbnail(data, maxPixel: pixel).map { UIImage(cgImage: $0) }
+                } else if let record, !record.isGone,
+                          let photo = record.sortedPhotos.first(where: { $0.uuid == draft.id }) {
+                    image = RecordPhotos.thumbnail(of: photo, pixel: pixel)
+                }
             }
-        }
     }
 }
 
@@ -152,6 +153,8 @@ struct RecordPhotoViewer: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: photos.count > 1 ? .always : .never))
+            // 밝은 바탕에서 흰 점이 보이지 않는다 — 점 뒤에 바탕을 깐다.
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
             .background(Color.ground.ignoresSafeArea())
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
@@ -168,6 +171,9 @@ private struct LargeRecordPhoto: View {
     let photo: RecordPhoto
     @State private var image: UIImage?
     @State private var failed = false
+    /// 두 손가락으로 키우기 · 두 번 눌러 2배 — 명함 크게 보기와 같은 손맛.
+    @State private var scale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
 
     var body: some View {
         ZStack {
@@ -175,6 +181,16 @@ private struct LargeRecordPhoto: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
+                    .scaleEffect(scale)
+                    .gesture(
+                        MagnifyGesture()
+                            .onChanged { value in scale = min(max(lastScale * value.magnification, 1), 4) }
+                            .onEnded { _ in lastScale = scale }
+                    )
+                    .onTapGesture(count: 2) {
+                        scale = scale > 1 ? 1 : 2
+                        lastScale = scale
+                    }
                     .padding()
                     .accessibilityLabel("기록 사진")
             } else if failed {

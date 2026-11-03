@@ -142,6 +142,7 @@ struct PersonEditView: View {
                     Section {
                         Button(action: saveAndContinue) {
                             Label("저장하고 다음 사람 추가", systemImage: "person.badge.plus")
+                                .mutedWhenDisabled()
                                 .font(.scaled(16, weight: .semibold))
                         }
                         .disabled(!draft.canSave)
@@ -480,6 +481,7 @@ struct PersonEditView: View {
                     }
                 } label: {
                     Label(draft.photo == nil ? "사진 찍기" : "다시 찍기", systemImage: "camera")
+                        .mutedWhenDisabled()
                 }
                 .disabled(processingPhoto)
             }
@@ -487,6 +489,7 @@ struct PersonEditView: View {
                 pickPhoto()
             } label: {
                 Label("사진첩에서 고르기", systemImage: "photo.on.rectangle")
+                    .mutedWhenDisabled()
             }
             .disabled(processingPhoto)
             if draft.photo != nil {
@@ -495,6 +498,7 @@ struct PersonEditView: View {
                     confirmingPhotoRemoval = true
                 } label: {
                     Label("사진 지우기", systemImage: "trash")
+                        .mutedWhenDisabled()
                 }
                 .tint(Color.danger)
                 .disabled(processingPhoto)
@@ -534,6 +538,7 @@ struct PersonEditView: View {
                 pickingCardPhoto = true
             } label: {
                 Label("사진첩에서 명함 고르기", systemImage: "photo.on.rectangle")
+                    .mutedWhenDisabled()
             }
             .disabled(readingCard)
             if draft.businessCard != nil {
@@ -541,6 +546,7 @@ struct PersonEditView: View {
                     Task { await readCard() }
                 } label: {
                     Label("명함 글자 읽기", systemImage: "text.viewfinder")
+                        .mutedWhenDisabled()
                 }
                 .disabled(readingCard)
                 // 역할 없는 단추 + 확인 창 — 확인 전에 지우지 않는다 (CLAUDE.md).

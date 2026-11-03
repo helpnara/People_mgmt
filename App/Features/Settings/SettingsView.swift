@@ -61,6 +61,7 @@ struct SettingsView: View {
                     makeBackup()
                 } label: {
                     Label("백업 파일 만들기", systemImage: "square.and.arrow.up")
+                        .mutedWhenDisabled()
                 }
                 .disabled(working != nil)
             } header: {
@@ -75,6 +76,7 @@ struct SettingsView: View {
                     showingImporter = true
                 } label: {
                     Label("백업에서 복원", systemImage: "square.and.arrow.down")
+                        .mutedWhenDisabled()
                 }
                 // 동기화 중에는 복원하지 않는다 (D-44).
                 .disabled(working != nil || CloudSync.isActive)
@@ -100,6 +102,7 @@ struct SettingsView: View {
                     exportVCard()
                 } label: {
                     Label("vCard 파일로 내보내기", systemImage: "person.crop.rectangle.stack")
+                        .mutedWhenDisabled()
                 }
                 .disabled(working != nil)
                 Button {
@@ -107,6 +110,7 @@ struct SettingsView: View {
                     showingImporter = true
                 } label: {
                     Label("vCard 파일 가져오기", systemImage: "person.badge.plus")
+                        .mutedWhenDisabled()
                 }
                 .disabled(working != nil)
             } header: {
@@ -379,6 +383,7 @@ struct SettingsView: View {
                 }
             } label: {
                 Label("모든 자료 지우기", systemImage: "trash")
+                    .mutedWhenDisabled()
                     .foregroundStyle(Color.danger)
             }
             .disabled(working != nil)

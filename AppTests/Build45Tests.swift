@@ -64,6 +64,26 @@ final class Build45Tests: XCTestCase {
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<RecordPhoto>()), 3, "뺀 사진은 저장소에서도 지운다")
     }
 
+    /// 맨 앞으로(빌드 47) — 저장된 사진의 차례만 바뀌고 사진은 그대로(번호가 같다). 첫 사진이 목록의 작은 그림이다.
+    func testReorderingSavedPhotosOnlyChangesPositions() throws {
+        let context = try makeContainer().mainContext
+        let owner = try person("차례 바꾸는 사람", in: context)
+        var draft = RecordDraft(anchor: owner)
+        draft.title = "세 장"
+        draft.photos = [photo(1), photo(2), photo(3)]
+        let records = RecordStore(context: context)
+        let record = try records.create(draft)
+        let ids = record.sortedPhotos.map(\.uuid)
+
+        var changed = RecordDraft(record: record)
+        changed.photos.insert(changed.photos.remove(at: 2), at: 0)
+        try records.apply(changed, to: record)
+
+        XCTAssertEqual(record.sortedPhotos.map(\.uuid), [ids[2], ids[0], ids[1]], "셋째가 맨 앞으로")
+        XCTAssertEqual(record.sortedPhotos.first?.data, Data([0xFF, 0xD8, 3]))
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<RecordPhoto>()), 3, "새로 만들지 않는다")
+    }
+
     func testAtMostFourPhotos() throws {
         let context = try makeContainer().mainContext
         let owner = try person("많이 고른 사람", in: context)
