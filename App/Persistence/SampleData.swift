@@ -110,22 +110,31 @@ enum SampleData {
         yujin.introducedBy = haneul
 
         func record(_ type: String, _ date: Date, title: String?, note: String?, location: String? = nil,
-                    tags: [String] = [], with participants: [Person]) {
+                    tags: [String] = [], photos: [Data?] = [], with participants: [Person]) {
             let item = Record(recordType: type, occurredAt: date, title: title, note: note)
             item.location = location
             item.tags = tags
             context.insert(item)
             item.participants = participants
+            // 기록 사진 (9판 · FR-058) — 기록을 넣은 뒤에 잇는다.
+            for (index, data) in photos.compactMap({ $0 }).enumerated() {
+                let photo = RecordPhoto(data: data, position: index)
+                context.insert(photo)
+                photo.record = item
+            }
         }
 
         record("meeting", day(2026, 9, 29), title: "분기 회의", note: "로드맵 우선순위 논의. 예산은 보류.",
                location: "본사 3층", tags: ["업무"], with: [haneul, yujin])
         record("meal", day(2026, 8, 14), title: "점심", note: "이직 고민을 들었다. 당분간은 지켜보기로.",
-               location: "국숫집", with: [haneul])
+               location: "국숫집", photos: [renderScene(sky: 0xF3E3C3, hill: 0xC9895B, sun: 0xE8A33D)], with: [haneul])
         record("collaboration", day(2023, 6, 1), title: "킥오프", note: "브랜드 리뉴얼 범위 합의.",
                tags: ["프로젝트"], with: [seoyeon, haneul])
         record("trip", day(2025, 4, 10), title: nil, note: "봄 산행. 지리산 둘레길 2코스.\n다음엔 가족과 함께 가기로.",
-               tags: ["등산"], with: [doyun])
+               tags: ["등산"],
+               photos: [renderScene(sky: 0xCFE3F1, hill: 0x5E8C61, sun: 0xF2C14E),
+                        renderScene(sky: 0xE5D9F2, hill: 0x3F6E8C, sun: 0xF4F1E8)],
+               with: [doyun])
         record("event", day(2024, 10, 18), title: nil, note: "세미나 뒤풀이\n데이터 시각화 이야기를 길게 했다.",
                location: "강남", with: [minjun])
         record("help", day(2026, 2, 3), title: "이력서 봐 주기", note: "포트폴리오 구성 조언.", with: [yujin])
@@ -299,6 +308,24 @@ enum SampleData {
             UIColor(hex: figure).setFill()
             context.cgContext.fillEllipse(in: CGRect(x: 210, y: 120, width: 180, height: 180))
             context.cgContext.fillEllipse(in: CGRect(x: 110, y: 340, width: 380, height: 360))
+        }
+        return image.jpegData(compressionQuality: 0.85)
+    }
+
+    /// 견본 기록 사진 (9판 · FR-058) — 하늘 · 해 · 언덕 무늬. 실제 사진을 넣지 않는다 (CLAUDE.md §2).
+    static func renderScene(sky: UInt32, hill: UInt32, sun: UInt32) -> Data? {
+        let size = CGSize(width: 800, height: 600)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor(hex: sky).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            UIColor(hex: sun).setFill()
+            context.cgContext.fillEllipse(in: CGRect(x: 540, y: 90, width: 140, height: 140))
+            UIColor(hex: hill).setFill()
+            context.cgContext.fillEllipse(in: CGRect(x: -200, y: 360, width: 760, height: 520))
+            context.cgContext.fillEllipse(in: CGRect(x: 300, y: 400, width: 760, height: 480))
         }
         return image.jpegData(compressionQuality: 0.85)
     }

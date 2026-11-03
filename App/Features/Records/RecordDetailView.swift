@@ -16,6 +16,8 @@ struct RecordDetailView: View {
     @State private var errorTitle = "삭제하지 못했습니다"
     /// 예정이던 만남을 안 만났을 때 — 날짜 바꾸기 · 기록 지우기 (D-62).
     @State private var confirmingNoShow = false
+    /// 크게 볼 사진 (9판 · FR-058).
+    @State private var viewingPhoto: RecordPhoto?
 
     var body: some View {
         Group {
@@ -41,11 +43,17 @@ struct RecordDetailView: View {
             }
             Section {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: record.type.symbol).foregroundStyle(Color.accent)
-                        Text(record.type.label).foregroundStyle(Color.accent)
-                        Text("·").foregroundStyle(Color.faint)
-                        Text(record.whenText(style: .long)).foregroundStyle(Color.muted)
+                    // 한 줄에 안 들어가면 유형 다음에서 꺾어 날짜 · 시각을 한 덩어리로 (이슈 68).
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) {
+                            typeLabel
+                            Text("·").foregroundStyle(Color.faint)
+                            Text(record.whenText(style: .long)).foregroundStyle(Color.muted)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            typeLabel
+                            Text(record.whenText(style: .long)).foregroundStyle(Color.muted)
+                        }
                     }
                     .font(.scaled(14, weight: .medium))
                     Text(record.displayTitle)
@@ -59,6 +67,7 @@ struct RecordDetailView: View {
                 }
                 .padding(.vertical, 6)
             }
+            photoSection
             Section("함께한 사람") {
                 ForEach(record.participants ?? []) { person in
                     NavigationLink(value: person) {
@@ -116,6 +125,9 @@ struct RecordDetailView: View {
         .sheet(isPresented: $editing) {
             RecordEditView(mode: .edit(record)) { _ in }
         }
+        .fullScreenCover(item: $viewingPhoto) { photo in
+            RecordPhotoViewer(photos: record.isGone ? [] : record.sortedPhotos, selection: photo.uuid)
+        }
         .confirmationDialog("삭제", isPresented: $confirmingDelete, titleVisibility: .hidden) {
             Button("삭제", role: .destructive) { deleteRecord() }
             Button("취소", role: .cancel) {}
@@ -140,6 +152,35 @@ struct RecordDetailView: View {
             Button("닫기", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
+        }
+    }
+
+    private var typeLabel: some View {
+        HStack(spacing: 8) {
+            Image(systemName: record.type.symbol).foregroundStyle(Color.accent)
+            Text(record.type.label).foregroundStyle(Color.accent)
+        }
+    }
+
+    /// 기록 사진 (9판 · FR-058) — 두 줄 격자, 누르면 크게. 사진이 없으면 칸이 없다.
+    @ViewBuilder
+    private var photoSection: some View {
+        let photos = record.sortedPhotos
+        if !photos.isEmpty {
+            Section("사진") {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach(photos, id: \.uuid) { photo in
+                        Button {
+                            viewingPhoto = photo
+                        } label: {
+                            RecordPhotoTile(draft: DraftPhoto(existing: photo), record: record, fills: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("사진 크게 보기")
+                    }
+                }
+                .padding(.vertical, 6)
+            }
         }
     }
 
