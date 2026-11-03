@@ -31,6 +31,16 @@ struct ChoiceEditorView: View {
         return !value.isEmpty && !items.contains(value) && items.count < Self.limit
     }
 
+    /// 더하기 칸 아래 한 줄 — 왜 더할 수 없는지, 더하면 무엇이 되는지.
+    private var addHint: String? {
+        let value = TextNormalization.normalized(newValue)
+        guard !value.isEmpty else { return nil }
+        if items.contains(value) { return "이미 보이는 선택지입니다." }
+        if hiddenItems.contains(value) { return "숨긴 선택지입니다. 더하면 다시 보입니다." }
+        if items.count >= Self.limit { return "선택지는 \(Self.limit)개까지 둡니다. 하나를 숨기면 더할 수 있습니다." }
+        return nil
+    }
+
     var body: some View {
         List {
             Section {
@@ -73,6 +83,11 @@ struct ChoiceEditorView: View {
                     Button("더하기", action: add)
                         .buttonStyle(.borderless)
                         .disabled(!canAdd)
+                }
+                if let addHint {
+                    Text(addHint)
+                        .font(.scaled(13))
+                        .foregroundStyle(Color.muted)
                 }
             } header: {
                 Text("보이는 선택지")

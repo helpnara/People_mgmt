@@ -293,6 +293,17 @@ struct RecordEditView: View {
                                     .buttonStyle(.plain)
                                     .accessibilityLabel("사진 빼기")
                                 }
+                                // 첫 사진이 목록 줄의 작은 그림이 된다 — 길게 눌러 맨 앞으로.
+                                .contextMenu {
+                                    if draft.photos.first?.id != photo.id {
+                                        Button {
+                                            moveToFront(photo)
+                                        } label: {
+                                            Label("맨 앞으로", systemImage: "arrow.left.to.line")
+                                        }
+                                    }
+                                }
+                                .accessibilityAction(named: "맨 앞으로") { moveToFront(photo) }
                         }
                     }
                     // 가로 스크롤 칸은 위아래를 자른다 — 테두리 · 단추가 깎이지 않게 여백을 둔다 (이슈 63).
@@ -308,6 +319,7 @@ struct RecordEditView: View {
                     }
                 } label: {
                     Label("사진 찍기", systemImage: "camera")
+                        .mutedWhenDisabled()
                 }
                 .disabled(!canAddPhoto)
             }
@@ -316,8 +328,14 @@ struct RecordEditView: View {
                 pickingPhotos = true
             } label: {
                 Label("사진첩에서 고르기", systemImage: "photo.on.rectangle")
+                    .mutedWhenDisabled()
             }
             .disabled(!canAddPhoto)
+            if draft.photos.count >= RecordPhotos.limit {
+                Text("4장이 다 찼습니다. 사진을 빼면 더 넣을 수 있습니다.")
+                    .font(.scaled(13))
+                    .foregroundStyle(Color.muted)
+            }
             if processingPhotos {
                 HStack(spacing: 10) {
                     ProgressView()
@@ -327,8 +345,13 @@ struct RecordEditView: View {
         } header: {
             Text("사진 \(draft.photos.count)/\(RecordPhotos.limit)")
         } footer: {
-            Text("한 기록에 4장까지 붙입니다. 긴 변 1,024px 로 줄여 이 기기(동기화를 켜면 내 iCloud)에만 저장합니다.")
+            Text("한 기록에 4장까지 붙입니다. 첫 사진이 목록에 작게 보입니다 — 사진을 길게 눌러 맨 앞으로 옮길 수 있습니다. 긴 변 1,024px 로 줄여 이 기기(동기화를 켜면 내 iCloud)에만 저장합니다.")
         }
+    }
+
+    private func moveToFront(_ photo: DraftPhoto) {
+        guard let index = draft.photos.firstIndex(where: { $0.id == photo.id }), index > 0 else { return }
+        draft.photos.insert(draft.photos.remove(at: index), at: 0)
     }
 
     private func ingestPhotos(_ items: [PhotosPickerItem]) async {

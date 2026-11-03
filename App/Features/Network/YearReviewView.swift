@@ -110,7 +110,11 @@ struct YearReviewView: View {
         }
         .onChange(of: year) { _, newYear in
             guard let data else { return }
-            Task { summary = await Self.summarize(data, year: newYear) }
+            Task {
+                let counted = await Self.summarize(data, year: newYear)
+                // 빨리 넘기면 앞의 셈이 늦게 끝날 수 있다 — 지금 고른 해의 것만 쓴다.
+                if year == newYear { summary = counted }
+            }
         }
     }
 
@@ -162,6 +166,13 @@ struct YearReviewView: View {
     }
 
     private func comparisonText(_ summary: YearInReview.Summary) -> String {
+        let base = comparison(summary)
+        // 올해는 아직 끝나지 않았다 — 지난해 한 해 전체와 견주는 것임을 밝힌다.
+        guard summary.year == data?.currentYear else { return base }
+        return "올해는 오늘까지 센 수입니다. " + base
+    }
+
+    private func comparison(_ summary: YearInReview.Summary) -> String {
         let previous = String(summary.year - 1) + "년"
         guard summary.previousRecordCount > 0 else {
             return summary.recordCount > 0 ? previous + "에는 기록이 없습니다." : "기록이 쌓이면 지난해와 견줘 봅니다."
