@@ -257,7 +257,7 @@ struct PeopleListView: View {
         }
         .background(Color.ground)
         .navigationTitle(isWide ? "사람" : "느린 인연")
-        .searchable(text: $searchText, prompt: "이름, 소속, 메모, 태그")
+        .searchable(text: $searchText, prompt: PeopleSearch.prompt)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 // 정렬 · 거르기 (FR-027 · FR-013) — 위 줄 단추를 늘리지 않게 차림표 하나에.
@@ -619,7 +619,7 @@ struct PeopleListView: View {
             searchedText = text
             return
         }
-        try? await Task.sleep(for: .milliseconds(300))
+        try? await Task.sleep(for: PeopleSearch.debounce)
         guard !Task.isCancelled else { return }
 
         if searchIndex == nil || indexVersion != dataVersion {

@@ -373,6 +373,12 @@ jobs:
           shoot 41-planned-home.png -seedSampleData -seedPlannedSample
           shoot 42-planned-awaiting.png -seedSampleData -seedPlannedSample -openPerson 정유진 -openRecordTitle "프로젝트 시작 회의"
           shoot 43-planned-timeline.png -seedSampleData -seedPlannedSample -openPerson 김하늘
+          # **1.1.1 (빌드 45 · 스키마 9판)** — 기록 사진 격자(이도윤의 봄 산행 · 견본 무늬 2장) · 타임라인 줄의 작은 그림 ·
+          # 관계 유형 선택지 고치기 · 한 해 돌아보기.
+          shoot 44-record-photos.png -seedSampleData -openPerson 이도윤 -openRecordTitle "봄 산행. 지리산 둘레길 2코스."
+          shoot 45-timeline-photo.png -seedSampleData -openPerson 이도윤
+          shoot 46-choices.png -seedSampleData -openSettings -openChoices
+          shoot 47-year-review.png -seedSampleData -openNetwork overview -openYearReview
           shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
           # 함께한 사람 고르기의 검색 (이슈 49) — 검색 칸이 늘 보이고, 초성 ㅈㅇ 으로 거른 결과.
           shoot 39-participant-search.png -seedSampleData -openPerson 김하늘 -addRecord -pickParticipants -pickerSearch ㅈㅇ

@@ -16,6 +16,8 @@ struct RecordDraft: Equatable {
     /// 함께한 사람. 기록을 연 사람이 기본으로 들어 있고, 1명 이상이어야 저장된다 (FR-042).
     var participants: [Person] = []
     var tags: [String] = []
+    /// 기록 사진 (9판 · FR-058) — 차례대로, 최대 `RecordPhotos.limit` 장. 저장된 사진은 번호만 든다.
+    var photos: [DraftPhoto] = []
 
     /// 새 기록 — 기록을 연 사람이 첫 참여자다.
     init(anchor: Person) {
@@ -32,6 +34,7 @@ struct RecordDraft: Equatable {
         location = record.location ?? ""
         participants = record.participants ?? []
         tags = record.tags
+        photos = record.sortedPhotos.map { DraftPhoto(existing: $0) }
     }
 
     /// 제목 또는 메모 중 하나(D-4) · 참여자 1명 이상.
@@ -125,6 +128,29 @@ struct RecordStore {
             seen.insert(person.persistentModelID)
             return true
         }
+        syncPhotos(record, with: draft.photos)
+    }
+
+    /// 사진을 초안에 맞춘다 (9판 · FR-058) — 초안에 없는 저장된 사진은 지우고, 남는 사진은 차례만 고치고, 새 사진은 넣는다.
+    /// 바뀌지 않은 사진은 건드리지 않는다 — 기록을 고칠 때마다 사진을 iCloud 로 다시 올리지 않게.
+    /// 새 사진은 기록을 저장소에 넣은 **뒤에** 잇는다(4판의 규칙).
+    private func syncPhotos(_ record: Record, with drafts: [DraftPhoto]) {
+        let wanted = Array(drafts.prefix(RecordPhotos.limit))
+        let existing = (record.photos ?? []).filter { !$0.isGone }
+        let keep = Set(wanted.filter { $0.data == nil }.map(\.id))
+        for photo in existing where !keep.contains(photo.uuid) {
+            context.delete(photo)
+        }
+        for (index, item) in wanted.enumerated() {
+            if let data = item.data {
+                let photo = RecordPhoto(data: data, position: index)
+                photo.uuid = item.id
+                context.insert(photo)
+                photo.record = record
+            } else if let found = existing.first(where: { $0.uuid == item.id }), found.position != index {
+                found.position = index
+            }
+        }
     }
 
     private func clipped(_ text: String, _ limit: Int) -> String? {
@@ -133,7 +159,7 @@ struct RecordStore {
     }
 }
 
-extension SchemaV8.Record {
+extension SchemaV9.Record {
     /// 목록에 보일 이름 (요구사항 6.2). 규칙은 `Core.DisplayTitle` 하나다.
     var displayTitle: String { DisplayTitle.make(title: title, note: note) }
 
@@ -168,6 +194,11 @@ extension SchemaV8.Record {
     var timeText: String? {
         guard DatePrecision.of(occurredPrecision) == .day, let minute = occurredMinute else { return nil }
         return TimeOfDay.text(minute)
+    }
+
+    /// 날짜 글자만 — 목록 줄이 시각과 따로 둔다(길면 날짜 다음에서 꺾으려고 · 이슈 68).
+    func dateText(style: Date.FormatStyle.DateStyle) -> String {
+        occurredAt.shown(precision: occurredPrecision, style: style)
     }
 
     /// 날짜 · 시각 글자 — 목록 줄 · 상세 머리가 모두 이것을 쓴다.

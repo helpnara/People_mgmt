@@ -21,7 +21,7 @@
 - **사람(Person)이 중심 객체다.** 전화번호가 아니다. 기록(Record)은 참여자 1명 이상에 속하고 한 번만 저장된다 (N:M, ADR-0003).
 - **첫 인연은 사람의 속성이다.** 기록 유형에 "첫 만남" 이 없다. 타임라인 맨 아래에 시작점으로 파생 표시한다 (ADR-0003).
 - **사람을 점수화하지 않는다.** 관계 지표는 "내가 이 인연을 어떻게 돌보고 있는가" 에만 답한다. 종합 점수 · 순위표는 기본 화면에 두지 않는다 (ADR-0004 · 요구사항 13절).
-- **저장 계층은 SwiftData, 기기 내 저장 + 내 iCloud 동기화(빌드 21 부터 · 기본 켬 · ADR-0005).** CloudKit 제약(유니크 없음 · 모든 속성 기본값 · 모든 관계 옵셔널)을 지킨다 (ADR-0001). 스키마는 판을 얼려 쌓는다(지금 8판 · `App/Persistence/Schema.swift`). **스키마를 바꾸면** `Tools/cloudkit/generate-ckdb.py` 로 파일을 다시 만들고 → `cloudkit-schema.yml` 로 개발 환경에 적용 → 사용자가 CloudKit 콘솔에서 Production 배포 (06-ci §7). 배포 전 판을 올리면 그 기기의 올리기가 거부된다.
+- **저장 계층은 SwiftData, 기기 내 저장 + 내 iCloud 동기화(빌드 21 부터 · 기본 켬 · ADR-0005).** CloudKit 제약(유니크 없음 · 모든 속성 기본값 · 모든 관계 옵셔널)을 지킨다 (ADR-0001). 스키마는 판을 얼려 쌓는다(지금 9판 · `App/Persistence/Schema.swift`). **스키마를 바꾸면** `Tools/cloudkit/generate-ckdb.py` 로 파일을 다시 만들고 → `cloudkit-schema.yml` 로 개발 환경에 적용 → 사용자가 CloudKit 콘솔에서 Production 배포 (06-ci §7). 배포 전 판을 올리면 그 기기의 올리기가 거부된다.
 - **고유 식별자 칸은 `uuid` 다.** 설계서의 `id` 가 코드에서는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
 - **`Packages/Core` 는 Foundation 만 쓴다.** SwiftUI · SwiftData 를 import 하면 리눅스 `swift test` 가 통째로 없어진다 (ADR-0002). 검색 · 태그 정리 · 정렬 · 표시명 · 검증 · 조사(을/를) · 날짜 정규화가 Core 에 있다.
 - **같은 것을 재는 곳은 하나다.** 정렬은 `NameSort`, 태그 정리는 `TagNormalizer`, 표시명은 `DisplayTitle` — 화면이 따로 셈하지 않는다. 사람을 고치는 문은 `PersonStore` 하나다.

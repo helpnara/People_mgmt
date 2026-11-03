@@ -2,16 +2,17 @@ import Core
 import Foundation
 import SwiftData
 
-/// 스키마 **8판** — 지금 쓰는 판 (요구사항 6절 · FR-054 · 빌드 39 · D-63).
+/// 스키마 **9판** — 지금 쓰는 판 (요구사항 6절 · FR-058 · FR-035 · 빌드 45 · D-65 · D-66).
 ///
-/// 7판에서 기록에 **시각**(`occurredMinute` · 옵셔널) 칸 하나를 더했다 — 옵셔널이라 가벼운 옮기기.
+/// 8판에서 **기록 사진**(`RecordPhoto` · 기록 하나에 여러 장)과 **내 선택지**(`ChoiceList`) 모델 둘을 더했다 —
+/// 새 모델 · 옵셔널 관계뿐이라 가벼운 옮기기. 기존 칸은 8판과 글자 하나 다르지 않아야 한다.
 /// 1판부터 있던 `photoReference`(글자)는 쓰지 않은 채 그대로 둔다 — 지우면 옛 판과 모양이 달라진다.
-/// 나머지는 7판과 글자 하나 다르지 않아야 한다. 칸을 또 바꾸면 `SchemaV9` 를 더하고 이 판은 얼린다.
+/// 칸을 또 바꾸면 `SchemaV10` 을 더하고 이 판은 얼린다.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
-enum SchemaV8: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(8, 0, 0) }
-    static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self] }
+enum SchemaV9: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(9, 0, 0) }
+    static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self, RecordPhoto.self, ChoiceList.self] }
 
     /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
     @Model
@@ -105,6 +106,9 @@ enum SchemaV8: VersionedSchema {
         var updatedAt: Date = Date()
         /// 함께한 사람들. 저장 규칙상 1명 이상이지만 CloudKit 제약 때문에 옵셔널이다.
         var participants: [Person]? = []
+        /// 기록 사진 (9판 · FR-058) — 최대 `RecordPhotos.limit` 장. 기록을 지우면 함께 지운다.
+        @Relationship(deleteRule: .cascade, inverse: \RecordPhoto.record)
+        var photos: [RecordPhoto]? = []
 
         init(recordType: String = "conversation", occurredAt: Date = Date(), title: String? = nil, note: String? = nil) {
             self.uuid = UUID()
@@ -138,11 +142,58 @@ enum SchemaV8: VersionedSchema {
             self.since = since
         }
     }
+
+    /// **기록 사진 한 장** (9판 · FR-058 · 2026-11-03 사용자) — 기록 하나에 최대 4장. 긴 변 1,024px JPEG.
+    /// 사진을 기록의 배열 칸에 넣지 않고 따로 두는 까닭: 저장소 밖 파일(`externalStorage`)은 칸 하나에 하나라서,
+    /// 장마다 객체로 두어야 목록을 읽을 때 사진이 함께 올라오지 않는다.
+    @Model
+    final class RecordPhoto {
+        var uuid: UUID = UUID()
+        @Attribute(.externalStorage)
+        var data: Data?
+        /// 기록 안의 차례 (0부터).
+        var position: Int = 0
+        var createdAt: Date = Date()
+        var record: Record?
+
+        /// 관계는 저장소에 넣은 **뒤에** 잇는다.
+        init(data: Data?, position: Int) {
+            self.uuid = UUID()
+            self.data = data
+            self.position = position
+            self.createdAt = Date()
+        }
+    }
+
+    /// **내 선택지** (9판 · FR-035 · 2026-11-03 사용자) — 관계 유형 · 알게 된 경로의 보이는 차례와 숨긴 것.
+    /// 종류(`kind`)마다 하나다. 유니크 제약을 둘 수 없어(CloudKit) 기기 둘이 따로 만들면 둘이 될 수 있다 —
+    /// 읽을 때 **늦게 고친 것 하나**를 쓴다(`ChoiceStore`).
+    @Model
+    final class ChoiceList {
+        var uuid: UUID = UUID()
+        /// `relationshipType` · `metThrough`.
+        var kind: String = ""
+        /// 보이는 선택지, 보이는 차례대로.
+        var items: [String] = []
+        /// 숨긴 선택지 — 기본값을 숨겨도 다시 꺼낼 수 있게 기억한다.
+        var hidden: [String] = []
+        var updatedAt: Date = Date()
+
+        init(kind: String) {
+            self.uuid = UUID()
+            self.kind = kind
+            self.items = []
+            self.hidden = []
+            self.updatedAt = Date()
+        }
+    }
 }
 
-typealias Person = SchemaV8.Person
-typealias Record = SchemaV8.Record
-typealias Tie = SchemaV8.Tie
+typealias Person = SchemaV9.Person
+typealias Record = SchemaV9.Record
+typealias Tie = SchemaV9.Tie
+typealias RecordPhoto = SchemaV9.RecordPhoto
+typealias ChoiceList = SchemaV9.ChoiceList
 
 /// 판 사이의 이사 계획.
 /// - 1판 → 2판: 칸 하나를 더하는 **가벼운 옮기기**
@@ -151,12 +202,13 @@ typealias Tie = SchemaV8.Tie
 /// - 5판 → 6판: 날짜 정밀도 칸 둘을 더하는 가벼운 옮기기 (FR-033)
 /// - 6판 → 7판: 사람 사진 칸을 더하는 가벼운 옮기기 (FR-012)
 /// - 7판 → 8판: 기록 시각 칸을 더하는 가벼운 옮기기 (D-63)
+/// - 8판 → 9판: 기록 사진 · 내 선택지 모델을 더하는 가벼운 옮기기 (FR-058 · FR-035)
 /// - 2판 → 3판: 칸을 더하고(가벼운 옮기기와 같다), 옮긴 뒤 **한 칸에 들어 있던 연락 수단을 네 칸으로 나눈다** (이슈 11).
 ///   나누지 못한 글은 기타(`contactNote`)에 그대로 남는다 — 잃는 글이 없다. 이미 네 칸 중 하나라도 찬 사람은 건드리지 않는다.
 ///
 /// 실제 옮겨지는지는 `AppTests/MigrationTests.swift` 가 1판 · 2판 저장소를 디스크에 만들어 연다.
 enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self] }
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self),
@@ -173,6 +225,8 @@ enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
             .lightweight(fromVersion: SchemaV6.self, toVersion: SchemaV7.self),
             // 7판 → 8판: 기록에 옵셔널 시각 칸 하나를 더할 뿐 — 가벼운 옮기기 (D-63).
             .lightweight(fromVersion: SchemaV7.self, toVersion: SchemaV8.self),
+            // 8판 → 9판: 기록 사진 · 내 선택지 모델을 더할 뿐 — 가벼운 옮기기 (FR-058 · FR-035).
+            .lightweight(fromVersion: SchemaV8.self, toVersion: SchemaV9.self),
         ]
     }
 }
@@ -207,7 +261,7 @@ extension PersistentModel {
     var isGone: Bool { isDeleted || modelContext == nil }
 }
 
-extension SchemaV8.Person {
+extension SchemaV9.Person {
     /// 목록 보조 정보 (요구사항 6.1 `subtitle`): 소속 · 직무, 둘 다 없으면 관계 유형.
     var subtitle: String? {
         let parts = [organization, role].compactMap { $0 }.filter { !$0.isEmpty }

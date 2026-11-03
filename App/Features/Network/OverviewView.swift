@@ -11,9 +11,12 @@ struct OverviewView: View {
     @State private var overview: NetworkOverview?
     /// 처음 만난 날을 적은 사람 수 — 자료가 바뀔 때 한 번 센다 (본문에서 전원을 훑지 않는다).
     @State private var withFirstMet = 0
+    /// CI 스크린샷 — 한 해 돌아보기를 바로 연다 (`-openYearReview`).
+    @State private var openYearReviewOnLaunch = LaunchArguments.current.openYearReview
 
     var body: some View {
         List {
+            yearReviewSection
             if let overview {
                 Section {
                     // 큰 글씨에서는 세 칸을 위아래로 (D-33).
@@ -53,6 +56,9 @@ struct OverviewView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        .navigationDestination(isPresented: $openYearReviewOnLaunch) {
+            YearReviewView(route: YearReviewRoute(year: Self.currentYear))
+        }
         .task(id: OverviewKey(generation: snapshot.generation, months: quietMonths)) {
             let people = snapshot.people.map {
                 OverviewPerson(id: $0.id, name: $0.name, firstMetDay: $0.firstMetDay, lastDay: $0.lastDay)
@@ -94,6 +100,29 @@ struct OverviewView: View {
             Text("모임의 변화")
         } footer: {
             Text("해마다 그 해 12개월의 함께한 기록 · 아는 사이 · 소개로 모임을 다시 찾고, 전 해와 사람이 얼마나 겹치는지로 견줍니다 — 작은 모임은 절반 넘게 겹치면 같은 모임으로 보고, 쉬었다가 다시 보인 모임은 다시 모임으로 알립니다. 여럿이 함께한 기록은 사람 수로 나눠 셉니다. 소속은 날짜가 없어 넣지 않습니다. 앱을 쓰기 시작한 뒤의 시기가 더 정확합니다.")
+        }
+    }
+
+    private static var currentYear: Int { Calendar.current.component(.year, from: Date()) }
+
+    /// **한 해 돌아보기** (FR-059 · D-67) — 올해부터 열고, 안에서 지난 해로 넘긴다. 셈은 누른 뒤에(여기서 기록을 읽지 않는다).
+    private var yearReviewSection: some View {
+        Section {
+            NavigationLink(value: YearReviewRoute(year: Self.currentYear)) {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(Self.currentYear) + "년 돌아보기")
+                            .font(.scaled(16, weight: .semibold))
+                            .foregroundStyle(Color.ink)
+                        Text("기록 · 함께한 사람 · 처음 만난 사람 · 달마다 · 지난 해도")
+                            .font(.scaled(13))
+                            .foregroundStyle(Color.muted)
+                    }
+                } icon: {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(Color.accent)
+                }
+            }
         }
     }
 

@@ -82,7 +82,8 @@ final class PhotoCamera: NSObject, UIImagePickerControllerDelegate, UINavigation
     private var completion: ((Data?) -> Void)?
     private weak var presented: UIViewController?
 
-    func start(_ completion: @escaping (Data?) -> Void) {
+    /// `front` — 사람 사진은 앞 카메라로(셀카 · FR-012), 기록 사진은 뒤 카메라로(FR-058).
+    func start(front: Bool = true, _ completion: @escaping (Data?) -> Void) {
         guard Self.isAvailable else {
             completion(nil)
             return
@@ -90,7 +91,7 @@ final class PhotoCamera: NSObject, UIImagePickerControllerDelegate, UINavigation
         self.completion = completion
         let controller = UIImagePickerController()
         controller.sourceType = .camera
-        controller.cameraDevice = .front
+        controller.cameraDevice = front ? .front : .rear
         controller.delegate = self
         presented = controller
         TopPresenter.present(controller)

@@ -4,7 +4,7 @@ import SwiftData
 /// 스키마 **6판 — 얼려 둔다. 고치지 않는다** (빌드 28 의 저장소가 이 모양이다).
 ///
 /// 5판에서 **날짜의 정밀도** 칸 둘(`firstMetPrecision` · `occurredPrecision`)을 더한 판이다. 7판으로 옮기는 원본이다 —
-/// 여기를 고치면 이미 깔린 기기의 저장소가 어느 판인지 알아보지 못해 열리지 않을 수 있다. 지금 쓰는 판은 `Schema.swift` 의 `SchemaV8`.
+/// 여기를 고치면 이미 깔린 기기의 저장소가 어느 판인지 알아보지 못해 열리지 않을 수 있다. 지금 쓰는 판은 `Schema.swift` 의 `SchemaV9`.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
 enum SchemaV6: VersionedSchema {
