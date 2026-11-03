@@ -791,7 +791,6 @@ struct RelationGraphView: View {
 
         // 점
         let radius: CGFloat = 5
-        let showsNames = snapshot.people.count <= 40 || scale >= 2.5
         var visible: [(index: Int, point: CGPoint)] = []
         for i in snapshot.people.indices where isShown(i) {
             let p = screenPoint(positions[i], size: size)
@@ -816,9 +815,9 @@ struct RelationGraphView: View {
         reserved.append(LabelPlacement.Box(centerX: me.x, centerY: me.y, width: 24, height: 24))
         reserved.append(LabelPlacement.Box(centerX: me.x, centerY: me.y + 22, width: meTitleSize.width, height: meTitleSize.height))
 
-        if showsNames {
-            drawNames(in: &context, size: size, visible: visible, radius: radius, reserved: reserved, highlighting: highlighting)
-        }
+        // 사람 수와 상관없이 늘 쓴다 (이슈 73) — 전에는 40명을 넘으면 2.5배 넘게 키울 때만 썼다(이름표 자리 찾기 · 이슈 30 전의 문턱).
+        // 겹치는 이름은 자리 찾기가 비우고, 키울수록 더 나온다.
+        drawNames(in: &context, size: size, visible: visible, radius: radius, reserved: reserved, highlighting: highlighting)
     }
 
     /// 사람 이름표 (이슈 30) — 이름끼리 · 점과 겹치지 않는 자리에만 쓴다(`Core.LabelPlacement`). 놓을 자리가 없으면 이번 크기에서는
