@@ -29,6 +29,8 @@ struct NetworkSnapshot: Sendable {
         let firstMetDay: Int?
         /// 오늘까지의 마지막 기록일.
         let lastDay: Int?
+        /// 오늘까지의 기록 수 — 관계도 이름표를 놓는 차례에만 쓴다(이슈 73 · `Core.LabelPriority`). 화면에 숫자로 드러내지 않는다.
+        var recordCount = 0
     }
 
     /// 모임 하나 (D-30). 사람은 이름 순.
@@ -194,6 +196,7 @@ enum NetworkSnapshotBuilder {
         var participantLists: [[UUID]] = []
         participantLists.reserveCapacity(records.count)
         var hasRecord = Set<UUID>()
+        var recordCounts: [UUID: Int] = [:]
         var singles: [(day: Int, id: UUID)] = []
         var recordDays: [Int] = []
         recordDays.reserveCapacity(records.count)
@@ -207,6 +210,7 @@ enum NetworkSnapshotBuilder {
             guard day <= today else { continue }
             hasRecord.formUnion(ids)
             for id in ids where (lastDay[id] ?? Int.min) < day { lastDay[id] = day }
+            for id in ids { recordCounts[id, default: 0] += 1 }
         }
         lap("기록 돌기 (참여자 · 날)")
 
@@ -216,7 +220,8 @@ enum NetworkSnapshotBuilder {
                 relationshipType: person.relationshipType, metThrough: person.metThrough,
                 organization: person.organization, tags: person.tags,
                 firstMetDay: person.firstMetDate.map { DayIndex.of($0, calendar: calendar) },
-                lastDay: lastDay[person.uuid])
+                lastDay: lastDay[person.uuid],
+                recordCount: recordCounts[person.uuid] ?? 0)
         }
         let graphPeople = others.map {
             GraphPerson(id: $0.uuid, name: $0.name, organization: $0.organization, introducedBy: $0.introducedBy?.uuid)

@@ -3935,6 +3935,208 @@
       "text": "김하나"
     }
   ],
+  "labelPriority": [
+    {
+      "expected": [],
+      "first": null,
+      "items": [],
+      "name": "빈 목록"
+    },
+    {
+      "expected": [
+        1,
+        3,
+        5,
+        6,
+        0,
+        4,
+        7,
+        2
+      ],
+      "first": null,
+      "items": [
+        {
+          "community": 1,
+          "index": 0,
+          "nameKey": "가",
+          "records": 3
+        },
+        {
+          "community": 1,
+          "index": 1,
+          "nameKey": "나",
+          "records": 9
+        },
+        {
+          "community": 1,
+          "index": 2,
+          "nameKey": "다",
+          "records": 1
+        },
+        {
+          "community": 2,
+          "index": 3,
+          "nameKey": "라",
+          "records": 5
+        },
+        {
+          "community": 2,
+          "index": 4,
+          "nameKey": "마",
+          "records": 5
+        },
+        {
+          "community": 3,
+          "index": 5,
+          "nameKey": "바",
+          "records": 2
+        },
+        {
+          "community": null,
+          "index": 6,
+          "nameKey": "사",
+          "records": 7
+        },
+        {
+          "community": null,
+          "index": 7,
+          "nameKey": "아",
+          "records": 0
+        }
+      ],
+      "name": "모임마다 돌아가며 · 모임 안은 기록 많은 사람부터"
+    },
+    {
+      "expected": [
+        4,
+        1,
+        3,
+        0
+      ],
+      "first": 4,
+      "items": [
+        {
+          "community": 1,
+          "index": 0,
+          "nameKey": "가",
+          "records": 3
+        },
+        {
+          "community": 1,
+          "index": 1,
+          "nameKey": "나",
+          "records": 9
+        },
+        {
+          "community": 2,
+          "index": 3,
+          "nameKey": "라",
+          "records": 5
+        },
+        {
+          "community": 2,
+          "index": 4,
+          "nameKey": "마",
+          "records": 5
+        }
+      ],
+      "name": "누른 사람이 맨 먼저"
+    },
+    {
+      "expected": [
+        3,
+        1,
+        9,
+        5
+      ],
+      "first": null,
+      "items": [
+        {
+          "community": 1,
+          "index": 5,
+          "nameKey": "하",
+          "records": 2
+        },
+        {
+          "community": 1,
+          "index": 3,
+          "nameKey": "가",
+          "records": 2
+        },
+        {
+          "community": 1,
+          "index": 9,
+          "nameKey": "가",
+          "records": 2
+        },
+        {
+          "community": 2,
+          "index": 1,
+          "nameKey": "나",
+          "records": 2
+        }
+      ],
+      "name": "기록 같으면 이름 · 같은 이름은 자리 번호"
+    },
+    {
+      "expected": [
+        1,
+        0,
+        2,
+        3
+      ],
+      "first": null,
+      "items": [
+        {
+          "community": 7,
+          "index": 0,
+          "nameKey": "가",
+          "records": 4
+        },
+        {
+          "community": 3,
+          "index": 1,
+          "nameKey": "나",
+          "records": 4
+        },
+        {
+          "community": 3,
+          "index": 2,
+          "nameKey": "다",
+          "records": 1
+        },
+        {
+          "community": 7,
+          "index": 3,
+          "nameKey": "라",
+          "records": 0
+        }
+      ],
+      "name": "모임 차례 — 첫 사람 기록이 같으면 모임 번호"
+    },
+    {
+      "expected": [
+        1,
+        0
+      ],
+      "first": 42,
+      "items": [
+        {
+          "community": null,
+          "index": 0,
+          "nameKey": "가",
+          "records": 1
+        },
+        {
+          "community": null,
+          "index": 1,
+          "nameKey": "나",
+          "records": 2
+        }
+      ],
+      "name": "누른 사람이 목록에 없으면 무시"
+    }
+  ],
   "listFilter": [
     {
       "filters": [

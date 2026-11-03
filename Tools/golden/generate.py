@@ -1350,6 +1350,29 @@ def year_review(year, records, people, today):
             "busiestMonth": busiest, "types": types}
 
 
+# ── 관계도 이름표 차례 (LabelPriority · 이슈 73) ───────────────────────────────
+# 모임마다 줄을 세우고 한 바퀴씩 돌며 하나씩 뽑는다(Swift 는 돌림 번호로 짚는다).
+
+def label_priority(items, first):
+    key = lambda it: (-it["records"], it["nameKey"], it["index"])
+    rest = [it for it in items if it["index"] != first]
+    groups = {}
+    for it in rest:
+        if it["community"] is not None:
+            groups.setdefault(it["community"], []).append(it)
+    queues = [sorted(m, key=key) for _, m in sorted(groups.items(), key=lambda kv: (-max(x["records"] for x in kv[1]), kv[0]))]
+    loners = sorted([it for it in rest if it["community"] is None], key=key)
+    if loners:
+        queues.append(loners)
+    out = [first] if any(it["index"] == first for it in items) else []
+    queues = [list(q) for q in queues]
+    while any(queues):
+        for q in queues:
+            if q:
+                out.append(q.pop(0)["index"])
+    return out
+
+
 # ── 연락 수단 다섯 칸 (ContactFields · ContactSorter) ─────────────────────────
 
 CONTACT_KINDS = ("mobile", "office", "fax", "email")
@@ -1976,6 +1999,7 @@ def build() -> dict:
     out["yearInReview"] = [dict(c, expected=year_review(c["year"], c["records"], c["people"], c["today"]),
                                 years=year_review_years(c["records"], c["people"], c["today"], c["currentYear"]))
                            for c in cases["yearInReview"]]
+    out["labelPriority"] = [dict(c, expected=label_priority(c["items"], c["first"])) for c in cases["labelPriority"]]
     out["contactSplit"] = [{"text": t, "expected": contact_split(t)} for t in cases["contactSplit"]]
     out["contactFromContact"] = [{"phones": c["phones"], "emails": c["emails"],
                                   "expected": contact_from_contact(c["phones"], c["emails"])}

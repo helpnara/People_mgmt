@@ -116,6 +116,8 @@ final class GoldenTests: XCTestCase {
             let name: String; let year: Int; let today: Int; let currentYear: Int
             let records: [YearRecordRaw]; let people: [YearPersonRaw]; let expected: YearExpected; let years: [Int]
         }
+        struct LabelItemRaw: Decodable { let index: Int; let community: Int?; let records: Int; let nameKey: String }
+        struct LabelPriorityCase: Decodable { let name: String; let items: [LabelItemRaw]; let first: Int?; let expected: [Int] }
         struct ChoiceSettingRaw: Decodable { let items: [String]; let hidden: [String] }
         struct ChoiceEditingCase: Decodable {
             let name: String; let presets: [String]; let fixed: [String]; let setting: ChoiceSettingRaw?; let used: [String]
@@ -225,6 +227,7 @@ final class GoldenTests: XCTestCase {
         let presetChoices: [PresetChoicesCase]
         let choiceEditing: [ChoiceEditingCase]
         let yearInReview: [YearReviewCase]
+        let labelPriority: [LabelPriorityCase]
         let choiceOps: [ChoiceOpsCase]
         let louvain: [LouvainCase]
         let splitConnected: [ComponentSplitCase]
@@ -676,6 +679,13 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.busiestMonth, e.busiestMonth, "\(c.name) — 가장 많은 달")
             XCTAssertEqual(got.types.map(\.type), e.types.map(\.type), "\(c.name) — 유형")
             XCTAssertEqual(got.types.map(\.count), e.types.map(\.count), "\(c.name) — 유형 수")
+        }
+    }
+
+    func testLabelPriority() throws {
+        for c in try Self.loadGolden().labelPriority {
+            let items = c.items.map { LabelPriority.Item(index: $0.index, community: $0.community, records: $0.records, nameKey: $0.nameKey) }
+            XCTAssertEqual(LabelPriority.order(items, first: c.first), c.expected, c.name)
         }
     }
 

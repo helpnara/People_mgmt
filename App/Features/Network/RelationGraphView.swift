@@ -71,8 +71,11 @@ struct RelationGraphView: View {
     @State private var moveStart: Date?
     /// 지금이나 어느 시점에든 모임이 있는가 — 모임 줄을 시점마다 넣었다 뺐다 하지 않는다 (이슈 29).
     @State private var hasAnyCommunities = false
-    /// 사람 자리 → 이름 순 차례 (이슈 30). 이름표를 놓는 차례 — 누가 더 중요한지가 아니라 이름 순이다 (ADR-0004).
+    /// 사람 자리 → 이름표를 놓는 차례 (이슈 73 · `Core.LabelPriority`) — 모임마다 돌아가며, 모임 안은 나와의 기록이 많은 사람부터.
+    /// 이름이 다 들어가지 않을 때 어느 모임이든 대표 이름이 보이게. 차례는 화면에 드러내지 않는다(ADR-0004). 모임이 바뀔 때 센다.
     @State private var nameRank: [Int] = []
+    /// 이번 크기에서 자리가 없어 이름을 비운 사람 수 (이슈 73) — 관계도 아래 안내 한 줄. 그림을 그리며 센다.
+    @State private var omittedNames = 0
     /// 지금 자리가 나(0.5)에서 가로 · 세로로 퍼진 거리 — 그림 칸에 고루 펴는 데 쓴다 (이슈 32). 자료가 바뀔 때만 센다 —
     /// 시점마다 다시 세면 시점 막대를 옮길 때 그림이 커졌다 작아졌다 한다 (이슈 29).
     @State private var spreadX = 0.5
@@ -206,11 +209,6 @@ struct RelationGraphView: View {
             spreadX = reachX
             spreadY = reachY
             hasAnyCommunities = !snapshot.communities.isEmpty || timeline.slices.contains { !$0.communities.isEmpty }
-            let byName = NameSort.sorted(Array(snapshot.people.indices), name: { snapshot.people[$0].name },
-                                         createdAt: { _ in Date.distantPast })
-            var rank = [Int](repeating: 0, count: snapshot.people.count)
-            for (order, i) in byName.enumerated() { rank[i] = order }
-            nameRank = rank
             sliderValue = Double(timeline.slices.count)
             // CI 스크린샷 — 지난 시점의 관계도를 바로 연다 (`-timeSlice`).
             if let k = LaunchArguments.current.timeSlice,
@@ -557,14 +555,14 @@ struct RelationGraphView: View {
                     }
                     .buttonStyle(.plain)
                 } else if !compact && !floatsCard {
-                    Text(Self.hint)
+                    Text(hintText)
                         .font(.scaled(13))
                         .foregroundStyle(Color.muted)
                 }
             }
             // 아이패드는 누른 사람을 관계도 위 카드로 보인다 (이슈 51) — 아래에는 안내 한 줄만, 늘 같은 높이로.
             if wide {
-                Text(Self.hint)
+                Text(hintText)
                     .font(.scaled(13))
                     .foregroundStyle(Color.muted)
                     .lineLimit(1)
@@ -600,6 +598,13 @@ struct RelationGraphView: View {
     }
 
     private static let hint = "점을 누르면 그 사람을 봅니다. 두 손가락으로 키우고 옮기고, 두 번 누르면 처음 크기로."
+
+    /// 관계도 아래 안내 — 이름을 비운 사람이 있으면 그 수와 보는 길(이슈 73), 없으면 쓰는 법.
+    /// 아이폰은 사람 약 30명, 아이패드 가로는 약 60명까지 이름을 거의 다 쓴다(`Tools/label-density.py` · 11pt).
+    private var hintText: String {
+        guard omittedNames > 0 else { return Self.hint }
+        return "이름 " + String(omittedNames) + "명은 자리가 없어 비웠습니다. 두 손가락으로 키우거나 위의 모임을 누르면 보입니다."
+    }
 
     /// 관계도 설명 시트 — 큰 글씨에서 관계도 아래에 두던 글을 그대로 모은다 (이슈 26).
     private var guide: some View {
@@ -702,6 +707,14 @@ struct RelationGraphView: View {
         }
         membership = map
         if let id = highlightCommunity, !activeCommunities.contains(where: { $0.id == id }) { highlightCommunity = nil }
+        // 이름표를 놓는 차례 (이슈 73) — 그리는 모임이 바뀌면(지금 ↔ 지난 시점) 다시 센다.
+        let items = snapshot.people.indices.map { i in
+            LabelPriority.Item(index: i, community: map[i], records: snapshot.people[i].recordCount,
+                               nameKey: NameSort.key(snapshot.people[i].name))
+        }
+        var rank = [Int](repeating: 0, count: snapshot.people.count)
+        for (order, i) in LabelPriority.order(items).enumerated() where i < rank.count { rank[i] = order }
+        nameRank = rank
     }
 
     /// 지난 시점의 자리 — 지금 자리에서 출발해 낮은 온도로 조금만 움직인다 (주 스레드 밖).
@@ -816,18 +829,23 @@ struct RelationGraphView: View {
         reserved.append(LabelPlacement.Box(centerX: me.x, centerY: me.y + 22, width: meTitleSize.width, height: meTitleSize.height))
 
         // 사람 수와 상관없이 늘 쓴다 (이슈 73) — 전에는 40명을 넘으면 2.5배 넘게 키울 때만 썼다(이름표 자리 찾기 · 이슈 30 전의 문턱).
-        // 겹치는 이름은 자리 찾기가 비우고, 키울수록 더 나온다.
-        drawNames(in: &context, size: size, visible: visible, radius: radius, reserved: reserved, highlighting: highlighting)
+        // 겹치는 이름은 자리 찾기가 비우고, 키울수록 더 나온다. 비운 수는 관계도 아래 한 줄로 알린다 — 그리는 중에 상태를 바꾸지 않고 다음 차례에.
+        let omitted = drawNames(in: &context, size: size, visible: visible, radius: radius, reserved: reserved, highlighting: highlighting)
+        if omitted != omittedNames {
+            Task { @MainActor in omittedNames = omitted }
+        }
     }
 
     /// 사람 이름표 (이슈 30) — 이름끼리 · 점과 겹치지 않는 자리에만 쓴다(`Core.LabelPlacement`). 놓을 자리가 없으면 이번 크기에서는
-    /// 비운다 — 두 손가락으로 키우면 자리가 생긴다. 차례는 누른 사람 → 강조한 사람 → 이름 순. 한 번에 150개까지.
+    /// 비운다 — 두 손가락으로 키우면 자리가 생긴다. 차례는 누른 사람 → 강조한 사람 → 모임마다 돌아가며(`nameRank` · 이슈 73).
+    /// 한 번에 150개까지. 돌려주는 값은 이름을 써야 했는데 비운 사람 수(150개 밖 포함).
+    @discardableResult
     private func drawNames(in context: inout GraphicsContext, size: CGSize, visible: [(index: Int, point: CGPoint)],
-                           radius: CGFloat, reserved: [LabelPlacement.Box], highlighting: Bool) {
+                           radius: CGFloat, reserved: [LabelPlacement.Box], highlighting: Bool) -> Int {
         func group(_ i: Int) -> Int { i == selected ? 0 : (highlighting ? 1 : 2) }
         func order(_ i: Int) -> Int { i < nameRank.count ? nameRank[i] : i }
-        let named = visible
-            .filter { !highlighting || matches($0.index) || $0.index == selected }
+        let wanted = visible.filter { !highlighting || matches($0.index) || $0.index == selected }
+        let named = wanted
             .sorted { (group($0.index), order($0.index)) < (group($1.index), order($1.index)) }
             .prefix(150)
         var texts: [GraphicsContext.ResolvedText] = []
@@ -842,10 +860,13 @@ struct RelationGraphView: View {
         let dots = visible.map { LabelPlacement.Box(centerX: $0.point.x, centerY: $0.point.y, width: radius * 2, height: radius * 2) }
         let placed = LabelPlacement.place(requests, obstacles: dots + reserved,
                                           bounds: LabelPlacement.Box(x: 0, y: 0, width: size.width, height: size.height))
+        var drawn = 0
         for (k, box) in placed.enumerated() {
             guard let box else { continue }
             context.draw(texts[k], at: CGPoint(x: box.centerX, y: box.centerY), anchor: .center)
+            drawn += 1
         }
+        return wanted.count - drawn
     }
 
     private func matches(_ i: Int) -> Bool {
