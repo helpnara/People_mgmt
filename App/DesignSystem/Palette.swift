@@ -27,6 +27,27 @@ extension Color {
     /// 파괴적 동작.
     static let danger = Color(light: 0x9A3F47, dark: 0xE08C95)
 
+    // 관계도 모임 색 (이슈 75 · 2026-11-03 사용자) — 파스텔 여덟. 모임 이름 알약 바탕(…Soft)과 글자 · 테두리(…Ink).
+    // 차례는 `Core.CommunityColor.index` 가 모임 이름으로 고른다. 대비는 `Tools/contrast.py` 가 잰다(글자/알약 4.5 넘게).
+    static let clusterSageInk = Color(light: 0x2F6B5E, dark: 0x7CC4B2)   // 세이지
+    static let clusterSageSoft = Color(light: 0xE4F0EC, dark: 0x1B2E29)
+    static let clusterSkyInk = Color(light: 0x2B5C8A, dark: 0x8DB8E6)   // 하늘
+    static let clusterSkySoft = Color(light: 0xE2EDF8, dark: 0x18263A)
+    static let clusterLavenderInk = Color(light: 0x5A4791, dark: 0xB8A6E8)   // 라벤더
+    static let clusterLavenderSoft = Color(light: 0xEDE7F8, dark: 0x241D36)
+    static let clusterApricotInk = Color(light: 0x964626, dark: 0xF0AE8C)   // 살구
+    static let clusterApricotSoft = Color(light: 0xFBE8DE, dark: 0x36211A)
+    static let clusterButterInk = Color(light: 0x735A0E, dark: 0xE2C66E)   // 버터
+    static let clusterButterSoft = Color(light: 0xF6EED2, dark: 0x2F2814)
+    static let clusterRoseInk = Color(light: 0x8C3757, dark: 0xEBA0BC)   // 장미
+    static let clusterRoseSoft = Color(light: 0xF9E4EB, dark: 0x351C26)
+    static let clusterMintInk = Color(light: 0x1F6563, dark: 0x79CFCB)   // 민트
+    static let clusterMintSoft = Color(light: 0xDDF2F0, dark: 0x152D2C)
+    static let clusterOliveInk = Color(light: 0x56602A, dark: 0xBFCB86)   // 올리브
+    static let clusterOliveSoft = Color(light: 0xECEFDC, dark: 0x262A18)
+    static let clusterInks: [Color] = [clusterSageInk, clusterSkyInk, clusterLavenderInk, clusterApricotInk, clusterButterInk, clusterRoseInk, clusterMintInk, clusterOliveInk]
+    static let clusterSofts: [Color] = [clusterSageSoft, clusterSkySoft, clusterLavenderSoft, clusterApricotSoft, clusterButterSoft, clusterRoseSoft, clusterMintSoft, clusterOliveSoft]
+
     init(hex: UInt32) {
         self.init(
             red: Double((hex >> 16) & 0xFF) / 255,

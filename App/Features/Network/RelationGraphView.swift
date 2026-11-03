@@ -759,6 +759,10 @@ struct RelationGraphView: View {
 
         // 모임 — 옅은 테두리. 채운 볼록 껍질에 굵고 둥근 선을 겹쳐 점 둘레에 여백을 둔다. 한 층으로 그려 겹친 곳이 진해지지 않게.
         for community in activeCommunities {
+            // 모임마다 파스텔 색 (이슈 75) — 이름이 같으면 늘 같은 색(`Core.CommunityColor`). 테두리 · 이름 알약이 같은 색이고 점 · 선은 그대로.
+            let tint = CommunityColor.index(for: community.name, count: Color.clusterInks.count)
+            let ink = Color.clusterInks[tint]
+            let soft = Color.clusterSofts[tint]
             let points = community.memberIndices.map { screenPoint(positions[$0], size: size) }
             let hull = Self.convexHull(points)
             guard let first = hull.first else { continue }
@@ -769,20 +773,20 @@ struct RelationGraphView: View {
             var layer = context
             layer.opacity *= highlightCommunity == nil ? 0.10 : (highlightCommunity == community.id ? 0.22 : 0.04)
             layer.drawLayer { inner in
-                inner.fill(path, with: .color(Color.accent))
-                inner.stroke(path, with: .color(Color.accent), style: StrokeStyle(lineWidth: 28, lineCap: .round, lineJoin: .round))
+                inner.fill(path, with: .color(ink))
+                inner.stroke(path, with: .color(ink), style: StrokeStyle(lineWidth: 28, lineCap: .round, lineJoin: .round))
             }
             if highlightCommunity == nil || highlightCommunity == community.id,
                let top = hull.min(by: { $0.y < $1.y }) {
                 let centerX = hull.map(\.x).reduce(0, +) / CGFloat(hull.count)
-                // 모임 이름은 연한 초록 알약에 초록 굵은 글자 — 회색 사람 이름과 한눈에 갈리게 (2026-11-03 사용자 · 빌드 49 확인).
-                // 글자 대비 accent on accentSoft 라이트 5.31 · 다크 7.07 (`Tools/contrast.py`).
-                let title = context.resolve(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(Color.accent))
+                // 모임 이름은 그 모임 색의 연한 알약에 진한 굵은 글자 — 회색 사람 이름과 한눈에 갈리게 (이슈 74 · 75).
+                // 글자 대비 라이트 5.3 ~ 6.3 · 다크 7.1 ~ 8.7 (`Tools/contrast.py` 의 clusterXInk on clusterXSoft).
+                let title = context.resolve(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(ink))
                 let titleSize = title.measure(in: CGSize(width: 400, height: 100))
                 let titleCenter = CGPoint(x: centerX, y: top.y - 20)
                 let pill = CGRect(x: titleCenter.x - titleSize.width / 2 - 7, y: titleCenter.y - titleSize.height / 2 - 2.5,
                                   width: titleSize.width + 14, height: titleSize.height + 5)
-                context.fill(Path(roundedRect: pill, cornerRadius: pill.height / 2), with: .color(Color.accentSoft))
+                context.fill(Path(roundedRect: pill, cornerRadius: pill.height / 2), with: .color(soft))
                 context.draw(title, at: titleCenter, anchor: .center)
                 reserved.append(LabelPlacement.Box(centerX: pill.midX, centerY: pill.midY, width: pill.width, height: pill.height))
             }

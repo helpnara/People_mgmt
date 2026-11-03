@@ -1511,6 +1511,48 @@
       "text": "청림소프트"
     }
   ],
+  "communityColor": [
+    {
+      "expected": 1,
+      "name": "독서모임"
+    },
+    {
+      "expected": 5,
+      "name": "청림소프트"
+    },
+    {
+      "expected": 7,
+      "name": "#등산"
+    },
+    {
+      "expected": 3,
+      "name": "한빛대학교"
+    },
+    {
+      "expected": 2,
+      "name": "나비랩스"
+    },
+    {
+      "expected": 2,
+      "name": "동호회·모임"
+    },
+    {
+      "expected": 5,
+      "name": ""
+    },
+    {
+      "expected": 7,
+      "name": "Nabi Labs"
+    },
+    {
+      "expected": 1,
+      "name": "독서모임"
+    },
+    {
+      "expected": 5,
+      "name": "가족"
+    }
+  ],
   "communityName": [
     {
       "expected": "청림소프트",

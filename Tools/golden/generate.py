@@ -1373,6 +1373,17 @@ def label_priority(items, first):
     return out
 
 
+# ── 관계도 모임 색 (CommunityColor · 이슈 75) ───────────────────────────────
+# FNV-1a 32비트를 정수 곱셈 뒤 32비트로 잘라 센다(Swift 는 넘침 곱셈 &*).
+
+def community_color(name, count=8):
+    h = 0x811C9DC5
+    for b in unicodedata.normalize("NFC", name).encode("utf-8"):
+        h ^= b
+        h = (h * 0x01000193) % (1 << 32)
+    return h % count
+
+
 # ── 연락 수단 다섯 칸 (ContactFields · ContactSorter) ─────────────────────────
 
 CONTACT_KINDS = ("mobile", "office", "fax", "email")
@@ -2000,6 +2011,7 @@ def build() -> dict:
                                 years=year_review_years(c["records"], c["people"], c["today"], c["currentYear"]))
                            for c in cases["yearInReview"]]
     out["labelPriority"] = [dict(c, expected=label_priority(c["items"], c["first"])) for c in cases["labelPriority"]]
+    out["communityColor"] = [{"name": n, "expected": community_color(n)} for n in cases["communityColor"]]
     out["contactSplit"] = [{"text": t, "expected": contact_split(t)} for t in cases["contactSplit"]]
     out["contactFromContact"] = [{"phones": c["phones"], "emails": c["emails"],
                                   "expected": contact_from_contact(c["phones"], c["emails"])}
