@@ -43,6 +43,8 @@ struct RecordEditView: View {
     @State private var processingPhotos = false
     @State private var photoFailed = false
     @State private var removingPhoto: DraftPhoto?
+    /// 눌러 고른 사진 — 맨 앞으로 · 빼기를 묻는다 (빌드 48 · 길게 누르기 메뉴는 양식 칸 안에서 뜨지 않았다).
+    @State private var choosingPhoto: DraftPhoto?
 
     init(mode: Mode, onSaved: @escaping (Record) -> Void) {
         self.mode = mode
@@ -159,7 +161,7 @@ struct RecordEditView: View {
 
     /// 기록 사진의 사진첩 창 · 빼기 확인 · 실패 안내 (9판 · FR-058).
     private func photoHandling<Content: View>(_ content: Content) -> some View {
-        content
+        photoDialogs(content)
             .photosPicker(isPresented: $pickingPhotos, selection: $photoItems,
                           maxSelectionCount: max(1, RecordPhotos.limit - draft.photos.count), matching: .images)
             .onChange(of: photoItems) { _, items in
@@ -167,6 +169,16 @@ struct RecordEditView: View {
                 photoItems = []
                 Task { await ingestPhotos(items) }
             }
+            .alert("사진을 읽지 못했습니다", isPresented: $photoFailed) {
+                Button("닫기", role: .cancel) {}
+            } message: {
+                Text("다른 사진을 골라 주세요. iCloud 에만 있는 사진은 내려받은 뒤에 고를 수 있습니다.")
+            }
+    }
+
+    /// 사진 빼기 확인 · 눌러 고른 사진의 맨 앞으로 / 빼기 (식을 나눠 형식 맞추기 시간을 줄인다 — 빌드 45 첫 CI).
+    private func photoDialogs<Content: View>(_ content: Content) -> some View {
+        content
             .confirmationDialog("사진을 뺄까요?", isPresented: Binding(get: { removingPhoto != nil }, set: { if !$0 { removingPhoto = nil } }),
                                 titleVisibility: .visible, presenting: removingPhoto) { photo in
                 Button("사진 빼기", role: .destructive) {
@@ -177,10 +189,24 @@ struct RecordEditView: View {
             } message: { _ in
                 Text("저장하면 이 기록에서 사진이 지워집니다. 저장하기 전에는 취소로 되돌릴 수 있습니다.")
             }
-            .alert("사진을 읽지 못했습니다", isPresented: $photoFailed) {
-                Button("닫기", role: .cancel) {}
-            } message: {
-                Text("다른 사진을 골라 주세요. iCloud 에만 있는 사진은 내려받은 뒤에 고를 수 있습니다.")
+            .confirmationDialog("이 사진을", isPresented: Binding(get: { choosingPhoto != nil }, set: { if !$0 { choosingPhoto = nil } }),
+                                titleVisibility: .visible, presenting: choosingPhoto) { photo in
+                if draft.photos.first?.id != photo.id {
+                    Button("맨 앞으로 — 대표 사진으로") {
+                        moveToFront(photo)
+                        choosingPhoto = nil
+                    }
+                }
+                // 이 창에서 고르는 것이 곧 확인이다(모든 삭제에 확인 · CLAUDE.md). 저장해야 지워진다.
+                Button("사진 빼기", role: .destructive) {
+                    draft.photos.removeAll { $0.id == photo.id }
+                    choosingPhoto = nil
+                }
+                Button("취소", role: .cancel) { choosingPhoto = nil }
+            } message: { photo in
+                Text(draft.photos.first?.id == photo.id
+                     ? "대표 사진입니다. 목록에 작게 보입니다. 빼면 저장할 때 이 기록에서 지워집니다."
+                     : "대표 사진은 목록에 작게 보입니다. 빼면 저장할 때 이 기록에서 지워집니다.")
             }
     }
 
@@ -277,33 +303,43 @@ struct RecordEditView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(draft.photos) { photo in
-                            RecordPhotoTile(draft: photo, record: editingRecord, side: 76)
-                                .overlay(alignment: .topTrailing) {
-                                    // 역할 없는 단추 + 확인 창 — 확인 전에 빼지 않는다 (CLAUDE.md).
-                                    Button {
-                                        removingPhoto = photo
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.scaled(20))
-                                            .symbolRenderingMode(.palette)
-                                            .foregroundStyle(Color.raised, Color.ink.opacity(0.7))
-                                            .padding(4)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("사진 빼기")
+                            // 사진을 누르면 맨 앞으로 · 빼기를 묻는다. 칩(`+ 이름`)과 같은 꾸밈 없는 단추라 양식 칸 안에서도 눌린다.
+                            Button {
+                                choosingPhoto = photo
+                            } label: {
+                                RecordPhotoTile(draft: photo, record: editingRecord, side: 76)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(draft.photos.first?.id == photo.id ? "대표 사진" : "사진")
+                            .accessibilityHint("눌러서 맨 앞으로 옮기거나 뺍니다")
+                            .overlay(alignment: .bottomLeading) {
+                                // 첫 사진이 목록 줄의 작은 그림이다.
+                                if draft.photos.first?.id == photo.id {
+                                    Text("대표")
+                                        .font(.scaled(11, weight: .semibold))
+                                        .foregroundStyle(Color.ink)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.raised.opacity(0.9), in: Capsule())
+                                        .padding(5)
+                                        .allowsHitTesting(false)
                                 }
-                                // 첫 사진이 목록 줄의 작은 그림이 된다 — 길게 눌러 맨 앞으로.
-                                .contextMenu {
-                                    if draft.photos.first?.id != photo.id {
-                                        Button {
-                                            moveToFront(photo)
-                                        } label: {
-                                            Label("맨 앞으로", systemImage: "arrow.left.to.line")
-                                        }
-                                    }
+                            }
+                            .overlay(alignment: .topTrailing) {
+                                // 역할 없는 단추 + 확인 창 — 확인 전에 빼지 않는다 (CLAUDE.md).
+                                Button {
+                                    removingPhoto = photo
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.scaled(20))
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(Color.raised, Color.ink.opacity(0.7))
+                                        .padding(4)
+                                        .contentShape(Rectangle())
                                 }
-                                .accessibilityAction(named: "맨 앞으로") { moveToFront(photo) }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("사진 빼기")
+                            }
                         }
                     }
                     // 가로 스크롤 칸은 위아래를 자른다 — 테두리 · 단추가 깎이지 않게 여백을 둔다 (이슈 63).
@@ -345,7 +381,7 @@ struct RecordEditView: View {
         } header: {
             Text("사진 \(draft.photos.count)/\(RecordPhotos.limit)")
         } footer: {
-            Text("한 기록에 4장까지 붙입니다. 첫 사진이 목록에 작게 보입니다 — 사진을 길게 눌러 맨 앞으로 옮길 수 있습니다. 긴 변 1,024px 로 줄여 이 기기(동기화를 켜면 내 iCloud)에만 저장합니다.")
+            Text("한 기록에 4장까지 붙입니다. 대표(첫 사진)가 목록에 작게 보입니다 — 사진을 누르면 맨 앞으로 옮길 수 있습니다. 긴 변 1,024px 로 줄여 이 기기(동기화를 켜면 내 iCloud)에만 저장합니다.")
         }
     }
 
