@@ -36,6 +36,8 @@ struct TagManagerView: View {
         }
         .background(Color.ground)
         .navigationTitle("태그 관리")
+        // 이름을 적는 창이 뜨는 화면 — 열린 동안 아이패드 화면 나누기로 폭이 바뀌어도 뼈대를 그대로 (이슈 77).
+        .holdsLayout()
         .navigationBarTitleDisplayMode(.inline)
         .task(id: version) {
             catalog = await TagCatalogBuilder.build(container: context.container)

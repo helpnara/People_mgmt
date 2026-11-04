@@ -223,6 +223,7 @@ struct PersonEditView: View {
             }
         }
         .interactiveDismissDisabled(hasChanges)
+        .holdsLayout()
         .onAppear(perform: applyArgumentsOnce)
         .onAppear(perform: rebuildPeopleIndex)
         .onChange(of: everyone.count) { _, _ in rebuildPeopleIndex() }

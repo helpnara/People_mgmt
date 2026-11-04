@@ -126,6 +126,8 @@ struct ChoiceEditorView: View {
         .scrollContentBackground(.hidden)
         .background(Color.ground)
         .navigationTitle("\(kind.title) 선택지")
+        // 이름을 적는 창이 뜨는 화면 — 열린 동안 아이패드 화면 나누기로 폭이 바뀌어도 뼈대를 그대로 (이슈 77).
+        .holdsLayout()
         .navigationBarTitleDisplayMode(.inline)
         .task {
             guard !loaded else { return }
