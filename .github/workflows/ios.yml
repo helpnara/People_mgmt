@@ -624,6 +624,19 @@ jobs:
             -disable-concurrent-destination-testing \
             CODE_SIGNING_ALLOWED=NO \
             test > /tmp/ui-tests.log 2>&1 || status=$?
+          # **돌리기 시험은 Pro Max 에서도** (이슈 77) — 큰 아이폰은 가로가 넓은 폭이라 뼈대가 바뀌던 기기다.
+          # 보통 아이폰(좁은 가로)에서는 버그가 있어도 통과하므로 이 기기가 진짜 심판이다. 앱은 위에서 구웠다.
+          if [ -n "${{ steps.store.outputs.udid }}" ]; then
+            xcodebuild \
+              -project SlowConnection.xcodeproj \
+              -scheme SlowConnectionUITests \
+              -configuration Debug \
+              -destination "id=${{ steps.store.outputs.udid }}" \
+              -derivedDataPath build \
+              -only-testing:SlowConnectionUITests/RotationUITests \
+              CODE_SIGNING_ALLOWED=NO \
+              test >> /tmp/ui-tests.log 2>&1 || status=$?
+          fi
           # 기기를 차례로 돌려 실패 문구(제목 막대 · 화면 구조)가 로그에 찍히게 한다.
           grep -iE "Test Case .*(passed|failed)|Executed|error:|XCTAssert|Testing (failed|passed)|TEST (SUCCEEDED|FAILED)" /tmp/ui-tests.log | tail -80 || true
           RESULT=$(ls -td build/Logs/Test/*SlowConnectionUITests*.xcresult 2>/dev/null | head -1)

@@ -9,6 +9,7 @@ struct RecordDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var editing = false
+    @State private var appliedArguments = false
     @State private var confirmingDelete = false
     /// 삭제 확인 문구 — 단추를 누를 때 만든다 (이슈 19).
     @State private var deleteMessage = ""
@@ -124,6 +125,13 @@ struct RecordDetailView: View {
         }
         .sheet(isPresented: $editing) {
             RecordEditView(mode: .edit(record)) { _ in }
+        }
+        .onAppear {
+            // 화면 이동 시험: -editRecord 면 수정 시트를 바로 연다 (한 번만 · 이슈 77).
+            if !appliedArguments {
+                appliedArguments = true
+                if LaunchArguments.current.editRecord { editing = true }
+            }
         }
         .fullScreenCover(item: $viewingPhoto) { photo in
             RecordPhotoViewer(photos: record.isGone ? [] : record.sortedPhotos, selection: photo.uuid)
