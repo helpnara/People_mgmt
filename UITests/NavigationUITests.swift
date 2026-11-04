@@ -112,9 +112,16 @@ final class NavigationUITests: XCTestCase {
         tapWhenReady(entry, in: app, "한 해 돌아보기")
         let bar = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "monthBar")).firstMatch
         tapWhenReady(bar, in: app, "달 막대")
-        let header = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "월 기록 ")).firstMatch
-        XCTAssertTrue(header.waitForExistence(timeout: 10), "달 막대를 눌러도 그달 기록이 보이지 않는다\n\(screen(app))")
-        tapWhenReady(app.buttons["monthRecordRow"].firstMatch, in: app, "그달 기록")
+        // 그달 기록 칸은 막대 아래에 열린다 — 아이폰에서는 화면 아래로 벗어나 목록이 아직 그리지 않았을 수 있다(CI 125).
+        // 칸 제목 대신 기록 줄을 찾으며 조금씩 올린다.
+        let row = app.buttons["monthRecordRow"].firstMatch
+        var tries = 0
+        while !row.waitForExistence(timeout: 3) && tries < 4 {
+            app.swipeUp()
+            tries += 1
+        }
+        XCTAssertTrue(row.exists, "달 막대를 눌러도 그달 기록이 보이지 않는다\n\(screen(app))")
+        tapWhenReady(row, in: app, "그달 기록")
         let stamp = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "만든 날")).firstMatch
         XCTAssertTrue(stamp.waitForExistence(timeout: 10), "그달 기록을 눌러도 기록 상세가 뜨지 않는다\n\(screen(app))")
     }
