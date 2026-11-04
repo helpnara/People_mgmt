@@ -119,6 +119,8 @@ struct RecordEditView: View {
                 }
         }
         .interactiveDismissDisabled(hasChanges)
+        // 열린 동안 뿌리 화면의 뼈대를 바꾸지 않는다 — 바뀌면 이 창이 내려가 적던 것이 사라진다 (이슈 77).
+        .holdsLayout()
         .task(id: everyone.count) {
             candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
             loadRecentPeople()

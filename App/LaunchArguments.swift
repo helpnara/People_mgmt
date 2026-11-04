@@ -31,6 +31,8 @@ struct LaunchArguments: Sendable {
     let addRecord: Bool
     /// 연 사람의 수정 시트를 바로 연다.
     let editPerson: Bool
+    /// `-openRecord` 로 연 기록 상세에서 기록 수정 시트를 바로 연다 (이슈 77 · 화면 이동 시험의 돌리기).
+    let editRecord: Bool
     /// 연 사람의 명함 크게 보기를 바로 연다 (이슈 14).
     let viewCard: Bool
     /// 연 사람 상세를 관계 돌아보기 구역까지 내린다 (6번째 묶음).
@@ -98,6 +100,7 @@ struct LaunchArguments: Sendable {
         openRecord = arguments.contains("-openRecord")
         addRecord = arguments.contains("-addRecord")
         editPerson = arguments.contains("-editPerson")
+        editRecord = arguments.contains("-editRecord")
         viewCard = arguments.contains("-viewCard")
         scrollToReview = arguments.contains("-scrollToReview")
         readCard = arguments.contains("-readCard")

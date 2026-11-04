@@ -26,7 +26,16 @@ struct PeopleListView: View {
 
     // 아이패드 (이슈 32) — 왼쪽 바 · 사람 목록 · 상세를 나란히. 아이폰(좁은 폭)은 위의 스택 하나 그대로.
     @Environment(\.horizontalSizeClass) private var sizeClass
-    private var isWide: Bool { sizeClass == .regular }
+    /// **뼈대는 아이패드만 폭을 따라 바꾼다** (이슈 77 · 2026-11-04 사용자). 큰 아이폰(Plus · Pro Max · Air)은 가로로 돌리면
+    /// 넓은 폭이 되어 빌드 52 까지 스택 → 칸 나누기로 뼈대가 통째로 바뀌었고, 그 안의 사람 상세 · 기록 상세가 띄운 편집 창이
+    /// 함께 내려가 적던 것이 사라졌다(보던 화면도 처음으로). 아이폰은 돌려도 스택 하나 그대로다.
+    private var splitsByWidth: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    /// 입력 창이 열릴 때의 뼈대 — 열린 동안 폭이 바뀌어도(아이패드 화면 나누기) 이것을 쓴다 (`EditingPresence`).
+    @State private var heldWide: Bool?
+    private var isWide: Bool {
+        guard splitsByWidth else { return false }
+        return heldWide ?? (sizeClass == .regular)
+    }
     @State private var section: AppSection? = .people
     @State private var selectedPersonID: UUID?
     @State private var detailPath = NavigationPath()
@@ -172,6 +181,10 @@ struct PeopleListView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             noteChange()
+        }
+        // 입력 창이 열린 동안 뼈대를 붙잡는다 — 닫히면 그때의 폭을 따른다 (이슈 77).
+        .onChange(of: EditingPresence.shared.isEditing) { _, editing in
+            heldWide = editing ? (splitsByWidth && sizeClass == .regular) : nil
         }
         // 다른 기기에서 바뀐 자료가 iCloud 로 들어왔을 때 (D-42) — 정렬 · 색인 · 요약을 다시 세고, 나가 둘이면 정리한다.
         // 앱이 뒤에 있거나 잠긴 동안(조용한 푸시로 깨어남)에는 표시만 하고, 앞으로 나올 때 센다 (이슈 31).
