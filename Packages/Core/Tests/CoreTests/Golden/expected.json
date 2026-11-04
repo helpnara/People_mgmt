@@ -1731,6 +1731,117 @@
       "name": "소속이 이긴다"
     },
     {
+      "expected": "#독서모임",
+      "members": [
+        {
+          "organization": "나비랩스",
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": "나비랩스",
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": "한빛",
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        }
+      ],
+      "name": "태그 열 명 · 소속 두 명 — 많은 쪽(태그 · 이슈 81)"
+    },
+    {
+      "expected": "동아리",
+      "members": [
+        {
+          "metThrough": "동아리",
+          "organization": "청림소프트",
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "metThrough": "동아리",
+          "organization": "청림소프트",
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "metThrough": "동아리",
+          "organization": null,
+          "tags": []
+        }
+      ],
+      "name": "경로 세 명 · 소속 두 명 · 태그 두 명 — 경로"
+    },
+    {
+      "expected": "#등산",
+      "members": [
+        {
+          "metThrough": "동아리",
+          "organization": null,
+          "tags": [
+            "등산"
+          ]
+        },
+        {
+          "metThrough": "동아리",
+          "organization": "A",
+          "tags": [
+            "등산"
+          ]
+        }
+      ],
+      "name": "태그 · 경로가 같은 수 — 태그"
+    },
+    {
       "expected": "#등산",
       "members": [
         {
