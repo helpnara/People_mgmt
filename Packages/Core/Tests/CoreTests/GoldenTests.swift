@@ -111,7 +111,10 @@ final class GoldenTests: XCTestCase {
             let year: Int; let recordCount: Int; let previousRecordCount: Int; let peopleCount: Int; let newlyMet: [UUID]
             let fresh: Int; let returning: Int; let resting: Int; let monthly: [Int]; let unknownMonth: Int
             let busiestMonth: Int?; let types: [YearTypeRaw]
+            let monthRecords: [[UUID]]
+            let together: [YearEntryRaw]; let freshPeople: [YearEntryRaw]; let returningPeople: [YearEntryRaw]; let restingPeople: [YearEntryRaw]
         }
+        struct YearEntryRaw: Decodable { let id: UUID; let record: UUID; let day: Int }
         struct YearReviewCase: Decodable {
             let name: String; let year: Int; let today: Int; let currentYear: Int
             let records: [YearRecordRaw]; let people: [YearPersonRaw]; let expected: YearExpected; let years: [Int]
@@ -684,6 +687,14 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.busiestMonth, e.busiestMonth, "\(c.name) — 가장 많은 달")
             XCTAssertEqual(got.types.map(\.type), e.types.map(\.type), "\(c.name) — 유형")
             XCTAssertEqual(got.types.map(\.count), e.types.map(\.count), "\(c.name) — 유형 수")
+            XCTAssertEqual(got.monthRecords, e.monthRecords, "\(c.name) — 달마다 기록")
+            func entries(_ raw: [Golden.YearEntryRaw]) -> [YearInReview.Entry] {
+                raw.map { YearInReview.Entry(id: $0.id, record: $0.record, day: $0.day) }
+            }
+            XCTAssertEqual(got.together, entries(e.together), "\(c.name) — 함께한 사람 명단")
+            XCTAssertEqual(got.freshPeople, entries(e.freshPeople), "\(c.name) — 새로 명단")
+            XCTAssertEqual(got.returningPeople, entries(e.returningPeople), "\(c.name) — 다시 명단")
+            XCTAssertEqual(got.restingPeople, entries(e.restingPeople), "\(c.name) — 쉬어 간 명단")
         }
     }
 
