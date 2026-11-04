@@ -483,6 +483,8 @@ struct PeopleListView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        // 검색하는 동안 키보드가 가린 아래 결과까지 내려갈 수 있게 (이슈 80).
+        .keyboardScrollRoom()
     }
 
     /// 홈에 보이는 예정 · 결과 대기 기록의 수. 더 있으면 칸 머리에 모두 몇 건인지 적는다.
