@@ -1170,6 +1170,114 @@
       ]
     },
     {
+      "name": "태그 열 명 · 소속 두 명 — 많은 쪽(태그 · 이슈 81)",
+      "members": [
+        {
+          "organization": "나비랩스",
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": "나비랩스",
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": "한빛",
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        },
+        {
+          "organization": null,
+          "tags": [
+            "독서모임"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "경로 세 명 · 소속 두 명 · 태그 두 명 — 경로",
+      "members": [
+        {
+          "organization": "청림소프트",
+          "tags": [
+            "등산"
+          ],
+          "metThrough": "동아리"
+        },
+        {
+          "organization": "청림소프트",
+          "tags": [
+            "등산"
+          ],
+          "metThrough": "동아리"
+        },
+        {
+          "organization": null,
+          "tags": [],
+          "metThrough": "동아리"
+        }
+      ]
+    },
+    {
+      "name": "태그 · 경로가 같은 수 — 태그",
+      "members": [
+        {
+          "organization": null,
+          "tags": [
+            "등산"
+          ],
+          "metThrough": "동아리"
+        },
+        {
+          "organization": "A",
+          "tags": [
+            "등산"
+          ],
+          "metThrough": "동아리"
+        }
+      ]
+    },
+    {
       "name": "소속이 모두 달라 태그로",
       "members": [
         {
