@@ -377,8 +377,12 @@ enum NetworkSnapshotBuilder {
         begun = Date()
 
         func name(_ group: [Int], _ used: inout Set<String>, _ unnamed: inout Int) -> String {
+            // 지금 화면과 같은 재료(소속 · 태그 · 알게 된 경로)로 짓는다 (이슈 82 · D-75 · 2026-11-05 사용자). 빌드 56 까지는 시점마다
+            // 소속을 빼고 지어, 지금은 소속 이름인 모임이 지난 해에는 알게 된 경로 이름이 되고 다른 모임과 겹쳐 ` · 모임 1` 이 붙었다.
+            // 소속은 지금 값 하나뿐이다 — 옮긴 사람은 지난 해에도 지금 소속으로 센다(사용자: 옮긴 이력은 태그로 남긴다).
             let suggested = CommunityNaming.suggest(group.map {
-                CommunityNaming.Member(organization: nil, tags: people[personAt[$0]].tags, metThrough: people[personAt[$0]].metThrough)
+                let person = people[personAt[$0]]
+                return CommunityNaming.Member(organization: person.organization, tags: person.tags, metThrough: person.metThrough)
             })
             var result: String
             if let suggested {

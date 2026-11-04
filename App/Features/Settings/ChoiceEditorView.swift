@@ -123,6 +123,8 @@ struct ChoiceEditorView: View {
         // 손잡이가 늘 보이게 — 편집 단추를 따로 누르지 않는다. 지우기 단추는 없다(`onDelete` 를 두지 않음).
         .environment(\.editMode, .constant(.active))
         .listStyle(.insetGrouped)
+        // 키보드가 가린 만큼 끝에 여백 — 키보드가 올라와도 마지막 칸까지 내려간다 (이슈 80).
+        .keyboardScrollRoom()
         .scrollContentBackground(.hidden)
         .background(Color.ground)
         .navigationTitle("\(kind.title) 선택지")

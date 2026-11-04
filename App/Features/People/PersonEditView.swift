@@ -151,6 +151,8 @@ struct PersonEditView: View {
                     }
                 }
             }
+            // 키보드가 가린 만큼 끝에 여백 — 키보드가 올라와도 마지막 칸까지 내려간다 (이슈 80).
+            .keyboardScrollRoom()
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
