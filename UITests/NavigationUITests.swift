@@ -87,4 +87,35 @@ final class NavigationUITests: XCTestCase {
         back.tap()
         XCTAssertTrue(app.buttons["graphCardDetail"].waitForExistence(timeout: 10), "뒤로 가면 관계도와 카드가 그대로 있다\n\(screen(app))")
     }
+
+    /// 한 해 돌아보기 → 사람의 흐름(새로 함께한 사람) → 명단 → 그 사람 상세 (이슈 78).
+    /// 내 인맥 → 돌아보기에서 값으로 연다(사용자가 가는 길) — 실행 인자로 바로 연 화면에서는 값으로 미는 길이 다르다(이슈 16).
+    @MainActor
+    func testYearReviewFlowOpensNames() {
+        let app = launch(["-openNetwork", "overview"])
+        let entry = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "년 돌아보기")).firstMatch
+        tapWhenReady(entry, in: app, "한 해 돌아보기")
+        tapWhenReady(app.buttons["yearFresh"], in: app, "새로 함께한 사람 줄")
+        let list = app.navigationBars.matching(NSPredicate(format: "identifier CONTAINS %@", "새로 함께한 사람")).firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 10), "새로 함께한 사람을 눌러도 명단이 뜨지 않는다\n\(screen(app))")
+        let note = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "처음 ")).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 10), "명단 줄에 처음 함께한 날이 없다\n\(screen(app))")
+        tapWhenReady(app.buttons["peopleRouteRow"].firstMatch, in: app, "명단의 첫 사람")
+        XCTAssertTrue(app.buttons["기록 추가"].waitForExistence(timeout: 10), "명단의 사람을 눌러도 상세가 뜨지 않는다\n\(screen(app))")
+    }
+
+    /// 한 해 돌아보기 → 달 막대 → 그달 기록이 아래에 → 기록 상세 (이슈 79).
+    @MainActor
+    func testYearReviewMonthBarShowsRecords() {
+        let app = launch(["-openNetwork", "overview"])
+        let entry = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "년 돌아보기")).firstMatch
+        tapWhenReady(entry, in: app, "한 해 돌아보기")
+        let bar = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "monthBar")).firstMatch
+        tapWhenReady(bar, in: app, "달 막대")
+        let header = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "월 기록 ")).firstMatch
+        XCTAssertTrue(header.waitForExistence(timeout: 10), "달 막대를 눌러도 그달 기록이 보이지 않는다\n\(screen(app))")
+        tapWhenReady(app.buttons["monthRecordRow"].firstMatch, in: app, "그달 기록")
+        let stamp = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "만든 날")).firstMatch
+        XCTAssertTrue(stamp.waitForExistence(timeout: 10), "그달 기록을 눌러도 기록 상세가 뜨지 않는다\n\(screen(app))")
+    }
 }
