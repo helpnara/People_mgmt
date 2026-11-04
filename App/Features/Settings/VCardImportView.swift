@@ -75,6 +75,7 @@ struct VCardImportView: View {
                 Text(errorMessage ?? "")
             }
         }
+        .holdsLayout()
     }
 
     private func toggleRow(_ item: VCardTransfer.Item, note: String?) -> some View {
