@@ -57,10 +57,11 @@ public enum CommunityColor {
                 var best = (color: preferred, distance: -1.0)
                 for step in 0..<count {
                     let color = (preferred + step) % count
-                    let nearest = users[color].map { other in
-                        ((groups[g].x - groups[other].x) * (groups[g].x - groups[other].x)
-                         + (groups[g].y - groups[other].y) * (groups[g].y - groups[other].y)).squareRoot()
-                    }.min() ?? .infinity
+                    // 식 하나로 쓰면 리눅스 컴파일러가 형식을 제때 못 맞춘다(Core 테스트 47) — 거리는 따로 센다.
+                    var nearest = Double.infinity
+                    for other in users[color] {
+                        nearest = min(nearest, distance(groups[g], groups[other]))
+                    }
                     if nearest > best.distance { best = (color, nearest) }
                 }
                 chosen = best.color
@@ -69,5 +70,12 @@ public enum CommunityColor {
             users[result[g]].append(g)
         }
         return result
+    }
+
+    /// 두 모임 가운데 사이의 거리.
+    private static func distance(_ a: Group, _ b: Group) -> Double {
+        let dx: Double = a.x - b.x
+        let dy: Double = a.y - b.y
+        return (dx * dx + dy * dy).squareRoot()
     }
 }
