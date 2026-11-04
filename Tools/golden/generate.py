@@ -1045,14 +1045,13 @@ def community_name(members):
                 counts[key] = counts.get(key, 0) + 1
                 labels.setdefault(key, v)
         best = sorted([(k, c) for k, c in counts.items() if c >= 2], key=lambda kc: (-kc[1], kc[0]))
-        return labels[best[0][0]] if best else None
-    name = top([[m.get("organization") or ""] for m in members])
-    if name:
-        return name
-    name = top([m.get("tags", []) for m in members])
-    if name:
-        return "#" + name
-    return top([[m.get("metThrough") or ""] for m in members])
+        return (labels[best[0][0]], best[0][1]) if best else None
+    # 이슈 81 · D-74: 갈래(소속 · 태그 · 경로)를 함께 견줘 가장 많은 사람이 같은 값. 수가 같으면 갈래 차례.
+    org = top([[m.get("organization") or ""] for m in members])
+    tag = top([m.get("tags", []) for m in members])
+    met = top([[m.get("metThrough") or ""] for m in members])
+    found = [(c[1], -order, c[0]) for order, c in enumerate([org, ("#" + tag[0], tag[1]) if tag else None, met]) if c]
+    return max(found)[2] if found else None
 
 
 # ── 시점에 따른 관계 변화 (TemporalNetwork · D-32) ───────────────────────────

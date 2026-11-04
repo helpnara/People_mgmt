@@ -238,8 +238,11 @@ public enum CommunityDetection {
     }
 }
 
-/// 모임 이름 제안 — 그룹 안에서 가장 많은 **소속 → 태그 → 알게 된 경로** 순으로, 두 사람 이상이 같은 값일 때만.
-/// 없으면 nil (화면은 `묶음 1` 처럼 번호로). 이름은 제안이다 — 고쳐 저장하기는 나중 (D-30).
+/// 모임 이름 제안 — 소속 · 태그 · 알게 된 경로를 **함께 견줘 가장 많은 사람이 같은 값**을, 두 사람 이상일 때만.
+/// 수가 같으면 소속 → 태그 → 알게 된 경로 순. 없으면 nil (화면은 `묶음 1` 처럼 번호로). 이름은 제안이다 (D-30).
+///
+/// 빌드 56 까지는 소속을 먼저 보고 두 사람만 같아도 거기서 정했다 — 태그 A 를 열 명이 가진 모임이 두 명이 다니는 회사
+/// 이름으로 불렸다(이슈 81 · D-74 · 2026-11-05 사용자). 갈래 안에서만 많은 것을 고르고 갈래 사이에서는 수를 견주지 않았다.
 public enum CommunityNaming {
     public struct Member: Sendable {
         public let organization: String?
@@ -253,14 +256,23 @@ public enum CommunityNaming {
     }
 
     public static func suggest(_ members: [Member]) -> String? {
-        if let name = top(members.map { [$0.organization ?? ""] }) { return name }
-        if let name = top(members.map(\.tags)) { return "#" + name }
-        if let name = top(members.map { [$0.metThrough ?? ""] }) { return name }
-        return nil
+        // 갈래마다 가장 많은 값 — 갈래 차례(소속 0 · 태그 1 · 경로 2)는 수가 같을 때만 쓴다.
+        let candidates: [(label: String, count: Int)?] = [
+            top(members.map { [$0.organization ?? ""] }),
+            top(members.map(\.tags)).map { (label: "#" + $0.label, count: $0.count) },
+            top(members.map { [$0.metThrough ?? ""] }),
+        ]
+        var best: (label: String, count: Int)?
+        for candidate in candidates {
+            guard let candidate else { continue }
+            if let held = best, held.count >= candidate.count { continue }
+            best = candidate
+        }
+        return best?.label
     }
 
-    /// 두 사람 이상이 같은 값 중 가장 많은 것. 같으면 이름 열쇠 순. 한 사람이 같은 값을 두 번 내도 한 번.
-    static func top(_ values: [[String]]) -> String? {
+    /// 두 사람 이상이 같은 값 중 가장 많은 것과 그 사람 수. 같으면 이름 열쇠 순. 한 사람이 같은 값을 두 번 내도 한 번.
+    static func top(_ values: [[String]]) -> (label: String, count: Int)? {
         var counts: [String: Int] = [:]
         var labels: [String: String] = [:]
         for personValues in values {
@@ -277,6 +289,7 @@ public enum CommunityNaming {
         let best = counts.filter { $0.value >= 2 }
             .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
             .first
-        return best.flatMap { labels[$0.key] }
+        guard let best, let label = labels[best.key] else { return nil }
+        return (label: label, count: best.value)
     }
 }

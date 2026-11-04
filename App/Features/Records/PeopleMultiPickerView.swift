@@ -84,6 +84,8 @@ struct PeopleMultiPickerView: View {
         }
         // 검색 칸을 늘 보이게 (이슈 49) — 기본 자리에서는 목록을 끌어내려야 나타나 없는 줄 알았다.
         .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: PeopleSearch.prompt)
+        // 찾는 동안 키보드가 가린 아래 줄까지 내려갈 수 있게 (이슈 80).
+        .keyboardScrollRoom()
         .task(id: people.count) {
             filtered = people
             index = await SearchIndexBuilder.build(container: context.container)

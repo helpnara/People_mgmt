@@ -53,4 +53,36 @@ final class RotationUITests: XCTestCase {
     func testEditPersonSurvivesRotation() {
         rotate(keeping: "사람 수정", ["-openPerson", "김하늘", "-editPerson"])
     }
+
+    /// **키보드가 올라와도 마지막 칸까지 내려간다** (이슈 80 · 2026-11-04 사용자) — 기록 추가에서 장소 칸에 키보드를 올린 채
+    /// 아래로 끌면 태그 칸이 키보드 위로 올라와 머문다. 빌드 55 까지는 끝이 키보드 뒤에 있어 튕겨 돌아왔다.
+    /// 시뮬레이터가 화면 키보드를 띄우지 않으면(하드웨어 키보드) 잴 것이 없어 건너뛴다.
+    @MainActor
+    func testLastFieldReachableAboveKeyboard() throws {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["-seedSampleData", "-openPerson", "김하늘", "-addRecord"]
+        app.launch()
+        XCTAssertTrue(app.navigationBars["기록 추가"].waitForExistence(timeout: 20), "기록 추가 창이 열리지 않았다\n\(screen(app))")
+        let place = app.textFields["장소"]
+        var tries = 0
+        while !(place.exists && place.isHittable) && tries < 6 {
+            app.swipeUp()
+            tries += 1
+        }
+        place.tap()
+        let keyboard = app.keyboards.firstMatch
+        try XCTSkipUnless(keyboard.waitForExistence(timeout: 5), "화면 키보드가 뜨지 않는 시뮬레이터")
+        let tag = app.textFields["태그 입력 후 줄바꿈 (쉼표로 여러 개)"]
+        tries = 0
+        while !(tag.exists && tag.frame.maxY <= keyboard.frame.minY) && tries < 6 {
+            app.swipeUp()
+            tries += 1
+        }
+        // 손을 뗀 뒤에도 그 자리에 머무는가 — 튕겨 돌아오면 다시 키보드 뒤로 숨는다.
+        _ = app.navigationBars["__없는 막대__"].waitForExistence(timeout: 1.5)
+        XCTAssertTrue(tag.exists, "태그 칸이 없다\n\(screen(app))")
+        XCTAssertLessThanOrEqual(tag.frame.maxY, keyboard.frame.minY + 1,
+                                 "키보드가 올라온 채로는 태그 칸까지 내려가지 못한다(키보드 뒤에 숨는다)\n\(screen(app))")
+    }
 }
