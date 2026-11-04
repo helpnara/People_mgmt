@@ -1344,10 +1344,54 @@ def year_review(year, records, people, today):
     for r in in_year:
         counts[r["type"]] = counts.get(r["type"], 0) + 1
     types = [{"type": t, "count": c} for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+    # 명단 (이슈 78 · D-72) — 사람마다 처음 · 마지막 기록. 같은 날이면 기록 id(대문자)가 작은 것.
+    def earliest(rs):
+        out = {}
+        for r in rs:
+            for pid in r["participants"]:
+                cand = (r["day"], r["id"].upper())
+                if pid not in out or cand < out[pid]:
+                    out[pid] = cand
+        return out
+
+    def latest(rs):
+        out = {}
+        for r in rs:
+            for pid in r["participants"]:
+                cand = (r["day"], r["id"].upper())
+                if pid not in out or cand[0] > out[pid][0] or (cand[0] == out[pid][0] and cand[1] < out[pid][1]):
+                    out[pid] = cand
+        return out
+
+    keys = {}
+    for p in people:
+        keys.setdefault(p["id"], p["sortKey"])
+    first_year = {pid: min(ys) for pid, ys in years_of.items()}
+    first_in, last_in, last_before = earliest(in_year), latest(in_year), latest(prev)
+    ids_by_upper = {}
+    for r in records:
+        ids_by_upper[r["id"].upper()] = r["id"]
+
+    def entry(pid, held):
+        return {"id": pid, "record": ids_by_upper[held[1]], "day": held[0]}
+
+    k = lambda pid: keys.get(pid, "")
+    together = [entry(pid, last_in[pid]) for pid in sorted(met, key=lambda q: (k(q), q.upper()))]
+    fresh_ids = sorted((q for q in met if first_year[q] == year), key=lambda q: (first_in[q][0], k(q), q.upper()))
+    back_ids = sorted((q for q in met if first_year[q] != year), key=lambda q: (-last_in[q][0], k(q), q.upper()))
+    rest_ids = sorted(met_before - met, key=lambda q: (last_before[q][0], k(q), q.upper()))
+    month_records = [[r["id"] for r in sorted((r for r in in_year if r["month"] == m), key=lambda r: (r["day"], r["id"].upper()))]
+                     for m in range(1, 13)]
     return {"year": year, "recordCount": len(in_year), "previousRecordCount": len(prev), "peopleCount": len(met),
             "newlyMet": [p["id"] for p in newly], "fresh": len(met) - returning, "returning": returning,
             "resting": len(met_before - met), "monthly": monthly, "unknownMonth": unknown,
-            "busiestMonth": busiest, "types": types}
+            "busiestMonth": busiest, "types": types,
+            "monthRecords": month_records,
+            "together": together,
+            "freshPeople": [entry(q, first_in[q]) for q in fresh_ids],
+            "returningPeople": [entry(q, last_in[q]) for q in back_ids],
+            "restingPeople": [entry(q, last_before[q]) for q in rest_ids]}
 
 
 # ── 관계도 이름표 차례 (LabelPriority · 이슈 73) ───────────────────────────────
