@@ -9,6 +9,21 @@ struct YearReviewData: Sendable {
     let people: [YearInReview.Person]
     let today: Int
     let currentYear: Int
+    /// 기록마다 날짜 · 정밀도 — 명단 줄에 그 사람의 날을 적을 때 (이슈 78).
+    var recordDates: [UUID: RecordDate] = [:]
+
+    struct RecordDate: Sendable {
+        let date: Date
+        let precision: Int
+    }
+
+    /// 사람의 흐름 명단 넷 — 셈과 함께 주 스레드 밖에서 만든다(본문에서 사람 전원을 훑지 않는다 · CLAUDE.md).
+    struct Lists: Sendable {
+        let together: PeopleListRoute
+        let fresh: PeopleListRoute
+        let returning: PeopleListRoute
+        let resting: PeopleListRoute
+    }
 
     /// 고를 수 있는 해 — 이른 해부터.
     var years: [Int] {
@@ -17,6 +32,30 @@ struct YearReviewData: Sendable {
 
     func summary(of year: Int) -> YearInReview.Summary {
         YearInReview.make(year: year, records: records, people: people, today: today)
+    }
+
+    /// 명단 넷 (이슈 78 · D-72) — 차례는 `Core.YearInReview` 그대로, 줄 끝에는 그 사람의 날(처음 · 마지막)을 정밀도대로.
+    func lists(for summary: YearInReview.Summary) -> Lists {
+        let year = String(summary.year) + "년 "
+        func route(_ title: String, _ entries: [YearInReview.Entry], lead: String, footer: String) -> PeopleListRoute {
+            var notes: [UUID: String] = [:]
+            for entry in entries {
+                guard let when = recordDates[entry.record] else { continue }
+                notes[entry.id] = lead + " " + when.date.shown(precision: when.precision, style: .long)
+            }
+            return PeopleListRoute(title: year + title, ids: entries.map(\.id), notes: notes, footer: footer)
+        }
+        let previous = String(summary.year - 1) + "년"
+        return Lists(
+            together: route("함께한 사람", summary.together, lead: "마지막",
+                            footer: "이름 순입니다. 날짜는 이 해에 마지막으로 함께한 기록의 날입니다."),
+            fresh: route("새로 함께한 사람", summary.freshPeople, lead: "처음",
+                         footer: "이 해에 처음 기록한 사람입니다. 처음 함께한 날이 이른 사람부터 놓습니다."),
+            returning: route("다시 함께한 사람", summary.returningPeople, lead: "마지막",
+                             footer: "그 앞 해에도 기록이 있던 사람입니다. 이 해에 마지막으로 함께한 날이 최근인 사람부터 놓습니다."),
+            resting: route("쉬어 간 사람", summary.restingPeople, lead: "마지막",
+                           footer: previous + "엔 함께했는데 이 해엔 기록이 없는 사람입니다. " + previous
+                               + "에 마지막으로 함께한 날이 오래된 사람부터 놓습니다."))
     }
 
     static func build(container: ModelContainer, now: Date = Date()) async -> YearReviewData {
@@ -50,8 +89,11 @@ struct YearReviewData: Sendable {
                 firstMetYear: person.firstMetDate.map { calendar.component(.year, from: $0) },
                 sortKey: NameSort.key(person.name))
         }
+        var dates: [UUID: RecordDate] = [:]
+        for record in records { dates[record.uuid] = RecordDate(date: record.occurredAt, precision: record.occurredPrecision) }
         return YearReviewData(records: items, people: persons,
                               today: DayIndex.of(now, calendar: calendar),
-                              currentYear: calendar.component(.year, from: now))
+                              currentYear: calendar.component(.year, from: now),
+                              recordDates: dates)
     }
 }

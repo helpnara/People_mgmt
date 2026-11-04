@@ -63,6 +63,10 @@ struct PeopleListRoute: Hashable {
     let ids: [UUID]
     var fill: FillField?
     var detail: PeopleRowDetail = .none
+    /// 사람마다 줄 끝에 쓸 말 — 있으면 `detail` 보다 먼저 (한 해 돌아보기의 명단 · 이슈 78).
+    var notes: [UUID: String] = [:]
+    /// 목록 아래 설명.
+    var footer: String?
 }
 
 /// 고칠 기록 몇 건을 보여 주는 길 — 누르면 바로 기록 수정 (D-31: 함께한 사람이 한 명뿐인 기록).
@@ -112,12 +116,15 @@ struct PeopleRouteView: View {
                         NavigationLink(value: person) {
                             row(person, trailing: detailText(person), done: false)
                         }
+                        .accessibilityIdentifier("peopleRouteRow")
                     }
                 }
             } header: {
                 Text("\(people.count)명")
             } footer: {
-                if let fill = route.fill {
+                if let footer = route.footer {
+                    Text(footer)
+                } else if let fill = route.fill {
                     if fill == .record {
                         Text("누르면 그 사람과의 기록 쓰기가 바로 열립니다. 저장하면 이 목록에 채웠습니다로 표시됩니다.")
                     } else {
@@ -171,6 +178,7 @@ struct PeopleRouteView: View {
     }
 
     private func detailText(_ person: Person) -> String? {
+        if let note = route.notes[person.uuid] { return note }
         switch route.detail {
         case .none:
             return nil
