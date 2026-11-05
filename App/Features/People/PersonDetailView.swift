@@ -229,6 +229,12 @@ struct PersonDetailView: View {
                         .font(.scaled(15))
                         .foregroundStyle(Color.bodyText)
                 }
+                // 기념일 (10판 · D-77) — 더한 차례대로. 해를 적었으면 몇 주년인지.
+                ForEach(person.sortedSpecialDays) { special in
+                    Label(SpecialDayText.line(special), systemImage: "heart")
+                        .font(.scaled(15))
+                        .foregroundStyle(Color.bodyText)
+                }
                 if let months = person.contactCadenceMonths, !person.isMe {
                     Label("연락 주기 \(months)개월", systemImage: "bell")
                         .font(.scaled(15))
@@ -437,5 +443,18 @@ struct PersonDetailView: View {
             errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
         }
         pendingRecordDelete = nil
+    }
+}
+
+/// 기념일 한 줄 글 (10판 · D-77) — `결혼기념일 2016년 11월 20일 · 10주년`. 몇 주년은 올해 그날이 지났든 아니든 올해 해 빼기 그 해.
+enum SpecialDayText {
+    static func line(_ special: SpecialDay, now: Date = Date()) -> String {
+        let label = special.label.isEmpty ? "기념일" : special.label
+        var text = label + " " + BirthdayRule.text(month: special.month, day: special.day, year: special.year)
+        if let year = special.year {
+            let years = Calendar.current.component(.year, from: now) - year
+            if years >= 1 { text += " · \(years)주년" }
+        }
+        return text
     }
 }
