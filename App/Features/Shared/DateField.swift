@@ -129,6 +129,8 @@ private struct GridCell: View {
     }
 }
 
+/// 해가 든 접근성 이름은 `Text(verbatim:)` 로 — 글 열쇠(LocalizedStringKey)에 넣은 정수는 천 단위 쉼표가 붙어
+/// `2,026년 1월` 이 된다(CI 138 에서 찾음 · VoiceOver 도 그렇게 읽는다).
 /// 위쪽 넘기기 줄 — `‹ 2026년 ›`. `onTitle` 이 있으면 제목이 단추다(`2026년 3월 ⌄` — 눌러서 한 단계 위를 고른다).
 private struct PagerHeader: View {
     let title: String
@@ -211,7 +213,7 @@ struct MonthGrid: View {
                     GridCell(text: "\(month)월", selected: year == selectedYear && month == selectedMonth) {
                         onPick(year, month)
                     }
-                    .accessibilityLabel("\(year)년 \(month)월")
+                    .accessibilityLabel(Text(verbatim: "\(year)년 \(month)월"))
                 }
             }
         }
@@ -383,7 +385,7 @@ struct DayCalendar: View {
                     isToday: today.year == year && today.month == month && today.day == day) {
                 onPick(year, month, day)
             }
-            .accessibilityLabel("\(year)년 \(month)월 \(day)일")
+            .accessibilityLabel(Text(verbatim: "\(year)년 \(month)월 \(day)일"))
         }
     }
 
@@ -420,7 +422,7 @@ struct DayCalendar: View {
                         month = m
                         stage = .days
                     }
-                    .accessibilityLabel("\(year)년 \(m)월")
+                    .accessibilityLabel(Text(verbatim: "\(year)년 \(m)월"))
                 }
             }
         }
