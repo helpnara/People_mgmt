@@ -125,4 +125,26 @@ final class NavigationUITests: XCTestCase {
         let stamp = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "만든 날")).firstMatch
         XCTAssertTrue(stamp.waitForExistence(timeout: 10), "그달 기록을 눌러도 기록 상세가 뜨지 않는다\n\(screen(app))")
     }
+
+    /// **날짜까지 달력은 날을 눌러야 닫힌다** (이슈 83 · 2026-11-05 사용자) — 기록 추가의 날짜 칩 → 제목으로 열두 달 → 제목으로
+    /// 열두 해 → 2025년 → 3월 → 15일. 해 · 달을 고르는 동안에는 말풍선이 떠 있고, 날을 누르면 닫히며 칩이 그 날이 된다.
+    /// 빌드 57 까지는 해를 바꾸는 순간 닫혔다.
+    @MainActor
+    func testDayCalendarClosesOnlyOnDay() {
+        let app = launch(["-openPerson", "김하늘", "-addRecord"])
+        XCTAssertTrue(app.navigationBars["기록 추가"].waitForExistence(timeout: 20), "기록 추가 창이 열리지 않았다\n\(screen(app))")
+        let chip = app.buttons["dateChip"].firstMatch
+        tapWhenReady(chip, in: app, "날짜 칩")
+        let title = app.buttons["calendarTitle"].firstMatch
+        tapWhenReady(title, in: app, "달력 제목(해 · 달)")
+        tapWhenReady(app.buttons["calendarTitle"].firstMatch, in: app, "열두 달 제목(해)")
+        tapWhenReady(app.buttons["2025년"].firstMatch, in: app, "2025년")
+        XCTAssertTrue(app.buttons["2025년 3월"].waitForExistence(timeout: 5), "해를 고르자 닫혔다 — 열두 달이 보여야 한다\n\(screen(app))")
+        app.buttons["2025년 3월"].firstMatch.tap()
+        let day = app.buttons["2025년 3월 15일"].firstMatch
+        XCTAssertTrue(day.waitForExistence(timeout: 5), "달을 고르자 닫혔다 — 그달의 날이 보여야 한다\n\(screen(app))")
+        day.tap()
+        XCTAssertTrue(app.buttons["calendarTitle"].waitForNonExistence(timeout: 5), "날을 눌러도 닫히지 않았다\n\(screen(app))")
+        XCTAssertTrue(chip.label.contains("2025") && chip.label.contains("15"), "칩이 고른 날이 아니다: \(chip.label)\n\(screen(app))")
+    }
 }
