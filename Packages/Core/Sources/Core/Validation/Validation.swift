@@ -17,6 +17,8 @@ public enum Limits {
     public static let recordTitle = 100
     public static let recordNote = 20_000
     public static let location = 100
+    /// 기념일 종류 이름 (10판 · D-77) — `결혼기념일` · `첫째 돌` 처럼 짧게.
+    public static let specialDayLabel = 30
 }
 
 public enum PersonValidation {

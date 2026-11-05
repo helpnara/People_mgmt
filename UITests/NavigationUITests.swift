@@ -26,6 +26,13 @@ final class NavigationUITests: XCTestCase {
         return "보이는 제목 막대: \(bars)\n" + String(app.debugDescription.prefix(5000))
     }
 
+    /// 단추 목록 — 화면 덤프가 앞 5000자에서 잘려 위에 뜬 창(시트 · 말풍선)이 안 보일 때 (CI 136).
+    @MainActor
+    private func buttons(_ app: XCUIApplication) -> String {
+        let list = app.buttons.allElementsBoundByIndex.prefix(80).map { "[\($0.identifier)|\($0.label)|\($0.frame)]" }
+        return "말풍선 \(app.popovers.count)개 · 단추: " + list.joined(separator: " ")
+    }
+
     /// 찾은 단추를 누를 수 있을 때까지 조금씩 올린다.
     @MainActor
     private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication, _ what: String) {
@@ -134,17 +141,41 @@ final class NavigationUITests: XCTestCase {
         let app = launch(["-openPerson", "김하늘", "-addRecord"])
         XCTAssertTrue(app.navigationBars["기록 추가"].waitForExistence(timeout: 20), "기록 추가 창이 열리지 않았다\n\(screen(app))")
         let chip = app.buttons["dateChip"].firstMatch
-        tapWhenReady(chip, in: app, "날짜 칩")
+        XCTAssertTrue(chip.waitForExistence(timeout: 15), "날짜 칩이 보이지 않는다\n\(screen(app))")
+        // 칩은 줄 오른쪽 끝에 있다. 찾은 요소가 줄 전체로 잡히면 가운데(빈 곳)를 눌러 달력이 뜨지 않는다(CI 136) —
+        // 칩이든 줄이든 칩 위에 떨어지는 오른쪽 자리를 누른다.
+        let chipSpot = chip.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+        chipSpot.tap()
+        // 달력이 떴는지부터 가른다 — 날 칸(`2026년 11월 5일`)이 보이면 떴다. 안 보이면 칩을 한 번 더 누른다(첫 누름이 초점만 옮겼을 때).
+        // 칩 자신의 글도 `…일` 로 끝나 칩은 뺀다 — CI 132 · 134 는 칩을 날 칸으로 잘못 보고 다시 누르지 않았다.
+        let anyDay = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@ AND identifier != %@", "일", "dateChip")).firstMatch
+        if !anyDay.waitForExistence(timeout: 5) {
+            chipSpot.tap()
+        }
+        XCTAssertTrue(anyDay.waitForExistence(timeout: 10),
+                      "날짜 칩을 눌러도 달력이 뜨지 않는다 — 칩 \(chip.frame)\n\(buttons(app))\n\(screen(app))")
         let title = app.buttons["calendarTitle"].firstMatch
-        tapWhenReady(title, in: app, "달력 제목(해 · 달)")
-        tapWhenReady(app.buttons["calendarTitle"].firstMatch, in: app, "열두 달 제목(해)")
-        tapWhenReady(app.buttons["2025년"].firstMatch, in: app, "2025년")
-        XCTAssertTrue(app.buttons["2025년 3월"].waitForExistence(timeout: 5), "해를 고르자 닫혔다 — 열두 달이 보여야 한다\n\(screen(app))")
-        app.buttons["2025년 3월"].firstMatch.tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "달력은 떴는데 제목 단추(calendarTitle)를 못 찾는다\n\(buttons(app))\n\(screen(app))")
+        // 단계마다 화면이 바뀐 것을 본 뒤에 누른다 — 바뀌는 동안 누르면 사라지던 칸(달)이 눌려 날로 돌아간다(CI 137).
+        let thisYear = Calendar.current.component(.year, from: Date())
+        title.tap()
+        let monthCell = app.buttons["\(thisYear)년 1월"].firstMatch
+        XCTAssertTrue(monthCell.waitForExistence(timeout: 5), "제목을 눌러도 열두 달이 아니다\n\(buttons(app))")
+        app.buttons["calendarTitle"].firstMatch.tap()
+        XCTAssertTrue(monthCell.waitForNonExistence(timeout: 5), "열두 달 제목을 눌러도 열두 해가 아니다\n\(buttons(app))")
+        let year = app.buttons["2025년"].firstMatch
+        XCTAssertTrue(year.waitForExistence(timeout: 5), "열두 해에 2025년이 없다\n\(buttons(app))")
+        _ = app.navigationBars["__없는 막대__"].waitForExistence(timeout: 0.6)
+        year.tap()
+        let march = app.buttons["2025년 3월"].firstMatch
+        XCTAssertTrue(march.waitForExistence(timeout: 5), "해를 고르자 닫혔다 — 열두 달이 보여야 한다\n\(buttons(app))")
+        _ = app.navigationBars["__없는 막대__"].waitForExistence(timeout: 0.6)
+        march.tap()
         let day = app.buttons["2025년 3월 15일"].firstMatch
-        XCTAssertTrue(day.waitForExistence(timeout: 5), "달을 고르자 닫혔다 — 그달의 날이 보여야 한다\n\(screen(app))")
+        XCTAssertTrue(day.waitForExistence(timeout: 5), "달을 고르자 닫혔다 — 그달의 날이 보여야 한다\n\(buttons(app))")
+        _ = app.navigationBars["__없는 막대__"].waitForExistence(timeout: 0.6)
         day.tap()
-        XCTAssertTrue(app.buttons["calendarTitle"].waitForNonExistence(timeout: 5), "날을 눌러도 닫히지 않았다\n\(screen(app))")
+        XCTAssertTrue(app.buttons["calendarTitle"].waitForNonExistence(timeout: 5), "날을 눌러도 닫히지 않았다\n\(buttons(app))")
         XCTAssertTrue(chip.label.contains("2025") && chip.label.contains("15"), "칩이 고른 날이 아니다: \(chip.label)\n\(screen(app))")
     }
 }

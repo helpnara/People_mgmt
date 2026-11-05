@@ -4690,6 +4690,104 @@
         "cadence": true
       },
       "limit": 3
+    },
+    {
+      "name": "기념일 — 결혼 n주년 · 해 모름 · 줄마다 끔 · 생일 끔 · 같은 날 둘 · 윤일",
+      "today": [
+        2026,
+        11,
+        5
+      ],
+      "options": {
+        "birthdays": true,
+        "anniversaries": false,
+        "cadence": false,
+        "specialDays": true
+      },
+      "limit": 60,
+      "people": [
+        {
+          "id": "00000000-0000-0000-0000-000000000401",
+          "name": "가온",
+          "birthMonth": 11,
+          "birthDay": 5,
+          "firstMet": null,
+          "lastRecord": null,
+          "registered": [
+            2026,
+            1,
+            1
+          ],
+          "cadenceMonths": null,
+          "muteBirthday": true,
+          "specialDays": [
+            {
+              "id": "00000000-0000-0000-0000-000000000501",
+              "label": "결혼기념일",
+              "month": 11,
+              "day": 20,
+              "year": 2016,
+              "remind": true
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000502",
+              "label": "입사일",
+              "month": 3,
+              "day": 2,
+              "year": null,
+              "remind": true
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000503",
+              "label": "기일",
+              "month": 12,
+              "day": 1,
+              "year": 2020,
+              "remind": false
+            }
+          ]
+        },
+        {
+          "id": "00000000-0000-0000-0000-000000000402",
+          "name": "나린",
+          "birthMonth": 11,
+          "birthDay": 5,
+          "firstMet": null,
+          "lastRecord": null,
+          "registered": [
+            2026,
+            1,
+            1
+          ],
+          "cadenceMonths": null,
+          "specialDays": [
+            {
+              "id": "00000000-0000-0000-0000-000000000505",
+              "label": "",
+              "month": 11,
+              "day": 5,
+              "year": 2026,
+              "remind": true
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000504",
+              "label": "결혼기념일",
+              "month": 11,
+              "day": 5,
+              "year": 2010,
+              "remind": true
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000506",
+              "label": "첫 출근",
+              "month": 2,
+              "day": 29,
+              "year": null,
+              "remind": true
+            }
+          ]
+        }
+      ]
     }
   ],
   "vcardEncode": [

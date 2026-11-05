@@ -106,6 +106,10 @@ enum SampleData {
 
         let people = [haneul, doyun, seoyeon, minjun, yujin, jiwoo, alice, seoa]
         for person in people { context.insert(person) }
+        // 기념일 (10판 · D-77) — 지어낸 견본. 넣은 뒤에 잇는다.
+        let wedding = SpecialDay(label: "결혼기념일", month: 10, day: 12, year: 2018, remind: true, position: 0)
+        context.insert(wedding)
+        wedding.person = haneul
         seoyeon.introducedBy = haneul
         yujin.introducedBy = haneul
 
