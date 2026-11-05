@@ -4,7 +4,7 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// **백업 · 복원** (FR-018 · D-34) — 사람 · 기록 · 아는 사이 · 명함 · 사람 사진 · 기록 사진(9판) · 내 선택지(9판)를 **파일 하나(.json)** 로.
+/// **백업 · 복원** (FR-018 · D-34) — 사람 · 기록 · 아는 사이 · 명함 · 사람 사진 · 기록 사진(9판) · 내 선택지(9판) · 기념일(10판)을 **파일 하나(.json)** 로.
 ///
 /// - 고유 식별자(`uuid`)와 만든 날을 그대로 담아, 복원하면 소개 관계 · 함께한 사람 · 아는 사이가 그대로 이어진다.
 /// - 명함 · 사람 사진은 JSON 안에 base64 로 들어간다 — 사람이 많으면 파일이 커진다(명함 1장에 수백 KB).
@@ -46,6 +46,22 @@ struct BackupFile: Codable, Sendable {
         var firstMetPrecision: Int?
         /// 7판(빌드 29)부터 — 사람 사진(FR-012). 옛 백업에는 없으니 옵셔널.
         var photo: Data?
+        /// 10판(빌드 59)부터 — 이 사람의 생일 알림 끄기(D-77). 옛 백업에는 없으니 옵셔널(없으면 켬).
+        var muteBirthdayReminder: Bool?
+        /// 10판(빌드 59)부터 — 기념일(D-77). 옛 백업에는 없으니 옵셔널.
+        var specialDays: [SpecialDayItem]?
+    }
+
+    /// 10판(빌드 59)부터 — 기념일 한 줄(D-77).
+    struct SpecialDayItem: Codable, Sendable {
+        var uuid: UUID
+        var label: String
+        var month: Int
+        var day: Int
+        var year: Int?
+        var remind: Bool
+        var position: Int
+        var createdAt: Date
     }
 
     struct RecordItem: Codable, Sendable {
@@ -174,7 +190,26 @@ enum Backup {
             isMe: p.isMe, tags: p.tags, createdAt: p.createdAt, updatedAt: p.updatedAt, businessCard: p.businessCard,
             birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear,
             contactCadenceMonths: p.contactCadenceMonths, firstMetPrecision: p.firstMetPrecision,
-            photo: p.photo)
+            photo: p.photo, muteBirthdayReminder: p.muteBirthdayReminder ? true : nil,
+            specialDays: {
+                let days = p.sortedSpecialDays.map {
+                    BackupFile.SpecialDayItem(uuid: $0.uuid, label: $0.label, month: $0.month, day: $0.day, year: $0.year,
+                                              remind: $0.remind, position: $0.position, createdAt: $0.createdAt)
+                }
+                return days.isEmpty ? nil : days
+            }())
+    }
+
+    /// 기념일을 값에서 다시 붙인다 (10판) — 사람을 저장소에 넣은 **뒤에**. 맞지 않는 날(2월 30일)은 넣지 않는다.
+    static func attachSpecialDays(to person: Person, from item: BackupFile.PersonItem, in context: ModelContext) {
+        for day in item.specialDays ?? [] where BirthdayRule.isValid(month: day.month, day: day.day, year: day.year) {
+            let special = SpecialDay(label: day.label, month: day.month, day: day.day, year: day.year,
+                                     remind: day.remind, position: day.position)
+            context.insert(special)
+            special.uuid = day.uuid
+            special.createdAt = day.createdAt
+            special.person = person
+        }
     }
 
     static func item(of r: Record) -> BackupFile.RecordItem {
@@ -226,6 +261,7 @@ enum Backup {
         person.birthDay = item.birthDay
         person.birthYear = item.birthYear
         person.contactCadenceMonths = item.contactCadenceMonths
+        person.muteBirthdayReminder = item.muteBirthdayReminder ?? false
     }
 
     /// 기록의 칸을 값에서 채운다 — 함께한 사람은 부르는 쪽이 잇는다.
@@ -301,6 +337,7 @@ enum Backup {
             let person = Person(name: item.name)
             context.insert(person)
             fill(person, from: item)
+            attachSpecialDays(to: person, from: item, in: context)
             // 나는 하나뿐이다 (이슈 12) — 백업에 둘이 있으면 앞의 하나만.
             person.isMe = item.isMe && !hasMe
             if person.isMe { hasMe = true }

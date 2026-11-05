@@ -9,6 +9,8 @@ enum ReminderSettings {
     static let birthdaysKey = "reminders.birthdays"
     static let anniversariesKey = "reminders.anniversaries"
     static let cadenceKey = "reminders.cadence"
+    /// 기념일 당일 (10판 · D-77) — 사람마다 여러 기념일, 줄마다 켜고 끈다. 기본은 꺼짐.
+    static let specialDaysKey = "reminders.specialDays"
     /// 결과 적기 (빌드 38 · D-62) — 예정이던 만남의 다음 날 같은 시각에 결과를 적으라고 알린다. 기본은 꺼짐.
     static let followUpKey = "reminders.followUp"
     static let hourKey = "reminders.hour"
@@ -19,7 +21,8 @@ enum ReminderSettings {
         let defaults = UserDefaults.standard
         return ReminderPlanner.Options(birthdays: defaults.bool(forKey: birthdaysKey),
                                        anniversaries: defaults.bool(forKey: anniversariesKey),
-                                       cadence: defaults.bool(forKey: cadenceKey))
+                                       cadence: defaults.bool(forKey: cadenceKey),
+                                       specialDays: defaults.bool(forKey: specialDaysKey))
     }
 
     static var followUp: Bool { UserDefaults.standard.bool(forKey: followUpKey) }
@@ -202,9 +205,15 @@ enum ReminderScheduler {
         }
         let inputs = people.compactMap { person -> ReminderPlanner.Person? in
             let wantsCadence = options.cadence && (person.contactCadenceMonths ?? 0) > 0
-            let needed = (options.birthdays && person.birthMonth != nil)
+            let specials = options.specialDays
+                ? person.sortedSpecialDays.filter(\.remind).map {
+                    ReminderPlanner.SpecialDay(id: $0.uuid, label: $0.label, month: $0.month, day: $0.day, year: $0.year,
+                                               remind: $0.remind)
+                } : []
+            let needed = (options.birthdays && person.birthMonth != nil && !person.muteBirthdayReminder)
                 || (options.anniversaries && knowsFirstMetDay(person))
                 || wantsCadence
+                || !specials.isEmpty
             guard needed else { return nil }
             return ReminderPlanner.Person(
                 id: person.uuid, name: person.name, birthMonth: person.birthMonth, birthDay: person.birthDay,
@@ -212,7 +221,8 @@ enum ReminderScheduler {
                 firstMet: knowsFirstMetDay(person) ? person.firstMetDate.map(civil) : nil,
                 // 마지막 기록은 연락 주기를 고른 사람만 센다 — 기록 관계를 읽는 비용이 크다.
                 lastRecord: wantsCadence ? person.lastRecordAt.map(civil) : nil,
-                registered: civil(person.createdAt), cadenceMonths: person.contactCadenceMonths)
+                registered: civil(person.createdAt), cadenceMonths: person.contactCadenceMonths,
+                muteBirthday: person.muteBirthdayReminder, specialDays: specials)
         }
         return ReminderPlanner.plan(inputs, today: today, options: options)
     }
