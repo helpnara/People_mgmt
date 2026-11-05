@@ -17,7 +17,48 @@
 | 마케팅 URL | | (비워 둠) |
 | 개인정보 처리방침 URL | | `https://helpnara.github.io/People_mgmt/privacy/` |
 
-## 1.1.5 제출 시트 (2026-11-05 · 빌드 57) — 키보드 아래 칸 · 모임 이름 · **2026-11-05 심사 제출 완료(사용자)**
+## 1.1.6 제출 시트 (2026-11-05 · 빌드 58) — 1.1.5 를 심사에서 빼고 1.1.6 으로 낸다
+
+1.1.5(빌드 57)를 **심사에서 제거하고 1.1.6(빌드 58)으로 낸다**(2026-11-05 사용자). 1.1.5 는 출시되지 않으므로 사용자는 1.1.4 → 1.1.6 으로 올라간다 — 새로운 기능에 1.1.5 의 고침까지 담았다. 빌드 58 의 실제 고침만(이슈 80 ~ 83 · D-73 ~ D-76 · 빌드 56 0~8 · 57 0~5 · 58 0~8 확인 완료). 스키마 9판 그대로 — CloudKit 배포 없음. 설명 · 스크린샷 · 키워드는 그대로.
+
+### 콘솔에서 (App Store Connect → 앱 → 느린 인연 → iOS 앱)
+
+1. **1.1.5 (심사 대기)** 페이지 위의 **심사에서 제거** → 확인. 상태가 `개발자가 거부함` 이 된다.
+2. 같은 페이지의 **버전** 칸 `1.1.5` → `1.1.6` (빌드 58 의 판이 1.1.6 이라 같아야 한다).
+3. **빌드** — 빌드 57 을 빼고(−) **빌드 추가** → `1.1.6 (58)`.
+4. **이 버전의 새로운 기능** → 아래 글로 바꾼다 (466자 · 한도 4,000자).
+5. **앱 심사 정보 → 메모** 끝의 `1.1.5 is a bug-fix release` 문단을 아래 영문 문단으로 바꾼다.
+6. 설명 · 스크린샷 · 부제 · 키워드 · 개인정보 라벨은 그대로.
+7. **이 버전을 수동으로 출시** → **저장** → **심사에 추가** → **제출**.
+
+### 이 버전의 새로운 기능 (466자)
+
+```
+입력할 때와 관계도에서 걸리던 것들을 고쳤습니다.
+
+- 날짜 고르기가 편해졌습니다. 날짜까지 고를 때 해 → 달 → 날 차례로 고르고, 날을 눌러야 닫힙니다. 해나 달을 바꿀 때마다 닫혀서 다시 열어야 하던 불편을 고쳤습니다. 월까지 고를 때도 해를 한 번에 고를 수 있습니다.
+- 키보드가 올라와 있어도 아래 칸까지 내려갈 수 있습니다. 기록 · 사람을 적을 때, 선택지를 더할 때, 사람을 찾을 때 마지막 칸이 키보드 뒤에 숨어 내려가지 않던 문제를 고쳤습니다.
+- 관계도의 모임 이름이 더 정확해졌습니다. 소속 · 태그 · 알게 된 경로 가운데 가장 많은 사람이 함께 가진 값으로 이름을 붙입니다. 예를 들어 열 명이 같은 태그를 가진 모임은, 그중 두 명만 같은 회사여도 태그 이름으로 불립니다.
+- 시점 막대로 지난 해를 볼 때도 지금과 같은 방식으로 모임 이름을 붙여, 같은 모임이 해마다 다른 이름으로 불리지 않습니다.
+```
+
+### 심사 메모에 덧붙일 문단 (영문 · `1.1.5 is a bug-fix release` 문단 자리에)
+
+```
+1.1.6 is a bug-fix release (1.1.5 was withdrawn before review, so this includes it):
+- Date fields (record date, first-met date): the "day" precision now uses an
+  in-app calendar that closes only when a day is tapped; changing the year or
+  month no longer closes it. The "month" precision can jump to a year directly.
+- With the keyboard open, the last fields of the record / person editors, the
+  choice editor and the people search lists could not be scrolled into view.
+  The scroll content now gets extra bottom room equal to the hidden part.
+- Relationship map ("내 인맥" -> "관계도"): group names now use the value shared
+  by the most members across organization, tag and how-we-met, and past-year
+  views use the same rule as the current view.
+No new features, permissions or schema changes.
+```
+
+## 1.1.5 제출 시트 (2026-11-05 · 빌드 57) — 키보드 아래 칸 · 모임 이름 · 2026-11-05 심사 제출 → **심사에서 빼고 1.1.6 으로 (위 제출 시트)**
 
 1.1.4 가 출시된 뒤의 **새 버전**이다(2026-11-05 사용자). 빌드 57 의 실제 고침만(이슈 80 ~ 82 · D-73 ~ D-75 · 빌드 56 0~8 · 빌드 57 0~5 확인 완료 · CI 130 키보드 시험 세 기기 통과). 스키마 9판 그대로 — CloudKit 배포 없음. 설명 · 스크린샷 · 키워드는 그대로(새 버전을 만들면 콘솔이 앞 판 것을 옮겨 온다). `main` 병합 `2d4031a` (제출 준비 때 · 앱 코드는 빌드 57 과 같다).
 
