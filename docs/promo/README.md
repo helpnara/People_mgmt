@@ -3,6 +3,8 @@
 - `make_short.py` — 쇼츠 1 **이 사람, 어디서 만났더라?** (2026-11-01 · `../promo-youtube.md`)
 - `make_map.py` — 쇼츠 2 **내 인맥을 지도로** (2026-11-02 · `../promo-youtube-2.md`) · `make_short.py` 의 그리기 도구를 가져다 쓴다
 - `make_record.py` — 쇼츠 3 **만나고 30초 기록** (2026-11-03 · `../promo-youtube-3.md`) · 화면은 1.0 을 낸 커밋 `134054a` 의 스크린샷을 git 에서 꺼내 쓴다
+- `make_year.py` — 쇼츠 4 **올해, 누구와 보냈나요?** (2026-11-04 · `../promo-youtube-4.md`)
+- `make_plan.py` — 쇼츠 5 **약속 그다음까지** (2026-11-05 · `../promo-youtube-5.md`) · 지금 브랜치의 스크린샷 10 · 41 · 42 와 결과 적기 알림 문구
 
 장면마다 프레임을 PIL 로 그리고 ffmpeg 로 묶는다(1080 × 1920 · 30fps · H.264 · 무음 스테레오 AAC). 앱 화면은 저장소의
 CI 스크린샷 · 스토어 녹화본이고 사람은 모두 지어낸 견본이다. 영상 파일은 저장소에 두지 않는다.
@@ -17,6 +19,8 @@ curl -sS "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;800" | 
 python3 docs/promo/make_short.py . short1.mp4
 python3 docs/promo/make_map.py . short2.mp4
 python3 docs/promo/make_record.py . short3.mp4
+python3 docs/promo/make_year.py . short4.mp4
+python3 docs/promo/make_plan.py . short5.mp4
 ```
 
 - 필요한 것: Python 3 · Pillow · ffmpeg. 글꼴 폴더 `font/` 는 커밋하지 않는다(6MB × 2).
