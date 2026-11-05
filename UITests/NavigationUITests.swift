@@ -136,7 +136,8 @@ final class NavigationUITests: XCTestCase {
         let chip = app.buttons["dateChip"].firstMatch
         tapWhenReady(chip, in: app, "날짜 칩")
         // 달력이 떴는지부터 가른다 — 날 칸(`2026년 11월 5일`)이 보이면 떴다. 안 보이면 칩을 한 번 더 누른다(첫 누름이 초점만 옮겼을 때).
-        let anyDay = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", "일")).firstMatch
+        // 칩 자신의 글도 `…일` 로 끝나 칩은 뺀다 — CI 132 · 134 는 칩을 날 칸으로 잘못 보고 다시 누르지 않았다.
+        let anyDay = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@ AND identifier != %@", "일", "dateChip")).firstMatch
         if !anyDay.waitForExistence(timeout: 5) {
             chip.tap()
         }

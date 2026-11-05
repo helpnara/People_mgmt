@@ -639,9 +639,9 @@ jobs:
           fi
           # 기기를 차례로 돌려 실패 문구(제목 막대 · 화면 구조)가 로그에 찍히게 한다.
           grep -iE "Test Case .*(passed|failed)|Executed|error:|XCTAssert|Testing (failed|passed)|TEST (SUCCEEDED|FAILED)" /tmp/ui-tests.log | tail -80 || true
-          # 실패 까닭은 결과 묶음마다 — 맨 나중 것(Pro Max 돌리기)만 찍으면 앞 실행의 실패 화면 덤프가 사라진다(CI 132).
+          # 실패 까닭은 결과 묶음마다(아이폰 · 아이패드 · Pro Max 셋) — 맨 나중 것(Pro Max 돌리기)만 찍으면 앞 실행의 실패 화면 덤프가 사라진다(CI 132).
           # 실패한 시험과 그 실패 문구(화면 덤프 포함)만 골라 찍는다.
-          for RESULT in $(ls -td build/Logs/Test/*SlowConnectionUITests*.xcresult 2>/dev/null | head -2); do
+          for RESULT in $(ls -td build/Logs/Test/*SlowConnectionUITests*.xcresult 2>/dev/null | head -3); do
             echo "── 실패 까닭 (xcresult · $(basename "$RESULT")) ──"
             xcrun xcresulttool get test-results tests --path "$RESULT" 2>/dev/null | python3 -c '
           import json, sys
@@ -651,7 +651,9 @@ jobs:
               sys.exit(0)
           def walk(node, path):
               name = node.get("name", "")
-              if node.get("result") == "Failed" and node.get("nodeType") in ("Test Case", "Failure Message"):
+              # 실패 문구 마디에는 result 가 없다(CI 134) — 문구는 결과와 상관없이 찍는다.
+              kind = node.get("nodeType")
+              if kind == "Failure Message" or (kind == "Test Case" and node.get("result") == "Failed"):
                   print(" / ".join(path + [name])[:12000])
               for child in node.get("children", []):
                   walk(child, path + [name])
