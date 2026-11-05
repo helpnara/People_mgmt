@@ -99,7 +99,7 @@
 - 스키마 10판(`SpecialDay` · 사람의 `muteBirthdayReminder`). CloudKit 개발 환경 적용(`cloudkit-schema.yml` 실행 11) 통과 → **사용자가 Production 배포를 먼저** 한 뒤 설치.
 - CI 135 빌드 · 앱 테스트(`Build59Tests` — 저장 · 고침 · 빼기 · 생일 끄기 · 삭제 되돌리기 · 백업 왕복 · 9판 → 10판) 통과. Core 테스트 52 통과.
 - 화면 이동 시험 `testDayCalendarClosesOnlyOnDay` 는 CI 132 · 134 두 번 같은 자리에서 실패 → 내 시험 탓: 달력이 떴는지 보려던 `…일` 로 끝나는 단추가 **날짜 칩 자신**(`2026년 11월 5일`)에 걸려, 달력이 안 떴는데도 다시 누르지 않았다. 칩을 빼고(`55cdfc5`), 실패 문구가 덤프에 안 찍히던 것(실패 문구 마디에는 결과 표시가 없다 · 결과 묶음 셋 중 둘만 읽음)도 고쳤다. 앱 코드는 그대로.
-- **할 일 (콘솔)**: CloudKit Console → `iCloud.com.helpnara.slow.connection` → Deploy Schema Changes → Production.
+- **할 일 (콘솔)**: CloudKit Console → `iCloud.com.helpnara.slow.connection` → Deploy Schema Changes → Production. **끝 (2026-11-05 사용자 · 10판 Production 배포 완료)**
 - **확인 목록 (앱 안)**: 0 판 `1.1.7 (빌드 59)` · 1 껐다 켜서 그대로 · 2 생일 아래 `이 사람 생일 알림` · 3 `기념일 더하기` · 종류 칸 · 칩 다섯 · 4 날짜 · 해(모름) 고르개 · 5 여러 개 · 다시 열어도 그대로 · 6 `이 기념일 빼기` 확인 창 · 7 상세 머리 하트 줄 · n주년 · 8 설정 → 알림 `기념일 당일` · 오늘 기념일 알림 · 9 이 사람 생일 알림 끄면 그 사람만 안 옴 · 10 아이패드 동기화.
 
 ### 빌드 58 · 1.1.6 (2026-11-05 · TestFlight 실행 58 · **0~8 확인 완료 2026-11-05**) — 날짜까지 칸 달력 (이슈 83 · D-76)
