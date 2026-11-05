@@ -68,6 +68,7 @@ final class DeletionUndo {
                 let person = Person(name: item.name)
                 context.insert(person)
                 Backup.fill(person, from: item)
+                Backup.attachSpecialDays(to: person, from: item, in: context)
                 person.isMe = item.isMe
                 var known: [UUID: Person] = [item.uuid: person]
                 func find(_ id: UUID) -> Person? {

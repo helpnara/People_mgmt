@@ -40,6 +40,8 @@ enum DataWipe {
         // 기록 사진(9판)은 기록과 함께 지워지지만(cascade) 떨어진 사진이 남지 않게 따로도 지운다.
         // 내 선택지(9판 · `ChoiceList`)는 설정이라 둔다 — 아래 설정은 둔다와 같은 결정.
         for photo in try context.fetch(FetchDescriptor<RecordPhoto>()) { context.delete(photo) }
+        // 기념일(10판)도 사람과 함께 지워지지만(cascade) 떨어진 줄이 남지 않게 따로도 지운다.
+        for special in try context.fetch(FetchDescriptor<SpecialDay>()) { context.delete(special) }
         // 아는 사이 · 기록을 먼저 — 사람을 지울 때 이어진 것을 따로 정리하지 않게.
         for tie in ties { context.delete(tie) }
         for record in records { context.delete(record) }

@@ -72,6 +72,8 @@ struct PersonEditView: View {
     /// 생일 · 태어난 해 말풍선 (빌드 39 · 이슈 60).
     @State private var pickingBirthday = false
     @State private var pickingBirthYear = false
+    /// 빼기를 확인할 기념일 (모든 삭제에 확인 · CLAUDE.md).
+    @State private var removingSpecialDay: DraftSpecialDay?
 
     /// 열자마자 명함 촬영을 띄운다 — 단축어 `명함 찍기` (빌드 16 · 조사 보고서 지금 6).
     private let startsScan: Bool
@@ -130,6 +132,7 @@ struct PersonEditView: View {
                 cardSection
                 contactSection
                 birthdaySection
+                specialDaysSection
                 if !isMe { relationshipSections }
                 Section("태그") {
                     TagEditor(tags: $draft.tags, input: $pendingTag, catalog: tagCatalog)
@@ -177,6 +180,8 @@ struct PersonEditView: View {
             } message: {
                 Text("저장해야 실제로 지워집니다. 취소하고 버리면 그대로 남습니다.")
             }
+            // 기념일 빼기 확인 (10판) — 양식 줄 안이 아니라 화면에 붙인다(양식 줄 안의 메뉴가 뜨지 않던 이슈 72 교훈).
+            .modifier(SpecialDayRemoval(removing: $removingSpecialDay, specialDays: $draft.specialDays))
             .confirmationDialog("명함 사진을 지울까요?", isPresented: $confirmingCardRemoval, titleVisibility: .visible) {
                 Button("명함 지우기", role: .destructive) { draft.businessCard = nil }
                 Button("취소", role: .cancel) {}
@@ -351,16 +356,39 @@ struct PersonEditView: View {
                         .presentationCompactAdaptation(.popover)
                     }
                 }
+                // 사람마다 생일 알림 (10판 · D-77) — 설정 → 알림의 생일 당일이 켜져 있어야 온다.
+                Toggle("이 사람 생일 알림", isOn: $draft.birthdayReminder)
             }
         } header: {
             Text("생일")
         } footer: {
             if draft.hasBirthday {
-                Text("태어난 해는 몰라도 됩니다. 설정 → 알림에서 생일을 켜면 그날 아침에 알려 드립니다.")
+                Text("태어난 해는 몰라도 됩니다. 설정 → 알림에서 생일 당일을 켜면 그날 아침에 알려 드립니다. 이 사람만 알리지 않으려면 위를 끄세요.")
             }
         }
         .onChange(of: draft.birthMonth) { _, _ in clampBirthDay() }
         .onChange(of: draft.birthYear) { _, _ in clampBirthDay() }
+    }
+
+    /// **기념일** (10판 · 이슈 84 · D-77) — 결혼기념일 · 입사일 · 직접 입력 … 여러 개. 줄마다 날짜 · 해(선택) · 알림.
+    @ViewBuilder
+    private var specialDaysSection: some View {
+        ForEach($draft.specialDays) { $item in
+            SpecialDayEditor(item: $item) { removingSpecialDay = item }
+        }
+        Section {
+            Button {
+                Keyboard.dismiss()
+                draft.specialDays.append(DraftSpecialDay(label: draft.specialDays.isEmpty ? "결혼기념일" : "", month: 1, day: 1))
+            } label: {
+                Label("기념일 더하기", systemImage: "plus.circle")
+            }
+            .accessibilityIdentifier("addSpecialDay")
+        } header: {
+            if draft.specialDays.isEmpty { Text("기념일") }
+        } footer: {
+            Text("결혼기념일 · 입사일처럼 여러 개 적을 수 있습니다. 해는 몰라도 되고, 적으면 몇 주년인지 보입니다. 설정 → 알림에서 기념일 당일을 켜면 알림을 켠 기념일만 그날 아침에 알려 드립니다.")
+        }
     }
 
     /// 그 달의 마지막 날 — 연도를 모르면 2월은 29일까지.
@@ -735,6 +763,114 @@ struct PersonEditView: View {
                 try? await Task.sleep(for: .milliseconds(800))
                 pickingCardPhoto = true
             }
+        }
+    }
+}
+
+/// 기념일 한 줄 편집 (10판 · 이슈 84 · D-77) — 칸 하나(Section)에 종류 · 날짜 · 해 · 알림 · 빼기.
+/// 날짜 · 해 고르개는 생일과 같은 꼴(`MonthDayGrid` · `YearGrid`) — 날 · 해를 누르면 닫힌다.
+private struct SpecialDayEditor: View {
+    @Binding var item: DraftSpecialDay
+    let onRemove: () -> Void
+    @State private var pickingDate = false
+    @State private var pickingYear = false
+
+    /// 자주 쓰는 종류 — 누르면 종류 칸에 들어간다. 그 밖은 직접 적는다.
+    static let presets = ["결혼기념일", "입사일", "기일", "자녀 생일", "개업일"]
+
+    var body: some View {
+        Section {
+            TextField("종류 (예: 결혼기념일)", text: $item.label)
+                .limited($item.label, to: Limits.specialDayLabel)
+            WrapLayout(spacing: 8) {
+                ForEach(Self.presets, id: \.self) { preset in
+                    Button {
+                        item.label = preset
+                    } label: {
+                        Chip(text: preset, selected: item.label == preset)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            LabeledContent("날짜") {
+                Button {
+                    Keyboard.dismiss()
+                    pickingDate = true
+                } label: {
+                    DateChip(text: "\(item.month)월 \(item.day)일")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("눌러서 고릅니다")
+                .popover(isPresented: $pickingDate) {
+                    MonthDayGrid(selectedMonth: item.month, selectedDay: item.day, dayLimit: dayLimit) { month, day in
+                        item.month = month
+                        item.day = day
+                        pickingDate = false
+                    }
+                    .padding(12)
+                    .presentationCompactAdaptation(.popover)
+                }
+            }
+            LabeledContent("해") {
+                Button {
+                    Keyboard.dismiss()
+                    pickingYear = true
+                } label: {
+                    DateChip(text: item.year.map { "\($0)년" } ?? "모름")
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("눌러서 고릅니다")
+                .popover(isPresented: $pickingYear) {
+                    YearGrid(selected: item.year, range: Self.yearRange, unknownLabel: "모름") { year in
+                        item.year = year
+                        if let year, item.day > CivilDate.daysIn(month: item.month, year: year) {
+                            item.day = CivilDate.daysIn(month: item.month, year: year)
+                        }
+                        pickingYear = false
+                    }
+                    .padding(12)
+                    .presentationCompactAdaptation(.popover)
+                }
+            }
+            Toggle("알림", isOn: $item.remind)
+            Button(action: onRemove) {
+                Label("이 기념일 빼기", systemImage: "minus.circle")
+                    .foregroundStyle(Color.danger)
+            }
+        } header: {
+            Text(item.shownLabel)
+        }
+    }
+
+    /// 그 달의 마지막 날 — 해를 모르면 2월은 29일까지.
+    private func dayLimit(_ month: Int) -> Int {
+        if let year = item.year { return CivilDate.daysIn(month: month, year: year) }
+        return month == 2 ? 29 : CivilDate.daysIn(month: month, year: 2001)
+    }
+
+    /// 1900년부터 올해까지.
+    static let yearRange: ClosedRange<Int> = {
+        let now = Calendar(identifier: .gregorian).component(.year, from: Date())
+        return 1900...now
+    }()
+}
+
+/// 기념일 빼기 확인 창 (10판 · 모든 삭제에 확인 · CLAUDE.md) — 본문 한 식이 길어지지 않게 따로 둔다(빌드 45 교훈).
+private struct SpecialDayRemoval: ViewModifier {
+    @Binding var removing: DraftSpecialDay?
+    @Binding var specialDays: [DraftSpecialDay]
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("이 기념일을 뺄까요?",
+                                   isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                                   titleVisibility: .visible, presenting: removing) { item in
+            Button("빼기", role: .destructive) {
+                specialDays.removeAll { $0.id == item.id }
+                removing = nil
+            }
+            Button("취소", role: .cancel) { removing = nil }
+        } message: { item in
+            Text("\(item.shownLabel) \(item.month)월 \(item.day)일 — 저장해야 실제로 지워집니다. 취소하고 버리면 그대로 남습니다.")
         }
     }
 }

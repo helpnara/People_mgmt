@@ -207,7 +207,7 @@ import datetime as _dt
 
 REMINDER_LIMIT = 60
 REMINDER_HORIZON = 366
-REMINDER_ORDER = {"birthday": 0, "anniversary": 1, "cadence": 2}
+REMINDER_ORDER = {"birthday": 0, "specialDay": 1, "anniversary": 2, "cadence": 3}
 
 
 def _days_in(month, year):
@@ -252,18 +252,30 @@ def reminder_plan(people, today, options, limit=REMINDER_LIMIT):
     horizon = today + _dt.timedelta(days=REMINDER_HORIZON)
     out = []
 
-    def add(kind, p, date, title, body, named=None):
+    def add(kind, p, date, title, body, named=None, tag=""):
         if date > horizon:
             return
         named = named or date   # 연락 주기는 기한 날로 이름을 붙인다 — 오늘로 당겨 와도 같은 이름
-        out.append({"id": f"{kind}|{p['id'].upper()}|{named.isoformat()}", "kind": kind, "personID": p["id"].upper(),
+        out.append({"id": f"{kind}|{p['id'].upper()}|{tag}{named.isoformat()}", "kind": kind, "personID": p["id"].upper(),
                     "date": [date.year, date.month, date.day], "title": title, "body": body,
-                    "_key": (date, REMINDER_ORDER[kind], folded(p["name"]), p["id"].upper())})
+                    "_key": (date, REMINDER_ORDER[kind], folded(p["name"]), p["id"].upper(),
+                             f"{kind}|{p['id'].upper()}|{tag}{named.isoformat()}")})
 
     for p in people:
         bm, bd = p.get("birthMonth"), p.get("birthDay")
-        if options["birthdays"] and bm is not None and bd is not None and birthday_valid(bm, bd, None):
+        if options["birthdays"] and not p.get("muteBirthday", False) and bm is not None and bd is not None and birthday_valid(bm, bd, None):
             add("birthday", p, _next_occurrence(today, bm, bd), f"오늘은 {p['name']} 님 생일입니다", "축하 인사를 전해 보세요.")
+        # 기념일 (10판 · 이슈 84 · D-77) — 줄마다 알림을 켜고 끈다. 해를 적었으면 n주년(1주년부터).
+        if options.get("specialDays", False):
+            for sd in p.get("specialDays", []):
+                if not sd.get("remind", True) or not birthday_valid(sd["month"], sd["day"], None):
+                    continue
+                nxt = _next_occurrence(today, sd["month"], sd["day"])
+                label = sd.get("label") or "기념일"
+                body = birthday_text(sd["month"], sd["day"], sd.get("year"))
+                if sd.get("year") is not None and nxt.year - sd["year"] >= 1:
+                    body = f"{nxt.year - sd['year']}주년 · " + body
+                add("specialDay", p, nxt, f"오늘은 {p['name']} 님의 {label}입니다", body, tag=sd["id"].upper() + "|")
         met = _civil(p.get("firstMet"))
         if options["anniversaries"] and met is not None:
             nxt = _next_occurrence(today, met.month, met.day)

@@ -62,8 +62,10 @@ final class GoldenTests: XCTestCase {
         struct ReminderPersonRaw: Decodable {
             let id: UUID; let name: String; let birthMonth: Int?; let birthDay: Int?
             let firstMet: [Int]?; let lastRecord: [Int]?; let registered: [Int]; let cadenceMonths: Int?
+            let muteBirthday: Bool?; let specialDays: [ReminderSpecialRaw]?
         }
-        struct ReminderOptionsRaw: Decodable { let birthdays: Bool; let anniversaries: Bool; let cadence: Bool }
+        struct ReminderSpecialRaw: Decodable { let id: UUID; let label: String; let month: Int; let day: Int; let year: Int?; let remind: Bool }
+        struct ReminderOptionsRaw: Decodable { let birthdays: Bool; let anniversaries: Bool; let cadence: Bool; let specialDays: Bool? }
         struct ReminderRaw: Decodable { let id: String; let kind: String; let personID: UUID; let date: [Int]; let title: String; let body: String }
         struct ReminderCase: Decodable {
             let name: String; let people: [ReminderPersonRaw]; let today: [Int]; let options: ReminderOptionsRaw
@@ -529,10 +531,14 @@ final class GoldenTests: XCTestCase {
                 ReminderPlanner.Person(id: p.id, name: p.name, birthMonth: p.birthMonth, birthDay: p.birthDay,
                                        firstMet: civil(p.firstMet), lastRecord: civil(p.lastRecord),
                                        registered: civil(p.registered) ?? CivilDate(year: 2000, month: 1, day: 1),
-                                       cadenceMonths: p.cadenceMonths)
+                                       cadenceMonths: p.cadenceMonths, muteBirthday: p.muteBirthday ?? false,
+                                       specialDays: (p.specialDays ?? []).map {
+                                           ReminderPlanner.SpecialDay(id: $0.id, label: $0.label, month: $0.month, day: $0.day,
+                                                                      year: $0.year, remind: $0.remind)
+                                       })
             }
             let options = ReminderPlanner.Options(birthdays: c.options.birthdays, anniversaries: c.options.anniversaries,
-                                                  cadence: c.options.cadence)
+                                                  cadence: c.options.cadence, specialDays: c.options.specialDays ?? false)
             let got = ReminderPlanner.plan(people, today: civil(c.today)!, options: options, limit: c.limit)
             XCTAssertEqual(got.map(\.id), c.expected.map(\.id), c.name)
             XCTAssertEqual(got.map(\.kind.rawValue), c.expected.map(\.kind), "\(c.name) — 종류")

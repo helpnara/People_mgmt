@@ -2,17 +2,18 @@ import Core
 import Foundation
 import SwiftData
 
-/// 스키마 **9판** — 지금 쓰는 판 (요구사항 6절 · FR-058 · FR-035 · 빌드 45 · D-65 · D-66).
+/// 스키마 **10판** — 지금 쓰는 판 (요구사항 6절 · 이슈 84 · D-77 · 2026-11-05 사용자).
 ///
-/// 8판에서 **기록 사진**(`RecordPhoto` · 기록 하나에 여러 장)과 **내 선택지**(`ChoiceList`) 모델 둘을 더했다 —
-/// 새 모델 · 옵셔널 관계뿐이라 가벼운 옮기기. 기존 칸은 8판과 글자 하나 다르지 않아야 한다.
+/// 9판에서 **기념일**(`SpecialDay` · 사람마다 여럿 — 결혼기념일 · 입사일 · 직접 입력 …) 모델과 사람의 **생일 알림 끄기** 칸
+/// (`muteBirthdayReminder`)을 더했다 — 새 모델 · 옵셔널 관계 · 기본값 있는 칸뿐이라 가벼운 옮기기.
+/// 기존 칸은 9판과 글자 하나 다르지 않아야 한다.
 /// 1판부터 있던 `photoReference`(글자)는 쓰지 않은 채 그대로 둔다 — 지우면 옛 판과 모양이 달라진다.
-/// 칸을 또 바꾸면 `SchemaV10` 을 더하고 이 판은 얼린다.
+/// 칸을 또 바꾸면 `SchemaV11` 을 더하고 이 판은 얼린다.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
-enum SchemaV9: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(9, 0, 0) }
-    static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self, RecordPhoto.self, ChoiceList.self] }
+enum SchemaV10: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(10, 0, 0) }
+    static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self, RecordPhoto.self, ChoiceList.self, SpecialDay.self] }
 
     /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
     @Model
@@ -60,6 +61,8 @@ enum SchemaV9: VersionedSchema {
         var birthYear: Int?
         /// 연락 주기 (5판 · D-40) — 고른 사람만. 이 개월 수만큼 기록이 없으면 한 번 알린다. 비우면 알리지 않는다.
         var contactCadenceMonths: Int?
+        /// 이 사람의 생일 알림을 끈다 (10판 · D-77). 기본은 켬(false) — 설정 → 알림의 `생일 당일` 이 켜져 있어야 온다.
+        var muteBirthdayReminder: Bool = false
 
         /// 이 사람을 나에게 소개한 사람 (FR-043). 소개자를 지우면 비워진다(nullify).
         var introducedBy: Person?
@@ -74,6 +77,9 @@ enum SchemaV9: VersionedSchema {
         var tiesAsFirst: [Tie]? = []
         @Relationship(deleteRule: .cascade, inverse: \Tie.second)
         var tiesAsSecond: [Tie]? = []
+        /// **기념일** (10판 · D-77) — 사람을 지우면 함께 지운다.
+        @Relationship(deleteRule: .cascade, inverse: \SpecialDay.person)
+        var specialDays: [SpecialDay]? = []
 
         init(name: String) {
             self.uuid = UUID()
@@ -187,13 +193,45 @@ enum SchemaV9: VersionedSchema {
             self.updatedAt = Date()
         }
     }
+
+    /// **기념일 한 줄** (10판 · 이슈 84 · D-77 · 2026-11-05 사용자) — 결혼기념일 · 입사일 · 기일 · 직접 입력 …
+    /// 생일처럼 월 · 일(둘 다 있어야 뜻)과 해(선택). 줄마다 알림을 켜고 끈다 — 설정 → 알림의 `기념일 당일` 이 켜져 있어야 온다.
+    @Model
+    final class SpecialDay {
+        var uuid: UUID = UUID()
+        /// 종류 — `결혼기념일` 처럼. 비면 화면은 `기념일`.
+        var label: String = ""
+        var month: Int = 1
+        var day: Int = 1
+        /// 해 (선택) — 있으면 `n주년`.
+        var year: Int?
+        /// 이 줄의 알림 (기본 켬).
+        var remind: Bool = true
+        /// 사람 안의 차례 (0부터 · 더한 차례).
+        var position: Int = 0
+        var createdAt: Date = Date()
+        var person: Person?
+
+        /// 관계는 저장소에 넣은 **뒤에** 잇는다.
+        init(label: String, month: Int, day: Int, year: Int?, remind: Bool, position: Int) {
+            self.uuid = UUID()
+            self.label = label
+            self.month = month
+            self.day = day
+            self.year = year
+            self.remind = remind
+            self.position = position
+            self.createdAt = Date()
+        }
+    }
 }
 
-typealias Person = SchemaV9.Person
-typealias Record = SchemaV9.Record
-typealias Tie = SchemaV9.Tie
-typealias RecordPhoto = SchemaV9.RecordPhoto
-typealias ChoiceList = SchemaV9.ChoiceList
+typealias Person = SchemaV10.Person
+typealias Record = SchemaV10.Record
+typealias Tie = SchemaV10.Tie
+typealias RecordPhoto = SchemaV10.RecordPhoto
+typealias ChoiceList = SchemaV10.ChoiceList
+typealias SpecialDay = SchemaV10.SpecialDay
 
 /// 판 사이의 이사 계획.
 /// - 1판 → 2판: 칸 하나를 더하는 **가벼운 옮기기**
@@ -203,12 +241,13 @@ typealias ChoiceList = SchemaV9.ChoiceList
 /// - 6판 → 7판: 사람 사진 칸을 더하는 가벼운 옮기기 (FR-012)
 /// - 7판 → 8판: 기록 시각 칸을 더하는 가벼운 옮기기 (D-63)
 /// - 8판 → 9판: 기록 사진 · 내 선택지 모델을 더하는 가벼운 옮기기 (FR-058 · FR-035)
+/// - 9판 → 10판: 기념일 모델 · 사람의 생일 알림 끄기 칸을 더하는 가벼운 옮기기 (D-77)
 /// - 2판 → 3판: 칸을 더하고(가벼운 옮기기와 같다), 옮긴 뒤 **한 칸에 들어 있던 연락 수단을 네 칸으로 나눈다** (이슈 11).
 ///   나누지 못한 글은 기타(`contactNote`)에 그대로 남는다 — 잃는 글이 없다. 이미 네 칸 중 하나라도 찬 사람은 건드리지 않는다.
 ///
 /// 실제 옮겨지는지는 `AppTests/MigrationTests.swift` 가 1판 · 2판 저장소를 디스크에 만들어 연다.
 enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self, SchemaV10.self] }
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self),
@@ -227,6 +266,8 @@ enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
             .lightweight(fromVersion: SchemaV7.self, toVersion: SchemaV8.self),
             // 8판 → 9판: 기록 사진 · 내 선택지 모델을 더할 뿐 — 가벼운 옮기기 (FR-058 · FR-035).
             .lightweight(fromVersion: SchemaV8.self, toVersion: SchemaV9.self),
+            // 9판 → 10판: 기념일 모델과 사람의 생일 알림 끄기 칸(기본값)을 더할 뿐 — 가벼운 옮기기 (D-77).
+            .lightweight(fromVersion: SchemaV9.self, toVersion: SchemaV10.self),
         ]
     }
 }
@@ -261,7 +302,13 @@ extension PersistentModel {
     var isGone: Bool { isDeleted || modelContext == nil }
 }
 
-extension SchemaV9.Person {
+extension SchemaV10.Person {
+    /// 기념일 (10판) — 더한 차례대로. 지운 줄은 뺀다.
+    var sortedSpecialDays: [SpecialDay] {
+        (specialDays ?? []).filter { !$0.isGone }
+            .sorted { $0.position != $1.position ? $0.position < $1.position : $0.createdAt < $1.createdAt }
+    }
+
     /// 목록 보조 정보 (요구사항 6.1 `subtitle`): 소속 · 직무, 둘 다 없으면 관계 유형.
     var subtitle: String? {
         let parts = [organization, role].compactMap { $0 }.filter { !$0.isEmpty }

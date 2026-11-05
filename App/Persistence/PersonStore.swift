@@ -39,6 +39,10 @@ struct PersonDraft: Equatable {
     var birthYear: Int?
     /// 연락 주기(개월) — 고른 사람만 (5판 · D-40).
     var contactCadenceMonths: Int?
+    /// 이 사람의 생일 알림 (10판 · D-77) — 기본 켬. 끄면 설정의 생일 당일이 켜져 있어도 이 사람은 알리지 않는다.
+    var birthdayReminder = true
+    /// 기념일 (10판 · D-77) — 화면에 보이는 차례대로.
+    var specialDays: [DraftSpecialDay] = []
 
     init() {}
 
@@ -70,6 +74,8 @@ struct PersonDraft: Equatable {
         }
         birthYear = person.birthYear
         contactCadenceMonths = person.contactCadenceMonths
+        birthdayReminder = !person.muteBirthdayReminder
+        specialDays = person.sortedSpecialDays.map(DraftSpecialDay.init(special:))
     }
 
     /// 다섯 칸을 한꺼번에 — 명함 · 연락처에서 가져온 값을 넣을 때. 빈 칸은 덮지 않는다.
@@ -280,10 +286,41 @@ struct PersonStore {
             person.birthDay = nil
             person.birthYear = nil
         }
+        person.muteBirthdayReminder = person.birthMonth != nil && !draft.birthdayReminder
+        syncSpecialDays(of: person, to: draft.specialDays)
         // 연락 주기는 나에게 없다 — 나와의 기록은 따로 없다.
         person.contactCadenceMonths = person.isMe ? nil : draft.contactCadenceMonths.flatMap { $0 > 0 ? $0 : nil }
         // 나는 아는 사이를 두지 않는다 — 나는 모두를 안다.
         if !person.isMe { syncTies(of: person, to: draft.acquaintances) }
+    }
+
+    /// 기념일을 고른 대로 맞춘다 (10판 · D-77) — 같은 줄(`id` = 저장된 `uuid`)은 고치고, 빠진 줄은 지우고, 새 줄은 만든다.
+    /// 맞지 않는 날(2월 30일 · 평년의 2월 29일)은 저장하지 않는다. 차례는 화면에 보이는 차례.
+    private func syncSpecialDays(of person: Person, to wanted: [DraftSpecialDay]) {
+        let valid = wanted.filter { BirthdayRule.isValid(month: $0.month, day: $0.day, year: $0.year) }
+        var existing: [UUID: SpecialDay] = [:]
+        for special in person.specialDays ?? [] where !special.isGone {
+            if existing[special.uuid] != nil { context.delete(special) } else { existing[special.uuid] = special }
+        }
+        let keep = Set(valid.map(\.id))
+        for (id, special) in existing where !keep.contains(id) { context.delete(special) }
+        for (position, item) in valid.enumerated() {
+            let label = String(TextNormalization.normalized(item.label).prefix(Limits.specialDayLabel))
+            if let special = existing[item.id] {
+                if special.label != label { special.label = label }
+                if special.month != item.month { special.month = item.month }
+                if special.day != item.day { special.day = item.day }
+                if special.year != item.year { special.year = item.year }
+                if special.remind != item.remind { special.remind = item.remind }
+                if special.position != position { special.position = position }
+            } else {
+                let special = SpecialDay(label: label, month: item.month, day: item.day, year: item.year,
+                                         remind: item.remind, position: position)
+                context.insert(special)   // 넣고 나서 잇는다.
+                special.uuid = item.id
+                special.person = person
+            }
+        }
     }
 
     /// 아는 사이를 고른 대로 맞춘다 (D-30) — 빠진 연결은 지우고 새 연결은 만든다. 같은 두 사람은 한 줄.
@@ -402,4 +439,34 @@ extension SearchablePerson {
                         tags: record.tags)
                 })
     }
+}
+
+/// 사람 편집 화면이 들고 있는 기념일 한 줄 (10판 · D-77). `id` 는 저장된 기념일의 `uuid`(새 줄은 새 값).
+struct DraftSpecialDay: Identifiable, Equatable {
+    var id = UUID()
+    var label: String
+    var month: Int
+    var day: Int
+    var year: Int?
+    var remind = true
+
+    init(label: String, month: Int, day: Int, year: Int? = nil, remind: Bool = true) {
+        self.label = label
+        self.month = month
+        self.day = day
+        self.year = year
+        self.remind = remind
+    }
+
+    init(special: SpecialDay) {
+        id = special.uuid
+        label = special.label
+        month = special.month
+        day = special.day
+        year = special.year
+        remind = special.remind
+    }
+
+    /// 화면 이름 — 비면 `기념일`.
+    var shownLabel: String { label.isEmpty ? "기념일" : label }
 }
