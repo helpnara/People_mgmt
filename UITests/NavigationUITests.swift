@@ -156,15 +156,26 @@ final class NavigationUITests: XCTestCase {
                       "날짜 칩을 눌러도 달력이 뜨지 않는다 — 칩 \(chip.frame)\n\(buttons(app))\n\(screen(app))")
         let title = app.buttons["calendarTitle"].firstMatch
         XCTAssertTrue(title.waitForExistence(timeout: 5), "달력은 떴는데 제목 단추(calendarTitle)를 못 찾는다\n\(buttons(app))\n\(screen(app))")
+        // 단계마다 화면이 바뀐 것을 본 뒤에 누른다 — 바뀌는 동안 누르면 사라지던 칸(달)이 눌려 날로 돌아간다(CI 137).
+        let thisYear = Calendar.current.component(.year, from: Date())
         title.tap()
-        tapWhenReady(app.buttons["calendarTitle"].firstMatch, in: app, "열두 달 제목(해)")
-        tapWhenReady(app.buttons["2025년"].firstMatch, in: app, "2025년")
-        XCTAssertTrue(app.buttons["2025년 3월"].waitForExistence(timeout: 5), "해를 고르자 닫혔다 — 열두 달이 보여야 한다\n\(screen(app))")
-        app.buttons["2025년 3월"].firstMatch.tap()
+        let monthCell = app.buttons["\(thisYear)년 1월"].firstMatch
+        XCTAssertTrue(monthCell.waitForExistence(timeout: 5), "제목을 눌러도 열두 달이 아니다\n\(buttons(app))")
+        app.buttons["calendarTitle"].firstMatch.tap()
+        XCTAssertTrue(monthCell.waitForNonExistence(timeout: 5), "열두 달 제목을 눌러도 열두 해가 아니다\n\(buttons(app))")
+        let year = app.buttons["2025년"].firstMatch
+        XCTAssertTrue(year.waitForExistence(timeout: 5), "열두 해에 2025년이 없다\n\(buttons(app))")
+        _ = app.navigationBars["__없는 막대__"].waitForExistence(timeout: 0.6)
+        year.tap()
+        let march = app.buttons["2025년 3월"].firstMatch
+        XCTAssertTrue(march.waitForExistence(timeout: 5), "해를 고르자 닫혔다 — 열두 달이 보여야 한다\n\(buttons(app))")
+        _ = app.navigationBars["__없는 막대__"].waitForExistence(timeout: 0.6)
+        march.tap()
         let day = app.buttons["2025년 3월 15일"].firstMatch
-        XCTAssertTrue(day.waitForExistence(timeout: 5), "달을 고르자 닫혔다 — 그달의 날이 보여야 한다\n\(screen(app))")
+        XCTAssertTrue(day.waitForExistence(timeout: 5), "달을 고르자 닫혔다 — 그달의 날이 보여야 한다\n\(buttons(app))")
+        _ = app.navigationBars["__없는 막대__"].waitForExistence(timeout: 0.6)
         day.tap()
-        XCTAssertTrue(app.buttons["calendarTitle"].waitForNonExistence(timeout: 5), "날을 눌러도 닫히지 않았다\n\(screen(app))")
+        XCTAssertTrue(app.buttons["calendarTitle"].waitForNonExistence(timeout: 5), "날을 눌러도 닫히지 않았다\n\(buttons(app))")
         XCTAssertTrue(chip.label.contains("2025") && chip.label.contains("15"), "칩이 고른 날이 아니다: \(chip.label)\n\(screen(app))")
     }
 }
