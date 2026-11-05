@@ -2,11 +2,15 @@ import Core
 import SwiftUI
 
 /// **날짜 칸 하나** (빌드 39 · 1.1 · 이슈 60 · 2026-11-01 사용자) — 앱의 날짜 입력은 모두 이 꼴이다.
-/// 왼쪽에 이름, 오른쪽에 지금 값(누르는 칩). 누르면 말풍선이 뜨고 **고르는 순간 닫히며 값이 들어간다** — 바깥을 눌러 닫지 않는다.
+/// 왼쪽에 이름, 오른쪽에 지금 값(누르는 칩). 누르면 말풍선이 뜨고 **정밀도의 마지막 단위를 고르는 순간 닫히며 값이 들어간다**.
 ///
-/// - 날짜까지: 달력 — 날을 누르면 닫힌다
-/// - 월까지: 해를 넘기며 열두 달 — 달을 누르면 닫힌다
-/// - 연도만: 열두 해씩 넘기며 — 해를 누르면 닫힌다
+/// - 날짜까지: 달력(`DayCalendar`) — 해 · 달은 위 제목을 눌러 바꾸고(닫히지 않는다), **날을 누르면** 닫힌다
+/// - 월까지: 열두 달 — 해는 제목을 눌러 바꾸고(닫히지 않는다), **달을 누르면** 닫힌다
+/// - 연도만: 열두 해씩 넘기며 — **해를 누르면** 닫힌다
+///
+/// 빌드 57 까지 날짜까지는 시스템 달력(`DatePicker` · graphical)이었고 값이 바뀌면 닫았다 — 시스템 달력은 위의 해 · 달을
+/// 돌리기만 해도 고른 날을 바꾸므로 해만 바꿔도 닫혔다(이슈 83 · 2026-11-05 사용자: 해 → 닫힘 → 다시 열어 달 → 닫힘 → 다시 열어 날).
+/// 날을 누른 것과 해 · 달을 바꾼 것을 시스템 달력에서는 가를 수 없어, 앱의 다른 고르개와 같은 칸 달력으로 바꿨다.
 ///
 /// 저장할 때 `Core.ApproximateDate` 가 접는다(월까지 = 그달 1일 · 연도만 = 1월 1일). 여기서는 달 · 해만 바꾸고 날은 그달에
 /// 맞게 남긴다(`Core.CivilDate.clamped`) — 정밀도를 날짜까지로 되돌려도 고른 날이 크게 흔들리지 않게.
@@ -33,6 +37,7 @@ struct ApproxDateField: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("눌러서 고릅니다")
+            .accessibilityIdentifier("dateChip")
             .popover(isPresented: $picking) {
                 picker
                     .padding(12)
@@ -54,9 +59,9 @@ struct ApproxDateField: View {
         return (c.year ?? 2000, c.month ?? 1, c.day ?? 1)
     }
 
-    /// 고른 연 · 월로 바꾸고 날은 그달에 맞게 남긴다.
-    private func set(year: Int, month: Int) {
-        let civil = CivilDate.clamped(year: year, month: month, day: parts.day)
+    /// 고른 연 · 월(· 일)로 바꾸고 닫는다. 날을 주지 않으면 지금 날을 그달에 맞게 남긴다.
+    private func set(year: Int, month: Int, day: Int? = nil) {
+        let civil = CivilDate.clamped(year: year, month: month, day: day ?? parts.day)
         if let next = Calendar.current.date(from: DateComponents(year: civil.year, month: civil.month, day: civil.day, hour: 12)) {
             date = next
         }
@@ -67,11 +72,9 @@ struct ApproxDateField: View {
     private var picker: some View {
         switch precision {
         case .day:
-            DatePicker(title, selection: Binding(get: { date }, set: { date = $0; picking = false }),
-                       displayedComponents: .date)
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .frame(minWidth: 300)
+            DayCalendar(selectedYear: parts.year, selectedMonth: parts.month, selectedDay: parts.day) { year, month, day in
+                set(year: year, month: month, day: day)
+            }
         case .month:
             MonthGrid(selectedYear: parts.year, selectedMonth: parts.month) { year, month in
                 set(year: year, month: month)
@@ -126,13 +129,15 @@ private struct GridCell: View {
     }
 }
 
-/// 위쪽 넘기기 줄 — `‹ 2026년 ›`.
+/// 위쪽 넘기기 줄 — `‹ 2026년 ›`. `onTitle` 이 있으면 제목이 단추다(`2026년 3월 ⌄` — 눌러서 한 단계 위를 고른다).
 private struct PagerHeader: View {
     let title: String
     let canGoBack: Bool
     let canGoForward: Bool
     let back: () -> Void
     let forward: () -> Void
+    var onTitle: (() -> Void)?
+    var titleHint: String = ""
 
     var body: some View {
         HStack {
@@ -142,7 +147,21 @@ private struct PagerHeader: View {
             .disabled(!canGoBack)
             .accessibilityLabel("이전")
             Spacer()
-            Text(title).font(.scaled(17, weight: .semibold)).foregroundStyle(Color.ink)
+            if let onTitle {
+                Button(action: onTitle) {
+                    HStack(spacing: 4) {
+                        Text(title).font(.scaled(17, weight: .semibold)).foregroundStyle(Color.ink)
+                        Image(systemName: "chevron.down").font(.scaled(12, weight: .semibold)).foregroundStyle(Color.accent)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(titleHint)
+                .accessibilityIdentifier("calendarTitle")
+            } else {
+                Text(title).font(.scaled(17, weight: .semibold)).foregroundStyle(Color.ink)
+            }
             Spacer()
             Button(action: forward) {
                 Image(systemName: "chevron.right").frame(minWidth: 44, minHeight: 44)
@@ -154,12 +173,14 @@ private struct PagerHeader: View {
     }
 }
 
-/// 열두 달 — 해를 넘기고 달을 누르면 그 연 · 월을 알린다.
+/// 열두 달 — 해를 넘기고 달을 누르면 그 연 · 월을 알린다. 제목(`2026년 ⌄`)을 누르면 열두 해에서 해를 고른다 —
+/// 해를 골라도 알리지 않고(닫히지 않는다) 그 해의 열두 달로 돌아온다 (이슈 83).
 struct MonthGrid: View {
     let selectedYear: Int
     let selectedMonth: Int
     let onPick: (Int, Int) -> Void
     @State private var year: Int
+    @State private var choosingYear = false
 
     init(selectedYear: Int, selectedMonth: Int, onPick: @escaping (Int, Int) -> Void) {
         self.selectedYear = selectedYear
@@ -169,10 +190,22 @@ struct MonthGrid: View {
     }
 
     var body: some View {
+        if choosingYear {
+            YearGrid(selected: year, range: DateGrids.years) { picked in
+                if let picked { year = picked }
+                choosingYear = false
+            }
+        } else {
+            months
+        }
+    }
+
+    private var months: some View {
         VStack(spacing: 8) {
             PagerHeader(title: "\(year)년",
                         canGoBack: year > DateGrids.years.lowerBound, canGoForward: year < DateGrids.years.upperBound,
-                        back: { year -= 1 }, forward: { year += 1 })
+                        back: { year -= 1 }, forward: { year += 1 },
+                        onTitle: { choosingYear = true }, titleHint: "눌러서 해를 고릅니다")
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(1...12, id: \.self) { month in
                     GridCell(text: "\(month)월", selected: year == selectedYear && month == selectedMonth) {
@@ -261,5 +294,156 @@ struct MonthDayGrid: View {
             }
         }
         .frame(minWidth: 300)
+    }
+}
+
+/// **날짜까지 달력** (이슈 83 · 2026-11-05 사용자) — 해 → 달 → 날 차례로 고르고 **날을 누를 때만** 알린다(닫힌다).
+///
+/// - 날: `‹ 2026년 3월 ⌄ ›` — 화살표로 달을 넘기고, 제목을 누르면 열두 달로
+/// - 달: `‹ 2026년 ⌄ ›` 열두 달 — 달을 누르면 그 달의 날로(닫히지 않는다), 제목을 누르면 열두 해로
+/// - 해: 열두 해씩 — 해를 누르면 그 해의 열두 달로(닫히지 않는다)
+///
+/// 주의 첫날 · 요일 글자는 기기 달력(`Calendar.current`)을 따른다. 오늘은 강조색 글자, 고른 날은 옅은 강조 바탕.
+struct DayCalendar: View {
+    let selectedYear: Int
+    let selectedMonth: Int
+    let selectedDay: Int
+    let onPick: (Int, Int, Int) -> Void
+    @State private var year: Int
+    @State private var month: Int
+    @State private var stage: Stage = .days
+
+    private enum Stage { case days, months, years }
+
+    init(selectedYear: Int, selectedMonth: Int, selectedDay: Int, onPick: @escaping (Int, Int, Int) -> Void) {
+        self.selectedYear = selectedYear
+        self.selectedMonth = selectedMonth
+        self.selectedDay = selectedDay
+        self.onPick = onPick
+        self._year = State(initialValue: selectedYear)
+        self._month = State(initialValue: selectedMonth)
+    }
+
+    var body: some View {
+        Group {
+            switch stage {
+            case .days: days
+            case .months: months
+            case .years:
+                YearGrid(selected: year, range: DateGrids.years) { picked in
+                    if let picked { year = picked }
+                    stage = .months
+                }
+            }
+        }
+        .frame(minWidth: 300)
+    }
+
+    // MARK: 날
+
+    private var days: some View {
+        let calendar = Calendar.current
+        let first = calendar.date(from: DateComponents(year: year, month: month, day: 1, hour: 12)) ?? Date()
+        let count = calendar.range(of: .day, in: .month, for: first)?.count ?? 30
+        let lead = (calendar.component(.weekday, from: first) - calendar.firstWeekday + 7) % 7
+        let today = calendar.dateComponents([.year, .month, .day], from: Date())
+        return VStack(spacing: 6) {
+            PagerHeader(title: "\(year)년 \(month)월",
+                        canGoBack: !(year == DateGrids.years.lowerBound && month == 1),
+                        canGoForward: !(year == DateGrids.years.upperBound && month == 12),
+                        back: { step(-1) }, forward: { step(1) },
+                        onTitle: { stage = .months }, titleHint: "눌러서 해와 달을 고릅니다")
+            dayGrid(lead: lead, count: count, today: today, symbols: weekdaySymbols(calendar))
+        }
+    }
+
+    /// 요일 줄 + 날 칸 — 한 식이 길면 컴파일러가 형식을 제때 못 맞춰 떼어 둔다(빌드 45 교훈).
+    private func dayGrid(lead: Int, count: Int, today: DateComponents, symbols: [String]) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
+            ForEach(Array(symbols.enumerated()), id: \.offset) { _, symbol in
+                Text(symbol)
+                    .font(.scaled(12, weight: .semibold))
+                    .foregroundStyle(Color.muted)
+                    .frame(maxWidth: .infinity, minHeight: 24)
+                    .accessibilityHidden(true)
+            }
+            ForEach(0..<(lead + count), id: \.self) { slot in
+                daySlot(slot - lead + 1, today: today)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func daySlot(_ day: Int, today: DateComponents) -> some View {
+        if day < 1 {
+            Color.clear.frame(minHeight: 40).accessibilityHidden(true)
+        } else {
+            DayCell(day: day,
+                    selected: year == selectedYear && month == selectedMonth && day == selectedDay,
+                    isToday: today.year == year && today.month == month && today.day == day) {
+                onPick(year, month, day)
+            }
+            .accessibilityLabel("\(year)년 \(month)월 \(day)일")
+        }
+    }
+
+    /// 요일 글자 — 기기의 주 첫날부터.
+    private func weekdaySymbols(_ calendar: Calendar) -> [String] {
+        let symbols = calendar.veryShortStandaloneWeekdaySymbols
+        guard symbols.count == 7 else { return symbols }
+        let start = max(0, min(6, calendar.firstWeekday - 1))
+        return Array(symbols[start...] + symbols[..<start])
+    }
+
+    /// 달 넘기기 — 해가 바뀌면 해도 넘긴다.
+    private func step(_ delta: Int) {
+        var m = month + delta
+        var y = year
+        if m < 1 { m = 12; y -= 1 }
+        if m > 12 { m = 1; y += 1 }
+        guard DateGrids.years.contains(y) else { return }
+        year = y
+        month = m
+    }
+
+    // MARK: 달
+
+    private var months: some View {
+        VStack(spacing: 8) {
+            PagerHeader(title: "\(year)년",
+                        canGoBack: year > DateGrids.years.lowerBound, canGoForward: year < DateGrids.years.upperBound,
+                        back: { year -= 1 }, forward: { year += 1 },
+                        onTitle: { stage = .years }, titleHint: "눌러서 해를 고릅니다")
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                ForEach(1...12, id: \.self) { m in
+                    GridCell(text: "\(m)월", selected: year == selectedYear && m == selectedMonth) {
+                        month = m
+                        stage = .days
+                    }
+                    .accessibilityLabel("\(year)년 \(m)월")
+                }
+            }
+        }
+    }
+}
+
+/// 달력의 날 칸 — 고른 날은 옅은 강조 바탕 · 굵은 강조 글자, 오늘은 강조 글자.
+private struct DayCell: View {
+    let day: Int
+    let selected: Bool
+    let isToday: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text("\(day)")
+                .font(.scaled(16, weight: selected || isToday ? .semibold : .regular))
+                .foregroundStyle(selected || isToday ? Color.accent : Color.ink)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(selected ? Color.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
