@@ -135,8 +135,15 @@ final class NavigationUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["기록 추가"].waitForExistence(timeout: 20), "기록 추가 창이 열리지 않았다\n\(screen(app))")
         let chip = app.buttons["dateChip"].firstMatch
         tapWhenReady(chip, in: app, "날짜 칩")
+        // 달력이 떴는지부터 가른다 — 날 칸(`2026년 11월 5일`)이 보이면 떴다. 안 보이면 칩을 한 번 더 누른다(첫 누름이 초점만 옮겼을 때).
+        let anyDay = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", "일")).firstMatch
+        if !anyDay.waitForExistence(timeout: 5) {
+            chip.tap()
+        }
+        XCTAssertTrue(anyDay.waitForExistence(timeout: 10), "날짜 칩을 눌러도 달력이 뜨지 않는다\n\(screen(app))")
         let title = app.buttons["calendarTitle"].firstMatch
-        tapWhenReady(title, in: app, "달력 제목(해 · 달)")
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "달력은 떴는데 제목 단추(calendarTitle)를 못 찾는다\n\(screen(app))")
+        title.tap()
         tapWhenReady(app.buttons["calendarTitle"].firstMatch, in: app, "열두 달 제목(해)")
         tapWhenReady(app.buttons["2025년"].firstMatch, in: app, "2025년")
         XCTAssertTrue(app.buttons["2025년 3월"].waitForExistence(timeout: 5), "해를 고르자 닫혔다 — 열두 달이 보여야 한다\n\(screen(app))")
