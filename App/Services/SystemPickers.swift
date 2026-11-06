@@ -24,7 +24,8 @@ enum TopPresenter {
     }
 }
 
-/// 명함 촬영 (FR-050) — 문서 카메라가 명함 테두리를 **자동으로 찾아** 반듯하게 편다. 첫 장만 쓴다.
+/// 명함 촬영 (FR-050) — 문서 카메라가 명함 테두리를 **자동으로 찾아** 반듯하게 편다.
+/// 1.1.9 (이슈 98 · FR-073) 부터 찍은 장을 모두(`pageLimit` 까지) 돌려준다 — 사람 추가가 한 장씩 차례로 채운다.
 /// 시뮬레이터에는 카메라가 없어 `isAvailable` 이 거짓이다 — 그때 단추를 숨긴다.
 @MainActor
 final class DocumentScanner: NSObject, VNDocumentCameraViewControllerDelegate {
@@ -32,12 +33,15 @@ final class DocumentScanner: NSObject, VNDocumentCameraViewControllerDelegate {
 
     static var isAvailable: Bool { VNDocumentCameraViewController.isSupported }
 
-    private var completion: ((Data?) -> Void)?
+    /// 한 번에 받는 장 수 — 원본 사진을 들고 있는 동안의 메모리를 묶는다.
+    nonisolated static let pageLimit = 10
+
+    private var completion: (([Data]) -> Void)?
     private weak var presented: UIViewController?
 
-    func start(_ completion: @escaping (Data?) -> Void) {
+    func start(_ completion: @escaping ([Data]) -> Void) {
         guard Self.isAvailable else {
-            completion(nil)
+            completion([])
             return
         }
         self.completion = completion
@@ -47,27 +51,28 @@ final class DocumentScanner: NSObject, VNDocumentCameraViewControllerDelegate {
         TopPresenter.present(controller)
     }
 
-    private func finish(_ data: Data?) {
+    private func finish(_ pages: [Data]) {
         presented?.dismiss(animated: true)
         presented = nil
         let completion = self.completion
         self.completion = nil
-        completion?(data)
+        completion?(pages)
     }
 
     // 대리자 메서드는 `nonisolated` 로 두고 **값(Data)만 뽑아** 주 스레드로 넘긴다 —
     // 프로토콜이 주 스레드 고정이든 아니든 같은 코드로 서게 (Swift 6 · CLAUDE.md 의 `@preconcurrency` 금지).
     nonisolated func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
-        let data = scan.pageCount > 0 ? scan.imageOfPage(at: 0).jpegData(compressionQuality: 0.9) : nil
-        Task { @MainActor [weak self] in self?.finish(data) }
+        let count = min(scan.pageCount, Self.pageLimit)
+        let pages = (0..<count).compactMap { scan.imageOfPage(at: $0).jpegData(compressionQuality: 0.9) }
+        Task { @MainActor [weak self] in self?.finish(pages) }
     }
 
     nonisolated func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
-        Task { @MainActor [weak self] in self?.finish(nil) }
+        Task { @MainActor [weak self] in self?.finish([]) }
     }
 
     nonisolated func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
-        Task { @MainActor [weak self] in self?.finish(nil) }
+        Task { @MainActor [weak self] in self?.finish([]) }
     }
 }
 

@@ -42,6 +42,9 @@ enum DataWipe {
         for photo in try context.fetch(FetchDescriptor<RecordPhoto>()) { context.delete(photo) }
         // 기념일(10판)도 사람과 함께 지워지지만(cascade) 떨어진 줄이 남지 않게 따로도 지운다.
         for special in try context.fetch(FetchDescriptor<SpecialDay>()) { context.delete(special) }
+        for talk in try context.fetch(FetchDescriptor<TalkItem>()) { context.delete(talk) }
+        // 고쳐 둔 모임 이름(12판)은 사람 묶음이라 사람과 함께 지운다. 기록 틀은 선택지처럼 설정이라 둔다.
+        for label in try context.fetch(FetchDescriptor<CommunityLabel>()) { context.delete(label) }
         // 아는 사이 · 기록을 먼저 — 사람을 지울 때 이어진 것을 따로 정리하지 않게.
         for tie in ties { context.delete(tie) }
         for record in records { context.delete(record) }

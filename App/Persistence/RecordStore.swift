@@ -18,6 +18,8 @@ struct RecordDraft: Equatable {
     var tags: [String] = []
     /// 기록 사진 (9판 · FR-058) — 차례대로, 최대 `RecordPhotos.limit` 장. 저장된 사진은 번호만 든다.
     var photos: [DraftPhoto] = []
+    /// 반복 (12판 · 이슈 94 · FR-069) — 날짜까지 정한 기록에만 저장된다.
+    var repeatRule: RepeatRule = .none
 
     /// 새 기록 — 기록을 연 사람이 첫 참여자다.
     init(anchor: Person) {
@@ -35,6 +37,7 @@ struct RecordDraft: Equatable {
         participants = record.participants ?? []
         tags = record.tags
         photos = record.sortedPhotos.map { DraftPhoto(existing: $0) }
+        repeatRule = .of(record.repeatRule)
     }
 
     /// 제목 또는 메모 중 하나(D-4) · 참여자 1명 이상.
@@ -112,6 +115,7 @@ struct RecordStore {
     }
 
     private func fill(_ record: Record, from draft: RecordDraft) {
+        let dayBefore = DayIndex.of(record.occurredAt)
         record.recordType = RecordType.named(draft.recordType).key
         record.occurredAt = ApproximateDate.noon(of: draft.occurredAt, precision: draft.occurredPrecision, calendar: .current)
         record.occurredPrecision = draft.occurredPrecision.rawValue
@@ -129,6 +133,81 @@ struct RecordStore {
             return true
         }
         syncPhotos(record, with: draft.photos)
+        fillRepeat(record, rule: draft.occurredPrecision == .day ? draft.repeatRule : .none,
+                   dateChanged: DayIndex.of(record.occurredAt) != dayBefore)
+    }
+
+    /// 반복 칸을 맞춘다 (12판 · FR-069). 매달 같은 날은 처음 날(날짜를 바꾸면 그 날)을 기억하고, 반복이 있으면 회차끼리의
+    /// 같은 값(`repeatSeriesID`)을 둔다. 끄면 모두 비운다.
+    private func fillRepeat(_ record: Record, rule: RepeatRule, dateChanged: Bool) {
+        if record.repeatRule != rule.rawValue { record.repeatRule = rule.rawValue }
+        guard rule != .none else {
+            record.repeatAnchorDay = nil
+            record.repeatSeriesID = nil
+            return
+        }
+        if record.repeatSeriesID == nil { record.repeatSeriesID = UUID() }
+        if rule == .monthlyDay {
+            if record.repeatAnchorDay == nil || dateChanged {
+                record.repeatAnchorDay = Calendar.current.component(.day, from: record.occurredAt)
+            }
+        } else if record.repeatAnchorDay != nil {
+            record.repeatAnchorDay = nil
+        }
+    }
+
+    // MARK: 반복 약속의 다음 회차 (12판 · 이슈 94 · FR-069)
+
+    /// 때가 된 반복 회차마다 **다음 회차 하나**를 앞날짜로 만든다 — 그날이 지났거나, 그날이 왔고 결과를 적었으면
+    /// (`Core.RepeatRule.isDue`). 다음 날은 오늘 뒤의 첫 회차(`nextUpcoming`). 같은 반복 · 같은 날의 기록이 이미 있으면
+    /// (다른 기기가 먼저 만들었으면) 만들지 않고 표시만 한다. 만든 수를 돌려준다. 실패하면 모두 되돌린다.
+    @discardableResult
+    func spawnDueRepeats(now: Date = Date()) throws -> Int {
+        let calendar = Calendar.current
+        let today = DayIndex.of(now, calendar: calendar)
+        let todayCivil = UpcomingDays.today(calendar: calendar, now: now)
+        let candidates = try context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> {
+            $0.repeatRule != 0 && $0.repeatSpawned == false
+        })).filter { !$0.isGone }
+        guard !candidates.isEmpty else { return 0 }
+        var made = 0
+        for record in candidates {
+            let rule = RepeatRule.of(record.repeatRule)
+            guard rule != .none, DatePrecision.of(record.occurredPrecision) == .day else { continue }
+            let day = DayIndex.of(record.occurredAt, calendar: calendar)
+            guard RepeatRule.isDue(day: day, updatedDay: DayIndex.of(record.updatedAt, calendar: calendar), today: today) else { continue }
+            let parts = calendar.dateComponents([.year, .month, .day], from: record.occurredAt)
+            let date = CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1)
+            record.repeatSpawned = true
+            guard let next = rule.nextUpcoming(after: date, anchorDay: record.repeatAnchorDay, today: todayCivil),
+                  let nextDate = calendar.date(from: DateComponents(year: next.year, month: next.month, day: next.day, hour: 12))
+            else { continue }
+            let series = record.repeatSeriesID ?? UUID()
+            if record.repeatSeriesID == nil { record.repeatSeriesID = series }
+            let nextDay = DayIndex.of(nextDate, calendar: calendar)
+            if try hasOccurrence(series: series, day: nextDay, calendar: calendar) { continue }
+            let copy = Record(recordType: record.recordType)
+            context.insert(copy)
+            copy.occurredAt = nextDate
+            copy.occurredPrecision = DatePrecision.day.rawValue
+            copy.occurredMinute = record.occurredMinute
+            copy.title = record.title
+            copy.location = record.location
+            copy.tags = record.tags
+            copy.participants = (record.participants ?? []).filter { !$0.isGone }
+            copy.repeatRule = record.repeatRule
+            copy.repeatAnchorDay = record.repeatAnchorDay
+            copy.repeatSeriesID = series
+            made += 1
+        }
+        // 바뀐 것이 없으면 저장하지 않는다 — 저장 알림이 목록을 다시 세게 하고, 다시 세면 이 함수가 또 불린다.
+        if context.hasChanges { try commit() }
+        return made
+    }
+
+    private func hasOccurrence(series: UUID, day: Int, calendar: Calendar) throws -> Bool {
+        let siblings = try context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.repeatSeriesID == series }))
+        return siblings.contains { !$0.isGone && DayIndex.of($0.occurredAt, calendar: calendar) == day }
     }
 
     /// 사진을 초안에 맞춘다 (9판 · FR-058) — 초안에 없는 저장된 사진은 지우고, 남는 사진은 차례만 고치고, 새 사진은 넣는다.
@@ -159,7 +238,7 @@ struct RecordStore {
     }
 }
 
-extension SchemaV10.Record {
+extension SchemaV12.Record {
     /// 목록에 보일 이름 (요구사항 6.2). 규칙은 `Core.DisplayTitle` 하나다.
     var displayTitle: String { DisplayTitle.make(title: title, note: note) }
 

@@ -37,12 +37,20 @@ struct SettingsView: View {
     @AppStorage(ReminderSettings.anniversariesKey) private var remindAnniversaries = false
     @AppStorage(ReminderSettings.cadenceKey) private var remindCadence = false
     @AppStorage(ReminderSettings.followUpKey) private var remindFollowUp = false
+    /// 약속 당일 (1.1.8 · 이슈 89 · FR-064).
+    @AppStorage(ReminderSettings.plannedDayKey) private var remindPlannedDay = false
+    /// 달마다 돌아보기 (1.1.9 · 이슈 99 · FR-074).
+    @AppStorage(ReminderSettings.monthlyKey) private var remindMonthly = false
+    /// 마지막으로 백업 파일을 저장한 때 (1.1.8 · 이슈 92 · FR-067) — 이 기기에만. 0 이면 아직 없음.
+    @AppStorage(BackupReminder.lastSavedKey) private var lastBackupSaved: Double = 0
     @AppStorage(ReminderSettings.hourKey) private var remindHour = ReminderSettings.defaultHour
     @AppStorage(ReminderSettings.minuteKey) private var remindMinute = 0
     /// iCloud 동기화 (D-42 — 기본 켬). 바꾸면 앱을 다시 열 때 적용된다.
     @AppStorage(CloudSync.enabledKey) private var syncWanted = true
     /// 앱 잠금 (FR-029 · D-51 — 기본 꺼짐).
     @AppStorage(AppLock.enabledKey) private var lockEnabled = false
+    /// 위젯에 이름 숨기기 (1.1.9 · 이슈 100 · FR-075 · D-79).
+    @AppStorage(WidgetBridge.hideNamesKey) private var widgetHidesNames = false
     /// 이 기기의 확인 방법 이름 — 화면을 열 때 한 번.
     @State private var lockMethod = AppLock.methodName()
     /// CI 스크린샷 — 태그 관리를 바로 연다 (`-openTags`).
@@ -65,10 +73,12 @@ struct SettingsView: View {
                         .mutedWhenDisabled()
                 }
                 .disabled(working != nil)
+                // 백업 챙김 (1.1.8 · 이슈 92 · FR-067) — 마지막 백업 때. 동기화를 끈 채 오래되면 한 줄 안내.
+                backupStatus
             } header: {
                 Text("백업")
             } footer: {
-                Text("사람 · 기록 · 아는 사이 · 명함 · 사람 사진 · 기록 사진 · 내가 고친 선택지를 파일 하나(.json)로 만듭니다. 파일 앱이나 iCloud Drive 에 저장해 두면 기기를 바꾸거나 앱을 다시 설치해도 되살릴 수 있습니다. 이 파일에는 인연의 기록이 그대로 들어 있으니 믿을 수 있는 곳에만 두세요.")
+                Text("사람(기념일 · 기억할 것 · 다음에 이야기할 것 포함) · 기록 · 아는 사이 · 명함 · 사람 사진 · 기록 사진 · 내가 고친 선택지를 파일 하나(.json)로 만듭니다. 파일 앱이나 iCloud Drive 에 저장해 두면 기기를 바꾸거나 앱을 다시 설치해도 되살릴 수 있습니다. 이 파일에는 인연의 기록이 그대로 들어 있으니 믿을 수 있는 곳에만 두세요.")
             }
 
             Section {
@@ -117,10 +127,11 @@ struct SettingsView: View {
             } header: {
                 Text("연락처 파일 (vCard)")
             } footer: {
-                Text("내보내기는 나를 뺀 사람의 이름 · 별명 · 소속 · 직무 · 연락 수단 · 생일을 .vcf 파일 하나로 만듭니다. 기록 · 첫 인연 · 태그 · 명함 · 사진은 들어가지 않습니다 — 그것은 백업 파일이 맡습니다. 가져오기는 넣기 전에 새 사람 · 같은 사람 후보 · 이미 있는 사람을 나눠 보여 주고, 고른 사람만 넣습니다.")
+                Text("내보내기는 나를 뺀 사람의 이름 · 별명 · 소속 · 직무 · 연락 수단 · 생일 · 기념일을 .vcf 파일 하나로 만듭니다. 기록 · 첫 인연 · 태그 · 명함 · 사진은 들어가지 않습니다 — 그것은 백업 파일이 맡습니다. 가져오기는 넣기 전에 새 사람 · 같은 사람 후보 · 이미 있는 사람을 나눠 보여 주고, 고른 사람만 넣습니다.")
             }
 
             lockSection
+            widgetSection
 
             // 관계 유형 · 알게 된 경로 선택지 (FR-035 · 9판 · D-66).
             Section {
@@ -156,10 +167,16 @@ struct SettingsView: View {
                 } label: {
                     Label("상세 화면 칸", systemImage: "rectangle.stack")
                 }
+                // 기록 틀 (12판 · 이슈 95 · FR-070).
+                NavigationLink {
+                    TemplateManagerView()
+                } label: {
+                    Label("기록 틀", systemImage: "square.on.square")
+                }
             } header: {
                 Text("보기")
             } footer: {
-                Text("사람을 누르면 나오는 화면의 칸 차례를 바꾸고, 필요 없는 칸을 숨깁니다. 이 기기에만 적용됩니다.")
+                Text("상세 화면 칸은 사람을 누르면 나오는 화면의 칸 차례를 바꾸고 숨깁니다(이 기기에만). 기록 틀은 자주 쓰는 기록 모양의 이름을 바꾸거나 뺍니다.")
             }
 
             Section {
@@ -167,20 +184,26 @@ struct SettingsView: View {
                 Toggle("기념일 당일", isOn: $remindSpecialDays)
                 Toggle("알게 된 지 n주년", isOn: $remindAnniversaries)
                 Toggle("연락 주기 (고른 사람만)", isOn: $remindCadence)
+                Toggle("약속 당일", isOn: $remindPlannedDay)
+                    .accessibilityIdentifier("plannedDayToggle")
                 Toggle("만난 뒤 결과 적기", isOn: $remindFollowUp)
-                if remindBirthdays || remindSpecialDays || remindAnniversaries || remindCadence || remindFollowUp {
+                Toggle("달마다 돌아보기", isOn: $remindMonthly)
+                    .accessibilityIdentifier("monthlyToggle")
+                if anyReminderOn {
                     DatePicker("알림 시각", selection: reminderTime, displayedComponents: .hourAndMinute)
                 }
             } header: {
                 Text("알림")
             } footer: {
-                Text("기본은 모두 꺼져 있습니다. 생일은 생일을 적은 사람(사람 수정에서 그 사람만 끌 수 있습니다), 기념일은 사람 수정의 기념일 가운데 알림을 켠 것, n주년은 처음 만난 날을 적은 사람, 연락 주기는 사람 수정에서 주기를 고른 사람만 그날 알립니다. 만난 뒤 결과 적기는 미리 적어 둔 예정의 다음 날, 아직 결과를 적지 않았으면 알립니다. 밀린 알림을 쌓지 않고 앱 아이콘에 숫자를 달지 않습니다. 알림은 이 기기 안에서만 만들어집니다.")
+                Text("기본은 모두 꺼져 있습니다. 생일은 생일을 적은 사람(사람 수정에서 그 사람만 끌 수 있습니다), 기념일은 사람 수정의 기념일 가운데 알림을 켠 것, n주년은 처음 만난 날을 적은 사람, 연락 주기는 사람 수정에서 주기를 고른 사람만 그날 알립니다. 약속 당일은 미리 적어 둔 약속의 그날 이 시각에(약속 시각이 이보다 이르면 한 시간 전에) 알립니다. 만난 뒤 결과 적기는 미리 적어 둔 예정의 다음 날, 아직 결과를 적지 않았으면 알립니다. 달마다 돌아보기는 매달 1일 이 시각에 지난달 남긴 기록 수와 함께한 사람 수를 알립니다. 밀린 알림을 쌓지 않고 앱 아이콘에 숫자를 달지 않습니다. 알림은 이 기기 안에서만 만들어집니다.")
             }
             .onChange(of: remindBirthdays) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindSpecialDays) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindAnniversaries) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindCadence) { _, on in reminderChanged(turnedOn: on) }
+            .onChange(of: remindPlannedDay) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindFollowUp) { _, on in reminderChanged(turnedOn: on) }
+            .onChange(of: remindMonthly) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindHour) { _, _ in refreshReminders() }
             .onChange(of: remindMinute) { _, _ in refreshReminders() }
 
@@ -265,9 +288,12 @@ struct SettingsView: View {
         }
         .fileExporter(isPresented: $showingExporter, document: exportDocument,
                       contentType: fileKind == .vcard ? .vCard : .json, defaultFilename: exportName) { result in
-            if case .failure(let error) = result {
+            switch result {
+            case .failure(let error):
                 message = (fileKind == .vcard ? "vCard 파일을 저장하지 못했습니다" : "백업 파일을 저장하지 못했습니다",
                            error.localizedDescription)
+            case .success:
+                if fileKind == .backup { lastBackupSaved = Date().timeIntervalSince1970 }
             }
             exportDocument = nil
         }
@@ -314,6 +340,10 @@ struct SettingsView: View {
         })
     }
 
+    private var anyReminderOn: Bool {
+        remindBirthdays || remindSpecialDays || remindAnniversaries || remindCadence || remindPlannedDay || remindFollowUp || remindMonthly
+    }
+
     /// 알림을 켜면 그때 한 번 허락을 묻는다. 거절돼 있으면 되돌리고 설정 앱으로 안내한다.
     private func reminderChanged(turnedOn: Bool) {
         guard turnedOn else {
@@ -329,6 +359,8 @@ struct SettingsView: View {
                 remindAnniversaries = false
                 remindCadence = false
                 remindFollowUp = false
+                remindPlannedDay = false
+                remindMonthly = false
                 message = ("알림이 꺼져 있습니다", "기기의 설정 앱 → 알림 → 느린 인연에서 알림을 허용한 뒤 다시 켜 주세요.")
             }
         }
@@ -350,6 +382,29 @@ struct SettingsView: View {
                  ? "이 기기에 암호가 설정되어 있지 않아 앱 잠금을 켤 수 없습니다. 기기의 설정 앱에서 암호를 먼저 설정하세요."
                  : "켜 두면 앱을 열 때와 다른 앱에 갔다 돌아올 때 \(lockName)로 확인합니다. 기본은 꺼져 있습니다. 확인은 기기가 하고, 앱은 얼굴 · 지문 정보를 받지 않습니다.")
         }
+    }
+
+    /// 홈 화면 위젯 (1.1.9 · 이슈 100 · FR-075) — 이름을 보일지. 앱 잠금이 켜져 있으면 늘 건수만.
+    private var widgetSection: some View {
+        Section {
+            Toggle("위젯에 이름 숨기기", isOn: $widgetHidesNames)
+                .tint(Color.accent)
+                .disabled(lockEnabled)
+                .accessibilityIdentifier("widgetHideNames")
+        } header: {
+            Text("위젯")
+        } footer: {
+            Text(lockEnabled
+                 ? "앱 잠금이 켜져 있어 위젯에는 약속 · 생일 · 기념일의 건수만 보입니다."
+                 : "홈 화면 위젯에 다가오는 약속 · 생일 · 기념일을 보입니다. 켜면 제목 · 이름 없이 날짜와 종류만 보입니다. 앱 잠금을 켜면 건수만 보입니다. 위젯은 홈 화면을 길게 눌러 더합니다.")
+        }
+        .onChange(of: widgetHidesNames) { _, _ in refreshWidget() }
+        .onChange(of: lockEnabled) { _, _ in refreshWidget() }
+    }
+
+    private func refreshWidget() {
+        let container = context.container
+        Task { await WidgetBridge.refresh(container: container) }
     }
 
     /// 켤 때는 한 번 확인해 본다 — 확인이 되는 기기에서만 켜진다.
@@ -563,6 +618,16 @@ struct SettingsView: View {
                 message = ("파일을 열지 못했습니다", error.localizedDescription)
             }
         }
+    }
+
+    /// 마지막 백업 줄 — `마지막 백업 3일 전` · 아직 없음. 동기화를 끈 채 30일 넘었으면 강조 글씨로 권한다.
+    @ViewBuilder
+    private var backupStatus: some View {
+        let status = BackupReminder.status(lastSaved: lastBackupSaved, syncOn: CloudSync.isActive)
+        Label(status.text, systemImage: status.urges ? "exclamationmark.circle" : "clock.arrow.circlepath")
+            .font(.scaled(14, weight: status.urges ? .semibold : .regular))
+            .foregroundStyle(status.urges ? Color.accent : Color.muted)
+            .accessibilityIdentifier("backupStatus")
     }
 
     private func makeBackup() {

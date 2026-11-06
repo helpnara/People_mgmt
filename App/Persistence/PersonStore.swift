@@ -43,6 +43,8 @@ struct PersonDraft: Equatable {
     var birthdayReminder = true
     /// 기념일 (10판 · D-77) — 화면에 보이는 차례대로.
     var specialDays: [DraftSpecialDay] = []
+    /// 기억할 것 (11판 · FR-062 · D-78) — 만나기 전에 꼭 볼 짧은 글.
+    var keyNote = ""
 
     init() {}
 
@@ -76,6 +78,7 @@ struct PersonDraft: Equatable {
         contactCadenceMonths = person.contactCadenceMonths
         birthdayReminder = !person.muteBirthdayReminder
         specialDays = person.sortedSpecialDays.map(DraftSpecialDay.init(special:))
+        keyNote = person.keyNote ?? ""
     }
 
     /// 다섯 칸을 한꺼번에 — 명함 · 연락처에서 가져온 값을 넣을 때. 빈 칸은 덮지 않는다.
@@ -267,6 +270,7 @@ struct PersonStore {
             ? ApproximateDate.noon(of: draft.firstMetDate, precision: draft.firstMetPrecision, calendar: .current) : nil
         person.firstMetPrecision = draft.hasFirstMetDate ? draft.firstMetPrecision.rawValue : 0
         person.firstNote = clipped(draft.firstNote, Limits.firstNote)
+        person.keyNote = clipped(draft.keyNote, Limits.keyNote)
         person.contactNote = clipped(draft.contactNote, Limits.contactNote)
         person.mobilePhone = clipped(draft.mobilePhone, Limits.phone)
         person.officePhone = clipped(draft.officePhone, Limits.phone)
@@ -292,6 +296,54 @@ struct PersonStore {
         person.contactCadenceMonths = person.isMe ? nil : draft.contactCadenceMonths.flatMap { $0 > 0 ? $0 : nil }
         // 나는 아는 사이를 두지 않는다 — 나는 모두를 안다.
         if !person.isMe { syncTies(of: person, to: draft.acquaintances) }
+    }
+
+    // MARK: 고정 · 다음에 이야기할 것 (11판 · D-78)
+
+    /// 목록 위 고정 칸에 두거나 뺀다 (FR-066). 고친 때(`updatedAt`)는 바꾸지 않는다 — 내용이 바뀐 것이 아니다.
+    func setPinned(_ person: Person, _ pinned: Bool) throws {
+        guard person.isPinned != pinned else { return }
+        person.isPinned = pinned
+        do {
+            try commit()
+        } catch {
+            person.isPinned = !pinned
+            throw error
+        }
+    }
+
+    /// 다음에 이야기할 것 한 줄을 더한다 (FR-063). 빈 글은 더하지 않는다. 더한 줄을 돌려준다.
+    @discardableResult
+    func addTalkItem(_ text: String, to person: Person) throws -> TalkItem? {
+        let cleaned = String(TextNormalization.normalized(text).prefix(Limits.talkItem))
+        guard !cleaned.isEmpty, !person.isGone else { return nil }
+        let item = TalkItem(text: cleaned)
+        context.insert(item)   // 넣고 나서 잇는다.
+        item.person = person
+        try commit()
+        return item
+    }
+
+    /// 끝냄 · 다시 열기. 실패하면 옛 값으로.
+    func setTalkItem(_ item: TalkItem, done: Bool) throws {
+        guard item.isDone != done else { return }
+        let before = (item.isDone, item.doneAt)
+        item.isDone = done
+        item.doneAt = done ? Date() : nil
+        do {
+            try commit()
+        } catch {
+            item.isDone = before.0
+            item.doneAt = before.1
+            throw error
+        }
+    }
+
+    /// 한 줄을 지운다 — 화면이 확인을 받은 뒤 부른다 (모든 삭제에 확인 · CLAUDE.md).
+    func removeTalkItem(_ item: TalkItem) throws {
+        guard !item.isGone else { return }
+        context.delete(item)
+        try commit()
     }
 
     /// 기념일을 고른 대로 맞춘다 (10판 · D-77) — 같은 줄(`id` = 저장된 `uuid`)은 고치고, 빠진 줄은 지우고, 새 줄은 만든다.
@@ -426,6 +478,7 @@ extension SearchablePerson {
             relationshipType: person.relationshipType,
             metThrough: person.metThrough,
             firstNote: person.firstNote,
+            keyNote: person.keyNote,
             tags: person.tags,
             records: (person.records ?? [])
                 .sorted { $0.occurredAt > $1.occurredAt }

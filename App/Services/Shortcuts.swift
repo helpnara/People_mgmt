@@ -1,4 +1,5 @@
 import AppIntents
+import Core
 import SwiftUI
 
 /// **단축어** (빌드 16 · 조사 보고서 지금 6) — 사람 추가 · 기록 추가 · 명함 찍기를 앱을 열자마자.
@@ -11,6 +12,8 @@ final class ShortcutRequests: ObservableObject {
         case addPerson
         case addRecord
         case scanCard
+        /// 위젯 · URL 로 사람 · 기록 열기 (1.1.9 · FR-075 · `Core.AppLink`).
+        case open(AppLink.Target)
     }
 
     static let shared = ShortcutRequests()

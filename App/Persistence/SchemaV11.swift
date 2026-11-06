@@ -1,0 +1,249 @@
+import Foundation
+import SwiftData
+
+/// 스키마 **11판 — 얼려 둔다. 고치지 않는다** (빌드 61 · 1.1.8 TestFlight 의 저장소가 이 모양이다).
+///
+/// 10판에서 사람의 **기억할 것**(`keyNote`) · **고정**(`isPinned`)과 **다음에 이야기할 것**(`TalkItem`)을 더한 판이다. 12판으로 옮기는 원본이다 —
+/// 여기를 고치면 이미 깔린 기기의 저장소가 어느 판인지 알아보지 못해 열리지 않을 수 있다. 지금 쓰는 판은 `Schema.swift` 의 `SchemaV12`.
+///
+/// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
+enum SchemaV11: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(11, 0, 0) }
+    static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self, RecordPhoto.self, ChoiceList.self, SpecialDay.self, TalkItem.self] }
+
+    /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
+    @Model
+    final class Person {
+        var uuid: UUID = UUID()
+        var name: String = ""
+        var nickname: String?
+        var photoReference: String?
+        var organization: String?
+        var role: String?
+        var relationshipType: String?
+        var metThrough: String?
+        /// 날짜만 뜻이 있다. 저장할 때 그날 정오로 맞춘다 (요구사항 7.3).
+        var firstMetDate: Date?
+        /// 처음 만난 날의 정밀도 (6판 · FR-033) — 0 날짜까지 · 1 월까지 · 2 연도만. 월이면 그달 1일, 연도면 1월 1일로 저장한다.
+        var firstMetPrecision: Int = 0
+        var firstNote: String?
+        /// 연락 수단 **기타** (FR-032) — 네 칸에 들지 않는 번호 · 메일 · 메모를 자유 글자로.
+        /// 2판까지는 전화 · 메일을 전부 이 한 칸에 담았다 — 3판으로 옮길 때 네 칸으로 나눈다 (이슈 11).
+        var contactNote: String?
+        /// 휴대전화 (3판 · 이슈 11).
+        var mobilePhone: String?
+        /// 사무실 전화 (3판).
+        var officePhone: String?
+        /// 팩스 (3판).
+        var faxNumber: String?
+        /// 이메일 (3판).
+        var email: String?
+        /// **나** (3판 · 이슈 12). 목록 맨 위에 따로 서고, 사람 수 · 검색 · 정렬 · 고르기에서 빠진다.
+        /// 기록의 참여자가 되지 않는다 — 모든 기록에 나는 늘 있다 (2026-10-18 사용자 결정).
+        var isMe: Bool = false
+        var tags: [String] = []
+        var createdAt: Date = Date()
+        var updatedAt: Date = Date()
+        /// 명함 사진 (FR-050 · 2판). JPEG, 긴 변 1,600px 이하. 저장소 밖 파일로 둔다 — 목록을 읽을 때 같이 올라오지 않게.
+        @Attribute(.externalStorage)
+        var businessCard: Data?
+        /// 사람 사진 (7판 · FR-012). JPEG, 긴 변 1,024px 이하. 명함처럼 저장소 밖 파일로 — 목록을 읽을 때 같이 올라오지 않게.
+        @Attribute(.externalStorage)
+        var photo: Data?
+        /// 생일 (5판 · D-40) — 월 · 일. 둘 다 있어야 뜻이 있다. 연도는 모를 때가 많아 따로 둔다.
+        var birthMonth: Int?
+        var birthDay: Int?
+        /// 태어난 해 (선택).
+        var birthYear: Int?
+        /// 연락 주기 (5판 · D-40) — 고른 사람만. 이 개월 수만큼 기록이 없으면 한 번 알린다. 비우면 알리지 않는다.
+        var contactCadenceMonths: Int?
+        /// 이 사람의 생일 알림을 끈다 (10판 · D-77). 기본은 켬(false) — 설정 → 알림의 `생일 당일` 이 켜져 있어야 온다.
+        var muteBirthdayReminder: Bool = false
+        /// **기억할 것** (11판 · FR-062 · D-78) — 좋아하는 것 · 가족 이름 · 피하는 음식처럼 만나기 전에 꼭 볼 짧은 글. 500자 이하.
+        var keyNote: String?
+        /// **고정** (11판 · FR-066 · D-78) — 목록 위 고정 칸에 둔다. 기기끼리 맞춰진다.
+        var isPinned: Bool = false
+
+        /// 이 사람을 나에게 소개한 사람 (FR-043). 소개자를 지우면 비워진다(nullify).
+        var introducedBy: Person?
+        @Relationship(inverse: \Person.introducedBy)
+        var introduced: [Person]? = []
+        /// 참여한 기록 — `Record.participants` 의 역방향 (N:M, FR-042).
+        @Relationship(inverse: \Record.participants)
+        var records: [Record]? = []
+        /// **아는 사이** (4판 · D-30) — 기록 없이 서로 아는 사람. 이 사람이 `first` 인 연결과 `second` 인 연결.
+        /// 사람을 지우면 그 사람의 연결도 지운다(cascade) — 상대 사람은 남는다.
+        @Relationship(deleteRule: .cascade, inverse: \Tie.first)
+        var tiesAsFirst: [Tie]? = []
+        @Relationship(deleteRule: .cascade, inverse: \Tie.second)
+        var tiesAsSecond: [Tie]? = []
+        /// **기념일** (10판 · D-77) — 사람을 지우면 함께 지운다.
+        @Relationship(deleteRule: .cascade, inverse: \SpecialDay.person)
+        var specialDays: [SpecialDay]? = []
+        /// **다음에 이야기할 것** (11판 · FR-063 · D-78) — 사람을 지우면 함께 지운다.
+        @Relationship(deleteRule: .cascade, inverse: \TalkItem.person)
+        var talkItems: [TalkItem]? = []
+
+        init(name: String) {
+            self.uuid = UUID()
+            self.name = name
+            let now = Date()
+            self.createdAt = now
+            self.updatedAt = now
+            self.tags = []
+        }
+    }
+
+    /// 관계 기록 (요구사항 6.2). 참여자 1명 이상에 속한다. 1 ~ 3판과 같다.
+    @Model
+    final class Record {
+        var uuid: UUID = UUID()
+        var title: String?
+        var recordType: String = "conversation"
+        /// 날짜만 뜻이 있다. 그날 정오. 미래 허용 (D-11).
+        var occurredAt: Date = Date()
+        /// 기록 날짜의 정밀도 (6판 · FR-033) — `Person.firstMetPrecision` 과 같은 뜻.
+        var occurredPrecision: Int = 0
+        /// 그날의 **시각** (8판 · 빌드 39 · D-63) — 자정부터 센 분(0 ~ 1439). 비우면 시각 없음. 날짜까지 정한 기록에만 둔다.
+        /// 날짜 칸(`occurredAt` · 그날 정오 UTC)은 그대로 둔다 — 시각을 거기 섞으면 시차 · 날짜 정리(`DateConvention`)가 흔들린다.
+        /// 같은 날 안의 차례를 정한다 (`Core.TimelineSort` · `PlannedMeetings` · 시각 없는 기록은 그날의 끝).
+        var occurredMinute: Int?
+        var location: String?
+        var note: String?
+        var tags: [String] = []
+        var createdAt: Date = Date()
+        var updatedAt: Date = Date()
+        /// 함께한 사람들. 저장 규칙상 1명 이상이지만 CloudKit 제약 때문에 옵셔널이다.
+        var participants: [Person]? = []
+        /// 기록 사진 (9판 · FR-058) — 최대 `RecordPhotos.limit` 장. 기록을 지우면 함께 지운다.
+        @Relationship(deleteRule: .cascade, inverse: \RecordPhoto.record)
+        var photos: [RecordPhoto]? = []
+
+        init(recordType: String = "conversation", occurredAt: Date = Date(), title: String? = nil, note: String? = nil) {
+            self.uuid = UUID()
+            self.recordType = recordType
+            self.occurredAt = occurredAt
+            self.title = title
+            self.note = note
+            let now = Date()
+            self.createdAt = now
+            self.updatedAt = now
+            self.tags = []
+        }
+    }
+
+    /// **아는 사이 한 줄** (4판 · D-30) — 두 사람이 서로 안다. 방향이 없다(`first` · `second` 는 저장 자리일 뿐).
+    /// 사람 ↔ 사람을 바로 잇지 않고 이 객체를 두는 까닭: 다음 묶음(시점에 따른 변화)이 `언제부터 알았나` 를
+    /// 연결마다 적는다 — 바로 이으면 그 칸을 둘 곳이 없어 저장 형식을 또 바꿔야 한다.
+    @Model
+    final class Tie {
+        var uuid: UUID = UUID()
+        /// 언제부터 알았나 (선택 · 다음 묶음에서 화면에 연다). 비우면 두 사람 중 늦게 만난 날을 쓴다.
+        var since: Date?
+        var createdAt: Date = Date()
+        var first: Person?
+        var second: Person?
+
+        /// 관계는 저장소에 넣은 **뒤에** 잇는다 — 넣기 전에 이으면 SwiftData 가 다른 문맥의 객체로 볼 수 있다.
+        init(since: Date? = nil) {
+            self.uuid = UUID()
+            self.createdAt = Date()
+            self.since = since
+        }
+    }
+
+    /// **기록 사진 한 장** (9판 · FR-058 · 2026-11-03 사용자) — 기록 하나에 최대 4장. 긴 변 1,024px JPEG.
+    /// 사진을 기록의 배열 칸에 넣지 않고 따로 두는 까닭: 저장소 밖 파일(`externalStorage`)은 칸 하나에 하나라서,
+    /// 장마다 객체로 두어야 목록을 읽을 때 사진이 함께 올라오지 않는다.
+    @Model
+    final class RecordPhoto {
+        var uuid: UUID = UUID()
+        @Attribute(.externalStorage)
+        var data: Data?
+        /// 기록 안의 차례 (0부터).
+        var position: Int = 0
+        var createdAt: Date = Date()
+        var record: Record?
+
+        /// 관계는 저장소에 넣은 **뒤에** 잇는다.
+        init(data: Data?, position: Int) {
+            self.uuid = UUID()
+            self.data = data
+            self.position = position
+            self.createdAt = Date()
+        }
+    }
+
+    /// **내 선택지** (9판 · FR-035 · 2026-11-03 사용자) — 관계 유형 · 알게 된 경로의 보이는 차례와 숨긴 것.
+    /// 종류(`kind`)마다 하나다. 유니크 제약을 둘 수 없어(CloudKit) 기기 둘이 따로 만들면 둘이 될 수 있다 —
+    /// 읽을 때 **늦게 고친 것 하나**를 쓴다(`ChoiceStore`).
+    @Model
+    final class ChoiceList {
+        var uuid: UUID = UUID()
+        /// `relationshipType` · `metThrough`.
+        var kind: String = ""
+        /// 보이는 선택지, 보이는 차례대로.
+        var items: [String] = []
+        /// 숨긴 선택지 — 기본값을 숨겨도 다시 꺼낼 수 있게 기억한다.
+        var hidden: [String] = []
+        var updatedAt: Date = Date()
+
+        init(kind: String) {
+            self.uuid = UUID()
+            self.kind = kind
+            self.items = []
+            self.hidden = []
+            self.updatedAt = Date()
+        }
+    }
+
+    /// **기념일 한 줄** (10판 · 이슈 84 · D-77 · 2026-11-05 사용자) — 결혼기념일 · 입사일 · 기일 · 직접 입력 …
+    /// 생일처럼 월 · 일(둘 다 있어야 뜻)과 해(선택). 줄마다 알림을 켜고 끈다 — 설정 → 알림의 `기념일 당일` 이 켜져 있어야 온다.
+    @Model
+    final class SpecialDay {
+        var uuid: UUID = UUID()
+        /// 종류 — `결혼기념일` 처럼. 비면 화면은 `기념일`.
+        var label: String = ""
+        var month: Int = 1
+        var day: Int = 1
+        /// 해 (선택) — 있으면 `n주년`.
+        var year: Int?
+        /// 이 줄의 알림 (기본 켬).
+        var remind: Bool = true
+        /// 사람 안의 차례 (0부터 · 더한 차례).
+        var position: Int = 0
+        var createdAt: Date = Date()
+        var person: Person?
+
+        /// 관계는 저장소에 넣은 **뒤에** 잇는다.
+        init(label: String, month: Int, day: Int, year: Int?, remind: Bool, position: Int) {
+            self.uuid = UUID()
+            self.label = label
+            self.month = month
+            self.day = day
+            self.year = year
+            self.remind = remind
+            self.position = position
+            self.createdAt = Date()
+        }
+    }
+    /// **다음에 이야기할 것 한 줄** (11판 · 이슈 88 · FR-063 · D-78 · 2026-11-06 사용자) — 다음에 물어볼 것 · 전할 것.
+    /// 끝내면 `isDone` (끝낸 것은 접어 둔다). 차례는 만든 때.
+    @Model
+    final class TalkItem {
+        var uuid: UUID = UUID()
+        /// 200자 이하.
+        var text: String = ""
+        var isDone: Bool = false
+        var doneAt: Date?
+        var createdAt: Date = Date()
+        var person: Person?
+
+        /// 관계는 저장소에 넣은 **뒤에** 잇는다.
+        init(text: String) {
+            self.uuid = UUID()
+            self.text = text
+            self.createdAt = Date()
+        }
+    }
+}

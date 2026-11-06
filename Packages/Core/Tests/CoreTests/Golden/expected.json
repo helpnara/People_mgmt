@@ -312,6 +312,39 @@
       ]
     }
   ],
+  "appLink": [
+    {
+      "expected": {
+        "id": "6BA7B810-9DAD-11D1-80B4-00C04FD430C8",
+        "kind": "person"
+      },
+      "url": "slowconnection://person/6BA7B810-9DAD-11D1-80B4-00C04FD430C8"
+    },
+    {
+      "expected": {
+        "id": "6BA7B811-9DAD-11D1-80B4-00C04FD430C8",
+        "kind": "record",
+        "person": "6BA7B810-9DAD-11D1-80B4-00C04FD430C8"
+      },
+      "url": "slowconnection://record/6BA7B811-9DAD-11D1-80B4-00C04FD430C8?person=6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+    },
+    {
+      "expected": null,
+      "url": "slowconnection://record/6BA7B811-9DAD-11D1-80B4-00C04FD430C8"
+    },
+    {
+      "expected": null,
+      "url": "slowconnection://person/not-a-uuid"
+    },
+    {
+      "expected": null,
+      "url": "slowconnection://settings"
+    },
+    {
+      "expected": null,
+      "url": "https://example.com/person/6BA7B810-9DAD-11D1-80B4-00C04FD430C8"
+    }
+  ],
   "approxDate": [
     {
       "expectedEpoch": 1614859200.0,
@@ -2325,6 +2358,48 @@
       "expectedEpoch": 1782907200.0,
       "iso": "2026-07-01T00:10:00-07:00",
       "timeZone": "America/Los_Angeles"
+    }
+  ],
+  "dayReminderMinute": [
+    {
+      "expected": 540,
+      "meeting": null,
+      "preferred": 540
+    },
+    {
+      "expected": 540,
+      "meeting": 750,
+      "preferred": 540
+    },
+    {
+      "expected": 540,
+      "meeting": 600,
+      "preferred": 540
+    },
+    {
+      "expected": 480,
+      "meeting": 540,
+      "preferred": 540
+    },
+    {
+      "expected": 420,
+      "meeting": 480,
+      "preferred": 540
+    },
+    {
+      "expected": 0,
+      "meeting": 30,
+      "preferred": 480
+    },
+    {
+      "expected": 1320,
+      "meeting": 1380,
+      "preferred": 1320
+    },
+    {
+      "expected": 0,
+      "meeting": 1439,
+      "preferred": 0
     }
   ],
   "detailLabels": [
@@ -5733,10 +5808,118 @@
         "organization": " ",
         "role": "연구원"
       }
+    },
+    {
+      "expected": "# 김하늘\n\n- 생일: 5월 21일\n- 결혼기념일: 2018년 10월 12일\n- 기념일: 3월 2일\n\n## 연락 수단\n\n- 휴대전화: 010-1234-5678\n\n## 기억할 것\n\n커피는 디카페인.  첫째는 하준\n\n## 다음에 이야기할 것\n\n- 입학 선물 물어보기\n- 멘토링 주제 정하기\n\n## 기록 0건\n\n아직 기록이 없습니다.\n\n---\n\n느린 인연에서 2026년 11월 6일에 내보냄\n",
+      "name": "기념일 · 기억할 것 · 다음에 이야기할 것 (1.1.8) — 생일 아래 줄마다 · 빈 종류는 기념일 · 빈 줄은 쓰지 않음",
+      "person": {
+        "birthday": "5월 21일",
+        "contacts": [
+          {
+            "label": "휴대전화",
+            "value": "010-1234-5678"
+          }
+        ],
+        "exportedOn": "2026년 11월 6일",
+        "keyNote": "커피는 디카페인.  첫째는 하준",
+        "name": "김하늘",
+        "records": [],
+        "specialDays": [
+          {
+            "label": "결혼기념일",
+            "value": "2018년 10월 12일"
+          },
+          {
+            "label": " ",
+            "value": "3월 2일"
+          },
+          {
+            "label": "입사일",
+            "value": " "
+          }
+        ],
+        "talkItems": [
+          "입학 선물 물어보기",
+          " ",
+          "멘토링 주제 정하기"
+        ]
+      }
+    }
+  ],
+  "placeCatalog": [
+    {
+      "expected": [
+        "강남역 카페",
+        "판교 본사",
+        "Seoul Forest",
+        "성수동"
+      ],
+      "limit": 6,
+      "locations": [
+        "강남역 카페",
+        "판교 본사",
+        "강남역  카페",
+        null,
+        "",
+        "Seoul Forest",
+        "seoul forest",
+        "판교 본사",
+        "강남역 카페",
+        "성수동"
+      ],
+      "name": "많이 쓴 차례 · 같으면 먼저 나온 차례 · 빈칸 정리 · 대소문자 무시 · 빈 것 버림"
+    },
+    {
+      "expected": [
+        "가",
+        "나",
+        "다",
+        "라",
+        "마",
+        "바"
+      ],
+      "limit": 6,
+      "locations": [
+        "가",
+        "나",
+        "다",
+        "라",
+        "마",
+        "바",
+        "사",
+        "가"
+      ],
+      "name": "여섯까지만"
+    },
+    {
+      "expected": [
+        "다",
+        "가"
+      ],
+      "limit": 2,
+      "locations": [
+        "가",
+        "나",
+        "다",
+        "다"
+      ],
+      "name": "한도를 바꾸면 그만큼"
+    },
+    {
+      "expected": [],
+      "limit": 6,
+      "locations": [],
+      "name": "비어 있음"
     }
   ],
   "plannedMeetings": [
     {
+      "dayReminders": [
+        "00000000-0000-0000-0000-000000000304",
+        "00000000-0000-0000-0000-000000000302",
+        "00000000-0000-0000-0000-000000000303",
+        "00000000-0000-0000-0000-000000000301"
+      ],
       "expected": {
         "awaiting": [],
         "upcoming": [
@@ -5809,6 +5992,10 @@
       "window": 60
     },
     {
+      "dayReminders": [
+        "00000000-0000-0000-0000-000000000311",
+        "00000000-0000-0000-0000-000000000312"
+      ],
       "expected": {
         "awaiting": [
           "00000000-0000-0000-0000-000000000311"
@@ -5843,6 +6030,7 @@
       "window": 60
     },
     {
+      "dayReminders": [],
       "expected": {
         "awaiting": [
           "00000000-0000-0000-0000-000000000323"
@@ -5879,6 +6067,7 @@
       "window": 60
     },
     {
+      "dayReminders": [],
       "expected": {
         "awaiting": [
           "00000000-0000-0000-0000-000000000333"
@@ -5915,6 +6104,7 @@
       "window": 60
     },
     {
+      "dayReminders": [],
       "expected": {
         "awaiting": [
           "00000000-0000-0000-0000-000000000343"
@@ -5953,6 +6143,7 @@
       "window": 60
     },
     {
+      "dayReminders": [],
       "expected": {
         "awaiting": [
           "00000000-0000-0000-0000-000000000353",
@@ -6009,6 +6200,7 @@
       "window": 60
     },
     {
+      "dayReminders": [],
       "expected": {
         "awaiting": [
           "00000000-0000-0000-0000-000000000361"
@@ -6038,6 +6230,7 @@
       "window": 7
     },
     {
+      "dayReminders": [],
       "expected": {
         "awaiting": [],
         "upcoming": []
@@ -6050,6 +6243,12 @@
       "window": 60
     },
     {
+      "dayReminders": [
+        "00000000-0000-0000-0000-000000000373",
+        "00000000-0000-0000-0000-000000000374",
+        "00000000-0000-0000-0000-000000000375",
+        "00000000-0000-0000-0000-000000000376"
+      ],
       "expected": {
         "awaiting": [
           "00000000-0000-0000-0000-000000000373",
@@ -6141,6 +6340,12 @@
       "window": 60
     },
     {
+      "dayReminders": [
+        "00000000-0000-0000-0000-000000000385",
+        "00000000-0000-0000-0000-000000000387",
+        "00000000-0000-0000-0000-000000000386",
+        "00000000-0000-0000-0000-000000000384"
+      ],
       "expected": {
         "awaiting": [
           "00000000-0000-0000-0000-000000000386",
@@ -6219,6 +6424,105 @@
         }
       ],
       "today": 1000,
+      "window": 60
+    },
+    {
+      "dayReminders": [
+        "00000000-0000-0000-0000-000000000901",
+        "00000000-0000-0000-0000-000000000906",
+        "00000000-0000-0000-0000-000000000905",
+        "00000000-0000-0000-0000-000000000908"
+      ],
+      "expected": {
+        "awaiting": [
+          "00000000-0000-0000-0000-000000000901",
+          "00000000-0000-0000-0000-000000000904"
+        ],
+        "upcoming": [
+          "00000000-0000-0000-0000-000000000906",
+          "00000000-0000-0000-0000-000000000905",
+          "00000000-0000-0000-0000-000000000907",
+          "00000000-0000-0000-0000-000000000908",
+          "00000000-0000-0000-0000-000000000909"
+        ]
+      },
+      "followUps": [
+        "00000000-0000-0000-0000-000000000904",
+        "00000000-0000-0000-0000-000000000901",
+        "00000000-0000-0000-0000-000000000906",
+        "00000000-0000-0000-0000-000000000905"
+      ],
+      "name": "약속 당일 알림 — 오늘 · 앞날의 미리 적은 예정, 가까운 날 → 이른 시각부터 넷 · 이미 고친 것 · 그날 적은 것 · 월까지 · 어제는 빼고",
+      "phrases": [],
+      "records": [
+        {
+          "createdDay": 1990,
+          "day": 2000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000901",
+          "minute": 720,
+          "updatedDay": 1990
+        },
+        {
+          "createdDay": 1990,
+          "day": 2000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000902",
+          "minute": 600,
+          "updatedDay": 2000
+        },
+        {
+          "createdDay": 2000,
+          "day": 2000,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000903",
+          "updatedDay": 2000
+        },
+        {
+          "createdDay": 1990,
+          "day": 1999,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000904",
+          "updatedDay": 1990
+        },
+        {
+          "createdDay": 1995,
+          "day": 2001,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000905",
+          "updatedDay": 1995
+        },
+        {
+          "createdDay": 1995,
+          "day": 2001,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000906",
+          "minute": 480,
+          "updatedDay": 1995
+        },
+        {
+          "createdDay": 1995,
+          "day": 2003,
+          "dayPrecise": false,
+          "id": "00000000-0000-0000-0000-000000000907",
+          "updatedDay": 1995
+        },
+        {
+          "createdDay": 1995,
+          "day": 2005,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000908",
+          "updatedDay": 1995
+        },
+        {
+          "createdDay": 1995,
+          "day": 2009,
+          "dayPrecise": true,
+          "id": "00000000-0000-0000-0000-000000000909",
+          "updatedDay": 1995
+        }
+      ],
+      "today": 2000,
       "window": 60
     }
   ],
@@ -6570,6 +6874,208 @@
           ]
         }
       ]
+    }
+  ],
+  "recordFinder": [
+    {
+      "items": [
+        {
+          "date": "2026-11-06",
+          "id": "r1",
+          "location": "강남역 카페",
+          "note": "온보딩 피드백",
+          "tags": [
+            "업무"
+          ],
+          "title": "커피 약속"
+        },
+        {
+          "date": "2026-10-31",
+          "id": "r2",
+          "location": "강남  역",
+          "note": null,
+          "tags": [],
+          "title": "점심"
+        },
+        {
+          "date": "2026-10-30",
+          "id": "r3",
+          "location": "판교 본사",
+          "note": "로드맵 우선순위",
+          "tags": [
+            "업무",
+            "회의록"
+          ],
+          "title": "분기 회의"
+        },
+        {
+          "date": "2026-10-08",
+          "id": "r4",
+          "location": "Seoul Forest",
+          "note": null,
+          "tags": [],
+          "title": "산책"
+        },
+        {
+          "date": "2026-01-01",
+          "id": "r5",
+          "location": null,
+          "note": "전화",
+          "tags": [],
+          "title": "새해 인사"
+        },
+        {
+          "date": "2025-12-31",
+          "id": "r6",
+          "location": "판교 본사",
+          "note": null,
+          "tags": [
+            "회식"
+          ],
+          "title": "송년회"
+        },
+        {
+          "date": "2026-11-20",
+          "id": "r7",
+          "location": "강남역 카페",
+          "note": null,
+          "tags": [],
+          "title": "다음 약속"
+        }
+      ],
+      "name": "기간 · 장소 · 글자 — 오늘 포함 · 앞날짜는 올해에만 · 장소는 대소문자 무시 · 낱말은 모두",
+      "queries": [
+        {
+          "expected": [
+            "r1",
+            "r2"
+          ],
+          "period": "week",
+          "place": null,
+          "query": ""
+        },
+        {
+          "expected": [
+            "r1",
+            "r2",
+            "r3",
+            "r4"
+          ],
+          "period": "month",
+          "place": null,
+          "query": ""
+        },
+        {
+          "expected": [
+            "r1",
+            "r2",
+            "r3",
+            "r4",
+            "r5",
+            "r7"
+          ],
+          "period": "thisYear",
+          "place": null,
+          "query": ""
+        },
+        {
+          "expected": [
+            "r6"
+          ],
+          "period": "lastYear",
+          "place": null,
+          "query": ""
+        },
+        {
+          "expected": [
+            "r1",
+            "r7"
+          ],
+          "period": null,
+          "place": "강남역",
+          "query": ""
+        },
+        {
+          "expected": [
+            "r4"
+          ],
+          "period": null,
+          "place": "seoul",
+          "query": ""
+        },
+        {
+          "expected": [
+            "r3"
+          ],
+          "period": "month",
+          "place": "판교",
+          "query": ""
+        },
+        {
+          "expected": [
+            "r3"
+          ],
+          "period": null,
+          "place": null,
+          "query": "업무 회의"
+        },
+        {
+          "expected": [
+            "r1",
+            "r2",
+            "r3",
+            "r4",
+            "r5",
+            "r6",
+            "r7"
+          ],
+          "period": null,
+          "place": null,
+          "query": "  "
+        },
+        {
+          "expected": [
+            "r1",
+            "r7"
+          ],
+          "period": "thisYear",
+          "place": null,
+          "query": "약속"
+        },
+        {
+          "expected": [],
+          "period": null,
+          "place": "없는 곳",
+          "query": ""
+        }
+      ],
+      "ranges": [
+        {
+          "from": 20757,
+          "period": "week",
+          "to": 20763,
+          "today": 20763
+        },
+        {
+          "from": 20734,
+          "period": "month",
+          "to": 20763,
+          "today": 20763
+        },
+        {
+          "from": 20454,
+          "period": "thisYear",
+          "to": 20818,
+          "today": 20763
+        },
+        {
+          "from": 20089,
+          "period": "lastYear",
+          "to": 20453,
+          "today": 20763
+        }
+      ],
+      "today": "2026-11-06"
     }
   ],
   "recordSave": [
@@ -7531,11 +8037,306 @@
       ]
     }
   ],
+  "repeatDue": [
+    {
+      "day": 1000,
+      "expected": false,
+      "today": 999,
+      "updatedDay": 990
+    },
+    {
+      "day": 1000,
+      "expected": false,
+      "today": 1000,
+      "updatedDay": 990
+    },
+    {
+      "day": 1000,
+      "expected": true,
+      "today": 1000,
+      "updatedDay": 1000
+    },
+    {
+      "day": 1000,
+      "expected": true,
+      "today": 1001,
+      "updatedDay": 990
+    },
+    {
+      "day": 1000,
+      "expected": false,
+      "today": 999,
+      "updatedDay": 1003
+    }
+  ],
+  "repeatRule": [
+    {
+      "anchorDay": null,
+      "date": "2026-11-06",
+      "describe": "반복 안 함",
+      "next": null,
+      "rule": 0,
+      "upcoming": [
+        {
+          "expected": null,
+          "today": "2026-11-07"
+        }
+      ]
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-11-06",
+      "describe": "매주 금요일",
+      "next": "2026-11-13",
+      "rule": 1,
+      "upcoming": [
+        {
+          "expected": "2026-11-13",
+          "today": "2026-11-06"
+        },
+        {
+          "expected": "2026-11-20",
+          "today": "2026-11-13"
+        },
+        {
+          "expected": "2026-12-04",
+          "today": "2026-12-01"
+        }
+      ]
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-12-29",
+      "describe": "매주 화요일",
+      "next": "2027-01-05",
+      "rule": 1,
+      "upcoming": []
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-12-25",
+      "describe": "2주마다 금요일",
+      "next": "2027-01-08",
+      "rule": 2,
+      "upcoming": []
+    },
+    {
+      "anchorDay": 31,
+      "date": "2026-01-31",
+      "describe": "매달 31일",
+      "next": "2026-02-28",
+      "rule": 3,
+      "upcoming": [
+        {
+          "expected": "2026-02-28",
+          "today": "2026-02-01"
+        },
+        {
+          "expected": "2026-04-30",
+          "today": "2026-04-15"
+        }
+      ]
+    },
+    {
+      "anchorDay": 31,
+      "date": "2026-02-28",
+      "describe": "매달 31일",
+      "next": "2026-03-31",
+      "rule": 3,
+      "upcoming": []
+    },
+    {
+      "anchorDay": null,
+      "date": "2028-01-30",
+      "describe": "매달 30일",
+      "next": "2028-02-29",
+      "rule": 3,
+      "upcoming": []
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-12-15",
+      "describe": "매달 15일",
+      "next": "2027-01-15",
+      "rule": 3,
+      "upcoming": []
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-11-10",
+      "describe": "매달 둘째 화요일",
+      "next": "2026-12-08",
+      "rule": 4,
+      "upcoming": [
+        {
+          "expected": "2027-02-09",
+          "today": "2027-01-20"
+        }
+      ]
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-11-01",
+      "describe": "매달 첫째 일요일",
+      "next": "2026-12-06",
+      "rule": 4,
+      "upcoming": []
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-11-26",
+      "describe": "매달 넷째 목요일",
+      "next": "2026-12-24",
+      "rule": 4,
+      "upcoming": []
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-10-30",
+      "describe": "매달 마지막 금요일",
+      "next": "2026-11-27",
+      "rule": 4,
+      "upcoming": []
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-12-31",
+      "describe": "매달 마지막 목요일",
+      "next": "2027-01-28",
+      "rule": 4,
+      "upcoming": []
+    },
+    {
+      "anchorDay": null,
+      "date": "2028-01-29",
+      "describe": "매달 마지막 토요일",
+      "next": "2028-02-26",
+      "rule": 4,
+      "upcoming": []
+    }
+  ],
+  "savedCommunityName": [
+    {
+      "expected": "독서모임",
+      "labels": [
+        {
+          "members": [
+            "a",
+            "b",
+            "c"
+          ],
+          "name": "독서모임"
+        }
+      ],
+      "members": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "name": "절반 넘게 겹치면 그 이름"
+    },
+    {
+      "expected": null,
+      "labels": [
+        {
+          "members": [
+            "a",
+            "b",
+            "x",
+            "y"
+          ],
+          "name": "등산"
+        }
+      ],
+      "members": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "name": "딱 절반이면 쓰지 않는다"
+    },
+    {
+      "expected": "새 이름",
+      "labels": [
+        {
+          "members": [
+            "a",
+            "b",
+            "c"
+          ],
+          "name": "옛 이름"
+        },
+        {
+          "members": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          "name": "새 이름"
+        },
+        {
+          "members": [
+            "a",
+            "b",
+            "c"
+          ],
+          "name": "같은 점수 뒤"
+        }
+      ],
+      "members": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "name": "가장 많이 겹치는 것 · 같으면 먼저 받은 것"
+    },
+    {
+      "expected": "회사 동기",
+      "labels": [
+        {
+          "members": [
+            "a",
+            "b"
+          ],
+          "name": "  "
+        },
+        {
+          "members": [
+            "a",
+            "b"
+          ],
+          "name": " 회사  동기 "
+        }
+      ],
+      "members": [
+        "a",
+        "b"
+      ],
+      "name": "빈 이름은 건너뛴다"
+    },
+    {
+      "expected": null,
+      "labels": [
+        {
+          "members": [],
+          "name": "아무거나"
+        }
+      ],
+      "members": [],
+      "name": "사람이 없으면 없다"
+    }
+  ],
   "search": {
     "people": [
       {
         "firstNote": "입사 첫날 옆자리",
         "id": "11111111-1111-1111-1111-111111111111",
+        "keyNote": "커피는 디카페인",
         "metThrough": "직장",
         "name": "김하늘",
         "organization": "청림소프트",
@@ -8158,6 +8959,17 @@
           }
         ],
         "query": "ㅎㄴ"
+      },
+      {
+        "expected": [
+          {
+            "evidence": "기억할 것 일치",
+            "kind": "person",
+            "personID": "11111111-1111-1111-1111-111111111111",
+            "recordID": null
+          }
+        ],
+        "query": "디카페인"
       }
     ]
   },
@@ -14999,12 +15811,51 @@
           "role": ""
         }
       ]
+    },
+    {
+      "expected": "BEGIN:VCARD\r\nVERSION:3.0\r\nN:;김하늘;;;\r\nFN:김하늘\r\nBDAY:--0521\r\nitem1.X-ABDATE:2018-10-12\r\nitem1.X-ABLabel:결혼기념일\r\nitem2.X-ABDATE;X-APPLE-OMIT-YEAR=1604:1604-03-02\r\nitem2.X-ABLabel:입사일\\, 첫 회사\r\nitem3.X-ABDATE;X-APPLE-OMIT-YEAR=1604:1604-02-29\r\nitem3.X-ABLabel:기념일\r\nEND:VCARD\r\n",
+      "name": "기념일 (1.1.8) — 해를 알면 그대로, 모르면 1604 와 빼는 해 표시, 빈 이름은 기념일, 쉼표는 이스케이프",
+      "people": [
+        {
+          "anniversaries": [
+            {
+              "day": 12,
+              "label": "결혼기념일",
+              "month": 10,
+              "year": 2018
+            },
+            {
+              "day": 2,
+              "label": "입사일, 첫 회사",
+              "month": 3,
+              "year": null
+            },
+            {
+              "day": 29,
+              "label": "",
+              "month": 2,
+              "year": null
+            }
+          ],
+          "birthDay": 21,
+          "birthMonth": 5,
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "김하늘"
+        }
+      ]
     }
   ],
   "vcardParse": [
     {
       "expected": [
         {
+          "anniversaries": [],
           "birthDay": 14,
           "birthMonth": 3,
           "birthYear": 1990,
@@ -15021,6 +15872,7 @@
           "role": "팀장, 개발"
         },
         {
+          "anniversaries": [],
           "birthDay": 29,
           "birthMonth": 2,
           "birthYear": null,
@@ -15037,6 +15889,7 @@
           "role": ""
         },
         {
+          "anniversaries": [],
           "birthDay": null,
           "birthMonth": null,
           "birthYear": null,
@@ -15059,6 +15912,7 @@
     {
       "expected": [
         {
+          "anniversaries": [],
           "birthDay": 21,
           "birthMonth": 7,
           "birthYear": null,
@@ -15081,6 +15935,7 @@
     {
       "expected": [
         {
+          "anniversaries": [],
           "birthDay": null,
           "birthMonth": null,
           "birthYear": null,
@@ -15103,6 +15958,7 @@
     {
       "expected": [
         {
+          "anniversaries": [],
           "birthDay": 3,
           "birthMonth": 11,
           "birthYear": 1985,
@@ -15121,6 +15977,94 @@
       ],
       "name": "4.0 · 이름 없는 카드는 건너뜀 · 시각 붙은 생일",
       "text": "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:  이  도윤 \r\nTEL;TYPE=\"work,voice\";VALUE=uri:tel:+82-2-555-1234\r\nBDAY:19851103T000000Z\r\nEND:VCARD\r\n"
+    },
+    {
+      "expected": [
+        {
+          "anniversaries": [
+            {
+              "day": 12,
+              "label": "결혼기념일",
+              "month": 10,
+              "year": 2018
+            },
+            {
+              "day": 2,
+              "label": "기념일",
+              "month": 3,
+              "year": null
+            },
+            {
+              "day": 15,
+              "label": "기념일",
+              "month": 7,
+              "year": null
+            }
+          ],
+          "birthDay": null,
+          "birthMonth": null,
+          "birthYear": null,
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "김하늘",
+          "nickname": "",
+          "organization": "",
+          "role": ""
+        },
+        {
+          "anniversaries": [
+            {
+              "day": 15,
+              "label": "기념일",
+              "month": 9,
+              "year": 2020
+            }
+          ],
+          "birthDay": null,
+          "birthMonth": null,
+          "birthYear": null,
+          "fields": {
+            "email": "",
+            "fax": "",
+            "mobile": "",
+            "office": "",
+            "other": ""
+          },
+          "name": "정유진",
+          "nickname": "",
+          "organization": "",
+          "role": ""
+        }
+      ],
+      "name": "기념일 (1.1.8) — 기기 연락처의 itemN.X-ABDATE · X-ABLabel, 기본 이름표는 기념일, 4.0 ANNIVERSARY, 없는 날은 버림",
+      "text": "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:김하늘\r\nitem1.X-ABDATE;type=pref:2018-10-12\r\nitem1.X-ABLabel:결혼기념일\r\nitem2.X-ABDATE;X-APPLE-OMIT-YEAR=1604:1604-03-02\r\nitem2.X-ABLabel:_$!<Anniversary>!$_\r\nitem3.X-ABDATE:2019-02-30\r\nitem3.X-ABLabel:없는 날\r\nitem4.X-ABDATE:--07-15\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:4.0\r\nFN:정유진\r\nANNIVERSARY:20200915\r\nEND:VCARD\r\n"
+    }
+  ],
+  "widgetDDay": [
+    {
+      "day": 1000,
+      "expected": "D-DAY",
+      "today": 1000
+    },
+    {
+      "day": 1001,
+      "expected": "D-1",
+      "today": 1000
+    },
+    {
+      "day": 1012,
+      "expected": "D-12",
+      "today": 1000
+    },
+    {
+      "day": 999,
+      "expected": "D+1",
+      "today": 1000
     }
   ],
   "yearInReview": [

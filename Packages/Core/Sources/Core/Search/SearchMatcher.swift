@@ -11,12 +11,14 @@ public struct SearchablePerson: Sendable, Equatable {
     public var relationshipType: String?
     public var metThrough: String?
     public var firstNote: String?
+    /// 기억할 것 (11판 · FR-062).
+    public var keyNote: String?
     public var tags: [String]
     public var records: [SearchableRecord]
 
     public init(id: UUID, name: String, nickname: String? = nil, organization: String? = nil,
                 role: String? = nil, relationshipType: String? = nil, metThrough: String? = nil,
-                firstNote: String? = nil, tags: [String] = [], records: [SearchableRecord] = []) {
+                firstNote: String? = nil, keyNote: String? = nil, tags: [String] = [], records: [SearchableRecord] = []) {
         self.id = id
         self.name = name
         self.nickname = nickname
@@ -25,6 +27,7 @@ public struct SearchablePerson: Sendable, Equatable {
         self.relationshipType = relationshipType
         self.metThrough = metThrough
         self.firstNote = firstNote
+        self.keyNote = keyNote
         self.tags = tags
         self.records = records
     }
@@ -134,6 +137,7 @@ public struct SearchIndex: Sendable {
                 (person.relationshipType, "관계 유형 일치"),
                 (person.metThrough, "알게 된 경로 일치"),
                 (person.firstNote, "첫 인연 메모 일치"),
+                (person.keyNote, "기억할 것 일치"),
             ]
             let fields = candidates.compactMap { value, evidence in fold(value).map { Field(text: $0, evidence: evidence) } }
             let records = person.records.map { record in

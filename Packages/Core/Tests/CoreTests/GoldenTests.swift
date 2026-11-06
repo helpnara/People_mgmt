@@ -75,7 +75,9 @@ final class GoldenTests: XCTestCase {
         struct VPersonRaw: Decodable {
             let name: String; let nickname: String?; let organization: String?; let role: String?; let fields: VFieldsRaw
             let birthMonth: Int?; let birthDay: Int?; let birthYear: Int?
+            let anniversaries: [VDateRaw]?
         }
+        struct VDateRaw: Decodable { let label: String; let month: Int; let day: Int; let year: Int? }
         struct VEncodeCase: Decodable { let name: String; let people: [VPersonRaw]; let expected: String }
         struct VParseCase: Decodable { let name: String; let text: String; let expected: [VPersonRaw] }
         struct VExistingRaw: Decodable { let id: UUID; let name: String; let fields: VFieldsRaw }
@@ -169,7 +171,7 @@ final class GoldenTests: XCTestCase {
         struct Person: Decodable {
             let id: UUID; let name: String; let nickname: String?; let organization: String?
             let role: String?; let relationshipType: String?; let metThrough: String?
-            let firstNote: String?; let tags: [String]; let records: [Record]
+            let firstNote: String?; let keyNote: String?; let tags: [String]; let records: [Record]
         }
         struct Hit: Decodable { let personID: UUID; let kind: String; let evidence: String; let recordID: UUID? }
         struct Query: Decodable { let query: String; let expected: [Hit] }
@@ -205,6 +207,7 @@ final class GoldenTests: XCTestCase {
             let relationshipType: String?; let metThrough: String?; let introducer: String?; let birthday: String?
             let tags: [String]?; let contacts: [ExportContact]?; let firstMet: String?; let firstNote: String?
             let records: [ExportRecord]?; let exportedOn: String
+            let specialDays: [ExportContact]?; let keyNote: String?; let talkItems: [String]?
         }
         struct PlannedRecordRaw: Decodable { let id: UUID; let day: Int; let createdDay: Int; let updatedDay: Int; let dayPrecise: Bool; let minute: Int? }
         struct PlannedExpected: Decodable { let upcoming: [UUID]; let awaiting: [UUID] }
@@ -218,10 +221,32 @@ final class GoldenTests: XCTestCase {
         }
         struct PlannedCase: Decodable {
             let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int
-            let expected: PlannedExpected; let followUps: [UUID]; let phrases: [PlannedPhrase]
+            let expected: PlannedExpected; let followUps: [UUID]; let dayReminders: [UUID]; let phrases: [PlannedPhrase]
         }
+        struct DayReminderMinuteCase: Decodable { let meeting: Int?; let preferred: Int; let expected: Int }
+        struct RepeatUpcoming: Decodable { let today: String; let expected: String? }
+        struct RepeatCase: Decodable { let rule: Int; let date: String; let anchorDay: Int?; let next: String?; let describe: String; let upcoming: [RepeatUpcoming] }
+        struct RepeatDueCase: Decodable { let day: Int; let updatedDay: Int; let today: Int; let expected: Bool }
+        struct DDayCase: Decodable { let day: Int; let today: Int; let expected: String }
+        struct LinkExpected: Decodable { let kind: String; let id: String; let person: String? }
+        struct LinkCase: Decodable { let url: String; let expected: LinkExpected? }
+        struct FinderItem: Decodable { let id: String; let date: String; let location: String?; let title: String?; let note: String?; let tags: [String] }
+        struct FinderRange: Decodable { let period: String; let from: Int; let to: Int; let today: Int }
+        struct FinderQuery: Decodable { let period: String?; let place: String?; let query: String; let expected: [String] }
+        struct FinderCase: Decodable { let name: String; let today: String; let items: [FinderItem]; let ranges: [FinderRange]; let queries: [FinderQuery] }
+        struct PlaceCase: Decodable { let name: String; let locations: [String?]; let limit: Int; let expected: [String] }
+        struct SavedLabelRaw: Decodable { let name: String; let members: [String] }
+        struct SavedNameCase: Decodable { let name: String; let members: [String]; let labels: [SavedLabelRaw]; let expected: String? }
         struct ExportCase: Decodable { let name: String; let person: ExportPerson; let expected: String }
 
+        let dayReminderMinute: [DayReminderMinuteCase]
+        let repeatRule: [RepeatCase]
+        let repeatDue: [RepeatDueCase]
+        let widgetDDay: [DDayCase]
+        let appLink: [LinkCase]
+        let recordFinder: [FinderCase]
+        let placeCatalog: [PlaceCase]
+        let savedCommunityName: [SavedNameCase]
         let tags: [TagCase]
         let tagSplit: [SplitCase]
         let displayTitle: [TitleCase]
@@ -481,12 +506,113 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.upcoming, c.expected.upcoming, "\(c.name) — 다가오는 만남")
             XCTAssertEqual(got.awaiting, c.expected.awaiting, "\(c.name) — 결과를 적을 만남")
             XCTAssertEqual(PlannedMeetings.followUps(entries, today: c.today), c.followUps, "\(c.name) — 결과 적기 알림")
+            XCTAssertEqual(PlannedMeetings.dayReminders(entries, today: c.today), c.dayReminders, "\(c.name) — 약속 당일 알림")
             for p in c.phrases {
                 XCTAssertEqual(PlannedMeetings.upcomingPhrase(day: p.day, today: c.today), p.expected, c.name)
             }
         }
         XCTAssertEqual(PlannedMeetings.window, 60, "정답표의 PLANNED_WINDOW 와 같다")
         XCTAssertEqual(PlannedMeetings.followUpLimit, 4, "정답표의 FOLLOW_UP_LIMIT 와 같다")
+        XCTAssertEqual(PlannedMeetings.dayReminderLimit, 4, "정답표의 DAY_REMINDER_LIMIT 와 같다")
+        XCTAssertEqual(PlannedMeetings.dayReminderLead, 60, "정답표의 DAY_REMINDER_LEAD 와 같다")
+        for c in try Self.loadGolden().dayReminderMinute {
+            XCTAssertEqual(PlannedMeetings.dayReminderMinute(meeting: c.meeting, preferred: c.preferred), c.expected,
+                           "약속 당일 알림 시각 — 약속 \(String(describing: c.meeting)) · 알림 \(c.preferred)")
+        }
+    }
+
+    private static func civil(_ text: String) -> CivilDate {
+        let parts = text.split(separator: "-").compactMap { Int($0) }
+        return CivilDate(year: parts[0], month: parts[1], day: parts[2])
+    }
+
+    private static func iso(_ date: CivilDate) -> String {
+        String(format: "%04d-%02d-%02d", date.year, date.month, date.day)
+    }
+
+    /// 반복 약속 (1.1.9 · FR-069).
+    func testRepeatRule() throws {
+        for c in try Self.loadGolden().repeatRule {
+            let rule = RepeatRule.of(c.rule)
+            let date = Self.civil(c.date)
+            XCTAssertEqual(rule.next(after: date, anchorDay: c.anchorDay).map(Self.iso), c.next, "\(c.rule) \(c.date) — 다음 회차")
+            XCTAssertEqual(RepeatRule.describe(rule, on: date, anchorDay: c.anchorDay), c.describe, "\(c.rule) \(c.date) — 이름")
+            XCTAssertEqual(CivilDate(dayNumber: date.dayNumber), date, "날 번호를 오가도 같은 날")
+            for u in c.upcoming {
+                XCTAssertEqual(rule.nextUpcoming(after: date, anchorDay: c.anchorDay, today: Self.civil(u.today)).map(Self.iso), u.expected,
+                               "\(c.rule) \(c.date) — 오늘 \(u.today) 뒤의 첫 회차")
+            }
+        }
+        for c in try Self.loadGolden().repeatDue {
+            XCTAssertEqual(RepeatRule.isDue(day: c.day, updatedDay: c.updatedDay, today: c.today), c.expected,
+                           "다음 회차 만들 때 — 날 \(c.day) · 고친 날 \(c.updatedDay) · 오늘 \(c.today)")
+        }
+    }
+
+    /// 위젯의 D-day 글씨 · 위젯 → 앱 URL (1.1.9 · FR-075).
+    func testWidgetDDayAndAppLink() throws {
+        let golden = try Self.loadGolden()
+        for c in golden.widgetDDay {
+            XCTAssertEqual(WidgetSummary.dDay(day: c.day, today: c.today), c.expected, "D-day — 날 \(c.day) · 오늘 \(c.today)")
+        }
+        for c in golden.appLink {
+            let url = try XCTUnwrap(URL(string: c.url))
+            let parsed = AppLink.parse(url)
+            switch (parsed, c.expected) {
+            case (nil, nil):
+                break
+            case (.person(let id)?, let e?):
+                XCTAssertEqual(e.kind, "person", c.url)
+                XCTAssertEqual(id.uuidString, e.id, c.url)
+            case (.record(let id, let person)?, let e?):
+                XCTAssertEqual(e.kind, "record", c.url)
+                XCTAssertEqual(id.uuidString, e.id, c.url)
+                XCTAssertEqual(person.uuidString, e.person, c.url)
+            default:
+                XCTFail("URL 풀기가 정답표와 다르다 — \(c.url): \(String(describing: parsed)) vs \(String(describing: c.expected))")
+            }
+        }
+        // 만든 URL 이 다시 풀린다.
+        let person = UUID(), record = UUID()
+        XCTAssertEqual(AppLink.parse(try XCTUnwrap(AppLink.person(person))), .person(person))
+        XCTAssertEqual(AppLink.parse(try XCTUnwrap(AppLink.record(record, person: person))), .record(record, person: person))
+    }
+
+    /// 기간 · 장소로 찾기 (1.1.9 · FR-072).
+    func testRecordFinder() throws {
+        for c in try Self.loadGolden().recordFinder {
+            let today = Self.civil(c.today)
+            for r in c.ranges {
+                let period = try XCTUnwrap(RecordPeriod(rawValue: r.period))
+                XCTAssertEqual(today.dayNumber, r.today, "\(c.name) — 오늘의 날 번호")
+                XCTAssertEqual(RecordFinder.range(period, today: today), r.from...r.to, "\(c.name) — \(r.period)")
+            }
+            let items = c.items.map {
+                (id: $0.id, item: RecordFinder.Item(day: Self.civil($0.date).dayNumber, location: $0.location, title: $0.title,
+                                                    note: $0.note, tags: $0.tags))
+            }
+            for q in c.queries {
+                let range = try q.period.map { RecordFinder.range(try XCTUnwrap(RecordPeriod(rawValue: $0)), today: today) }
+                let got = items.filter { RecordFinder.matches($0.item, range: range, place: q.place, query: q.query) }.map(\.id)
+                XCTAssertEqual(got, q.expected, "\(c.name) — \(q.period ?? "-") · \(q.place ?? "-") · \(q.query)")
+            }
+        }
+    }
+
+    /// 자주 쓴 장소 (1.1.9 · FR-072).
+    func testPlaceCatalog() throws {
+        for c in try Self.loadGolden().placeCatalog {
+            XCTAssertEqual(PlaceCatalog.top(c.locations, limit: c.limit), c.expected, c.name)
+        }
+        XCTAssertEqual(PlaceCatalog.limit, 6, "정답표의 기본 한도와 같다")
+    }
+
+    /// 고쳐 둔 모임 이름 (1.1.9 · FR-071).
+    func testSavedCommunityName() throws {
+        for c in try Self.loadGolden().savedCommunityName {
+            let labels = c.labels.map { CommunityNaming.SavedLabel(name: $0.name, members: $0.members) }
+            XCTAssertEqual(CommunityNaming.saved(members: c.members, labels: labels), c.expected, c.name)
+        }
     }
 
     func testRelationshipMilestones() throws {
@@ -554,7 +680,8 @@ final class GoldenTests: XCTestCase {
 
     private static func person(_ p: Golden.VPersonRaw) -> VCardPerson {
         VCardPerson(name: p.name, nickname: p.nickname ?? "", organization: p.organization ?? "", role: p.role ?? "",
-                    fields: fields(p.fields), birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear)
+                    fields: fields(p.fields), birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear,
+                    anniversaries: (p.anniversaries ?? []).map { VCardDate(label: $0.label, month: $0.month, day: $0.day, year: $0.year) })
     }
 
     func testVCardEncode() throws {
@@ -843,7 +970,9 @@ final class GoldenTests: XCTestCase {
                     PersonExport.Record(date: $0.date, type: $0.type, title: $0.title, note: $0.note,
                                         location: $0.location, tags: $0.tags ?? [], companions: $0.companions ?? [])
                 },
-                exportedOn: p.exportedOn)
+                exportedOn: p.exportedOn,
+                specialDays: (p.specialDays ?? []).map { PersonExport.Contact(label: $0.label, value: $0.value) },
+                keyNote: p.keyNote, talkItems: p.talkItems ?? [])
             XCTAssertEqual(PersonExport.markdown(person), c.expected, c.name)
         }
     }
@@ -908,7 +1037,7 @@ final class GoldenTests: XCTestCase {
             SearchablePerson(
                 id: p.id, name: p.name, nickname: p.nickname, organization: p.organization,
                 role: p.role, relationshipType: p.relationshipType, metThrough: p.metThrough,
-                firstNote: p.firstNote, tags: p.tags,
+                firstNote: p.firstNote, keyNote: p.keyNote, tags: p.tags,
                 records: p.records.map {
                     SearchableRecord(id: $0.id, displayTitle: $0.displayTitle, title: $0.title,
                                      note: $0.note, location: $0.location, tags: $0.tags)
