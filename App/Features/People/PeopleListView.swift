@@ -72,6 +72,12 @@ struct PeopleListView: View {
     /// 다가오는 날 (1.1.8 · 이슈 93 · FR-068) — 한 해 안의 생일 · 기념일. 홈은 30일 안의 다섯, 모두 보기는 한 해.
     @State private var upcomingDays: [UpcomingDay] = []
     @State private var showingAllDays = false
+    /// 기간 · 장소로 찾기 (1.1.9 · 이슈 97 · FR-072) — 검색 아래 칩. 규칙은 `Core.RecordFinder` · `PlaceCatalog`.
+    @State private var searchPeriod: RecordPeriod?
+    @State private var searchPlace: String?
+    @State private var placeChoices: [String] = []
+    @State private var foundRecords: [Record] = []
+    @State private var foundTotal = 0
     @State private var openAfterDays: Person?
     @State private var saveError: String?
     @State private var awaitingRecords: [Record] = []
@@ -129,6 +135,16 @@ struct PeopleListView: View {
         let text: String
         let version: Int
     }
+
+    private struct RecordSearchKey: Hashable {
+        let text: String
+        let period: RecordPeriod?
+        let place: String?
+        let version: Int
+    }
+
+    /// 기간 · 장소 칩을 골랐나 (FR-072).
+    private var isRecordSearching: Bool { searchPeriod != nil || searchPlace != nil }
 
     var body: some View {
         Group {
@@ -242,6 +258,7 @@ struct PeopleListView: View {
             if !sortedPeople.isEmpty { LaunchTiming.once("목록 정렬 끝 (\(sortedPeople.count)명)") }
             refreshFilter()
             pinnedPeople = NameSort.sorted(fetched.filter { !$0.isGone && $0.isPinned }, name: \.name, createdAt: \.createdAt)
+            loadPlaceChoices()
             // 예정을 먼저 — 최근 기록은 결과를 적을 만남과 겹치는 기록을 뺀다.
             LaunchTiming.measure("예정된 만남 읽기") { loadPlannedRecords() }
             LaunchTiming.measure("최근 기록 3건 읽기") { loadRecentRecords() }
@@ -253,6 +270,9 @@ struct PeopleListView: View {
         .task(id: SearchKey(text: searchText, version: dataVersion)) {
             await runSearch()
         }
+        .task(id: RecordSearchKey(text: searchText, period: searchPeriod, place: searchPlace, version: dataVersion)) {
+            findRecords()
+        }
         .task(id: dataVersion) {
             // 저장이 이어지면(하루 10명 입력) 마지막 저장 뒤 한 번만 센다.
             try? await Task.sleep(for: .seconds(1))
@@ -262,6 +282,8 @@ struct PeopleListView: View {
                 pendingChange = true
                 return
             }
+            // 반복 약속의 다음 회차 (1.1.9 · 이슈 94 · FR-069) — 때가 된 회차마다 하나. 만들면 저장 알림으로 다시 센다.
+            _ = try? RecordStore(context: context).spawnDueRepeats()
             LaunchTiming.once("입력 상태 세기 시작 (자료 판 \(dataVersion))")
             let input = await NetworkSnapshotBuilder.readiness(container: context.container, version: dataVersion)
             guard !Task.isCancelled else { return }
@@ -284,14 +306,6 @@ struct PeopleListView: View {
         Group {
             if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
                 EmptyPeopleView(onAdd: { showingAdd = true }, onDemo: { DemoMode.shared.start() })
-            } else if isQuerying && searchRows.isEmpty && searchedText == searchText {
-                // 요구사항 문구 그대로 — 시스템 기본 문구 대신 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
-                let shown = TextNormalization.normalized(searchText)
-                ContentUnavailableView {
-                    Label("'\(shown)'\(Josa.gwaWa(shown)) 일치하는 사람이 없습니다", systemImage: "magnifyingglass")
-                } description: {
-                    Text("이름 · 소속 · 메모 · 태그로 찾습니다. 태그만 찾으려면 #을 붙이세요.")
-                }
             } else {
                 list
             }
@@ -401,6 +415,8 @@ struct PeopleListView: View {
 
     private var list: some View {
         List {
+            // 기간 · 장소로 찾기 (1.1.9 · FR-072) — 검색창을 열었을 때만(또는 칩을 골라 둔 동안) 보인다.
+            SearchFilterChips(period: $searchPeriod, place: $searchPlace, places: placeChoices)
             // 견본 둘러보기 (D-55) — 목록 첫 칸. 화면 위에 띄우면 내비게이션 막대의 단추를 덮는다(빌드 33 CI 스크린샷 36).
             if isDemo {
                 Section {
@@ -414,7 +430,7 @@ struct PeopleListView: View {
                         .foregroundStyle(Color.muted)
                 }
             }
-            if !isQuerying {
+            if !isQuerying && !isRecordSearching {
                 meSection
                 if !pinnedPeople.isEmpty && !isFiltering {
                     pinnedSection
@@ -495,7 +511,12 @@ struct PeopleListView: View {
                          : "\(displayedPeople.count)명 · \(sortOption.label)")
                 }
             } else {
+                if isRecordSearching { recordSearchSection }
+                if isQuerying {
                 Section {
+                    if searchRows.isEmpty && searchedText == searchText {
+                        noPeopleFound
+                    }
                     ForEach(searchRows) { row in
                         LiveRow(isGone: row.person.isGone) {
                             // 기록에서 일치했으면 그 기록 상세까지 바로 연다 (FR-034). 그래서 NavigationLink 가 아니라 Button 이다.
@@ -515,6 +536,7 @@ struct PeopleListView: View {
                     }
                 } header: {
                     Text(searchedText == searchText ? "\(searchRows.count)명" : "찾는 중…")
+                }
                 }
             }
         }
@@ -629,6 +651,100 @@ struct PeopleListView: View {
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         upcomingRecords = plan.upcoming.compactMap { byID[$0] }
         awaitingRecords = plan.awaiting.compactMap { byID[$0] }
+    }
+
+    /// 일치하는 사람이 없을 때 — 요구사항 문구 그대로 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
+    /// 1.1.9 부터 목록 안의 줄이다 — 화면 전체를 덮으면 기간 · 장소 칩(FR-072)까지 가린다.
+    private var noPeopleFound: some View {
+        let shown = TextNormalization.normalized(searchText)
+        return VStack(alignment: .leading, spacing: 6) {
+            Label("'\(shown)'\(Josa.gwaWa(shown)) 일치하는 사람이 없습니다", systemImage: "magnifyingglass")
+                .font(.scaled(16, weight: .medium))
+                .foregroundStyle(Color.ink)
+            Text("이름 · 소속 · 메모 · 태그로 찾습니다. 태그만 찾으려면 #을 붙이세요.")
+                .font(.scaled(14))
+                .foregroundStyle(Color.muted)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// 기간 · 장소 칩으로 찾은 기록 (FR-072) — 최근 것부터 50건. 누르면 그 기록.
+    private var recordSearchSection: some View {
+        Section {
+            if foundRecords.isEmpty {
+                Text("조건에 맞는 기록이 없습니다")
+                    .font(.scaled(15))
+                    .foregroundStyle(Color.muted)
+            }
+            ForEach(foundRecords) { record in
+                if !record.isGone {
+                    if isWide {
+                        Button {
+                            if let person = Self.firstCompanion(of: record) { open(person, recordID: record.uuid) }
+                        } label: {
+                            HStack {
+                                RecentRecordRow(record: record)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        NavigationLink(value: record) {
+                            RecentRecordRow(record: record)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text(foundTotal > foundRecords.count ? "기록 \(foundTotal)건 · 최근 \(foundRecords.count)건" : "기록 \(foundTotal)건")
+                .accessibilityIdentifier("recordSearchSection")
+        }
+    }
+
+    /// 자주 쓴 장소 여섯 (FR-072) — 최근 기록 500건에서. 자료가 바뀔 때만 센다.
+    private func loadPlaceChoices() {
+        guard StoreAccess.isReadable(scenePhase) else { return }
+        var descriptor = FetchDescriptor<Record>(sortBy: [SortDescriptor(\.occurredAt, order: .reverse)])
+        descriptor.fetchLimit = 500
+        let records = ((try? context.fetch(descriptor)) ?? []).filter { !$0.isGone }
+        placeChoices = PlaceCatalog.top(records.map(\.location))
+        if let place = searchPlace, !placeChoices.contains(place) { searchPlace = nil }
+    }
+
+    /// 칩 · 검색어로 기록을 찾는다 (FR-072) — 기간이 있으면 그 날들만 읽는다. 규칙은 `Core.RecordFinder` 하나다.
+    private func findRecords() {
+        guard isRecordSearching, StoreAccess.isReadable(scenePhase) else {
+            foundRecords = []
+            foundTotal = 0
+            return
+        }
+        let calendar = Calendar.current
+        let today = UpcomingDays.today(calendar: calendar)
+        let range = searchPeriod.map { RecordFinder.range($0, today: today) }
+        var descriptor = FetchDescriptor<Record>()
+        func start(of dayNumber: Int) -> Date? {
+            let civil = CivilDate(dayNumber: dayNumber)
+            return calendar.date(from: DateComponents(year: civil.year, month: civil.month, day: civil.day))
+        }
+        if let range, let from = start(of: range.lowerBound), let to = start(of: range.upperBound + 1) {
+            descriptor.predicate = #Predicate<Record> { $0.occurredAt >= from && $0.occurredAt < to }
+        }
+        let query = searchText
+        let matched = ((try? context.fetch(descriptor)) ?? []).filter { record in
+            guard !record.isGone else { return false }
+            let parts = calendar.dateComponents([.year, .month, .day], from: record.occurredAt)
+            let day = CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1).dayNumber
+            return RecordFinder.matches(RecordFinder.Item(day: day, location: record.location, title: record.title,
+                                                          note: record.note, tags: record.tags),
+                                        range: range, place: searchPlace, query: query)
+        }.sorted {
+            TimelineSort.areInIncreasingOrder((occurredAt: $0.occurredAt, minute: $0.occurredMinute, createdAt: $0.createdAt),
+                                              (occurredAt: $1.occurredAt, minute: $1.occurredMinute, createdAt: $1.createdAt))
+        }
+        foundTotal = matched.count
+        foundRecords = Array(matched.prefix(50))
     }
 
     /// **다가오는 날** (1.1.8 · 이슈 93 · FR-068) — 30일 안의 생일 · 기념일 다섯. 누르면 그 사람. 더 있으면 모두 보기(한 해).

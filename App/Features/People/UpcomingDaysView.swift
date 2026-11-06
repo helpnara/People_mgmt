@@ -98,3 +98,62 @@ struct UpcomingDaysView: View {
         return result
     }
 }
+
+/// **기간 · 장소 칩** (1.1.9 · 이슈 97 · FR-072 · D-79) — 홈 검색창을 열면 목록 맨 위에. 칩만 골라도 그 기간 · 장소의 기록이 나오고,
+/// 글자를 함께 치면 그 기록 안에서 찾는다. 검색창을 닫아도 골라 둔 칩이 있으면 남아 풀 수 있게 한다.
+struct SearchFilterChips: View {
+    @Binding var period: RecordPeriod?
+    @Binding var place: String?
+    let places: [String]
+
+    @Environment(\.isSearching) private var isSearching
+
+    var body: some View {
+        if isSearching || period != nil || place != nil {
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar")
+                            .font(.scaled(13))
+                            .foregroundStyle(Color.muted)
+                            .accessibilityHidden(true)
+                        ForEach(RecordPeriod.allCases) { item in
+                            chip(item.label, selected: period == item) {
+                                period = period == item ? nil : item
+                            }
+                        }
+                    }
+                }
+                .accessibilityIdentifier("periodChips")
+                if !places.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.scaled(13))
+                                .foregroundStyle(Color.muted)
+                                .accessibilityHidden(true)
+                            ForEach(places, id: \.self) { item in
+                                chip(item, selected: place == item) {
+                                    place = place == item ? nil : item
+                                }
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("placeChips")
+                }
+            } footer: {
+                Text("기간 · 장소를 고르면 그 기록이 나옵니다. 글자를 함께 치면 그 기록 안에서 찾습니다.")
+            }
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        }
+    }
+
+    private func chip(_ text: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Chip(text: text, selected: selected)
+                .tapTarget()
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}

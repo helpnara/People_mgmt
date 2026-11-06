@@ -205,6 +205,19 @@ enum SampleData {
         make("social", in: 12, title: "독서모임 송년회", note: nil, location: nil, with: [haneul, yujin], writtenDaysAgo: 0)
         make("meeting", in: -1, title: "프로젝트 시작 회의", note: "일정과 역할을 정하기로.", location: "본사 3층",
              with: [yujin], writtenDaysAgo: 6)
+        // 반복 약속 (12판 · FR-069) — 5일 뒤 저녁 7시, 매주. 상세에 반복 줄이 보이는지 찍는다.
+        make("social", in: 5, at: 19 * 60, title: "저녁 산책", note: nil, location: "호숫가 공원", with: [haneul], writtenDaysAgo: 0)
+        if let walk = ((try? context.fetch(FetchDescriptor<Record>())) ?? []).first(where: { $0.title == "저녁 산책" }) {
+            walk.repeatRule = RepeatRule.weekly.rawValue
+            walk.repeatSeriesID = UUID()
+        }
+        // 기록 틀 (12판 · FR-070) — 기록 추가 맨 위 틀 칩에 보인다.
+        let lunch = RecordTemplate(name: "점심 약속")
+        context.insert(lunch)
+        lunch.recordType = "meal"
+        lunch.title = "점심 약속"
+        lunch.location = "국숫집"
+        lunch.participantIDs = [haneul.uuid.uuidString]
         try? context.save()
     }
 

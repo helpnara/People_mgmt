@@ -268,6 +268,22 @@ def repeat_next(rule, date_str, anchor=None):
     return _dt.date(y, m, first_match + (n - 1) * 7).isoformat()
 
 
+def repeat_is_due(day, updated_day, today):
+    return day < today or (day <= today and updated_day >= day)
+
+
+def repeat_next_upcoming(rule, date_str, today_str, anchor=None):
+    nxt = repeat_next(rule, date_str, anchor)
+    if nxt is None:
+        return None
+    today = _dt.date.fromisoformat(today_str)
+    count = 0
+    while _dt.date.fromisoformat(nxt) <= today and count < 2000:
+        nxt = repeat_next(rule, nxt, anchor)
+        count += 1
+    return nxt
+
+
 def repeat_describe(rule, date_str, anchor=None):
     d = _dt.date.fromisoformat(date_str)
     weekday = REPEAT_WEEKDAYS[_weekday(d)] + "요일"
@@ -2246,7 +2262,10 @@ def build() -> dict:
                               "expected": split_connected(c["communities"], c["nodeCount"], c["links"])} for c in cases["splitConnected"]]
     out["repeatRule"] = [{"rule": c["rule"], "date": c["date"], "anchorDay": c.get("anchorDay"),
                           "next": repeat_next(c["rule"], c["date"], c.get("anchorDay")),
-                          "describe": repeat_describe(c["rule"], c["date"], c.get("anchorDay"))} for c in cases["repeatRule"]]
+                          "describe": repeat_describe(c["rule"], c["date"], c.get("anchorDay")),
+                          "upcoming": [{"today": t, "expected": repeat_next_upcoming(c["rule"], c["date"], t, c.get("anchorDay"))}
+                                       for t in c.get("todays", [])]} for c in cases["repeatRule"]]
+    out["repeatDue"] = [dict(c, expected=repeat_is_due(c["day"], c["updatedDay"], c["today"])) for c in cases["repeatDue"]]
     out["recordFinder"] = [{"name": c["name"], "today": c["today"], "items": c["items"],
                             "ranges": [{"period": p, "from": record_range(p, c["today"])[0], "to": record_range(p, c["today"])[1],
                                         "today": _day_number(_dt.date.fromisoformat(c["today"]))}

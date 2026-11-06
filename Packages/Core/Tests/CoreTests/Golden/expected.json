@@ -8004,104 +8004,182 @@
       ]
     }
   ],
+  "repeatDue": [
+    {
+      "day": 1000,
+      "expected": false,
+      "today": 999,
+      "updatedDay": 990
+    },
+    {
+      "day": 1000,
+      "expected": false,
+      "today": 1000,
+      "updatedDay": 990
+    },
+    {
+      "day": 1000,
+      "expected": true,
+      "today": 1000,
+      "updatedDay": 1000
+    },
+    {
+      "day": 1000,
+      "expected": true,
+      "today": 1001,
+      "updatedDay": 990
+    },
+    {
+      "day": 1000,
+      "expected": false,
+      "today": 999,
+      "updatedDay": 1003
+    }
+  ],
   "repeatRule": [
     {
       "anchorDay": null,
       "date": "2026-11-06",
       "describe": "반복 안 함",
       "next": null,
-      "rule": 0
+      "rule": 0,
+      "upcoming": [
+        {
+          "expected": null,
+          "today": "2026-11-07"
+        }
+      ]
     },
     {
       "anchorDay": null,
       "date": "2026-11-06",
       "describe": "매주 금요일",
       "next": "2026-11-13",
-      "rule": 1
+      "rule": 1,
+      "upcoming": [
+        {
+          "expected": "2026-11-13",
+          "today": "2026-11-06"
+        },
+        {
+          "expected": "2026-11-20",
+          "today": "2026-11-13"
+        },
+        {
+          "expected": "2026-12-04",
+          "today": "2026-12-01"
+        }
+      ]
     },
     {
       "anchorDay": null,
       "date": "2026-12-29",
       "describe": "매주 화요일",
       "next": "2027-01-05",
-      "rule": 1
+      "rule": 1,
+      "upcoming": []
     },
     {
       "anchorDay": null,
       "date": "2026-12-25",
       "describe": "2주마다 금요일",
       "next": "2027-01-08",
-      "rule": 2
+      "rule": 2,
+      "upcoming": []
     },
     {
-      "anchorDay": null,
+      "anchorDay": 31,
       "date": "2026-01-31",
       "describe": "매달 31일",
       "next": "2026-02-28",
-      "rule": 3
+      "rule": 3,
+      "upcoming": [
+        {
+          "expected": "2026-02-28",
+          "today": "2026-02-01"
+        },
+        {
+          "expected": "2026-04-30",
+          "today": "2026-04-15"
+        }
+      ]
     },
     {
       "anchorDay": 31,
       "date": "2026-02-28",
       "describe": "매달 31일",
       "next": "2026-03-31",
-      "rule": 3
+      "rule": 3,
+      "upcoming": []
     },
     {
       "anchorDay": null,
       "date": "2028-01-30",
       "describe": "매달 30일",
       "next": "2028-02-29",
-      "rule": 3
+      "rule": 3,
+      "upcoming": []
     },
     {
       "anchorDay": null,
       "date": "2026-12-15",
       "describe": "매달 15일",
       "next": "2027-01-15",
-      "rule": 3
+      "rule": 3,
+      "upcoming": []
     },
     {
       "anchorDay": null,
       "date": "2026-11-10",
       "describe": "매달 둘째 화요일",
       "next": "2026-12-08",
-      "rule": 4
+      "rule": 4,
+      "upcoming": [
+        {
+          "expected": "2027-02-09",
+          "today": "2027-01-20"
+        }
+      ]
     },
     {
       "anchorDay": null,
       "date": "2026-11-01",
       "describe": "매달 첫째 일요일",
       "next": "2026-12-06",
-      "rule": 4
+      "rule": 4,
+      "upcoming": []
     },
     {
       "anchorDay": null,
       "date": "2026-11-26",
       "describe": "매달 넷째 목요일",
       "next": "2026-12-24",
-      "rule": 4
+      "rule": 4,
+      "upcoming": []
     },
     {
       "anchorDay": null,
       "date": "2026-10-30",
       "describe": "매달 마지막 금요일",
       "next": "2026-11-27",
-      "rule": 4
+      "rule": 4,
+      "upcoming": []
     },
     {
       "anchorDay": null,
       "date": "2026-12-31",
       "describe": "매달 마지막 목요일",
       "next": "2027-01-28",
-      "rule": 4
+      "rule": 4,
+      "upcoming": []
     },
     {
       "anchorDay": null,
       "date": "2028-01-29",
       "describe": "매달 마지막 토요일",
       "next": "2028-02-26",
-      "rule": 4
+      "rule": 4,
+      "upcoming": []
     }
   ],
   "savedCommunityName": [

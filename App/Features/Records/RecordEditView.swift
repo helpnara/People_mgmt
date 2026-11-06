@@ -45,6 +45,11 @@ struct RecordEditView: View {
     @State private var removingPhoto: DraftPhoto?
     /// 눌러 고른 사진 — 맨 앞으로 · 빼기를 묻는다 (빌드 48 · 길게 누르기 메뉴는 양식 칸 안에서 뜨지 않았다).
     @State private var choosingPhoto: DraftPhoto?
+    /// 기록 틀 (12판 · 이슈 95 · FR-070) — 화면이 열릴 때 한 번 읽는다.
+    @State private var templates: [RecordTemplate] = []
+    @State private var namingTemplate = false
+    @State private var templateName = ""
+    @State private var templateSaved = false
 
     init(mode: Mode, onSaved: @escaping (Record) -> Void) {
         self.mode = mode
@@ -124,7 +129,9 @@ struct RecordEditView: View {
         .task(id: everyone.count) {
             candidates = PersonStore.sorted(everyone.filter { !$0.isGone }, by: .name)
             loadRecentPeople()
+            templates = TemplateStore(context: context).templates()
         }
+        .modifier(TemplateNaming(naming: $namingTemplate, name: $templateName, saved: $templateSaved, onSave: saveTemplate))
     }
 
     /// 양식과 그 둘레(키보드 · 고르기 화면 · 제목 · 단추). 칸마다 따로 떼어 둔다 — 한 식이 길면 컴파일러가 형식을 제때 못 맞춘다
@@ -132,6 +139,7 @@ struct RecordEditView: View {
     private var editor: some View {
         ScrollViewReader { proxy in
             Form {
+                if isCreate && !templates.isEmpty { templateSection }
                 dateSection
                 typeSection
                 contentSection
@@ -139,6 +147,7 @@ struct RecordEditView: View {
                 placeSection
                 participantSection
                 tagSection
+                saveTemplateSection
             }
             .task { await showTagInputForScreenshot(proxy) }
             // 키보드가 가린 만큼 끝에 여백 — 키보드가 올라와도 마지막 칸까지 내려간다 (이슈 80).
@@ -225,9 +234,79 @@ struct RecordEditView: View {
                 if draft.occurredMinute != nil {
                     DatePicker("시각", selection: timeOfDay, displayedComponents: .hourAndMinute)
                 }
+                // 반복 (12판 · 이슈 94 · FR-069) — 그 회차가 지나거나 결과를 적으면 다음 회차 하나를 앞날짜로 만든다.
+                Picker("반복", selection: $draft.repeatRule) {
+                    ForEach(RepeatRule.allCases) { rule in
+                        Text(RepeatRule.describe(rule, on: civilDay(draft.occurredAt), anchorDay: anchorDayForLabel)).tag(rule)
+                    }
+                }
+                .accessibilityIdentifier("repeatPicker")
             }
         } footer: {
-            Text("기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다. 같은 날 약속이 여럿이면 시각을 넣어 두면 차례대로 보입니다. 날짜가 정확하지 않으면 월까지 · 연도만을 고르세요.")
+            Text(draft.repeatRule == .none || draft.occurredPrecision != .day
+                 ? "기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다. 같은 날 약속이 여럿이면 시각을 넣어 두면 차례대로 보입니다. 날짜가 정확하지 않으면 월까지 · 연도만을 고르세요."
+                 : "반복하는 약속은 이 회차의 날이 지나거나 결과를 적으면 다음 회차 하나를 앞날짜로 만들어 둡니다. 다음 회차에서 반복을 끄면 더 만들지 않습니다.")
+        }
+    }
+
+    /// 날짜 칸의 그날 — 반복 이름에 쓴다.
+    private func civilDay(_ date: Date) -> CivilDate {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1)
+    }
+
+    /// 매달 같은 날의 처음 날 — 날짜를 바꾸지 않았으면 저장된 처음 날(31일 → 2월 28일 회차에서도 `매달 31일`).
+    private var anchorDayForLabel: Int? {
+        guard let record = editingRecord, draft.occurredAt == original.occurredAt else { return nil }
+        return record.repeatAnchorDay
+    }
+
+    /// 기록 틀 고르기 (12판 · 이슈 95 · FR-070) — 새 기록 맨 위. 누르면 유형 · 제목 · 장소 · 태그 · 함께한 사람을 채운다.
+    private var templateSection: some View {
+        Section {
+            WrapLayout(spacing: 8) {
+                ForEach(templates) { template in
+                    Button {
+                        if !template.isGone { TemplateStore(context: context).fill(&draft, from: template) }
+                    } label: {
+                        Chip(text: template.name)
+                            .tapTarget()
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityIdentifier("templateChip")
+                }
+            }
+        } header: {
+            Text("틀")
+        } footer: {
+            Text("자주 쓰는 기록 모양을 누르면 유형 · 제목 · 장소 · 태그 · 함께한 사람이 채워집니다. 날짜 · 메모는 그대로입니다.")
+        }
+    }
+
+    /// 틀로 저장 (12판 · FR-070) — 지금 유형 · 제목 · 장소 · 태그 · 함께한 사람을 이름 붙여 둔다.
+    private var saveTemplateSection: some View {
+        Section {
+            Button {
+                templateName = TextNormalization.nilIfEmpty(draft.title) ?? ""
+                namingTemplate = true
+            } label: {
+                Label("이 기록을 틀로 저장", systemImage: "square.on.square")
+                    .font(.scaled(15))
+            }
+            .accessibilityIdentifier("saveTemplate")
+        } footer: {
+            Text("설정 → 기록 틀에서 이름을 바꾸거나 뺄 수 있습니다.")
+        }
+    }
+
+    private func saveTemplate() {
+        do {
+            if try TemplateStore(context: context).save(draft, name: templateName) != nil {
+                templates = TemplateStore(context: context).templates()
+                templateSaved = true
+            }
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 
@@ -529,5 +608,29 @@ enum RecordMemory {
         if let place = TextNormalization.nilIfEmpty(location) {
             UserDefaults.standard.set(place, forKey: locationKey)
         }
+    }
+}
+
+/// 틀 이름 묻기 · 저장했다는 알림 — 양식 줄 안이 아니라 화면에 붙인다(이슈 72 교훈).
+private struct TemplateNaming: ViewModifier {
+    @Binding var naming: Bool
+    @Binding var name: String
+    @Binding var saved: Bool
+    let onSave: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert("틀 이름", isPresented: $naming) {
+                TextField("예: 주간 1:1", text: $name)
+                Button("저장", action: onSave)
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("유형 · 제목 · 장소 · 태그 · 함께한 사람을 틀로 둡니다. 날짜 · 메모 · 사진은 넣지 않습니다.")
+            }
+            .alert("틀로 저장했습니다", isPresented: $saved) {
+                Button("확인", role: .cancel) {}
+            } message: {
+                Text("새 기록을 적을 때 맨 위 틀에서 고르세요.")
+            }
     }
 }

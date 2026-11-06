@@ -24,6 +24,28 @@ DEFINE SCHEMA
         GRANT READ TO "_creator"
     );
 
+    RECORD TYPE CD_CommunityLabel (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_entityName   STRING,
+        CD_moveReceipt  BYTES,
+        CD_moveReceipt_ckAsset ASSET,
+        CD_uuid STRING,
+        CD_uuid_ckAsset ASSET,
+        CD_name STRING,
+        CD_name_ckAsset ASSET,
+        CD_memberIDs BYTES,
+        CD_memberIDs_ckAsset ASSET,
+        CD_updatedAt TIMESTAMP,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_creator",
+        GRANT READ TO "_creator"
+    );
+
     RECORD TYPE CD_Person (
         "___createTime" TIMESTAMP,
         "___createdBy"  REFERENCE,
@@ -106,6 +128,11 @@ DEFINE SCHEMA
         CD_occurredAt TIMESTAMP,
         CD_occurredPrecision INT64,
         CD_occurredMinute INT64,
+        CD_repeatRule INT64,
+        CD_repeatAnchorDay INT64,
+        CD_repeatSeriesID STRING,
+        CD_repeatSeriesID_ckAsset ASSET,
+        CD_repeatSpawned INT64,
         CD_location STRING,
         CD_location_ckAsset ASSET,
         CD_note STRING,
@@ -136,6 +163,37 @@ DEFINE SCHEMA
         CD_position INT64,
         CD_createdAt TIMESTAMP,
         CD_record STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_creator",
+        GRANT READ TO "_creator"
+    );
+
+    RECORD TYPE CD_RecordTemplate (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_entityName   STRING,
+        CD_moveReceipt  BYTES,
+        CD_moveReceipt_ckAsset ASSET,
+        CD_uuid STRING,
+        CD_uuid_ckAsset ASSET,
+        CD_name STRING,
+        CD_name_ckAsset ASSET,
+        CD_recordType STRING,
+        CD_recordType_ckAsset ASSET,
+        CD_title STRING,
+        CD_title_ckAsset ASSET,
+        CD_location STRING,
+        CD_location_ckAsset ASSET,
+        CD_tags BYTES,
+        CD_tags_ckAsset ASSET,
+        CD_participantIDs BYTES,
+        CD_participantIDs_ckAsset ASSET,
+        CD_createdAt TIMESTAMP,
+        CD_updatedAt TIMESTAMP,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_creator",
         GRANT READ TO "_creator"

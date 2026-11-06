@@ -2,17 +2,17 @@ import Core
 import Foundation
 import SwiftData
 
-/// 스키마 **11판** — 지금 쓰는 판 (요구사항 6절 · 이슈 87 · 88 · 91 · D-78 · 2026-11-06 사용자).
+/// 스키마 **12판** — 지금 쓰는 판 (요구사항 6절 · 이슈 94 · 95 · 96 · D-79 · 2026-11-06 사용자).
 ///
-/// 10판에서 사람의 **기억할 것**(`keyNote`) · **고정**(`isPinned`) 칸과 **다음에 이야기할 것**(`TalkItem` · 사람마다 여럿) 모델을 더했다 —
-/// 새 모델 · 옵셔널 관계 · 옵셔널 또는 기본값 있는 칸뿐이라 가벼운 옮기기. 기존 칸은 10판과 글자 하나 다르지 않아야 한다.
-/// 1판부터 있던 `photoReference`(글자)는 쓰지 않은 채 그대로 둔다 — 지우면 옛 판과 모양이 달라진다.
-/// 칸을 또 바꾸면 `SchemaV12` 를 더하고 이 판은 얼린다.
+/// 11판에서 기록의 **반복** 칸 넷(`repeatRule` · `repeatAnchorDay` · `repeatSeriesID` · `repeatSpawned`)과 **기록 틀**(`RecordTemplate`) ·
+/// **고쳐 둔 모임 이름**(`CommunityLabel`) 모델을 더했다 — 새 모델 · 옵셔널 또는 기본값 있는 칸뿐이라 가벼운 옮기기.
+/// 기존 칸은 11판과 글자 하나 다르지 않아야 한다. 1판부터 있던 `photoReference`(글자)는 쓰지 않은 채 그대로 둔다.
+/// 칸을 또 바꾸면 `SchemaV13` 을 더하고 이 판은 얼린다.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
-enum SchemaV11: VersionedSchema {
-    static var versionIdentifier: Schema.Version { Schema.Version(11, 0, 0) }
-    static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self, RecordPhoto.self, ChoiceList.self, SpecialDay.self, TalkItem.self] }
+enum SchemaV12: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(12, 0, 0) }
+    static var models: [any PersistentModel.Type] { [Person.self, Record.self, Tie.self, RecordPhoto.self, ChoiceList.self, SpecialDay.self, TalkItem.self, RecordTemplate.self, CommunityLabel.self] }
 
     /// 사람 (요구사항 6.1). 고유 식별자는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
     @Model
@@ -111,6 +111,14 @@ enum SchemaV11: VersionedSchema {
         /// 날짜 칸(`occurredAt` · 그날 정오 UTC)은 그대로 둔다 — 시각을 거기 섞으면 시차 · 날짜 정리(`DateConvention`)가 흔들린다.
         /// 같은 날 안의 차례를 정한다 (`Core.TimelineSort` · `PlannedMeetings` · 시각 없는 기록은 그날의 끝).
         var occurredMinute: Int?
+        /// **반복** (12판 · 이슈 94 · FR-069 · D-79) — `Core.RepeatRule` 의 수. 0 반복 안 함.
+        var repeatRule: Int = 0
+        /// 매달 같은 날의 처음 날(1 ~ 31) — 31일에 시작한 반복이 2월 28일 뒤 3월 31일로 돌아오게.
+        var repeatAnchorDay: Int?
+        /// 같은 반복의 회차끼리 같은 값 — 기기 둘이 다음 회차를 따로 만들었을 때 알아보려고.
+        var repeatSeriesID: UUID?
+        /// 이 회차의 다음 회차를 이미 만들었나 — 하나만 만든다.
+        var repeatSpawned: Bool = false
         var location: String?
         var note: String?
         var tags: [String] = []
@@ -249,15 +257,56 @@ enum SchemaV11: VersionedSchema {
             self.createdAt = Date()
         }
     }
+    /// **기록 틀** (12판 · 이슈 95 · FR-070 · D-79 · 2026-11-06 사용자) — 자주 쓰는 기록 모양. 함께한 사람은 사람의 `uuid` 글자로
+    /// 둔다(사람을 지워도 틀은 남고, 없는 사람은 채울 때 건너뛴다).
+    @Model
+    final class RecordTemplate {
+        var uuid: UUID = UUID()
+        var name: String = ""
+        var recordType: String = "conversation"
+        var title: String?
+        var location: String?
+        var tags: [String] = []
+        var participantIDs: [String] = []
+        var createdAt: Date = Date()
+        var updatedAt: Date = Date()
+
+        init(name: String) {
+            self.uuid = UUID()
+            self.name = name
+            let now = Date()
+            self.createdAt = now
+            self.updatedAt = now
+        }
+    }
+
+    /// **고쳐 둔 모임 이름** (12판 · 이슈 96 · FR-071 · D-79) — 그때 모임의 사람 묶음(`uuid` 글자)과 이름.
+    /// 다음에 그리는 모임과 맞춰 보는 규칙은 `Core.CommunityNaming.saved`.
+    @Model
+    final class CommunityLabel {
+        var uuid: UUID = UUID()
+        var name: String = ""
+        var memberIDs: [String] = []
+        var updatedAt: Date = Date()
+
+        init(name: String, memberIDs: [String]) {
+            self.uuid = UUID()
+            self.name = name
+            self.memberIDs = memberIDs
+            self.updatedAt = Date()
+        }
+    }
 }
 
-typealias Person = SchemaV11.Person
-typealias Record = SchemaV11.Record
-typealias Tie = SchemaV11.Tie
-typealias RecordPhoto = SchemaV11.RecordPhoto
-typealias ChoiceList = SchemaV11.ChoiceList
-typealias SpecialDay = SchemaV11.SpecialDay
-typealias TalkItem = SchemaV11.TalkItem
+typealias Person = SchemaV12.Person
+typealias Record = SchemaV12.Record
+typealias Tie = SchemaV12.Tie
+typealias RecordPhoto = SchemaV12.RecordPhoto
+typealias ChoiceList = SchemaV12.ChoiceList
+typealias SpecialDay = SchemaV12.SpecialDay
+typealias TalkItem = SchemaV12.TalkItem
+typealias RecordTemplate = SchemaV12.RecordTemplate
+typealias CommunityLabel = SchemaV12.CommunityLabel
 
 /// 판 사이의 이사 계획.
 /// - 1판 → 2판: 칸 하나를 더하는 **가벼운 옮기기**
@@ -269,12 +318,13 @@ typealias TalkItem = SchemaV11.TalkItem
 /// - 8판 → 9판: 기록 사진 · 내 선택지 모델을 더하는 가벼운 옮기기 (FR-058 · FR-035)
 /// - 9판 → 10판: 기념일 모델 · 사람의 생일 알림 끄기 칸을 더하는 가벼운 옮기기 (D-77)
 /// - 10판 → 11판: 다음에 이야기할 것 모델 · 사람의 기억할 것 · 고정 칸을 더하는 가벼운 옮기기 (D-78)
+/// - 11판 → 12판: 기록의 반복 칸 · 기록 틀 · 고쳐 둔 모임 이름 모델을 더하는 가벼운 옮기기 (D-79)
 /// - 2판 → 3판: 칸을 더하고(가벼운 옮기기와 같다), 옮긴 뒤 **한 칸에 들어 있던 연락 수단을 네 칸으로 나눈다** (이슈 11).
 ///   나누지 못한 글은 기타(`contactNote`)에 그대로 남는다 — 잃는 글이 없다. 이미 네 칸 중 하나라도 찬 사람은 건드리지 않는다.
 ///
 /// 실제 옮겨지는지는 `AppTests/MigrationTests.swift` 가 1판 · 2판 저장소를 디스크에 만들어 연다.
 enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self, SchemaV10.self, SchemaV11.self] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self, SchemaV10.self, SchemaV11.self, SchemaV12.self] }
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self),
@@ -297,6 +347,8 @@ enum SlowConnectionMigrationPlan: SchemaMigrationPlan {
             .lightweight(fromVersion: SchemaV9.self, toVersion: SchemaV10.self),
             // 10판 → 11판: 다음에 이야기할 것 모델과 사람의 옵셔널 · 기본값 칸 둘을 더할 뿐 — 가벼운 옮기기 (D-78).
             .lightweight(fromVersion: SchemaV10.self, toVersion: SchemaV11.self),
+            // 11판 → 12판: 기록에 기본값 · 옵셔널 칸 넷과 새 모델 둘을 더할 뿐 — 가벼운 옮기기 (D-79).
+            .lightweight(fromVersion: SchemaV11.self, toVersion: SchemaV12.self),
         ]
     }
 }
@@ -331,7 +383,7 @@ extension PersistentModel {
     var isGone: Bool { isDeleted || modelContext == nil }
 }
 
-extension SchemaV11.Person {
+extension SchemaV12.Person {
     /// 다음에 이야기할 것 가운데 끝내지 않은 것 — 더한 차례대로 (11판 · FR-063).
     var openTalkItems: [TalkItem] {
         (talkItems ?? []).filter { !$0.isGone && !$0.isDone }
