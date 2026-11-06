@@ -55,11 +55,18 @@ public enum PersonExport {
         public var records: [Record]
         /// 맨 아래 한 줄 — `2026년 10월 20일` 처럼.
         public var exportedOn: String
+        /// 기념일 (10판 · 1.1.8 · FR-068) — `결혼기념일` · `2018년 10월 12일` 처럼 이름 · 보이는 글. 생일 아래 줄마다.
+        public var specialDays: [Contact]
+        /// 기억할 것 (11판 · FR-062).
+        public var keyNote: String?
+        /// 다음에 이야기할 것 가운데 끝내지 않은 것 (11판 · FR-063).
+        public var talkItems: [String]
 
         public init(name: String, nickname: String? = nil, organization: String? = nil, role: String? = nil,
                     relationshipType: String? = nil, metThrough: String? = nil, introducer: String? = nil,
                     birthday: String? = nil, tags: [String] = [], contacts: [Contact] = [], firstMet: String? = nil,
-                    firstNote: String? = nil, records: [Record] = [], exportedOn: String) {
+                    firstNote: String? = nil, records: [Record] = [], exportedOn: String,
+                    specialDays: [Contact] = [], keyNote: String? = nil, talkItems: [String] = []) {
             self.name = name
             self.nickname = nickname
             self.organization = organization
@@ -74,6 +81,9 @@ public enum PersonExport {
             self.firstNote = firstNote
             self.records = records
             self.exportedOn = exportedOn
+            self.specialDays = specialDays
+            self.keyNote = keyNote
+            self.talkItems = talkItems
         }
     }
 
@@ -101,11 +111,18 @@ public enum PersonExport {
             }
         }
         if let birthday = filled(person.birthday) { facts.append("- 생일: \(birthday)") }
+        for special in person.specialDays {
+            if let value = filled(special.value) { facts.append("- \(filled(special.label) ?? "기념일"): \(value)") }
+        }
         if let tags = hashTags(person.tags) { facts.append("- 태그: \(tags)") }
         if !facts.isEmpty { lines += facts + [""] }
 
         let contacts = person.contacts.compactMap { contact in filled(contact.value).map { "- \(contact.label): \($0)" } }
         if !contacts.isEmpty { lines += ["## 연락 수단", ""] + contacts + [""] }
+
+        if let keyNote = filled(person.keyNote) { lines += ["## 기억할 것", "", keyNote, ""] }
+        let talks = person.talkItems.compactMap { filled($0).map { "- \($0)" } }
+        if !talks.isEmpty { lines += ["## 다음에 이야기할 것", ""] + talks + [""] }
 
         let firstMet = filled(person.firstMet)
         let firstNote = filled(person.firstNote)

@@ -40,7 +40,13 @@ enum PersonExporter {
             birthday: birthday, tags: person.tags, contacts: contacts,
             firstMet: person.firstMetDate?.shown(precision: person.firstMetPrecision, style: .long),
             firstNote: person.firstNote, records: records,
-            exportedOn: now.formatted(date: .long, time: .omitted))
+            exportedOn: now.formatted(date: .long, time: .omitted),
+            // 기념일 · 기억할 것 · 다음에 이야기할 것 (1.1.8 · FR-068 · FR-062 · FR-063).
+            specialDays: person.sortedSpecialDays.map {
+                PersonExport.Contact(label: $0.label, value: BirthdayRule.text(month: $0.month, day: $0.day, year: $0.year))
+            },
+            keyNote: person.keyNote,
+            talkItems: person.openTalkItems.map(\.text))
     }
 
     /// 파일을 만들어 공유 시트를 띄운다. 만들지 못하면 false.

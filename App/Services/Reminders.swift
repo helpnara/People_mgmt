@@ -13,6 +13,8 @@ enum ReminderSettings {
     static let specialDaysKey = "reminders.specialDays"
     /// 결과 적기 (빌드 38 · D-62) — 예정이던 만남의 다음 날 같은 시각에 결과를 적으라고 알린다. 기본은 꺼짐.
     static let followUpKey = "reminders.followUp"
+    /// 약속 당일 (1.1.8 · 이슈 89 · FR-064) — 미리 적은 약속의 그날 알림 시각에(약속 시각이 이르면 한 시간 전). 기본은 꺼짐.
+    static let plannedDayKey = "reminders.plannedDay"
     static let hourKey = "reminders.hour"
     static let minuteKey = "reminders.minute"
     static let defaultHour = 9
@@ -26,6 +28,7 @@ enum ReminderSettings {
     }
 
     static var followUp: Bool { UserDefaults.standard.bool(forKey: followUpKey) }
+    static var plannedDay: Bool { UserDefaults.standard.bool(forKey: plannedDayKey) }
 
     static var hour: Int {
         (UserDefaults.standard.object(forKey: hourKey) as? Int).map { min(max($0, 0), 23) } ?? defaultHour
@@ -42,6 +45,16 @@ struct ReminderFollowUp: Sendable {
     let id: String
     /// 울릴 날 (그날 다음 날).
     let date: CivilDate
+    let body: String
+}
+
+/// 약속 당일 알림 하나 (1.1.8 · FR-064).
+struct ReminderDayItem: Sendable {
+    /// `plannedDay|UUID|날 번호`.
+    let id: String
+    let date: CivilDate
+    /// 그 기록의 시각(자정부터 분) — 없으면 nil.
+    let meetingMinute: Int?
     let body: String
 }
 
@@ -66,7 +79,8 @@ enum ReminderScheduler {
         let center = UNUserNotificationCenter.current()
         let options = ReminderSettings.options
         let followUp = ReminderSettings.followUp
-        guard options.any || followUp else {
+        let plannedDay = ReminderSettings.plannedDay
+        guard options.any || followUp || plannedDay else {
             center.removeAllPendingNotificationRequests()
             UserDefaults.standard.removeObject(forKey: scheduledKey)
             return
@@ -77,9 +91,17 @@ enum ReminderScheduler {
         let calendar = Calendar.current
         let parts = calendar.dateComponents([.year, .month, .day], from: now)
         let today = CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1)
+        // 약속 당일 알림 몫만큼 생일 · 기념일 계획을 줄인다 — 앱 하나에 64개인 기기 한도 (60 + 결과 적기 4 + 약속 당일 4 → 60 − 4).
+        let planLimit = ReminderPlanner.limit - (plannedDay ? PlannedMeetings.dayReminderLimit : 0)
         let plan = await Task.detached(priority: .utility) {
-            makePlan(container: container, options: options, today: today)
+            makePlan(container: container, options: options, today: today, limit: planLimit)
         }.value
+        var dayItems: [ReminderDayItem] = []
+        if plannedDay {
+            dayItems = await Task.detached(priority: .utility) {
+                makeDayReminders(container: container, now: now)
+            }.value
+        }
         var followUps: [ReminderFollowUp] = []
         if followUp {
             followUps = await Task.detached(priority: .utility) {
@@ -116,6 +138,26 @@ enum ReminderScheduler {
             do {
                 try await center.add(request)
                 next[reminder.id] = when.timeIntervalSince1970
+            } catch {
+                continue
+            }
+        }
+        // 약속 당일 — 그날의 고른 시각, 약속 시각이 이르면 한 시간 전(규칙은 `Core.PlannedMeetings`). 지났으면 걸지 않는다.
+        let preferred = ReminderSettings.hour * 60 + ReminderSettings.minute
+        for item in dayItems {
+            let minute = PlannedMeetings.dayReminderMinute(meeting: item.meetingMinute, preferred: preferred)
+            guard let when = fireDate(item.date, minuteOfDay: minute, calendar: calendar), when > now else { continue }
+            let content = UNMutableNotificationContent()
+            content.title = "오늘의 약속"
+            content.body = item.body
+            content.sound = .default
+            content.threadIdentifier = "plannedDay"
+            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: when)
+            let request = UNNotificationRequest(identifier: item.id, content: content,
+                                                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
+            do {
+                try await center.add(request)
+                next[item.id] = when.timeIntervalSince1970
             } catch {
                 continue
             }
@@ -165,6 +207,41 @@ enum ReminderScheduler {
         }
     }
 
+    /// 약속 당일 알림에 넣을 예정 — 오늘부터의 기록만 읽는다(따로 연 문맥 · 주 스레드 밖). 고르는 규칙은 `Core.PlannedMeetings`.
+    nonisolated private static func makeDayReminders(container: ModelContainer, now: Date) -> [ReminderDayItem] {
+        let context = ModelContext(container)
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: now)
+        let records = (try? context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= start }))) ?? []
+        let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
+        let picked = PlannedMeetings.dayReminders(records.map { $0.plannedEntry(calendar: calendar) },
+                                                  today: DayIndex.of(now, calendar: calendar))
+        return picked.compactMap { id -> ReminderDayItem? in
+            guard let record = byID[id] else { return nil }
+            let parts = calendar.dateComponents([.year, .month, .day], from: record.occurredAt)
+            let others = (record.participants ?? []).filter { !$0.isMe }
+            let names = NameSort.sorted(others, name: \.name, createdAt: \.createdAt).map(\.name)
+            let who = names.isEmpty ? "" : " · " + (names.count > 2 ? "\(names.prefix(2).joined(separator: ", ")) 외 \(names.count - 2)명"
+                                                                       : names.joined(separator: ", "))
+            let time = record.timeText.map { $0 + " · " } ?? ""
+            return ReminderDayItem(id: "plannedDay|\(record.uuid.uuidString)|\(DayIndex.of(record.occurredAt, calendar: calendar))",
+                                   date: CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1),
+                                   meetingMinute: record.occurredMinute,
+                                   body: "\(time)\(record.displayTitle)\(who)")
+        }
+    }
+
+    /// 그 날의 그 시각(자정부터 분 · 기기 시간대).
+    private static func fireDate(_ date: CivilDate, minuteOfDay: Int, calendar: Calendar) -> Date? {
+        var components = DateComponents()
+        components.year = date.year
+        components.month = date.month
+        components.day = date.day
+        components.hour = minuteOfDay / 60
+        components.minute = minuteOfDay % 60
+        return calendar.date(from: components)
+    }
+
     /// 그 날의 고른 시각 (기기 시간대).
     private static func fireDate(_ date: CivilDate, calendar: Calendar) -> Date? {
         var components = DateComponents()
@@ -192,7 +269,7 @@ enum ReminderScheduler {
 
     /// 사람을 읽어 계획을 센다 — 주 스레드 밖에서 부른다.
     nonisolated private static func makePlan(container: ModelContainer, options: ReminderPlanner.Options,
-                                             today: CivilDate) -> [ReminderPlanner.Reminder] {
+                                             today: CivilDate, limit: Int) -> [ReminderPlanner.Reminder] {
         let context = ModelContext(container)
         let people = (try? context.fetch(FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == false }))) ?? []
         let calendar = Calendar.current
@@ -224,6 +301,6 @@ enum ReminderScheduler {
                 registered: civil(person.createdAt), cadenceMonths: person.contactCadenceMonths,
                 muteBirthday: person.muteBirthdayReminder, specialDays: specials)
         }
-        return ReminderPlanner.plan(inputs, today: today, options: options)
+        return ReminderPlanner.plan(inputs, today: today, options: options, limit: limit)
     }
 }

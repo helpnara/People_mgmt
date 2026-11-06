@@ -67,6 +67,13 @@ struct PeopleListView: View {
     @State private var recentRecords: [Record] = []
     /// 예정된 만남 (D-62) — 다가오는 만남 · 결과를 적을 만남. 규칙은 `Core.PlannedMeetings`, 자료가 바뀔 때만 읽는다.
     @State private var upcomingRecords: [Record] = []
+    /// 고정한 사람 (11판 · 이슈 91 · FR-066) — 이름순. 자료가 바뀔 때만 센다(본문에서 전원을 훑지 않는다 · 이슈 10).
+    @State private var pinnedPeople: [Person] = []
+    /// 다가오는 날 (1.1.8 · 이슈 93 · FR-068) — 한 해 안의 생일 · 기념일. 홈은 30일 안의 다섯, 모두 보기는 한 해.
+    @State private var upcomingDays: [UpcomingDay] = []
+    @State private var showingAllDays = false
+    @State private var openAfterDays: Person?
+    @State private var saveError: String?
     @State private var awaitingRecords: [Record] = []
     /// 목록 거르기 (FR-013) — 관계 유형 · 태그. 둘 다 고르면 둘 다 맞는 사람. 기기 편의라 저장하지 않는다.
     @State private var filterType: String?
@@ -160,6 +167,17 @@ struct PeopleListView: View {
                 show(person)
             }
         }
+        .sheet(isPresented: $showingAllDays, onDismiss: {
+            if let person = openAfterDays {
+                openAfterDays = nil
+                show(person)
+            }
+        }) {
+            UpcomingDaysView(days: upcomingDays) { person in
+                openAfterDays = person
+                showingAllDays = false
+            }
+        }
         .sheet(isPresented: $addingMe) {
             PersonEditView(mode: .createMe) { _ in }
         }
@@ -178,6 +196,11 @@ struct PeopleListView: View {
             Button("닫기", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
+        }
+        .alert("저장하지 못했습니다", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("닫기", role: .cancel) {}
+        } message: {
+            Text(saveError ?? "")
         }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             noteChange()
@@ -218,9 +241,14 @@ struct PeopleListView: View {
             }
             if !sortedPeople.isEmpty { LaunchTiming.once("목록 정렬 끝 (\(sortedPeople.count)명)") }
             refreshFilter()
+            pinnedPeople = NameSort.sorted(fetched.filter { !$0.isGone && $0.isPinned }, name: \.name, createdAt: \.createdAt)
             // 예정을 먼저 — 최근 기록은 결과를 적을 만남과 겹치는 기록을 뺀다.
             LaunchTiming.measure("예정된 만남 읽기") { loadPlannedRecords() }
             LaunchTiming.measure("최근 기록 3건 읽기") { loadRecentRecords() }
+            LaunchTiming.measure("다가오는 날 읽기") {
+                upcomingDays = StoreAccess.isReadable(scenePhase)
+                    ? UpcomingDays.all(in: context, today: UpcomingDays.today(), within: UpcomingDays.year) : upcomingDays
+            }
         }
         .task(id: SearchKey(text: searchText, version: dataVersion)) {
             await runSearch()
@@ -388,6 +416,9 @@ struct PeopleListView: View {
             }
             if !isQuerying {
                 meSection
+                if !pinnedPeople.isEmpty && !isFiltering {
+                    pinnedSection
+                }
                 if let readinessLine, !fetched.isEmpty {
                     Section {
                         // 입력 상태 (D-31) — 무엇을 더 적으면 무엇이 보이는지. 내 인맥의 입력 상태 칸으로 간다.
@@ -413,6 +444,9 @@ struct PeopleListView: View {
                 }
                 if !upcomingRecords.isEmpty {
                     recordSection(upcomingRecords, title: "다가오는 만남", id: "upcomingSection") { $0.upcomingPhrase }
+                }
+                if upcomingDays.contains(where: { $0.daysAway <= UpcomingDays.soon }) {
+                    upcomingDaysSection
                 }
                 if !recentRecords.isEmpty {
                     recordSection(recentRecords, title: "최근 기록", id: "recentSection", lead: nil)
@@ -449,6 +483,9 @@ struct PeopleListView: View {
                                     Label("삭제", systemImage: "trash")
                                 }
                                 .tint(Color.danger)
+                            }
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                pinButton(person)
                             }
                         }
                     }
@@ -592,6 +629,67 @@ struct PeopleListView: View {
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         upcomingRecords = plan.upcoming.compactMap { byID[$0] }
         awaitingRecords = plan.awaiting.compactMap { byID[$0] }
+    }
+
+    /// **다가오는 날** (1.1.8 · 이슈 93 · FR-068) — 30일 안의 생일 · 기념일 다섯. 누르면 그 사람. 더 있으면 모두 보기(한 해).
+    private var upcomingDaysSection: some View {
+        let soon = upcomingDays.filter { $0.daysAway <= UpcomingDays.soon }
+        return Section {
+            ForEach(soon.prefix(Self.plannedShown)) { day in
+                LiveRow(isGone: day.person.isGone) {
+                    personLink(day.person) {
+                        UpcomingDayRow(day: day)
+                    }
+                    .accessibilityIdentifier("upcomingDayRow")
+                }
+            }
+            if upcomingDays.count > min(soon.count, Self.plannedShown) {
+                Button {
+                    showingAllDays = true
+                } label: {
+                    Label("한 해 모두 보기 · \(upcomingDays.count)건", systemImage: "calendar")
+                        .font(.scaled(15))
+                        .foregroundStyle(Color.accent)
+                }
+                .accessibilityIdentifier("allUpcomingDays")
+            }
+        } header: {
+            Text("다가오는 날")
+                .accessibilityIdentifier("upcomingDaysSection")
+        }
+    }
+
+    /// **고정** (11판 · 이슈 91 · FR-066) — 자주 만나는 사람을 목록 위에. 아래 목록에도 그대로 남는다.
+    private var pinnedSection: some View {
+        Section {
+            ForEach(pinnedPeople) { person in
+                LiveRow(isGone: person.isGone) {
+                    personLink(person) {
+                        PersonRow(person: person, evidence: nil, showsLastRecord: true, showsPhoto: true)
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        pinButton(person)
+                    }
+                    .accessibilityIdentifier("pinnedRow")
+                }
+            }
+        } header: {
+            Text("고정")
+        }
+    }
+
+    /// 줄을 왼쪽에서 밀어 고정 · 고정 풀기. 지우는 일이 아니라 확인 없이 바로 한다.
+    private func pinButton(_ person: Person) -> some View {
+        Button {
+            do {
+                try store.setPinned(person, !person.isPinned)
+            } catch {
+                saveError = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
+            }
+        } label: {
+            Label(person.isPinned ? "고정 풀기" : "고정", systemImage: person.isPinned ? "pin.slash" : "pin")
+        }
+        .tint(Color.accent)
     }
 
     /// **나** (이슈 12). 인맥은 나를 기준으로 그린다 — 목록 맨 위에 늘 있다.

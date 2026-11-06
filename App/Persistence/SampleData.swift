@@ -110,6 +110,28 @@ enum SampleData {
         let wedding = SpecialDay(label: "결혼기념일", month: 10, day: 12, year: 2018, remind: true, position: 0)
         context.insert(wedding)
         wedding.person = haneul
+        // 기억할 것 · 고정 · 다음에 이야기할 것 (11판 · D-78) — 지어낸 견본.
+        haneul.keyNote = "커피는 디카페인. 첫째 하준이는 내년 봄에 초등학교 입학."
+        haneul.isPinned = true
+        yujin.keyNote = "점심은 매운 음식을 피한다. 주말엔 등산."
+        for (index, text) in ["하준이 입학 선물 물어보기", "다음 분기 멘토링 주제 정하기", "빌린 책 돌려주기"].enumerated() {
+            let talk = TalkItem(text: text)
+            context.insert(talk)
+            talk.person = haneul
+            talk.createdAt = Date().addingTimeInterval(Double(index - 10) * 3_600)
+            if index == 2 {
+                talk.isDone = true
+                talk.doneAt = Date().addingTimeInterval(-3_600)
+            }
+        }
+        // 다가오는 날 칸이 보이게 — 오늘부터 닷새 뒤의 입사일(해마다 같은 견본이 늘 30일 안에 든다).
+        let soon = Calendar.current.dateComponents([.month, .day], from: Date().addingTimeInterval(5 * 86_400))
+        let hired = SpecialDay(label: "입사일", month: soon.month ?? 1, day: soon.day ?? 1, year: 2021, remind: true, position: 0)
+        context.insert(hired)
+        hired.person = seoyeon
+        let yujinTalk = TalkItem(text: "온보딩 문서 피드백 전하기")
+        context.insert(yujinTalk)
+        yujinTalk.person = yujin
         seoyeon.introducedBy = haneul
         yujin.introducedBy = haneul
 

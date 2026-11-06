@@ -80,6 +80,32 @@ public enum PlannedMeetings {
             .map(\.id)
     }
 
+    /// 약속 당일 알림을 한 번에 걸어 두는 수 (1.1.8 · FR-064) — 부르는 쪽이 생일 · 기념일 계획의 한도를 이만큼 줄여
+    /// 앱 하나에 64개인 기기 한도를 넘지 않게 한다.
+    public static let dayReminderLimit = 4
+    /// 약속 시각이 있으면 이만큼(분) 앞에 알린다 — 고른 알림 시각이 그보다 늦을 때.
+    public static let dayReminderLead = 60
+
+    /// **약속 당일 알림** (1.1.8 · 이슈 89 · FR-064 · 설정 → 알림 · 기본 꺼짐) — 그날 울릴 예정들. 날짜까지 정한 기록을
+    /// 그날보다 앞서 만들었고(미리 적은 약속) 그날 이후 고친 적이 없고, 그날이 오늘이거나 그 뒤. 가까운 날 → 이른 시각부터 `limit` 개.
+    /// 울릴 시각이 이미 지났는지는 부르는 쪽이 본다.
+    public static func dayReminders(_ entries: [Entry], today: Int, limit: Int = dayReminderLimit) -> [UUID] {
+        entries
+            .filter { $0.isDayPrecise && $0.day >= today && $0.createdDay < $0.day && $0.updatedDay < $0.day }
+            .sorted {
+                ($0.day, TimeOfDay.sortKey($0.minute), $0.id.uuidString) < ($1.day, TimeOfDay.sortKey($1.minute), $1.id.uuidString)
+            }
+            .prefix(limit)
+            .map(\.id)
+    }
+
+    /// 약속 당일 알림의 시각(자정부터 분) — 고른 알림 시각(`preferred`). 약속 시각(`meeting`)이 있고 그 `lead` 분 앞이
+    /// 알림 시각보다 이르면 그때(그날 0시 아래면 0시) — 오전 8시 약속을 9시에 알리지 않게.
+    public static func dayReminderMinute(meeting: Int?, preferred: Int, lead: Int = dayReminderLead) -> Int {
+        guard let meeting, meeting - lead < preferred else { return preferred }
+        return max(0, meeting - lead)
+    }
+
     /// 다가오는 만남 줄의 앞말 — `내일` · `3일 후` · `2주 후`.
     public static func upcomingPhrase(day: Int, today: Int) -> String {
         RelativeDay.phrase(days: today - day)

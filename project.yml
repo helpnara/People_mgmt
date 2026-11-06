@@ -24,7 +24,7 @@ packages:
 settings:
   base:
     # App Store Connect 의 첫 트레인. "1.0.0" 으로 쓰면 트레인이 하나 더 생긴다 (느린 부자).
-    MARKETING_VERSION: "1.1.7"
+    MARKETING_VERSION: "1.1.8"
     # CI 가 실행 번호를 넣는다 — 빌드 번호와 실행 번호가 늘 같게.
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "6.0"

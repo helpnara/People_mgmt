@@ -198,6 +198,25 @@ def planned_follow_ups(records, today, limit=FOLLOW_UP_LIMIT):
     return [r["id"].upper() for r in picked[:limit]]
 
 
+DAY_REMINDER_LIMIT = 4
+DAY_REMINDER_LEAD = 60
+
+
+def planned_day_reminders(records, today, limit=DAY_REMINDER_LIMIT):
+    """약속 당일 알림 (1.1.8 · FR-064) — 날짜까지 · 그날보다 미리 만듦 · 그날 이후 안 고침 · 그날이 오늘 이후. 가까운 날 → 시각 → id."""
+    picked = [r for r in records if r["dayPrecise"] and r["day"] >= today
+              and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+    picked.sort(key=lambda r: (r["day"], time_key(r.get("minute")), r["id"].upper()))
+    return [r["id"].upper() for r in picked[:limit]]
+
+
+def day_reminder_minute(meeting, preferred, lead=DAY_REMINDER_LEAD):
+    """약속 당일 알림의 시각(자정부터 분) — 고른 알림 시각. 약속 시각이 있고 그보다 lead 분 앞이 알림 시각보다 이르면 그때(0 아래면 0)."""
+    if meeting is not None and meeting - lead < preferred:
+        return max(0, meeting - lead)
+    return preferred
+
+
 # ── 생일 · 알림 계획 (BirthdayRule · ReminderPlanner · 빌드 18 · D-40) ───────────────────────
 # 달력의 날만 센다(시간대 없음). 생일 당일 · 알게 된 지 n주년 · 연락 주기(고른 사람만, 지났으면 오늘로 한 번).
 # 오늘부터 366일 안, 날짜 → 종류(생일 · n주년 · 연락 주기) → 이름 순, 한도까지.
@@ -329,6 +348,13 @@ def vcard_encode(people):
                 lines.append(f"BDAY:{p['birthYear']:04d}-{p['birthMonth']:02d}-{p['birthDay']:02d}")
             else:
                 lines.append(f"BDAY:--{p['birthMonth']:02d}{p['birthDay']:02d}")
+        # 기념일 (1.1.8 · FR-068) — 기기 연락처와 같은 묶음 꼴: itemN.X-ABDATE + itemN.X-ABLabel. 해를 모르면 1604 + 빼는 해 표시.
+        for i, a in enumerate(p.get("anniversaries", []), start=1):
+            if a.get("year") is not None:
+                lines.append(f"item{i}.X-ABDATE:{a['year']:04d}-{a['month']:02d}-{a['day']:02d}")
+            else:
+                lines.append(f"item{i}.X-ABDATE;X-APPLE-OMIT-YEAR=1604:1604-{a['month']:02d}-{a['day']:02d}")
+            lines.append(f"item{i}.X-ABLabel:{vcard_escape(a['label'] or '기념일')}")
         if f["other"]:
             lines.append(f"NOTE:{vcard_escape(f['other'])}")
         lines.append("END:VCARD")
@@ -436,10 +462,13 @@ def vcard_parse(text):
         head, value = line.split(":", 1)
         head_parts = head.split(";")
         name = head_parts.pop(0).upper()
+        group = ""
         if "." in name:
+            group = name[:name.rindex(".")]
             name = name[name.rindex(".") + 1:]
         if name == "BEGIN" and value.upper() == "VCARD":
-            card = {"fn": "", "family": "", "given": "", "nickname": "", "org": "", "role": "", "phones": [], "emails": [], "note": "", "bday": None}
+            card = {"fn": "", "family": "", "given": "", "nickname": "", "org": "", "role": "", "phones": [], "emails": [], "note": "", "bday": None,
+                    "dates": [], "labels": {}}
             continue
         if name == "END" and value.upper() == "VCARD":
             if card is not None:
@@ -449,9 +478,14 @@ def vcard_parse(text):
                     if card["note"]:
                         contact_place(f, card["note"], "other")
                     b = card["bday"]
+                    anniversaries = []
+                    for grp, d in card["dates"]:
+                        label = _vcard_date_label(card["labels"].get(grp, "") if grp else "")
+                        anniversaries.append({"label": label, "month": d[0], "day": d[1], "year": d[2]})
                     people.append({"name": nm, "nickname": clean(card["nickname"]), "organization": clean(card["org"]),
                                    "role": clean(card["role"]), "fields": f,
-                                   "birthMonth": b[0] if b else None, "birthDay": b[1] if b else None, "birthYear": b[2] if b else None})
+                                   "birthMonth": b[0] if b else None, "birthDay": b[1] if b else None, "birthYear": b[2] if b else None,
+                                   "anniversaries": anniversaries})
             card = None
             continue
         if card is None:
@@ -493,7 +527,21 @@ def vcard_parse(text):
             card["note"] = _vcard_unescape(value)
         elif name == "BDAY":
             card["bday"] = _vcard_birthday(value, params.get("X-APPLE-OMIT-YEAR"))
+        elif name in ("X-ABDATE", "ANNIVERSARY"):
+            d = _vcard_birthday(value, params.get("X-APPLE-OMIT-YEAR"))
+            if d is not None:
+                card["dates"].append((group, d))
+        elif name == "X-ABLABEL" and group:
+            card["labels"][group] = _vcard_unescape(value)
     return people
+
+
+def _vcard_date_label(raw):
+    """기기 연락처의 이름표 — `_$!<Anniversary>!$_` 같은 기본 이름은 `기념일`, 빈 것도 `기념일`."""
+    text = collapsed_spaces(normalized(raw))
+    if text.startswith("_$!<") and text.endswith(">!$_"):
+        return "기념일"
+    return text or "기념일"
 
 
 def import_name_key(name):
@@ -1908,6 +1956,9 @@ def person_export(p: dict) -> str:
         facts.append(f"- 알게 된 경로: {path} ({intro}의 소개)" if intro else f"- 알게 된 경로: {path}")
     if filled(p.get("birthday")):
         facts.append(f"- 생일: {filled(p['birthday'])}")
+    for s in p.get("specialDays", []):
+        if filled(s["value"]):
+            facts.append(f"- {filled(s['label']) or '기념일'}: {filled(s['value'])}")
     if hash_tags(p.get("tags", [])):
         facts.append(f"- 태그: {hash_tags(p['tags'])}")
     if facts:
@@ -1915,6 +1966,11 @@ def person_export(p: dict) -> str:
     contacts = [f"- {c['label']}: {filled(c['value'])}" for c in p.get("contacts", []) if filled(c["value"])]
     if contacts:
         lines += ["## 연락 수단", ""] + contacts + [""]
+    if filled(p.get("keyNote")):
+        lines += ["## 기억할 것", "", filled(p["keyNote"]), ""]
+    talks = [f"- {filled(t)}" for t in p.get("talkItems", []) if filled(t)]
+    if talks:
+        lines += ["## 다음에 이야기할 것", ""] + talks + [""]
     first_met, first_note = filled(p.get("firstMet")), filled(p.get("firstNote"))
     if first_met or first_note:
         lines += ["## 첫 인연", "", first_met or "날짜 미상", ""]
@@ -1972,7 +2028,8 @@ def best_match(term: tuple[str, bool], person: dict):
     if not tag_only:
         for field, evidence in (("nickname", "별명 일치"), ("organization", "소속 일치"),
                                 ("role", "직무 일치"), ("relationshipType", "관계 유형 일치"),
-                                ("metThrough", "알게 된 경로 일치"), ("firstNote", "첫 인연 메모 일치")):
+                                ("metThrough", "알게 된 경로 일치"), ("firstNote", "첫 인연 메모 일치"),
+                                ("keyNote", "기억할 것 일치")):
             if has(person.get(field)):
                 return ("person", evidence, None)
     for record in person.get("records", []):
@@ -2104,8 +2161,12 @@ def build() -> dict:
                                "window": c.get("window", PLANNED_WINDOW),
                                "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW)),
                                "followUps": planned_follow_ups(c["records"], c["today"]),
+                               "dayReminders": planned_day_reminders(c["records"], c["today"]),
                                "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}
                               for c in cases["plannedMeetings"]]
+    out["dayReminderMinute"] = [{"meeting": c.get("meeting"), "preferred": c["preferred"],
+                                 "expected": day_reminder_minute(c.get("meeting"), c["preferred"])}
+                                for c in cases["dayReminderMinute"]]
     out["timeOfDay"] = [{"minute": m, "text": time_text(m), "sortKey": time_key(m)} for m in cases["timeOfDay"]]
     out["milestones"] = [{"name": c["name"], "records": c["records"], "firstMetDay": c.get("firstMetDay"),
                           "firstMetYear": c.get("firstMetYear"), "today": c["today"],

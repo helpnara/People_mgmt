@@ -231,7 +231,7 @@
         "role": "팀장",
         "relationshipType": "동료",
         "metThrough": "직장",
-        "firstNote": "입사 첫날 옆자리",
+        "firstNote": "입사 첫날 옆자리", "keyNote": "커피는 디카페인",
         "tags": [
           "멘토",
           "독서모임"
@@ -379,8 +379,7 @@
       "ㄲ",
       "ㅊㄹ",
       "ㅇㄷㅇ 소개",
-      "ㅎㄴ"
-    ]
+      "ㅎㄴ", "디카페인"]
   },
   "josa": [
     "홍길동",
@@ -3804,7 +3803,9 @@
     {"iso": "2024-02-29T12:00:00+00:00", "timeZone": "UTC", "precision": 1},
     {"iso": "2024-02-29T12:00:00+00:00", "timeZone": "UTC", "precision": 9}
   ],
-  "personExport": [{"name": "모든 칸", "person": {"name": "김하늘", "nickname": "하늘 팀장", "organization": "청림소프트", "role": "팀장", "relationshipType": "동료", "metThrough": "소개", "introducer": "이도윤", "birthday": "5월 21일", "tags": ["멘토", "독서모임"], "contacts": [{"label": "휴대전화", "value": "010-1234-5678"}, {"label": "사무실", "value": " "}, {"label": "이메일", "value": "haneul@example.com"}], "firstMet": "2019년 3월", "firstNote": "입사 첫날 옆자리.\n점심을 같이 먹었다.", "records": [{"date": "2026년 10월 1일", "type": "식사", "title": "점심", "note": "이직 고민을 들었다", "location": "국숫집", "tags": ["업무"], "companions": ["정유진", "Alice Park"]}, {"date": "2025년", "type": "회의", "title": " 분기 회의 ", "companions": []}], "exportedOn": "2026년 10월 20일"}}, {"name": "이름만", "person": {"name": "  윤서아 ", "exportedOn": "2026년 10월 20일"}}, {"name": "첫 인연 메모만 · 소개자 없는 소개", "person": {"name": "최민준", "metThrough": "소개", "firstNote": "행사에서 만남", "organization": " ", "role": "연구원", "exportedOn": "2026년 1월 2일"}}],
+  "personExport": [{"name": "모든 칸", "person": {"name": "김하늘", "nickname": "하늘 팀장", "organization": "청림소프트", "role": "팀장", "relationshipType": "동료", "metThrough": "소개", "introducer": "이도윤", "birthday": "5월 21일", "tags": ["멘토", "독서모임"], "contacts": [{"label": "휴대전화", "value": "010-1234-5678"}, {"label": "사무실", "value": " "}, {"label": "이메일", "value": "haneul@example.com"}], "firstMet": "2019년 3월", "firstNote": "입사 첫날 옆자리.\n점심을 같이 먹었다.", "records": [{"date": "2026년 10월 1일", "type": "식사", "title": "점심", "note": "이직 고민을 들었다", "location": "국숫집", "tags": ["업무"], "companions": ["정유진", "Alice Park"]}, {"date": "2025년", "type": "회의", "title": " 분기 회의 ", "companions": []}], "exportedOn": "2026년 10월 20일"}}, {"name": "이름만", "person": {"name": "  윤서아 ", "exportedOn": "2026년 10월 20일"}}, {"name": "첫 인연 메모만 · 소개자 없는 소개", "person": {"name": "최민준", "metThrough": "소개", "firstNote": "행사에서 만남", "organization": " ", "role": "연구원", "exportedOn": "2026년 1월 2일"}},
+    {"name": "기념일 · 기억할 것 · 다음에 이야기할 것 (1.1.8) — 생일 아래 줄마다 · 빈 종류는 기념일 · 빈 줄은 쓰지 않음", "person": {"name": "김하늘", "birthday": "5월 21일", "specialDays": [{"label": "결혼기념일", "value": "2018년 10월 12일"}, {"label": " ", "value": "3월 2일"}, {"label": "입사일", "value": " "}], "contacts": [{"label": "휴대전화", "value": "010-1234-5678"}], "keyNote": "커피는 디카페인.  첫째는 하준", "talkItems": ["입학 선물 물어보기", " ", "멘토링 주제 정하기"], "records": [], "exportedOn": "2026년 11월 6일"}}
+  ],
   "chosung": [
     {"text": "김하늘", "terms": ["ㄱㅎㄴ", "ㄱ", "ㅎㄴ", "김ㅎ", "고ㅎ", "ㄲ", "하ㄴ", "ㄱㄴ", "김하늘", "ㅎ늘"]},
     {"text": "까치 카페", "terms": ["ㄲㅊ", "ㄱㅊ", "ㅊ ㅋ", "ㅋㅍ", "cafe"]},
@@ -4843,7 +4844,8 @@
           "birthYear": null
         }
       ]
-    }
+    },
+    {"name": "기념일 (1.1.8) — 해를 알면 그대로, 모르면 1604 와 빼는 해 표시, 빈 이름은 기념일, 쉼표는 이스케이프", "people": [{"name": "김하늘", "fields": {"mobile": "", "office": "", "fax": "", "email": "", "other": ""}, "birthMonth": 5, "birthDay": 21, "anniversaries": [{"label": "결혼기념일", "month": 10, "day": 12, "year": 2018}, {"label": "입사일, 첫 회사", "month": 3, "day": 2, "year": null}, {"label": "", "month": 2, "day": 29, "year": null}]}]}
   ],
   "vcardParse": [
     {
@@ -4861,7 +4863,8 @@
     {
       "name": "4.0 · 이름 없는 카드는 건너뜀 · 시각 붙은 생일",
       "text": "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:  이  도윤 \r\nTEL;TYPE=\"work,voice\";VALUE=uri:tel:+82-2-555-1234\r\nBDAY:19851103T000000Z\r\nEND:VCARD\r\n"
-    }
+    },
+    {"name": "기념일 (1.1.8) — 기기 연락처의 itemN.X-ABDATE · X-ABLabel, 기본 이름표는 기념일, 4.0 ANNIVERSARY, 없는 날은 버림", "text": "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:김하늘\r\nitem1.X-ABDATE;type=pref:2018-10-12\r\nitem1.X-ABLabel:결혼기념일\r\nitem2.X-ABDATE;X-APPLE-OMIT-YEAR=1604:1604-03-02\r\nitem2.X-ABLabel:_$!<Anniversary>!$_\r\nitem3.X-ABDATE:2019-02-30\r\nitem3.X-ABLabel:없는 날\r\nitem4.X-ABDATE:--07-15\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:4.0\r\nFN:정유진\r\nANNIVERSARY:20200915\r\nEND:VCARD\r\n"}
   ],
   "importMatch": [
     {
@@ -5074,7 +5077,28 @@
         {"id": "00000000-0000-0000-0000-000000000386", "day": 1000, "createdDay": 997, "updatedDay": 997, "dayPrecise": true},
         {"id": "00000000-0000-0000-0000-000000000387", "day": 1000, "createdDay": 997, "updatedDay": 997, "dayPrecise": true, "minute": 1000}
       ]
-    }
+    },
+    {"name": "약속 당일 알림 — 오늘 · 앞날의 미리 적은 예정, 가까운 날 → 이른 시각부터 넷 · 이미 고친 것 · 그날 적은 것 · 월까지 · 어제는 빼고", "today": 2000, "records": [
+      {"id": "00000000-0000-0000-0000-000000000901", "day": 2000, "createdDay": 1990, "updatedDay": 1990, "dayPrecise": true, "minute": 720},
+      {"id": "00000000-0000-0000-0000-000000000902", "day": 2000, "createdDay": 1990, "updatedDay": 2000, "dayPrecise": true, "minute": 600},
+      {"id": "00000000-0000-0000-0000-000000000903", "day": 2000, "createdDay": 2000, "updatedDay": 2000, "dayPrecise": true},
+      {"id": "00000000-0000-0000-0000-000000000904", "day": 1999, "createdDay": 1990, "updatedDay": 1990, "dayPrecise": true},
+      {"id": "00000000-0000-0000-0000-000000000905", "day": 2001, "createdDay": 1995, "updatedDay": 1995, "dayPrecise": true},
+      {"id": "00000000-0000-0000-0000-000000000906", "day": 2001, "createdDay": 1995, "updatedDay": 1995, "dayPrecise": true, "minute": 480},
+      {"id": "00000000-0000-0000-0000-000000000907", "day": 2003, "createdDay": 1995, "updatedDay": 1995, "dayPrecise": false},
+      {"id": "00000000-0000-0000-0000-000000000908", "day": 2005, "createdDay": 1995, "updatedDay": 1995, "dayPrecise": true},
+      {"id": "00000000-0000-0000-0000-000000000909", "day": 2009, "createdDay": 1995, "updatedDay": 1995, "dayPrecise": true}
+    ]}
+  ],
+  "dayReminderMinute": [
+    {"meeting": null, "preferred": 540},
+    {"meeting": 750, "preferred": 540},
+    {"meeting": 600, "preferred": 540},
+    {"meeting": 540, "preferred": 540},
+    {"meeting": 480, "preferred": 540},
+    {"meeting": 30, "preferred": 480},
+    {"meeting": 1380, "preferred": 1320},
+    {"meeting": 1439, "preferred": 0}
   ],
   "timeOfDay": [0, 5, 59, 540, 545, 719, 720, 721, 870, 1439, 1500, -3],
   "milestones": [

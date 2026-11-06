@@ -75,7 +75,9 @@ final class GoldenTests: XCTestCase {
         struct VPersonRaw: Decodable {
             let name: String; let nickname: String?; let organization: String?; let role: String?; let fields: VFieldsRaw
             let birthMonth: Int?; let birthDay: Int?; let birthYear: Int?
+            let anniversaries: [VDateRaw]?
         }
+        struct VDateRaw: Decodable { let label: String; let month: Int; let day: Int; let year: Int? }
         struct VEncodeCase: Decodable { let name: String; let people: [VPersonRaw]; let expected: String }
         struct VParseCase: Decodable { let name: String; let text: String; let expected: [VPersonRaw] }
         struct VExistingRaw: Decodable { let id: UUID; let name: String; let fields: VFieldsRaw }
@@ -169,7 +171,7 @@ final class GoldenTests: XCTestCase {
         struct Person: Decodable {
             let id: UUID; let name: String; let nickname: String?; let organization: String?
             let role: String?; let relationshipType: String?; let metThrough: String?
-            let firstNote: String?; let tags: [String]; let records: [Record]
+            let firstNote: String?; let keyNote: String?; let tags: [String]; let records: [Record]
         }
         struct Hit: Decodable { let personID: UUID; let kind: String; let evidence: String; let recordID: UUID? }
         struct Query: Decodable { let query: String; let expected: [Hit] }
@@ -205,6 +207,7 @@ final class GoldenTests: XCTestCase {
             let relationshipType: String?; let metThrough: String?; let introducer: String?; let birthday: String?
             let tags: [String]?; let contacts: [ExportContact]?; let firstMet: String?; let firstNote: String?
             let records: [ExportRecord]?; let exportedOn: String
+            let specialDays: [ExportContact]?; let keyNote: String?; let talkItems: [String]?
         }
         struct PlannedRecordRaw: Decodable { let id: UUID; let day: Int; let createdDay: Int; let updatedDay: Int; let dayPrecise: Bool; let minute: Int? }
         struct PlannedExpected: Decodable { let upcoming: [UUID]; let awaiting: [UUID] }
@@ -218,10 +221,12 @@ final class GoldenTests: XCTestCase {
         }
         struct PlannedCase: Decodable {
             let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int
-            let expected: PlannedExpected; let followUps: [UUID]; let phrases: [PlannedPhrase]
+            let expected: PlannedExpected; let followUps: [UUID]; let dayReminders: [UUID]; let phrases: [PlannedPhrase]
         }
+        struct DayReminderMinuteCase: Decodable { let meeting: Int?; let preferred: Int; let expected: Int }
         struct ExportCase: Decodable { let name: String; let person: ExportPerson; let expected: String }
 
+        let dayReminderMinute: [DayReminderMinuteCase]
         let tags: [TagCase]
         let tagSplit: [SplitCase]
         let displayTitle: [TitleCase]
@@ -481,12 +486,19 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.upcoming, c.expected.upcoming, "\(c.name) — 다가오는 만남")
             XCTAssertEqual(got.awaiting, c.expected.awaiting, "\(c.name) — 결과를 적을 만남")
             XCTAssertEqual(PlannedMeetings.followUps(entries, today: c.today), c.followUps, "\(c.name) — 결과 적기 알림")
+            XCTAssertEqual(PlannedMeetings.dayReminders(entries, today: c.today), c.dayReminders, "\(c.name) — 약속 당일 알림")
             for p in c.phrases {
                 XCTAssertEqual(PlannedMeetings.upcomingPhrase(day: p.day, today: c.today), p.expected, c.name)
             }
         }
         XCTAssertEqual(PlannedMeetings.window, 60, "정답표의 PLANNED_WINDOW 와 같다")
         XCTAssertEqual(PlannedMeetings.followUpLimit, 4, "정답표의 FOLLOW_UP_LIMIT 와 같다")
+        XCTAssertEqual(PlannedMeetings.dayReminderLimit, 4, "정답표의 DAY_REMINDER_LIMIT 와 같다")
+        XCTAssertEqual(PlannedMeetings.dayReminderLead, 60, "정답표의 DAY_REMINDER_LEAD 와 같다")
+        for c in try Self.loadGolden().dayReminderMinute {
+            XCTAssertEqual(PlannedMeetings.dayReminderMinute(meeting: c.meeting, preferred: c.preferred), c.expected,
+                           "약속 당일 알림 시각 — 약속 \(String(describing: c.meeting)) · 알림 \(c.preferred)")
+        }
     }
 
     func testRelationshipMilestones() throws {
@@ -554,7 +566,8 @@ final class GoldenTests: XCTestCase {
 
     private static func person(_ p: Golden.VPersonRaw) -> VCardPerson {
         VCardPerson(name: p.name, nickname: p.nickname ?? "", organization: p.organization ?? "", role: p.role ?? "",
-                    fields: fields(p.fields), birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear)
+                    fields: fields(p.fields), birthMonth: p.birthMonth, birthDay: p.birthDay, birthYear: p.birthYear,
+                    anniversaries: (p.anniversaries ?? []).map { VCardDate(label: $0.label, month: $0.month, day: $0.day, year: $0.year) })
     }
 
     func testVCardEncode() throws {
@@ -843,7 +856,9 @@ final class GoldenTests: XCTestCase {
                     PersonExport.Record(date: $0.date, type: $0.type, title: $0.title, note: $0.note,
                                         location: $0.location, tags: $0.tags ?? [], companions: $0.companions ?? [])
                 },
-                exportedOn: p.exportedOn)
+                exportedOn: p.exportedOn,
+                specialDays: (p.specialDays ?? []).map { PersonExport.Contact(label: $0.label, value: $0.value) },
+                keyNote: p.keyNote, talkItems: p.talkItems ?? [])
             XCTAssertEqual(PersonExport.markdown(person), c.expected, c.name)
         }
     }
@@ -908,7 +923,7 @@ final class GoldenTests: XCTestCase {
             SearchablePerson(
                 id: p.id, name: p.name, nickname: p.nickname, organization: p.organization,
                 role: p.role, relationshipType: p.relationshipType, metThrough: p.metThrough,
-                firstNote: p.firstNote, tags: p.tags,
+                firstNote: p.firstNote, keyNote: p.keyNote, tags: p.tags,
                 records: p.records.map {
                     SearchableRecord(id: $0.id, displayTitle: $0.displayTitle, title: $0.title,
                                      note: $0.note, location: $0.location, tags: $0.tags)
