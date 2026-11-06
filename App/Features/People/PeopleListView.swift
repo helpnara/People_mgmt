@@ -153,6 +153,11 @@ struct PeopleListView: View {
     private var isRecordSearching: Bool { searchPeriod != nil || searchPlace != nil }
 
     var body: some View {
+        // 긴 수정자 사슬을 넷으로 나눈다 — 한 식이면 컴파일러가 형식을 제때 못 맞춘다 (CI 150 · 빌드 45 교훈).
+        withObservers(withAlerts(withSheets(rootView)))
+    }
+
+    private var rootView: some View {
         Group {
             if isWide {
                 wideLayout
@@ -163,6 +168,11 @@ struct PeopleListView: View {
                 }
             }
         }
+    }
+
+    /// 시트 — 사람 추가 · 명함 여러 장 · 기록 추가 · 다가오는 날 · 나.
+    private func withSheets<Content: View>(_ content: Content) -> some View {
+        content
         .sheet(isPresented: $showingAdd, onDismiss: { scanOnAdd = false }) {
             PersonEditView(mode: .create, startsScan: scanOnAdd) { person in
                 show(person)
@@ -220,6 +230,11 @@ struct PeopleListView: View {
         .sheet(isPresented: $addingMe) {
             PersonEditView(mode: .createMe) { _ in }
         }
+    }
+
+    /// 확인 창 · 알림.
+    private func withAlerts<Content: View>(_ content: Content) -> some View {
+        content
         .confirmationDialog(
             "삭제",
             isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
@@ -241,6 +256,18 @@ struct PeopleListView: View {
         } message: {
             Text(saveError ?? "")
         }
+        .alert("나는 한 사람만 둡니다", isPresented: Binding(get: { !demotedMe.isEmpty }, set: { if !$0 { demotedMe = [] } })) {
+            Button("확인", role: .cancel) {
+                UserDefaults.standard.removeObject(forKey: PersonStore.demotedMeKey)
+            }
+        } message: {
+            Text("다른 기기에서도 나를 적어 두어 나가 둘이 되었습니다. 먼저 만든 나를 남기고 나머지는 보통 사람으로 바꿨습니다 — \(demotedMe.joined(separator: ", ")). 지우지는 않았습니다.")
+        }
+    }
+
+    /// 저장소 · 장면 · 단축어 감시와 자료 세기.
+    private func withObservers<Content: View>(_ content: Content) -> some View {
+        content
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             noteChange()
         }
@@ -270,13 +297,6 @@ struct PeopleListView: View {
             handleShortcut()
         }
         .onChange(of: fetched.count) { _, _ in handleShortcut() }
-        .alert("나는 한 사람만 둡니다", isPresented: Binding(get: { !demotedMe.isEmpty }, set: { if !$0 { demotedMe = [] } })) {
-            Button("확인", role: .cancel) {
-                UserDefaults.standard.removeObject(forKey: PersonStore.demotedMeKey)
-            }
-        } message: {
-            Text("다른 기기에서도 나를 적어 두어 나가 둘이 되었습니다. 먼저 만든 나를 남기고 나머지는 보통 사람으로 바꿨습니다 — \(demotedMe.joined(separator: ", ")). 지우지는 않았습니다.")
-        }
         .task(id: ListKey(version: dataVersion, sort: sortOption, count: fetched.count, type: filterType, tag: filterTag)) {
             sortedPeople = LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {
                 PersonStore.sorted(fetched, by: sortOption)
