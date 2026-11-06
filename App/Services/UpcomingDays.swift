@@ -66,8 +66,8 @@ enum UpcomingDays {
     }
 
     /// 여러 사람 — 생일이 있는 사람과 기념일만 읽는다(사람마다 관계를 풀지 않게). 날짜 차례 · 같은 날이면 이름순.
-    /// 주 스레드에서 부르되 화면 본문이 아니라 자료가 바뀔 때(`task`) 부른다 (CLAUDE.md · 이슈 10).
-    @MainActor
+    /// 화면 본문이 아니라 자료가 바뀔 때(`task`) 부른다 (CLAUDE.md · 이슈 10). 받은 문맥의 스레드에서 돈다 —
+    /// 홈은 주 문맥, 위젯 요약(빌드 63)은 따로 연 문맥에서 부른다.
     static func all(in context: ModelContext, today: CivilDate, within days: Int) -> [UpcomingDay] {
         let born = (try? context.fetch(FetchDescriptor<Person>(predicate: #Predicate<Person> {
             $0.isMe == false && $0.birthMonth != nil
