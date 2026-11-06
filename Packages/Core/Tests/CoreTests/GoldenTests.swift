@@ -224,9 +224,21 @@ final class GoldenTests: XCTestCase {
             let expected: PlannedExpected; let followUps: [UUID]; let dayReminders: [UUID]; let phrases: [PlannedPhrase]
         }
         struct DayReminderMinuteCase: Decodable { let meeting: Int?; let preferred: Int; let expected: Int }
+        struct RepeatCase: Decodable { let rule: Int; let date: String; let anchorDay: Int?; let next: String?; let describe: String }
+        struct FinderItem: Decodable { let id: String; let date: String; let location: String?; let title: String?; let note: String?; let tags: [String] }
+        struct FinderRange: Decodable { let period: String; let from: Int; let to: Int; let today: Int }
+        struct FinderQuery: Decodable { let period: String?; let place: String?; let query: String; let expected: [String] }
+        struct FinderCase: Decodable { let name: String; let today: String; let items: [FinderItem]; let ranges: [FinderRange]; let queries: [FinderQuery] }
+        struct PlaceCase: Decodable { let name: String; let locations: [String?]; let limit: Int; let expected: [String] }
+        struct SavedLabelRaw: Decodable { let name: String; let members: [String] }
+        struct SavedNameCase: Decodable { let name: String; let members: [String]; let labels: [SavedLabelRaw]; let expected: String? }
         struct ExportCase: Decodable { let name: String; let person: ExportPerson; let expected: String }
 
         let dayReminderMinute: [DayReminderMinuteCase]
+        let repeatRule: [RepeatCase]
+        let recordFinder: [FinderCase]
+        let placeCatalog: [PlaceCase]
+        let savedCommunityName: [SavedNameCase]
         let tags: [TagCase]
         let tagSplit: [SplitCase]
         let displayTitle: [TitleCase]
@@ -498,6 +510,63 @@ final class GoldenTests: XCTestCase {
         for c in try Self.loadGolden().dayReminderMinute {
             XCTAssertEqual(PlannedMeetings.dayReminderMinute(meeting: c.meeting, preferred: c.preferred), c.expected,
                            "약속 당일 알림 시각 — 약속 \(String(describing: c.meeting)) · 알림 \(c.preferred)")
+        }
+    }
+
+    private static func civil(_ text: String) -> CivilDate {
+        let parts = text.split(separator: "-").compactMap { Int($0) }
+        return CivilDate(year: parts[0], month: parts[1], day: parts[2])
+    }
+
+    private static func iso(_ date: CivilDate) -> String {
+        String(format: "%04d-%02d-%02d", date.year, date.month, date.day)
+    }
+
+    /// 반복 약속 (1.1.9 · FR-069).
+    func testRepeatRule() throws {
+        for c in try Self.loadGolden().repeatRule {
+            let rule = RepeatRule.of(c.rule)
+            let date = Self.civil(c.date)
+            XCTAssertEqual(rule.next(after: date, anchorDay: c.anchorDay).map(Self.iso), c.next, "\(c.rule) \(c.date) — 다음 회차")
+            XCTAssertEqual(RepeatRule.describe(rule, on: date, anchorDay: c.anchorDay), c.describe, "\(c.rule) \(c.date) — 이름")
+            XCTAssertEqual(CivilDate(dayNumber: date.dayNumber), date, "날 번호를 오가도 같은 날")
+        }
+    }
+
+    /// 기간 · 장소로 찾기 (1.1.9 · FR-072).
+    func testRecordFinder() throws {
+        for c in try Self.loadGolden().recordFinder {
+            let today = Self.civil(c.today)
+            for r in c.ranges {
+                let period = try XCTUnwrap(RecordPeriod(rawValue: r.period))
+                XCTAssertEqual(today.dayNumber, r.today, "\(c.name) — 오늘의 날 번호")
+                XCTAssertEqual(RecordFinder.range(period, today: today), r.from...r.to, "\(c.name) — \(r.period)")
+            }
+            let items = c.items.map {
+                (id: $0.id, item: RecordFinder.Item(day: Self.civil($0.date).dayNumber, location: $0.location, title: $0.title,
+                                                    note: $0.note, tags: $0.tags))
+            }
+            for q in c.queries {
+                let range = try q.period.map { RecordFinder.range(try XCTUnwrap(RecordPeriod(rawValue: $0)), today: today) }
+                let got = items.filter { RecordFinder.matches($0.item, range: range, place: q.place, query: q.query) }.map(\.id)
+                XCTAssertEqual(got, q.expected, "\(c.name) — \(q.period ?? "-") · \(q.place ?? "-") · \(q.query)")
+            }
+        }
+    }
+
+    /// 자주 쓴 장소 (1.1.9 · FR-072).
+    func testPlaceCatalog() throws {
+        for c in try Self.loadGolden().placeCatalog {
+            XCTAssertEqual(PlaceCatalog.top(c.locations, limit: c.limit), c.expected, c.name)
+        }
+        XCTAssertEqual(PlaceCatalog.limit, 6, "정답표의 기본 한도와 같다")
+    }
+
+    /// 고쳐 둔 모임 이름 (1.1.9 · FR-071).
+    func testSavedCommunityName() throws {
+        for c in try Self.loadGolden().savedCommunityName {
+            let labels = c.labels.map { CommunityNaming.SavedLabel(name: $0.name, members: $0.members) }
+            XCTAssertEqual(CommunityNaming.saved(members: c.members, labels: labels), c.expected, c.name)
         }
     }
 
