@@ -180,7 +180,7 @@ enum SampleData {
         if LaunchArguments.current.largeSample { seedLarge(into: context) }
     }
 
-    /// **예정된 만남 견본** (빌드 38 · D-62) — 다가오는 만남 셋(3일 뒤 오전 10시 · 오후 12:30, 12일 뒤)과 결과를 적을 만남 하나(어제 · 엿새 전에 적어 둠).
+    /// **예정된 만남 견본** (빌드 38 · D-62) — 다가오는 만남 넷(3일 뒤 오전 10시 · 오후 12:30, 5일 뒤 저녁 7시 매주 반복, 12일 뒤)과 결과를 적을 만남 하나(어제 · 엿새 전에 적어 둠).
     /// 날은 오늘에서 센다. 미리 적어 둔 예정이라 만든 때 · 고친 때를 그날보다 앞으로 둔다.
     @MainActor
     static func seedPlanned(into context: ModelContext, haneul: Person, yujin: Person) {
