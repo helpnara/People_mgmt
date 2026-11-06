@@ -31,7 +31,11 @@ struct RootView: View {
                 // 잠긴 채 앞으로 나오는 일은 없지만, 저장소를 읽는 곳은 같은 문을 지난다 (이슈 31).
                 guard StoreAccess.isReadable(phase) else { return }
                 let container = context.container
-                Task { await ReminderScheduler.refresh(container: container) }
+                Task {
+                    await ReminderScheduler.refresh(container: container)
+                    // 날이 바뀌었을 수 있다 — 위젯의 `오늘` · `내일` 도 새로 (이슈 100).
+                    await WidgetBridge.refresh(container: container)
+                }
             }
     }
 }

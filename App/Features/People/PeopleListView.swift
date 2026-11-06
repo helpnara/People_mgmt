@@ -73,6 +73,11 @@ struct PeopleListView: View {
     @State private var upcomingDays: [UpcomingDay] = []
     @State private var showingAllDays = false
     @State private var showingCardBatch = false
+    /// 공유로 받은 초안 (1.1.9 · 이슈 101 · FR-076) — 고른 초안 · 기록 추가에 채울 값 · 버릴 초안.
+    @State private var sharedDrafts: [SharedDraft] = []
+    @State private var pendingShare: SharedDraft?
+    @State private var shareSeed: RecordSeed?
+    @State private var discardingShare: SharedDraft?
     /// 기간 · 장소로 찾기 (1.1.9 · 이슈 97 · FR-072) — 검색 아래 칩. 규칙은 `Core.RecordFinder` · `PlaceCatalog`.
     @State private var searchPeriod: RecordPeriod?
     @State private var searchPlace: String?
@@ -172,6 +177,10 @@ struct PeopleListView: View {
             if let person = recordPick {
                 recordPick = nil
                 recordAnchor = person
+            } else {
+                // 사람을 고르지 않고 닫았으면 초안은 그대로 남는다.
+                pendingShare = nil
+                shareSeed = nil
             }
         }) {
             NavigationStack {
@@ -183,11 +192,20 @@ struct PeopleListView: View {
                     }
             }
         }
-        .sheet(item: $recordAnchor) { person in
-            RecordEditView(mode: .create(anchor: person)) { _ in
+        .sheet(item: $recordAnchor, onDismiss: {
+            pendingShare = nil
+            shareSeed = nil
+        }) { person in
+            RecordEditView(mode: .create(anchor: person), seed: shareSeed) { _ in
+                // 공유 초안으로 쓴 기록이면 저장한 뒤에 초안을 지운다 — 취소하면 남는다.
+                if let draft = pendingShare {
+                    SharedDraftStore.remove(draft)
+                    loadSharedDrafts()
+                }
                 show(person)
             }
         }
+        .modifier(SharedDraftDialogs(discarding: $discardingShare, scenePhase: scenePhase, onChange: loadSharedDrafts))
         .sheet(isPresented: $showingAllDays, onDismiss: {
             if let person = openAfterDays {
                 openAfterDays = nil
@@ -295,6 +313,9 @@ struct PeopleListView: View {
             readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
             // 알림도 다시 건다 (D-40) — 생일 · 처음 만난 날 · 기록이 바뀌었을 수 있다. 켠 알림이 없으면 바로 끝난다.
             await ReminderScheduler.refresh(container: context.container)
+            // 홈 화면 위젯의 요약 (1.1.9 · 이슈 100) · 공유로 받은 초안 (이슈 101).
+            await WidgetBridge.refresh(container: context.container)
+            loadSharedDrafts()
             // 검색 색인도 미리 만들어 둔다 (이슈 8) — 첫 검색이 기다리지 않게.
             if !fetched.isEmpty, indexVersion != dataVersion {
                 await rebuildIndex()
@@ -447,6 +468,7 @@ struct PeopleListView: View {
                 }
             }
             if !isQuerying && !isRecordSearching {
+                if !sharedDrafts.isEmpty { sharedDraftSection }
                 meSection
                 if !pinnedPeople.isEmpty && !isFiltering {
                     pinnedSection
@@ -667,6 +689,81 @@ struct PeopleListView: View {
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         upcomingRecords = plan.upcoming.compactMap { byID[$0] }
         awaitingRecords = plan.awaiting.compactMap { byID[$0] }
+    }
+
+    /// **공유로 받은 초안** (1.1.9 · 이슈 101 · FR-076) — 누르면 누구와의 기록인지 고르고 기록 추가로. 밀어서 버리기(확인).
+    private var sharedDraftSection: some View {
+        Section {
+            ForEach(sharedDrafts) { draft in
+                Button {
+                    startShare(draft)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: draft.photoFiles.isEmpty ? "square.and.arrow.down" : "photo")
+                            .font(.scaled(16))
+                            .foregroundStyle(Color.accent)
+                            .frame(width: Font.scaledLength(24))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(draft.headline)
+                                .font(.scaled(16, weight: .medium))
+                                .foregroundStyle(Color.ink)
+                                .lineLimit(2)
+                            Text(sharedDetail(draft))
+                                .font(.scaled(13))
+                                .foregroundStyle(Color.muted)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.scaled(13, weight: .semibold))
+                            .foregroundStyle(Color.faint)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    // 역할 없는 단추 — 확인 전에 줄을 접지 않게 (느린 부자 178~182).
+                    Button {
+                        discardingShare = draft
+                    } label: {
+                        Label("버리기", systemImage: "trash")
+                    }
+                    .tint(Color.danger)
+                }
+                .accessibilityIdentifier("sharedDraftRow")
+            }
+        } header: {
+            Text("공유로 받은 초안 \(sharedDrafts.count)")
+        } footer: {
+            Text("누르면 누구와의 기록인지 고른 뒤 기록 추가로 이어집니다. 왼쪽으로 밀면 버립니다.")
+        }
+    }
+
+    private func sharedDetail(_ draft: SharedDraft) -> String {
+        let when = RelativeDay.phrase(from: draft.createdAt, to: Date(), calendar: .current)
+        return draft.photoFiles.isEmpty ? "\(when) 받음" : "\(when) 받음 · 사진 \(draft.photoFiles.count)장"
+    }
+
+    private func loadSharedDrafts() {
+        sharedDrafts = SharedDraftStore.drafts()
+    }
+
+    /// 초안의 사진을 기록 사진 크기로 줄여 두고 사람을 고르게 한다. 사람이 없으면 사람 추가부터.
+    private func startShare(_ draft: SharedDraft) {
+        guard !fetched.isEmpty else {
+            showingAdd = true
+            return
+        }
+        Task {
+            var photos: [Data] = []
+            for data in SharedDraftStore.photos(of: draft) {
+                if let photo = await RecordPhotos.normalized(from: data) { photos.append(photo) }
+            }
+            pendingShare = draft
+            shareSeed = RecordSeed(note: draft.text, photos: photos)
+            recordCandidates = PersonStore.sorted(fetched.filter { !$0.isGone }, by: .name)
+            recordPick = nil
+            pickingRecordPerson = true
+        }
     }
 
     /// 일치하는 사람이 없을 때 — 요구사항 문구 그대로 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
@@ -1247,5 +1344,32 @@ struct PersonRow: View {
     private var lastRecordText: String {
         guard let last = person.lastRecordAt else { return "기록 없음" }
         return "마지막 기록 " + RelativeDay.phrase(from: last, to: Date(), calendar: .current)
+    }
+}
+
+/// 공유 초안 버리기 확인 · 앞으로 나올 때 다시 읽기 (1.1.9 · 이슈 101) — 홈의 긴 식에서 떼어 둔다(형식 맞추기 시간).
+private struct SharedDraftDialogs: ViewModifier {
+    @Binding var discarding: SharedDraft?
+    let scenePhase: ScenePhase
+    let onChange: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog("이 초안을 버릴까요?",
+                                isPresented: Binding(get: { discarding != nil }, set: { if !$0 { discarding = nil } }),
+                                titleVisibility: .visible, presenting: discarding) { draft in
+                Button("버리기", role: .destructive) {
+                    SharedDraftStore.remove(draft)
+                    discarding = nil
+                    onChange()
+                }
+                Button("취소", role: .cancel) { discarding = nil }
+            } message: { draft in
+                Text(draft.headline)
+            }
+            // 공유 시트에서 돌아오면 바로 보이게 — 자료가 바뀌지 않아도.
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { onChange() }
+            }
     }
 }
