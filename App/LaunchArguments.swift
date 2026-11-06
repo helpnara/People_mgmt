@@ -23,6 +23,8 @@ struct LaunchArguments: Sendable {
     let openRecordTitle: String?
     /// 사람 추가 시트를 바로 연다.
     let addPerson: Bool
+    /// 명함 여러 장 등록을 견본 명함 셋으로 연다 (1.1.9 · 이슈 103 · CI 스크린샷 52).
+    let cardBatch: Bool
     /// 나(이슈 12)의 상세를 바로 연다.
     let openMe: Bool
     /// 연 사람의 가장 최근 기록 상세까지 연다.
@@ -98,6 +100,7 @@ struct LaunchArguments: Sendable {
         plannedSample = arguments.contains("-seedPlannedSample")
         openFirstPerson = arguments.contains("-openFirstPerson")
         addPerson = arguments.contains("-addPerson")
+        cardBatch = arguments.contains("-cardBatch")
         openMe = arguments.contains("-openMe")
         openRecord = arguments.contains("-openRecord")
         addRecord = arguments.contains("-addRecord")

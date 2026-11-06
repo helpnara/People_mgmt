@@ -72,6 +72,7 @@ struct PeopleListView: View {
     /// 다가오는 날 (1.1.8 · 이슈 93 · FR-068) — 한 해 안의 생일 · 기념일. 홈은 30일 안의 다섯, 모두 보기는 한 해.
     @State private var upcomingDays: [UpcomingDay] = []
     @State private var showingAllDays = false
+    @State private var showingCardBatch = false
     /// 기간 · 장소로 찾기 (1.1.9 · 이슈 97 · FR-072) — 검색 아래 칩. 규칙은 `Core.RecordFinder` · `PlaceCatalog`.
     @State private var searchPeriod: RecordPeriod?
     @State private var searchPlace: String?
@@ -161,6 +162,10 @@ struct PeopleListView: View {
             PersonEditView(mode: .create, startsScan: scanOnAdd) { person in
                 show(person)
             }
+        }
+        // 명함 여러 장 등록 (1.1.9 · 이슈 103) — 홈 `+` 차림표에서. 저장하면 최근 등록순 목록에서 바로 보인다.
+        .sheet(isPresented: $showingCardBatch) {
+            CardBatchView { _ in noteChange() }
         }
         // 단축어 기록 추가 — 누구와의 기록인지 고르고, 고르기 창이 닫힌 뒤 기록 쓰기를 띄운다.
         .sheet(isPresented: $pickingRecordPerson, onDismiss: {
@@ -365,11 +370,22 @@ struct PeopleListView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAdd = true
+                // 사람 추가 · 명함 여러 장 등록 (1.1.9 · 이슈 103 · 2026-11-06 사용자) — 여러 장은 따로 메뉴로.
+                Menu {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label("사람 추가", systemImage: "person.badge.plus")
+                    }
+                    Button {
+                        showingCardBatch = true
+                    } label: {
+                        Label("명함 여러 장 등록", systemImage: "rectangle.stack.badge.plus")
+                    }
                 } label: {
-                    Label("사람 추가", systemImage: "plus")
+                    Label("추가", systemImage: "plus")
                 }
+                .accessibilityIdentifier("addMenu")
             }
         }
     }
@@ -1065,6 +1081,7 @@ struct PeopleListView: View {
         }
         if arguments.measureSave { measureSaves() }
         if arguments.addPerson { showingAdd = true }
+        if arguments.cardBatch { showingCardBatch = true }
         var opened: Person?
         if arguments.openMe {
             opened = meList.first

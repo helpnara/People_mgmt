@@ -386,6 +386,8 @@ jobs:
           # **1.1.9 (빌드 62 · 스키마 12판)** — 반복 약속의 상세(김하늘의 저녁 산책 · 매주), 기록 추가 맨 위의 기록 틀 칩(점심 약속).
           shoot 50-repeat-detail.png -seedSampleData -seedPlannedSample -openPerson 김하늘 -openRecordTitle "저녁 산책"
           shoot 51-record-template.png -seedSampleData -seedPlannedSample -openPerson 김하늘 -addRecord
+          # **명함 여러 장 등록** (1.1.9 · 이슈 103) — 견본 명함 셋을 읽어 한 화면에 세운 모습 · 모두에게 칸.
+          shoot 52-card-batch.png -seedSampleData -cardBatch
           shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
           # 함께한 사람 고르기의 검색 (이슈 49) — 검색 칸이 늘 보이고, 초성 ㅈㅇ 으로 거른 결과.
           shoot 39-participant-search.png -seedSampleData -openPerson 김하늘 -addRecord -pickParticipants -pickerSearch ㅈㅇ
