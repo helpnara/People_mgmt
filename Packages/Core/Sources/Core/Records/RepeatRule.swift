@@ -40,6 +40,25 @@ public enum RepeatRule: Int, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// 이 회차의 다음 회차를 만들 때인가 — 그날이 지났거나(오늘보다 앞), 그날이 왔고 그날 이후 고쳤으면(결과를 적음 ·
+    /// `그대로 만났어요`). 날은 모두 같은 날 번호.
+    public static func isDue(day: Int, updatedDay: Int, today: Int) -> Bool {
+        day < today || (day <= today && updatedDay >= day)
+    }
+
+    /// 오늘보다 뒤의 첫 회차 — 여러 회차를 건너뛰었으면(앱을 오래 안 열었으면) 지난 회차는 만들지 않고 오늘 뒤로 넘긴다.
+    /// 반복 안 함이면 nil.
+    public func nextUpcoming(after date: CivilDate, anchorDay: Int? = nil, today: CivilDate) -> CivilDate? {
+        guard var next = self.next(after: date, anchorDay: anchorDay) else { return nil }
+        var guardCount = 0
+        while next.dayNumber <= today.dayNumber && guardCount < 2_000 {
+            guard let later = self.next(after: next, anchorDay: anchorDay) else { return nil }
+            next = later
+            guardCount += 1
+        }
+        return next
+    }
+
     /// 다음 회차의 날. 반복 안 함이면 nil.
     public func next(after date: CivilDate, anchorDay: Int? = nil) -> CivilDate? {
         switch self {

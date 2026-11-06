@@ -224,7 +224,9 @@ final class GoldenTests: XCTestCase {
             let expected: PlannedExpected; let followUps: [UUID]; let dayReminders: [UUID]; let phrases: [PlannedPhrase]
         }
         struct DayReminderMinuteCase: Decodable { let meeting: Int?; let preferred: Int; let expected: Int }
-        struct RepeatCase: Decodable { let rule: Int; let date: String; let anchorDay: Int?; let next: String?; let describe: String }
+        struct RepeatUpcoming: Decodable { let today: String; let expected: String? }
+        struct RepeatCase: Decodable { let rule: Int; let date: String; let anchorDay: Int?; let next: String?; let describe: String; let upcoming: [RepeatUpcoming] }
+        struct RepeatDueCase: Decodable { let day: Int; let updatedDay: Int; let today: Int; let expected: Bool }
         struct FinderItem: Decodable { let id: String; let date: String; let location: String?; let title: String?; let note: String?; let tags: [String] }
         struct FinderRange: Decodable { let period: String; let from: Int; let to: Int; let today: Int }
         struct FinderQuery: Decodable { let period: String?; let place: String?; let query: String; let expected: [String] }
@@ -236,6 +238,7 @@ final class GoldenTests: XCTestCase {
 
         let dayReminderMinute: [DayReminderMinuteCase]
         let repeatRule: [RepeatCase]
+        let repeatDue: [RepeatDueCase]
         let recordFinder: [FinderCase]
         let placeCatalog: [PlaceCase]
         let savedCommunityName: [SavedNameCase]
@@ -530,6 +533,14 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(rule.next(after: date, anchorDay: c.anchorDay).map(Self.iso), c.next, "\(c.rule) \(c.date) — 다음 회차")
             XCTAssertEqual(RepeatRule.describe(rule, on: date, anchorDay: c.anchorDay), c.describe, "\(c.rule) \(c.date) — 이름")
             XCTAssertEqual(CivilDate(dayNumber: date.dayNumber), date, "날 번호를 오가도 같은 날")
+            for u in c.upcoming {
+                XCTAssertEqual(rule.nextUpcoming(after: date, anchorDay: c.anchorDay, today: Self.civil(u.today)).map(Self.iso), u.expected,
+                               "\(c.rule) \(c.date) — 오늘 \(u.today) 뒤의 첫 회차")
+            }
+        }
+        for c in try Self.loadGolden().repeatDue {
+            XCTAssertEqual(RepeatRule.isDue(day: c.day, updatedDay: c.updatedDay, today: c.today), c.expected,
+                           "다음 회차 만들 때 — 날 \(c.day) · 고친 날 \(c.updatedDay) · 오늘 \(c.today)")
         }
     }
 

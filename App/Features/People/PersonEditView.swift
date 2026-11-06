@@ -41,6 +41,8 @@ struct PersonEditView: View {
 
     // 이어서 등록
     @State private var savedInRow: [String] = []
+    /// 연속 촬영으로 남은 명함 (1.1.9 · 이슈 98 · FR-073) — `저장하고 다음 사람 추가` 를 누를 때마다 한 장씩 채운다.
+    @State private var queuedCards: [Data] = []
     @State private var appliedArguments = false
 
     /// 관계 유형 · 알게 된 경로 선택지 — 기본값 + 직접 입력해 쓴 값 (이슈 13).
@@ -120,6 +122,7 @@ struct PersonEditView: View {
         NavigationStack {
             Form {
                 if !savedInRow.isEmpty { savedBanner }
+                if !queuedCards.isEmpty { queuedCardsBanner }
                 importSection
                 nameSection
                 if !isMe { keyNoteSection }
@@ -252,6 +255,26 @@ struct PersonEditView: View {
             } icon: {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accent)
             }
+        }
+    }
+
+    /// 남은 명함 (FR-073) — 지금 사람을 저장하고 다음으로 넘어가면 다음 명함이 채워진다.
+    private var queuedCardsBanner: some View {
+        Section {
+            Label {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("남은 명함 \(queuedCards.count)장")
+                        .font(.scaled(15, weight: .medium))
+                        .foregroundStyle(Color.ink)
+                    Text("**저장하고 다음 사람 추가** 를 누르면 다음 명함을 읽어 채웁니다.")
+                        .font(.scaled(13))
+                        .foregroundStyle(Color.muted)
+                }
+            } icon: {
+                Image(systemName: "rectangle.stack").foregroundStyle(Color.accent)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("queuedCards")
         }
     }
 
@@ -741,15 +764,25 @@ struct PersonEditView: View {
             nameFocused = true
             // 방금 직접 입력한 유형 · 경로가 다음 사람의 선택지에 바로 붙는다 (이슈 13).
             refreshChoices()
+            // 연속 촬영으로 남은 명함이 있으면 다음 장을 읽는다 (FR-073).
+            if !queuedCards.isEmpty {
+                let next = queuedCards.removeFirst()
+                nameFocused = false
+                Task { await ingestCard(next, alreadyStraight: true) }
+            }
         } catch {
             saveError = error.localizedDescription
         }
     }
 
+    /// 여러 장을 찍으면(FR-073) 첫 장을 지금 채우고 나머지는 줄에 세운다 — 새 사람을 적을 때만. 고칠 때는 첫 장만.
     private func scanCard() {
-        DocumentScanner.shared.start { data in
-            guard let data else { return }
-            Task { await ingestCard(data, alreadyStraight: true) }
+        DocumentScanner.shared.start { pages in
+            guard let first = pages.first else { return }
+            if isCreate && !isMe {
+                queuedCards = Array(pages.dropFirst())
+            }
+            Task { await ingestCard(first, alreadyStraight: true) }
         }
     }
 

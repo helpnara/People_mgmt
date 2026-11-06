@@ -94,6 +94,32 @@ struct BackupFile: Codable, Sendable {
         var occurredMinute: Int?
         /// 9판(빌드 45)부터 — 기록 사진(FR-058 · 차례대로 · 최대 4장). 옛 백업에는 없으니 옵셔널.
         var photos: [Data]?
+        /// 12판(빌드 62)부터 — 반복(FR-069). 옛 백업에는 없으니 옵셔널(없으면 반복 안 함).
+        var repeatRule: Int?
+        var repeatAnchorDay: Int?
+        var repeatSeriesID: UUID?
+        var repeatSpawned: Bool?
+    }
+
+    /// 12판(빌드 62)부터 — 기록 틀(FR-070).
+    struct TemplateItem: Codable, Sendable {
+        var uuid: UUID
+        var name: String
+        var recordType: String
+        var title: String?
+        var location: String?
+        var tags: [String]
+        var participantIDs: [String]
+        var createdAt: Date
+        var updatedAt: Date
+    }
+
+    /// 12판(빌드 62)부터 — 고쳐 둔 모임 이름(FR-071).
+    struct CommunityLabelItem: Codable, Sendable {
+        var uuid: UUID
+        var name: String
+        var memberIDs: [String]
+        var updatedAt: Date
     }
 
     /// 9판(빌드 45)부터 — 내 선택지(FR-035). 종류마다 보이는 차례 · 숨긴 것.
@@ -120,6 +146,9 @@ struct BackupFile: Codable, Sendable {
     var ties: [TieItem]
     /// 9판(빌드 45)부터 — 옛 백업에는 없으니 옵셔널.
     var choices: [ChoiceItem]?
+    /// 12판(빌드 62)부터 — 옛 백업에는 없으니 옵셔널.
+    var templates: [TemplateItem]?
+    var communityLabels: [CommunityLabelItem]?
 }
 
 enum Backup {
@@ -189,7 +218,21 @@ enum Backup {
             people: people.map { item(of: $0) },
             records: records.map { item(of: $0) },
             ties: ties.compactMap { item(of: $0) },
-            choices: choices.isEmpty ? nil : choices)
+            choices: choices.isEmpty ? nil : choices,
+            templates: {
+                let items = ((try? context.fetch(FetchDescriptor<RecordTemplate>())) ?? []).filter { !$0.isGone }.map {
+                    BackupFile.TemplateItem(uuid: $0.uuid, name: $0.name, recordType: $0.recordType, title: $0.title,
+                                            location: $0.location, tags: $0.tags, participantIDs: $0.participantIDs,
+                                            createdAt: $0.createdAt, updatedAt: $0.updatedAt)
+                }
+                return items.isEmpty ? nil : items
+            }(),
+            communityLabels: {
+                let items = ((try? context.fetch(FetchDescriptor<CommunityLabel>())) ?? []).filter { !$0.isGone }.map {
+                    BackupFile.CommunityLabelItem(uuid: $0.uuid, name: $0.name, memberIDs: $0.memberIDs, updatedAt: $0.updatedAt)
+                }
+                return items.isEmpty ? nil : items
+            }())
     }
 
     // MARK: - 값으로 옮기기 — 백업 · 삭제 실행취소(`DeletionUndo`)가 같은 길을 쓴다
@@ -251,7 +294,9 @@ enum Backup {
             location: r.location, note: r.note, tags: r.tags, participants: (r.participants ?? []).map(\.uuid),
             createdAt: r.createdAt, updatedAt: r.updatedAt, occurredPrecision: r.occurredPrecision,
             occurredMinute: r.occurredMinute,
-            photos: { let data = r.sortedPhotos.compactMap(\.data); return data.isEmpty ? nil : data }())
+            photos: { let data = r.sortedPhotos.compactMap(\.data); return data.isEmpty ? nil : data }(),
+            repeatRule: r.repeatRule == 0 ? nil : r.repeatRule, repeatAnchorDay: r.repeatAnchorDay,
+            repeatSeriesID: r.repeatSeriesID, repeatSpawned: r.repeatSpawned ? true : nil)
     }
 
     /// 기록 사진을 값에서 다시 붙인다 — 기록을 저장소에 넣은 **뒤에**. 많으면 앞의 `RecordPhotos.limit` 장만.
@@ -312,6 +357,10 @@ enum Backup {
         record.tags = item.tags
         record.createdAt = item.createdAt
         record.updatedAt = item.updatedAt
+        record.repeatRule = RepeatRule.of(item.repeatRule ?? 0).rawValue
+        record.repeatAnchorDay = item.repeatAnchorDay
+        record.repeatSeriesID = item.repeatSeriesID
+        record.repeatSpawned = item.repeatSpawned ?? false
     }
 
     static func summary(of file: BackupFile) -> Summary {
@@ -421,6 +470,26 @@ enum Backup {
             list.items = choice.items
             list.hidden = choice.hidden
             list.updatedAt = choice.updatedAt
+        }
+        // 기록 틀 · 고쳐 둔 모임 이름 (12판) — 같은 식별자가 이미 있으면 건너뛴다.
+        let haveTemplates = Set(((try? context.fetch(FetchDescriptor<RecordTemplate>())) ?? []).map(\.uuid))
+        for item in file.templates ?? [] where !haveTemplates.contains(item.uuid) && !item.name.isEmpty {
+            let template = RecordTemplate(name: item.name)
+            context.insert(template)
+            template.uuid = item.uuid
+            template.recordType = item.recordType
+            template.title = item.title
+            template.location = item.location
+            template.tags = item.tags
+            template.participantIDs = item.participantIDs
+            template.createdAt = item.createdAt
+            template.updatedAt = item.updatedAt
+        }
+        for item in file.communityLabels ?? [] where !item.name.isEmpty {
+            let label = CommunityLabel(name: item.name, memberIDs: item.memberIDs)
+            context.insert(label)
+            label.uuid = item.uuid
+            label.updatedAt = item.updatedAt
         }
         do {
             try context.save()

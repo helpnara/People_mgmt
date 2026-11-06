@@ -4,7 +4,7 @@ import SwiftData
 /// 스키마 **10판 — 얼려 둔다. 고치지 않는다** (빌드 59 ~ 60 · App Store 1.1.7 의 저장소가 이 모양이다).
 ///
 /// 9판에서 **기념일**(`SpecialDay`)과 사람의 **생일 알림 끄기** 칸(`muteBirthdayReminder`)을 더한 판이다. 11판으로 옮기는 원본이다 —
-/// 여기를 고치면 이미 깔린 기기의 저장소가 어느 판인지 알아보지 못해 열리지 않을 수 있다. 지금 쓰는 판은 `Schema.swift` 의 `SchemaV11`.
+/// 여기를 고치면 이미 깔린 기기의 저장소가 어느 판인지 알아보지 못해 열리지 않을 수 있다. 지금 쓰는 판은 `Schema.swift` 의 `SchemaV12`.
 ///
 /// **CloudKit 제약을 지킨다** (ADR-0001): 유니크 제약 없음 · 모든 속성 기본값 또는 옵셔널 · 모든 관계 옵셔널.
 enum SchemaV10: VersionedSchema {

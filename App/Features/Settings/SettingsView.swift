@@ -39,6 +39,8 @@ struct SettingsView: View {
     @AppStorage(ReminderSettings.followUpKey) private var remindFollowUp = false
     /// 약속 당일 (1.1.8 · 이슈 89 · FR-064).
     @AppStorage(ReminderSettings.plannedDayKey) private var remindPlannedDay = false
+    /// 달마다 돌아보기 (1.1.9 · 이슈 99 · FR-074).
+    @AppStorage(ReminderSettings.monthlyKey) private var remindMonthly = false
     /// 마지막으로 백업 파일을 저장한 때 (1.1.8 · 이슈 92 · FR-067) — 이 기기에만. 0 이면 아직 없음.
     @AppStorage(BackupReminder.lastSavedKey) private var lastBackupSaved: Double = 0
     @AppStorage(ReminderSettings.hourKey) private var remindHour = ReminderSettings.defaultHour
@@ -162,10 +164,16 @@ struct SettingsView: View {
                 } label: {
                     Label("상세 화면 칸", systemImage: "rectangle.stack")
                 }
+                // 기록 틀 (12판 · 이슈 95 · FR-070).
+                NavigationLink {
+                    TemplateManagerView()
+                } label: {
+                    Label("기록 틀", systemImage: "square.on.square")
+                }
             } header: {
                 Text("보기")
             } footer: {
-                Text("사람을 누르면 나오는 화면의 칸 차례를 바꾸고, 필요 없는 칸을 숨깁니다. 이 기기에만 적용됩니다.")
+                Text("상세 화면 칸은 사람을 누르면 나오는 화면의 칸 차례를 바꾸고 숨깁니다(이 기기에만). 기록 틀은 자주 쓰는 기록 모양의 이름을 바꾸거나 뺍니다.")
             }
 
             Section {
@@ -176,13 +184,15 @@ struct SettingsView: View {
                 Toggle("약속 당일", isOn: $remindPlannedDay)
                     .accessibilityIdentifier("plannedDayToggle")
                 Toggle("만난 뒤 결과 적기", isOn: $remindFollowUp)
-                if remindBirthdays || remindSpecialDays || remindAnniversaries || remindCadence || remindPlannedDay || remindFollowUp {
+                Toggle("달마다 돌아보기", isOn: $remindMonthly)
+                    .accessibilityIdentifier("monthlyToggle")
+                if anyReminderOn {
                     DatePicker("알림 시각", selection: reminderTime, displayedComponents: .hourAndMinute)
                 }
             } header: {
                 Text("알림")
             } footer: {
-                Text("기본은 모두 꺼져 있습니다. 생일은 생일을 적은 사람(사람 수정에서 그 사람만 끌 수 있습니다), 기념일은 사람 수정의 기념일 가운데 알림을 켠 것, n주년은 처음 만난 날을 적은 사람, 연락 주기는 사람 수정에서 주기를 고른 사람만 그날 알립니다. 약속 당일은 미리 적어 둔 약속의 그날 이 시각에(약속 시각이 이보다 이르면 한 시간 전에) 알립니다. 만난 뒤 결과 적기는 미리 적어 둔 예정의 다음 날, 아직 결과를 적지 않았으면 알립니다. 밀린 알림을 쌓지 않고 앱 아이콘에 숫자를 달지 않습니다. 알림은 이 기기 안에서만 만들어집니다.")
+                Text("기본은 모두 꺼져 있습니다. 생일은 생일을 적은 사람(사람 수정에서 그 사람만 끌 수 있습니다), 기념일은 사람 수정의 기념일 가운데 알림을 켠 것, n주년은 처음 만난 날을 적은 사람, 연락 주기는 사람 수정에서 주기를 고른 사람만 그날 알립니다. 약속 당일은 미리 적어 둔 약속의 그날 이 시각에(약속 시각이 이보다 이르면 한 시간 전에) 알립니다. 만난 뒤 결과 적기는 미리 적어 둔 예정의 다음 날, 아직 결과를 적지 않았으면 알립니다. 달마다 돌아보기는 매달 1일 이 시각에 지난달 남긴 기록 수와 함께한 사람 수를 알립니다. 밀린 알림을 쌓지 않고 앱 아이콘에 숫자를 달지 않습니다. 알림은 이 기기 안에서만 만들어집니다.")
             }
             .onChange(of: remindBirthdays) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindSpecialDays) { _, on in reminderChanged(turnedOn: on) }
@@ -190,6 +200,7 @@ struct SettingsView: View {
             .onChange(of: remindCadence) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindPlannedDay) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindFollowUp) { _, on in reminderChanged(turnedOn: on) }
+            .onChange(of: remindMonthly) { _, on in reminderChanged(turnedOn: on) }
             .onChange(of: remindHour) { _, _ in refreshReminders() }
             .onChange(of: remindMinute) { _, _ in refreshReminders() }
 
@@ -326,6 +337,10 @@ struct SettingsView: View {
         })
     }
 
+    private var anyReminderOn: Bool {
+        remindBirthdays || remindSpecialDays || remindAnniversaries || remindCadence || remindPlannedDay || remindFollowUp || remindMonthly
+    }
+
     /// 알림을 켜면 그때 한 번 허락을 묻는다. 거절돼 있으면 되돌리고 설정 앱으로 안내한다.
     private func reminderChanged(turnedOn: Bool) {
         guard turnedOn else {
@@ -342,6 +357,7 @@ struct SettingsView: View {
                 remindCadence = false
                 remindFollowUp = false
                 remindPlannedDay = false
+                remindMonthly = false
                 message = ("알림이 꺼져 있습니다", "기기의 설정 앱 → 알림 → 느린 인연에서 알림을 허용한 뒤 다시 켜 주세요.")
             }
         }

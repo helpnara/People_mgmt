@@ -383,6 +383,9 @@ jobs:
           # 이야기할 것 · 캘린더에 추가), 사람 상세의 기억할 것 · 다음에 이야기할 것(김하늘), 홈의 고정 · 다가오는 날(41 에도 보인다).
           shoot 48-briefing.png -seedSampleData -seedPlannedSample -openPerson 정유진 -openRecordTitle "커피 약속"
           shoot 49-talk-items.png -seedSampleData -openPerson 김하늘 -scrollToTalk
+          # **1.1.9 (빌드 62 · 스키마 12판)** — 반복 약속의 상세(김하늘의 저녁 산책 · 매주), 기록 추가 맨 위의 기록 틀 칩(점심 약속).
+          shoot 50-repeat-detail.png -seedSampleData -seedPlannedSample -openPerson 김하늘 -openRecordTitle "저녁 산책"
+          shoot 51-record-template.png -seedSampleData -seedPlannedSample -openPerson 김하늘 -addRecord
           shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
           # 함께한 사람 고르기의 검색 (이슈 49) — 검색 칸이 늘 보이고, 초성 ㅈㅇ 으로 거른 결과.
           shoot 39-participant-search.png -seedSampleData -openPerson 김하늘 -addRecord -pickParticipants -pickerSearch ㅈㅇ
