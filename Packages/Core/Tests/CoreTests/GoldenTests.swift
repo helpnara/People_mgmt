@@ -227,6 +227,9 @@ final class GoldenTests: XCTestCase {
         struct RepeatUpcoming: Decodable { let today: String; let expected: String? }
         struct RepeatCase: Decodable { let rule: Int; let date: String; let anchorDay: Int?; let next: String?; let describe: String; let upcoming: [RepeatUpcoming] }
         struct RepeatDueCase: Decodable { let day: Int; let updatedDay: Int; let today: Int; let expected: Bool }
+        struct DDayCase: Decodable { let day: Int; let today: Int; let expected: String }
+        struct LinkExpected: Decodable { let kind: String; let id: String; let person: String? }
+        struct LinkCase: Decodable { let url: String; let expected: LinkExpected? }
         struct FinderItem: Decodable { let id: String; let date: String; let location: String?; let title: String?; let note: String?; let tags: [String] }
         struct FinderRange: Decodable { let period: String; let from: Int; let to: Int; let today: Int }
         struct FinderQuery: Decodable { let period: String?; let place: String?; let query: String; let expected: [String] }
@@ -239,6 +242,8 @@ final class GoldenTests: XCTestCase {
         let dayReminderMinute: [DayReminderMinuteCase]
         let repeatRule: [RepeatCase]
         let repeatDue: [RepeatDueCase]
+        let widgetDDay: [DDayCase]
+        let appLink: [LinkCase]
         let recordFinder: [FinderCase]
         let placeCatalog: [PlaceCase]
         let savedCommunityName: [SavedNameCase]
@@ -542,6 +547,35 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(RepeatRule.isDue(day: c.day, updatedDay: c.updatedDay, today: c.today), c.expected,
                            "다음 회차 만들 때 — 날 \(c.day) · 고친 날 \(c.updatedDay) · 오늘 \(c.today)")
         }
+    }
+
+    /// 위젯의 D-day 글씨 · 위젯 → 앱 URL (1.1.9 · FR-075).
+    func testWidgetDDayAndAppLink() throws {
+        let golden = try Self.loadGolden()
+        for c in golden.widgetDDay {
+            XCTAssertEqual(WidgetSummary.dDay(day: c.day, today: c.today), c.expected, "D-day — 날 \(c.day) · 오늘 \(c.today)")
+        }
+        for c in golden.appLink {
+            let url = try XCTUnwrap(URL(string: c.url))
+            let parsed = AppLink.parse(url)
+            switch (parsed, c.expected) {
+            case (nil, nil):
+                break
+            case (.person(let id)?, let e?):
+                XCTAssertEqual(e.kind, "person", c.url)
+                XCTAssertEqual(id.uuidString, e.id, c.url)
+            case (.record(let id, let person)?, let e?):
+                XCTAssertEqual(e.kind, "record", c.url)
+                XCTAssertEqual(id.uuidString, e.id, c.url)
+                XCTAssertEqual(person.uuidString, e.person, c.url)
+            default:
+                XCTFail("URL 풀기가 정답표와 다르다 — \(c.url): \(String(describing: parsed)) vs \(String(describing: c.expected))")
+            }
+        }
+        // 만든 URL 이 다시 풀린다.
+        let person = UUID(), record = UUID()
+        XCTAssertEqual(AppLink.parse(try XCTUnwrap(AppLink.person(person))), .person(person))
+        XCTAssertEqual(AppLink.parse(try XCTUnwrap(AppLink.record(record, person: person))), .record(record, person: person))
     }
 
     /// 기간 · 장소로 찾기 (1.1.9 · FR-072).

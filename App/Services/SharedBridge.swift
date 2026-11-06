@@ -1,6 +1,7 @@
 import Core
 import Foundation
 import SwiftData
+import UIKit
 import WidgetKit
 
 /// App Group 그릇 (1.1.9 · 빌드 63 · D-79) — 위젯 요약 · 공유 초안이 사는 곳. 저장소는 여기로 옮기지 않는다.
@@ -55,21 +56,37 @@ enum WidgetBridge {
             return CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1).dayNumber
         }
         let showsNames = mode == .names
-        let meetings = mode == .countsOnly ? [] : records.prefix(WidgetSummary.itemLimit).map { record -> WidgetSummary.Item in
-            let others = NameSort.sorted((record.participants ?? []).filter { !$0.isGone && !$0.isMe },
-                                         name: \.name, createdAt: \.createdAt).map(\.name)
+        // 얼굴 (1.1.9 · 위젯 다듬기 · 2026-11-06 사용자) — 사람 사진을 작게, 없으면 첫 글자. 이름을 숨기면 넣지 않는다.
+        // 맨 앞 두 줄만 사진을 싣는다 — 위젯이 그리는 것은 그만큼이고 파일을 가볍게.
+        func avatar(_ person: Person, withPhoto: Bool) -> WidgetSummary.Avatar {
+            var photo: Data?
+            if withPhoto, let data = person.photo,
+               let image = CardImaging.thumbnail(data, maxPixel: CGFloat(WidgetSummary.avatarPixel)) {
+                photo = UIImage(cgImage: image).jpegData(compressionQuality: 0.8)
+            }
+            return WidgetSummary.Avatar(initial: String(person.name.prefix(1)), photo: photo)
+        }
+        let meetings = mode == .countsOnly ? [] : records.prefix(WidgetSummary.itemLimit).enumerated().map { index, record -> WidgetSummary.Item in
+            let people = NameSort.sorted((record.participants ?? []).filter { !$0.isGone && !$0.isMe },
+                                         name: \.name, createdAt: \.createdAt)
+            let others = people.map(\.name)
             let names = others.count > 2 ? "\(others.prefix(2).joined(separator: ", ")) 외 \(others.count - 2)명"
                                           : others.joined(separator: ", ")
+            let faces = showsNames ? people.prefix(WidgetSummary.avatarLimit).map { avatar($0, withPhoto: index < 2) } : []
             return WidgetSummary.Item(kind: .meeting, day: civilDay(record.occurredAt), minute: record.occurredMinute,
                                       title: showsNames ? record.displayTitle : nil,
-                                      names: showsNames && !names.isEmpty ? names : nil)
+                                      names: showsNames && !names.isEmpty ? names : nil,
+                                      avatars: Array(faces), moreCount: max(people.count - faces.count, 0),
+                                      personID: people.first?.uuid, recordID: record.uuid)
         }
         let today = UpcomingDays.today(calendar: calendar, now: now)
         let upcoming = UpcomingDays.all(in: context, today: today, within: WidgetSummary.dayWindow - 1)
-        let days = mode == .countsOnly ? [] : upcoming.prefix(WidgetSummary.itemLimit).map { day -> WidgetSummary.Item in
+        let days = mode == .countsOnly ? [] : upcoming.prefix(WidgetSummary.itemLimit).enumerated().map { index, day -> WidgetSummary.Item in
             WidgetSummary.Item(kind: day.kind == .birthday ? .birthday : .special, day: day.date.dayNumber, minute: nil,
                                title: showsNames ? day.title : nil,
-                               names: showsNames ? day.person.name : nil)
+                               names: showsNames ? day.person.name : nil,
+                               avatars: showsNames ? [avatar(day.person, withPhoto: index < 2)] : [],
+                               personID: day.person.uuid)
         }
         return WidgetSummary(mode: mode, madeAt: now, meetings: Array(meetings), meetingCount: records.count,
                              days: Array(days), dayCount: upcoming.count)

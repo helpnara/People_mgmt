@@ -5123,6 +5123,20 @@
     {"day": 1000, "updatedDay": 990, "today": 1001},
     {"day": 1000, "updatedDay": 1003, "today": 999}
   ],
+  "widgetDDay": [
+    {"day": 1000, "today": 1000},
+    {"day": 1001, "today": 1000},
+    {"day": 1012, "today": 1000},
+    {"day": 999, "today": 1000}
+  ],
+  "appLink": [
+    "slowconnection://person/6BA7B810-9DAD-11D1-80B4-00C04FD430C8",
+    "slowconnection://record/6BA7B811-9DAD-11D1-80B4-00C04FD430C8?person=6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+    "slowconnection://record/6BA7B811-9DAD-11D1-80B4-00C04FD430C8",
+    "slowconnection://person/not-a-uuid",
+    "slowconnection://settings",
+    "https://example.com/person/6BA7B810-9DAD-11D1-80B4-00C04FD430C8"
+  ],
   "recordFinder": [
     {"name": "기간 · 장소 · 글자 — 오늘 포함 · 앞날짜는 올해에만 · 장소는 대소문자 무시 · 낱말은 모두", "today": "2026-11-06", "items": [
       {"id": "r1", "date": "2026-11-06", "location": "강남역 카페", "title": "커피 약속", "note": "온보딩 피드백", "tags": ["업무"]},

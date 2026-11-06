@@ -312,6 +312,39 @@
       ]
     }
   ],
+  "appLink": [
+    {
+      "expected": {
+        "id": "6BA7B810-9DAD-11D1-80B4-00C04FD430C8",
+        "kind": "person"
+      },
+      "url": "slowconnection://person/6BA7B810-9DAD-11D1-80B4-00C04FD430C8"
+    },
+    {
+      "expected": {
+        "id": "6BA7B811-9DAD-11D1-80B4-00C04FD430C8",
+        "kind": "record",
+        "person": "6BA7B810-9DAD-11D1-80B4-00C04FD430C8"
+      },
+      "url": "slowconnection://record/6BA7B811-9DAD-11D1-80B4-00C04FD430C8?person=6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+    },
+    {
+      "expected": null,
+      "url": "slowconnection://record/6BA7B811-9DAD-11D1-80B4-00C04FD430C8"
+    },
+    {
+      "expected": null,
+      "url": "slowconnection://person/not-a-uuid"
+    },
+    {
+      "expected": null,
+      "url": "slowconnection://settings"
+    },
+    {
+      "expected": null,
+      "url": "https://example.com/person/6BA7B810-9DAD-11D1-80B4-00C04FD430C8"
+    }
+  ],
   "approxDate": [
     {
       "expectedEpoch": 1614859200.0,
@@ -16010,6 +16043,28 @@
       ],
       "name": "기념일 (1.1.8) — 기기 연락처의 itemN.X-ABDATE · X-ABLabel, 기본 이름표는 기념일, 4.0 ANNIVERSARY, 없는 날은 버림",
       "text": "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:김하늘\r\nitem1.X-ABDATE;type=pref:2018-10-12\r\nitem1.X-ABLabel:결혼기념일\r\nitem2.X-ABDATE;X-APPLE-OMIT-YEAR=1604:1604-03-02\r\nitem2.X-ABLabel:_$!<Anniversary>!$_\r\nitem3.X-ABDATE:2019-02-30\r\nitem3.X-ABLabel:없는 날\r\nitem4.X-ABDATE:--07-15\r\nEND:VCARD\r\nBEGIN:VCARD\r\nVERSION:4.0\r\nFN:정유진\r\nANNIVERSARY:20200915\r\nEND:VCARD\r\n"
+    }
+  ],
+  "widgetDDay": [
+    {
+      "day": 1000,
+      "expected": "D-DAY",
+      "today": 1000
+    },
+    {
+      "day": 1001,
+      "expected": "D-1",
+      "today": 1000
+    },
+    {
+      "day": 1012,
+      "expected": "D-12",
+      "today": 1000
+    },
+    {
+      "day": 999,
+      "expected": "D+1",
+      "today": 1000
     }
   ],
   "yearInReview": [

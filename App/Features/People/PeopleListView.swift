@@ -266,7 +266,10 @@ struct PeopleListView: View {
                 pendingChange = false
                 dataVersion += 1
             }
+            // 잠긴 채 받은 위젯 URL 은 풀린 뒤에 연다 (FR-075).
+            handleShortcut()
         }
+        .onChange(of: fetched.count) { _, _ in handleShortcut() }
         .alert("나는 한 사람만 둡니다", isPresented: Binding(get: { !demotedMe.isEmpty }, set: { if !$0 { demotedMe = [] } })) {
             Button("확인", role: .cancel) {
                 UserDefaults.standard.removeObject(forKey: PersonStore.demotedMeKey)
@@ -430,8 +433,23 @@ struct PeopleListView: View {
     /// 단축어가 남긴 요청을 한 번 처리한다 (빌드 16). 앱이 꺼져 있었으면 목록이 뜬 뒤에, 켜져 있었으면 바로.
     private func handleShortcut() {
         guard let request = shortcuts.pending else { return }
+        // 잠겨 있거나 아직 자료를 못 읽었으면 두었다가 — 풀리면 `onChange(scenePhase)` · 자료를 읽으면 다시 온다.
+        if case .open = request, !StoreAccess.isReadable(scenePhase) || fetched.isEmpty { return }
         shortcuts.pending = nil
         switch request {
+        case .open(let target):
+            // 위젯에서 (1.1.9 · FR-075) — 그 사람 · 그 기록. 지운 사람이면 아무것도 열지 않는다.
+            let personID: UUID
+            var recordID: UUID?
+            switch target {
+            case .person(let id): personID = id
+            case .record(let id, let person):
+                personID = person
+                recordID = id
+            }
+            guard let person = fetched.first(where: { $0.uuid == personID && !$0.isGone }) else { return }
+            path = NavigationPath()
+            open(person, recordID: recordID)
         case .addPerson:
             scanOnAdd = false
             showingAdd = true
