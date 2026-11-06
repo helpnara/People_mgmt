@@ -34,9 +34,16 @@ final class NavigationUITests: XCTestCase {
     }
 
     /// 찾은 단추를 누를 수 있을 때까지 조금씩 올린다.
+    /// 목록(List)은 화면 아래 줄을 **미리 만들지 않는다** — 첫 화면 밖의 줄은 올려야 비로소 생긴다(CI 151 · 아이폰에서
+    /// 사람 상세 맨 위 칸 · 이야기할 것 칸이 길어져 타임라인 · 소개한 인연 줄이 첫 화면 밖으로 밀렸다). 그래서 없으면 먼저 올려 본다.
     @MainActor
     private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication, _ what: String) {
-        XCTAssertTrue(element.waitForExistence(timeout: 15), "\(what) 이(가) 보이지 않는다\n\(screen(app))")
+        var scrolls = 0
+        while !element.waitForExistence(timeout: scrolls == 0 ? 10 : 2) && scrolls < 6 {
+            app.swipeUp()
+            scrolls += 1
+        }
+        XCTAssertTrue(element.exists, "\(what) 이(가) 보이지 않는다 (\(scrolls)번 올림)\n\(screen(app))")
         var tries = 0
         while !element.isHittable && tries < 6 {
             app.swipeUp()
