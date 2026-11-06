@@ -272,6 +272,39 @@ def repeat_is_due(day, updated_day, today):
     return day < today or (day <= today and updated_day >= day)
 
 
+def widget_dday(day, today):
+    """위젯의 큰 글씨 (1.1.9 · FR-075) — D-DAY · D-n · 지난 날은 D+n."""
+    left = day - today
+    if left == 0:
+        return "D-DAY"
+    return "D-%d" % left if left > 0 else "D+%d" % (-left)
+
+
+def app_link_parse(url):
+    """위젯 → 앱 URL (FR-075) — slowconnection://person/<uuid> · slowconnection://record/<uuid>?person=<uuid>."""
+    import urllib.parse as _u
+    import uuid as _uuid
+    try:
+        parts = _u.urlsplit(url)
+    except ValueError:
+        return None
+    if parts.scheme != "slowconnection":
+        return None
+    path = [p for p in parts.path.split("/") if p]
+    def _uuid_of(text):
+        try:
+            return str(_uuid.UUID(text)).upper() if text else None
+        except (ValueError, AttributeError):
+            return None
+    ident = _uuid_of(path[0]) if path else None
+    if parts.netloc == "person":
+        return {"kind": "person", "id": ident} if ident else None
+    if parts.netloc == "record":
+        person = _uuid_of(dict(_u.parse_qsl(parts.query)).get("person"))
+        return {"kind": "record", "id": ident, "person": person} if ident and person else None
+    return None
+
+
 def repeat_next_upcoming(rule, date_str, today_str, anchor=None):
     nxt = repeat_next(rule, date_str, anchor)
     if nxt is None:
@@ -2266,6 +2299,8 @@ def build() -> dict:
                           "upcoming": [{"today": t, "expected": repeat_next_upcoming(c["rule"], c["date"], t, c.get("anchorDay"))}
                                        for t in c.get("todays", [])]} for c in cases["repeatRule"]]
     out["repeatDue"] = [dict(c, expected=repeat_is_due(c["day"], c["updatedDay"], c["today"])) for c in cases["repeatDue"]]
+    out["widgetDDay"] = [dict(c, expected=widget_dday(c["day"], c["today"])) for c in cases["widgetDDay"]]
+    out["appLink"] = [{"url": u, "expected": app_link_parse(u)} for u in cases["appLink"]]
     out["recordFinder"] = [{"name": c["name"], "today": c["today"], "items": c["items"],
                             "ranges": [{"period": p, "from": record_range(p, c["today"])[0], "to": record_range(p, c["today"])[1],
                                         "today": _day_number(_dt.date.fromisoformat(c["today"]))}

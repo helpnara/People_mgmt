@@ -25,6 +25,17 @@ public struct WidgetSummary: Codable, Sendable, Equatable {
         case countsOnly
     }
 
+    /// 함께할 사람의 얼굴 — 사람 사진을 작게 줄인 JPEG, 없으면 이름 첫 글자. 이름을 숨기면 넣지 않는다.
+    public struct Avatar: Codable, Sendable, Equatable {
+        public let initial: String
+        public let photo: Data?
+
+        public init(initial: String, photo: Data?) {
+            self.initial = initial
+            self.photo = photo
+        }
+    }
+
     public struct Item: Codable, Sendable, Equatable {
         public enum Kind: String, Codable, Sendable {
             case meeting
@@ -40,13 +51,25 @@ public struct WidgetSummary: Codable, Sendable, Equatable {
         public let title: String?
         /// 함께할 사람 · 그날의 사람. 이름을 숨기면 nil.
         public let names: String?
+        /// 얼굴 — 셋까지. 이름을 숨기면 비어 있다.
+        public var avatars: [Avatar] = []
+        /// 그 밖의 사람 수(얼굴에 못 담은 수).
+        public var moreCount: Int = 0
+        /// 누르면 열 사람 · 기록 (위젯 → 앱 URL). 건수만이면 nil.
+        public var personID: UUID?
+        public var recordID: UUID?
 
-        public init(kind: Kind, day: Int, minute: Int?, title: String?, names: String?) {
+        public init(kind: Kind, day: Int, minute: Int?, title: String?, names: String?,
+                    avatars: [Avatar] = [], moreCount: Int = 0, personID: UUID? = nil, recordID: UUID? = nil) {
             self.kind = kind
             self.day = day
             self.minute = minute
             self.title = title
             self.names = names
+            self.avatars = avatars
+            self.moreCount = moreCount
+            self.personID = personID
+            self.recordID = recordID
         }
     }
 
@@ -73,6 +96,51 @@ public struct WidgetSummary: Codable, Sendable, Equatable {
     public static let dayWindow = 7
     /// 파일에 담는 줄 수 — 가장 큰 위젯이 그리는 만큼.
     public static let itemLimit = 6
+    /// 얼굴 수 · 얼굴 그림의 긴 변(px).
+    public static let avatarLimit = 3
+    public static let avatarPixel = 96
+
+    /// `D-DAY` · `D-1` · `D-12` — 위젯의 큰 글씨. 지난 날은 `D+n`.
+    public static func dDay(day: Int, today: Int) -> String {
+        let left = day - today
+        if left == 0 { return "D-DAY" }
+        return left > 0 ? "D-\(left)" : "D+\(-left)"
+    }
+}
+
+/// 위젯 → 앱 (FR-075) — `slowconnection://person/<uuid>` · `slowconnection://record/<uuid>?person=<uuid>`.
+public enum AppLink {
+    public static let scheme = "slowconnection"
+
+    public static func person(_ id: UUID) -> URL? {
+        URL(string: "\(scheme)://person/\(id.uuidString)")
+    }
+
+    public static func record(_ id: UUID, person: UUID) -> URL? {
+        URL(string: "\(scheme)://record/\(id.uuidString)?person=\(person.uuidString)")
+    }
+
+    public enum Target: Equatable, Sendable {
+        case person(UUID)
+        case record(UUID, person: UUID)
+    }
+
+    /// 앱이 받은 URL 을 푼다. 모르는 꼴이면 nil.
+    public static func parse(_ url: URL) -> Target? {
+        guard url.scheme == scheme, let host = url.host else { return nil }
+        let id = url.pathComponents.dropFirst().first.flatMap(UUID.init(uuidString:))
+        switch host {
+        case "person":
+            return id.map { .person($0) }
+        case "record":
+            guard let id,
+                  let person = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+                      .first(where: { $0.name == "person" })?.value.flatMap(UUID.init(uuidString:)) else { return nil }
+            return .record(id, person: person)
+        default:
+            return nil
+        }
+    }
 }
 
 /// 공유 시트가 남긴 초안 (FR-076) — 다른 앱의 글 · 주소 · 사진. 앱이 열리면 누구와의 기록인지 골라 기록 추가로 잇는다.
