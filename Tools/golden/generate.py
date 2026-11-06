@@ -224,6 +224,131 @@ def day_reminder_minute(meeting, preferred, lead=DAY_REMINDER_LEAD):
 import calendar as _calendar
 import datetime as _dt
 
+
+# ── 반복 약속 · 기간 · 장소로 찾기 · 자주 쓴 장소 · 고쳐 둔 모임 이름 (1.1.9 · D-79) ──────────────────────
+
+REPEAT_WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
+REPEAT_ORDINALS = ["첫째", "둘째", "셋째", "넷째"]
+_EPOCH = None
+
+
+def _day_number(d):
+    return (d - _dt.date(1970, 1, 1)).days
+
+
+def _weekday(d):
+    return (d.weekday() + 1) % 7   # 0 일요일
+
+
+def _next_month(d):
+    idx = d.year * 12 + (d.month - 1) + 1
+    return idx // 12, idx % 12 + 1
+
+
+def repeat_next(rule, date_str, anchor=None):
+    d = _dt.date.fromisoformat(date_str)
+    if rule == 0:
+        return None
+    if rule == 1:
+        return (d + _dt.timedelta(days=7)).isoformat()
+    if rule == 2:
+        return (d + _dt.timedelta(days=14)).isoformat()
+    y, m = _next_month(d)
+    if rule == 3:
+        return _dt.date(y, m, min(anchor or d.day, _days_in(m, y))).isoformat()
+    wd = _weekday(d)
+    first = _dt.date(y, m, 1)
+    first_match = 1 + (wd - _weekday(first) + 7) % 7
+    n = (d.day - 1) // 7 + 1
+    if n >= 5:
+        day = first_match
+        while day + 7 <= _days_in(m, y):
+            day += 7
+        return _dt.date(y, m, day).isoformat()
+    return _dt.date(y, m, first_match + (n - 1) * 7).isoformat()
+
+
+def repeat_describe(rule, date_str, anchor=None):
+    d = _dt.date.fromisoformat(date_str)
+    weekday = REPEAT_WEEKDAYS[_weekday(d)] + "요일"
+    if rule == 0:
+        return "반복 안 함"
+    if rule == 1:
+        return "매주 " + weekday
+    if rule == 2:
+        return "2주마다 " + weekday
+    if rule == 3:
+        return f"매달 {anchor or d.day}일"
+    n = (d.day - 1) // 7 + 1
+    return "매달 " + ("마지막" if n >= 5 else REPEAT_ORDINALS[n - 1]) + " " + weekday
+
+
+def record_range(period, today_str):
+    t = _dt.date.fromisoformat(today_str)
+    n = _day_number(t)
+    if period == "week":
+        return n - 6, n
+    if period == "month":
+        return n - 29, n
+    if period == "thisYear":
+        return _day_number(_dt.date(t.year, 1, 1)), _day_number(_dt.date(t.year, 12, 31))
+    return _day_number(_dt.date(t.year - 1, 1, 1)), _day_number(_dt.date(t.year - 1, 12, 31))
+
+
+def record_matches(item, rng, place, query):
+    day = _day_number(_dt.date.fromisoformat(item["date"]))
+    if rng is not None and not (rng[0] <= day <= rng[1]):
+        return False
+    wanted = folded(collapsed_spaces(normalized(place or "")))
+    if wanted:
+        loc = item.get("location")
+        if loc is None or wanted not in folded(collapsed_spaces(loc)):
+            return False
+    words = [folded(w) for w in collapsed_spaces(normalized(query)).split()]
+    if not words:
+        return True
+    hay = folded("\n".join([v for v in (item.get("title"), item.get("note"), item.get("location")) if v is not None] + item.get("tags", [])))
+    return all(w in hay for w in words)
+
+
+def place_catalog(locations, limit=6):
+    order, counts, shown = [], {}, {}
+    for raw in locations:
+        clean = collapsed_spaces(normalized(raw or ""))
+        if not clean:
+            continue
+        key = folded(clean)
+        if key not in counts:
+            order.append(key)
+            shown[key] = clean
+            counts[key] = 0
+        counts[key] += 1
+    first = {k: i for i, k in enumerate(order)}
+    ranked = sorted(order, key=lambda k: (-counts[k], first[k]))
+    return [shown[k] for k in ranked[:limit]]
+
+
+def saved_community_name(members, labels):
+    mine = set(members)
+    if not mine:
+        return None
+    best = None
+    for label in labels:
+        name = collapsed_spaces(normalized(label["name"]))
+        if not name:
+            continue
+        theirs = set(label["members"])
+        union = len(mine | theirs)
+        if union == 0:
+            continue
+        score = len(mine & theirs) / union
+        if score <= 0.5:
+            continue
+        if best is None or score > best[1]:
+            best = (name, score)
+    return best[0] if best else None
+
+
 REMINDER_LIMIT = 60
 REMINDER_HORIZON = 366
 REMINDER_ORDER = {"birthday": 0, "specialDay": 1, "anniversary": 2, "cadence": 3}
@@ -2119,6 +2244,23 @@ def build() -> dict:
                        "expected": louvain(c["nodeCount"], c["links"], c.get("resolution", 1.0))} for c in cases["louvain"]]
     out["splitConnected"] = [{"name": c["name"], "nodeCount": c["nodeCount"], "links": c["links"], "communities": c["communities"],
                               "expected": split_connected(c["communities"], c["nodeCount"], c["links"])} for c in cases["splitConnected"]]
+    out["repeatRule"] = [{"rule": c["rule"], "date": c["date"], "anchorDay": c.get("anchorDay"),
+                          "next": repeat_next(c["rule"], c["date"], c.get("anchorDay")),
+                          "describe": repeat_describe(c["rule"], c["date"], c.get("anchorDay"))} for c in cases["repeatRule"]]
+    out["recordFinder"] = [{"name": c["name"], "today": c["today"], "items": c["items"],
+                            "ranges": [{"period": p, "from": record_range(p, c["today"])[0], "to": record_range(p, c["today"])[1],
+                                        "today": _day_number(_dt.date.fromisoformat(c["today"]))}
+                                       for p in ("week", "month", "thisYear", "lastYear")],
+                            "queries": [{"period": q.get("period"), "place": q.get("place"), "query": q.get("query", ""),
+                                         "expected": [it["id"] for it in c["items"]
+                                                      if record_matches(it, record_range(q["period"], c["today"]) if q.get("period") else None,
+                                                                        q.get("place"), q.get("query", ""))]}
+                                        for q in c["queries"]]}
+                           for c in cases["recordFinder"]]
+    out["placeCatalog"] = [{"name": c["name"], "locations": c["locations"], "limit": c.get("limit", 6),
+                            "expected": place_catalog(c["locations"], c.get("limit", 6))} for c in cases["placeCatalog"]]
+    out["savedCommunityName"] = [{"name": c["name"], "members": c["members"], "labels": c["labels"],
+                                  "expected": saved_community_name(c["members"], c["labels"])} for c in cases["savedCommunityName"]]
     out["communityName"] = [{"name": c["name"], "members": c["members"], "expected": community_name(c["members"])}
                             for c in cases["communityName"]]
     out["temporal"] = []

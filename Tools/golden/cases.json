@@ -5100,6 +5100,58 @@
     {"meeting": 1380, "preferred": 1320},
     {"meeting": 1439, "preferred": 0}
   ],
+  "repeatRule": [
+    {"rule": 0, "date": "2026-11-06"},
+    {"rule": 1, "date": "2026-11-06"},
+    {"rule": 1, "date": "2026-12-29"},
+    {"rule": 2, "date": "2026-12-25"},
+    {"rule": 3, "date": "2026-01-31"},
+    {"rule": 3, "date": "2026-02-28", "anchorDay": 31},
+    {"rule": 3, "date": "2028-01-30"},
+    {"rule": 3, "date": "2026-12-15"},
+    {"rule": 4, "date": "2026-11-10"},
+    {"rule": 4, "date": "2026-11-01"},
+    {"rule": 4, "date": "2026-11-26"},
+    {"rule": 4, "date": "2026-10-30"},
+    {"rule": 4, "date": "2026-12-31"},
+    {"rule": 4, "date": "2028-01-29"}
+  ],
+  "recordFinder": [
+    {"name": "기간 · 장소 · 글자 — 오늘 포함 · 앞날짜는 올해에만 · 장소는 대소문자 무시 · 낱말은 모두", "today": "2026-11-06", "items": [
+      {"id": "r1", "date": "2026-11-06", "location": "강남역 카페", "title": "커피 약속", "note": "온보딩 피드백", "tags": ["업무"]},
+      {"id": "r2", "date": "2026-10-31", "location": "강남  역", "title": "점심", "note": null, "tags": []},
+      {"id": "r3", "date": "2026-10-30", "location": "판교 본사", "title": "분기 회의", "note": "로드맵 우선순위", "tags": ["업무", "회의록"]},
+      {"id": "r4", "date": "2026-10-08", "location": "Seoul Forest", "title": "산책", "note": null, "tags": []},
+      {"id": "r5", "date": "2026-01-01", "location": null, "title": "새해 인사", "note": "전화", "tags": []},
+      {"id": "r6", "date": "2025-12-31", "location": "판교 본사", "title": "송년회", "note": null, "tags": ["회식"]},
+      {"id": "r7", "date": "2026-11-20", "location": "강남역 카페", "title": "다음 약속", "note": null, "tags": []}
+    ], "queries": [
+      {"period": "week"},
+      {"period": "month"},
+      {"period": "thisYear"},
+      {"period": "lastYear"},
+      {"place": "강남역"},
+      {"place": "seoul"},
+      {"period": "month", "place": "판교"},
+      {"query": "업무 회의"},
+      {"query": "  "},
+      {"period": "thisYear", "query": "약속"},
+      {"place": "없는 곳"}
+    ]}
+  ],
+  "placeCatalog": [
+    {"name": "많이 쓴 차례 · 같으면 먼저 나온 차례 · 빈칸 정리 · 대소문자 무시 · 빈 것 버림", "locations": ["강남역 카페", "판교 본사", "강남역  카페", null, "", "Seoul Forest", "seoul forest", "판교 본사", "강남역 카페", "성수동"]},
+    {"name": "여섯까지만", "locations": ["가", "나", "다", "라", "마", "바", "사", "가"]},
+    {"name": "한도를 바꾸면 그만큼", "limit": 2, "locations": ["가", "나", "다", "다"]},
+    {"name": "비어 있음", "locations": []}
+  ],
+  "savedCommunityName": [
+    {"name": "절반 넘게 겹치면 그 이름", "members": ["a", "b", "c", "d"], "labels": [{"name": "독서모임", "members": ["a", "b", "c"]}]},
+    {"name": "딱 절반이면 쓰지 않는다", "members": ["a", "b", "c", "d"], "labels": [{"name": "등산", "members": ["a", "b", "x", "y"]}]},
+    {"name": "가장 많이 겹치는 것 · 같으면 먼저 받은 것", "members": ["a", "b", "c", "d"], "labels": [{"name": "옛 이름", "members": ["a", "b", "c"]}, {"name": "새 이름", "members": ["a", "b", "c", "d", "e"]}, {"name": "같은 점수 뒤", "members": ["a", "b", "c"]}]},
+    {"name": "빈 이름은 건너뛴다", "members": ["a", "b"], "labels": [{"name": "  ", "members": ["a", "b"]}, {"name": " 회사  동기 ", "members": ["a", "b"]}]},
+    {"name": "사람이 없으면 없다", "members": [], "labels": [{"name": "아무거나", "members": []}]}
+  ],
   "timeOfDay": [0, 5, 59, 540, 545, 719, 720, 721, 870, 1439, 1500, -3],
   "milestones": [
     {

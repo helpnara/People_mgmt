@@ -5813,6 +5813,72 @@
       }
     }
   ],
+  "placeCatalog": [
+    {
+      "expected": [
+        "강남역 카페",
+        "판교 본사",
+        "Seoul Forest",
+        "성수동"
+      ],
+      "limit": 6,
+      "locations": [
+        "강남역 카페",
+        "판교 본사",
+        "강남역  카페",
+        null,
+        "",
+        "Seoul Forest",
+        "seoul forest",
+        "판교 본사",
+        "강남역 카페",
+        "성수동"
+      ],
+      "name": "많이 쓴 차례 · 같으면 먼저 나온 차례 · 빈칸 정리 · 대소문자 무시 · 빈 것 버림"
+    },
+    {
+      "expected": [
+        "가",
+        "나",
+        "다",
+        "라",
+        "마",
+        "바"
+      ],
+      "limit": 6,
+      "locations": [
+        "가",
+        "나",
+        "다",
+        "라",
+        "마",
+        "바",
+        "사",
+        "가"
+      ],
+      "name": "여섯까지만"
+    },
+    {
+      "expected": [
+        "다",
+        "가"
+      ],
+      "limit": 2,
+      "locations": [
+        "가",
+        "나",
+        "다",
+        "다"
+      ],
+      "name": "한도를 바꾸면 그만큼"
+    },
+    {
+      "expected": [],
+      "limit": 6,
+      "locations": [],
+      "name": "비어 있음"
+    }
+  ],
   "plannedMeetings": [
     {
       "dayReminders": [
@@ -6777,6 +6843,208 @@
       ]
     }
   ],
+  "recordFinder": [
+    {
+      "items": [
+        {
+          "date": "2026-11-06",
+          "id": "r1",
+          "location": "강남역 카페",
+          "note": "온보딩 피드백",
+          "tags": [
+            "업무"
+          ],
+          "title": "커피 약속"
+        },
+        {
+          "date": "2026-10-31",
+          "id": "r2",
+          "location": "강남  역",
+          "note": null,
+          "tags": [],
+          "title": "점심"
+        },
+        {
+          "date": "2026-10-30",
+          "id": "r3",
+          "location": "판교 본사",
+          "note": "로드맵 우선순위",
+          "tags": [
+            "업무",
+            "회의록"
+          ],
+          "title": "분기 회의"
+        },
+        {
+          "date": "2026-10-08",
+          "id": "r4",
+          "location": "Seoul Forest",
+          "note": null,
+          "tags": [],
+          "title": "산책"
+        },
+        {
+          "date": "2026-01-01",
+          "id": "r5",
+          "location": null,
+          "note": "전화",
+          "tags": [],
+          "title": "새해 인사"
+        },
+        {
+          "date": "2025-12-31",
+          "id": "r6",
+          "location": "판교 본사",
+          "note": null,
+          "tags": [
+            "회식"
+          ],
+          "title": "송년회"
+        },
+        {
+          "date": "2026-11-20",
+          "id": "r7",
+          "location": "강남역 카페",
+          "note": null,
+          "tags": [],
+          "title": "다음 약속"
+        }
+      ],
+      "name": "기간 · 장소 · 글자 — 오늘 포함 · 앞날짜는 올해에만 · 장소는 대소문자 무시 · 낱말은 모두",
+      "queries": [
+        {
+          "expected": [
+            "r1",
+            "r2"
+          ],
+          "period": "week",
+          "place": null,
+          "query": ""
+        },
+        {
+          "expected": [
+            "r1",
+            "r2",
+            "r3",
+            "r4"
+          ],
+          "period": "month",
+          "place": null,
+          "query": ""
+        },
+        {
+          "expected": [
+            "r1",
+            "r2",
+            "r3",
+            "r4",
+            "r5",
+            "r7"
+          ],
+          "period": "thisYear",
+          "place": null,
+          "query": ""
+        },
+        {
+          "expected": [
+            "r6"
+          ],
+          "period": "lastYear",
+          "place": null,
+          "query": ""
+        },
+        {
+          "expected": [
+            "r1",
+            "r7"
+          ],
+          "period": null,
+          "place": "강남역",
+          "query": ""
+        },
+        {
+          "expected": [
+            "r4"
+          ],
+          "period": null,
+          "place": "seoul",
+          "query": ""
+        },
+        {
+          "expected": [
+            "r3"
+          ],
+          "period": "month",
+          "place": "판교",
+          "query": ""
+        },
+        {
+          "expected": [
+            "r3"
+          ],
+          "period": null,
+          "place": null,
+          "query": "업무 회의"
+        },
+        {
+          "expected": [
+            "r1",
+            "r2",
+            "r3",
+            "r4",
+            "r5",
+            "r6",
+            "r7"
+          ],
+          "period": null,
+          "place": null,
+          "query": "  "
+        },
+        {
+          "expected": [
+            "r1",
+            "r7"
+          ],
+          "period": "thisYear",
+          "place": null,
+          "query": "약속"
+        },
+        {
+          "expected": [],
+          "period": null,
+          "place": "없는 곳",
+          "query": ""
+        }
+      ],
+      "ranges": [
+        {
+          "from": 20757,
+          "period": "week",
+          "to": 20763,
+          "today": 20763
+        },
+        {
+          "from": 20734,
+          "period": "month",
+          "to": 20763,
+          "today": 20763
+        },
+        {
+          "from": 20454,
+          "period": "thisYear",
+          "to": 20818,
+          "today": 20763
+        },
+        {
+          "from": 20089,
+          "period": "lastYear",
+          "to": 20453,
+          "today": 20763
+        }
+      ],
+      "today": "2026-11-06"
+    }
+  ],
   "recordSave": [
     {
       "expected": false,
@@ -7734,6 +8002,222 @@
         11,
         5
       ]
+    }
+  ],
+  "repeatRule": [
+    {
+      "anchorDay": null,
+      "date": "2026-11-06",
+      "describe": "반복 안 함",
+      "next": null,
+      "rule": 0
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-11-06",
+      "describe": "매주 금요일",
+      "next": "2026-11-13",
+      "rule": 1
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-12-29",
+      "describe": "매주 화요일",
+      "next": "2027-01-05",
+      "rule": 1
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-12-25",
+      "describe": "2주마다 금요일",
+      "next": "2027-01-08",
+      "rule": 2
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-01-31",
+      "describe": "매달 31일",
+      "next": "2026-02-28",
+      "rule": 3
+    },
+    {
+      "anchorDay": 31,
+      "date": "2026-02-28",
+      "describe": "매달 31일",
+      "next": "2026-03-31",
+      "rule": 3
+    },
+    {
+      "anchorDay": null,
+      "date": "2028-01-30",
+      "describe": "매달 30일",
+      "next": "2028-02-29",
+      "rule": 3
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-12-15",
+      "describe": "매달 15일",
+      "next": "2027-01-15",
+      "rule": 3
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-11-10",
+      "describe": "매달 둘째 화요일",
+      "next": "2026-12-08",
+      "rule": 4
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-11-01",
+      "describe": "매달 첫째 일요일",
+      "next": "2026-12-06",
+      "rule": 4
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-11-26",
+      "describe": "매달 넷째 목요일",
+      "next": "2026-12-24",
+      "rule": 4
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-10-30",
+      "describe": "매달 마지막 금요일",
+      "next": "2026-11-27",
+      "rule": 4
+    },
+    {
+      "anchorDay": null,
+      "date": "2026-12-31",
+      "describe": "매달 마지막 목요일",
+      "next": "2027-01-28",
+      "rule": 4
+    },
+    {
+      "anchorDay": null,
+      "date": "2028-01-29",
+      "describe": "매달 마지막 토요일",
+      "next": "2028-02-26",
+      "rule": 4
+    }
+  ],
+  "savedCommunityName": [
+    {
+      "expected": "독서모임",
+      "labels": [
+        {
+          "members": [
+            "a",
+            "b",
+            "c"
+          ],
+          "name": "독서모임"
+        }
+      ],
+      "members": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "name": "절반 넘게 겹치면 그 이름"
+    },
+    {
+      "expected": null,
+      "labels": [
+        {
+          "members": [
+            "a",
+            "b",
+            "x",
+            "y"
+          ],
+          "name": "등산"
+        }
+      ],
+      "members": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "name": "딱 절반이면 쓰지 않는다"
+    },
+    {
+      "expected": "새 이름",
+      "labels": [
+        {
+          "members": [
+            "a",
+            "b",
+            "c"
+          ],
+          "name": "옛 이름"
+        },
+        {
+          "members": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e"
+          ],
+          "name": "새 이름"
+        },
+        {
+          "members": [
+            "a",
+            "b",
+            "c"
+          ],
+          "name": "같은 점수 뒤"
+        }
+      ],
+      "members": [
+        "a",
+        "b",
+        "c",
+        "d"
+      ],
+      "name": "가장 많이 겹치는 것 · 같으면 먼저 받은 것"
+    },
+    {
+      "expected": "회사 동기",
+      "labels": [
+        {
+          "members": [
+            "a",
+            "b"
+          ],
+          "name": "  "
+        },
+        {
+          "members": [
+            "a",
+            "b"
+          ],
+          "name": " 회사  동기 "
+        }
+      ],
+      "members": [
+        "a",
+        "b"
+      ],
+      "name": "빈 이름은 건너뛴다"
+    },
+    {
+      "expected": null,
+      "labels": [
+        {
+          "members": [],
+          "name": "아무거나"
+        }
+      ],
+      "members": [],
+      "name": "사람이 없으면 없다"
     }
   ],
   "search": {
