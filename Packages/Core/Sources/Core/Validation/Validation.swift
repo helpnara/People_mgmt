@@ -19,6 +19,10 @@ public enum Limits {
     public static let location = 100
     /// 기념일 종류 이름 (10판 · D-77) — `결혼기념일` · `첫째 돌` 처럼 짧게.
     public static let specialDayLabel = 30
+    /// 기억할 것 (11판 · FR-062 · D-78) — 만나기 전에 한눈에 볼 만큼.
+    public static let keyNote = 500
+    /// 다음에 이야기할 것 한 줄 (11판 · FR-063 · D-78).
+    public static let talkItem = 200
 }
 
 public enum PersonValidation {

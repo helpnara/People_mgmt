@@ -122,6 +122,7 @@ struct PersonEditView: View {
                 if !savedInRow.isEmpty { savedBanner }
                 importSection
                 nameSection
+                if !isMe { keyNoteSection }
                 photoSection
                 Section("소속") {
                     TextField("회사 · 조직", text: $draft.organization)
@@ -482,6 +483,20 @@ struct PersonEditView: View {
             Text("이름")
         } footer: {
             Text("이름만 있으면 저장할 수 있습니다. 나머지는 나중에 채워도 됩니다.")
+        }
+    }
+
+    /// **기억할 것** (11판 · 이슈 87 · FR-062) — 만나기 전에 꼭 볼 짧은 글. 사람 상세 맨 위 · 만나기 전에 칸에 보인다.
+    private var keyNoteSection: some View {
+        Section {
+            TextField("좋아하는 것 · 가족 이름 · 피하는 음식처럼", text: $draft.keyNote, axis: .vertical)
+                .lineLimit(2...6)
+                .limited($draft.keyNote, to: Limits.keyNote)
+                .accessibilityIdentifier("keyNoteField")
+        } header: {
+            Text("기억할 것")
+        } footer: {
+            Text("만나기 전에 꼭 볼 것을 짧게 적어 두세요. 사람 화면 맨 위와 다가오는 만남에 보입니다.")
         }
     }
 

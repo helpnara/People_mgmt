@@ -46,7 +46,7 @@ struct DraftPhoto: Equatable, Identifiable {
     }
 }
 
-extension SchemaV10.Record {
+extension SchemaV11.Record {
     /// 사진이 있는가 — 목록 줄이 작은 그림 자리를 둘지 정한다. 사진 파일은 읽지 않는다.
     var hasPhotos: Bool {
         (photos ?? []).contains { !$0.isGone }

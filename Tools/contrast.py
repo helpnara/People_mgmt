@@ -29,7 +29,7 @@ PAIRS = [
     ("ink", "raised"), ("ink", "ground"),
     ("bodyText", "raised"), ("bodyText", "ground"),
     ("muted", "raised"), ("muted", "ground"),
-    ("accent", "raised"), ("accent", "ground"), ("accent", "accentSoft"),
+    ("accent", "raised"), ("accent", "ground"), ("accent", "accentSoft"), ("ink", "accentSoft"),  # 기억할 것 상자 (1.1.8 · FR-062)
     ("chipInk", "chip"),
     ("danger", "raised"),
     # 관계도 모임 색 (이슈 76) — 이름 알약 글자/바탕.

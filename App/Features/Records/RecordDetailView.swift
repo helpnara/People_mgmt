@@ -19,6 +19,17 @@ struct RecordDetailView: View {
     @State private var confirmingNoShow = false
     /// 크게 볼 사진 (9판 · FR-058).
     @State private var viewingPhoto: RecordPhoto?
+    /// 다음에 이야기할 것 (11판 · FR-063) — 만나기 전에 칸에서 뺄 줄 · 저장 실패 문구.
+    @State private var removingTalk: TalkItem?
+    @State private var saveError: String?
+
+    /// 만나기 전에 칸 · 캘린더에 추가를 보일까 — 그날이 오늘이거나 뒤인 기록 (FR-061 · FR-065).
+    private var isAhead: Bool { DayIndex.of(record.occurredAt) >= DayIndex.of(Date()) }
+
+    /// 만나기 전에 볼 사람 — 나는 빼고 이름순.
+    private var briefingPeople: [Person] {
+        NameSort.sorted((record.participants ?? []).filter { !$0.isGone && !$0.isMe }, name: \.name, createdAt: \.createdAt)
+    }
 
     var body: some View {
         Group {
@@ -67,6 +78,24 @@ struct RecordDetailView: View {
                     }
                 }
                 .padding(.vertical, 6)
+            }
+            if isAhead {
+                // 기기 캘린더에 넣기 (1.1.8 · 이슈 90 · FR-065) — 시스템 일정 창(권한 없음).
+                Section {
+                    Button {
+                        CalendarAdder.shared.add(CalendarDraft(record: record))
+                    } label: {
+                        Label("캘린더에 추가", systemImage: "calendar.badge.plus")
+                            .font(.scaled(16, weight: .medium))
+                    }
+                    .accessibilityIdentifier("addToCalendar")
+                }
+                // 만나기 전에 (1.1.8 · 이슈 86 · FR-061) — 사람마다 한 칸 + 다음에 이야기할 것.
+                ForEach(briefingPeople) { person in
+                    BriefingSection(person: person, record: record)
+                    TalkItemsSection(person: person, removing: $removingTalk,
+                                     title: "\(person.name) 님과 이야기할 것", onError: { saveError = $0 })
+                }
             }
             photoSection
             Section("함께한 사람") {
@@ -133,6 +162,7 @@ struct RecordDetailView: View {
                 if LaunchArguments.current.editRecord { editing = true }
             }
         }
+        .modifier(TalkItemAlerts(removing: $removingTalk, error: $saveError, store: PersonStore(context: context)))
         .fullScreenCover(item: $viewingPhoto) { photo in
             RecordPhotoViewer(photos: record.isGone ? [] : record.sortedPhotos, selection: photo.uuid)
         }

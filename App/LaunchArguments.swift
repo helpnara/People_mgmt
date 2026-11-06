@@ -37,6 +37,8 @@ struct LaunchArguments: Sendable {
     let viewCard: Bool
     /// 연 사람 상세를 관계 돌아보기 구역까지 내린다 (6번째 묶음).
     let scrollToReview: Bool
+    /// 연 사람 상세를 다음에 이야기할 것 칸까지 내린다 (1.1.8 · CI 스크린샷 49).
+    let scrollToTalk: Bool
     /// 내 인맥을 이 보기로 바로 연다 (`-openNetwork graph|traits|overview|readiness`).
     let openNetwork: String?
     /// 수정 시트에서 명함 글자를 바로 읽어 제안 화면을 띄운다.
@@ -103,6 +105,7 @@ struct LaunchArguments: Sendable {
         editRecord = arguments.contains("-editRecord")
         viewCard = arguments.contains("-viewCard")
         scrollToReview = arguments.contains("-scrollToReview")
+        scrollToTalk = arguments.contains("-scrollToTalk")
         readCard = arguments.contains("-readCard")
         pickCardPhoto = arguments.contains("-pickCardPhoto")
         simulateStoreFailure = arguments.contains("-simulateStoreFailure")

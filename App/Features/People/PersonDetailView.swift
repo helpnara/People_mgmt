@@ -25,6 +25,9 @@ struct PersonDetailView: View {
     @State private var exportFailed = false
     @State private var timelineType: String?
     @State private var timelineTag: String?
+    /// 다음에 이야기할 것 (11판 · FR-063) — 뺄 줄(확인 창) · 저장 실패 문구. 고정(FR-066) 실패도 여기로.
+    @State private var removingTalk: TalkItem?
+    @State private var saveError: String?
 
     private var store: PersonStore { PersonStore(context: context) }
 
@@ -43,6 +46,10 @@ struct PersonDetailView: View {
         ScrollViewReader { proxy in
         List {
             headerSection
+            // 다음에 이야기할 것 (11판 · 이슈 88 · FR-063) — 맨 위 칸 바로 아래에 늘 둔다(만나기 전에 보는 칸이라 숨기지 않는다).
+            if !person.isMe {
+                TalkItemsSection(person: person, removing: $removingTalk, onError: { saveError = $0 })
+            }
             // 그 아래 칸은 설정의 상세 화면 칸에서 고른 차례 · 보이기대로 (D-56 · 이 기기에만).
             ForEach(DetailLayout(stored: layoutStored).visible) { section in
                 detailSection(section)
@@ -52,10 +59,15 @@ struct PersonDetailView: View {
         .scrollContentBackground(.hidden)
         .background(Color.ground)
         .task {
-            // CI 스크린샷: 관계 돌아보기 구역까지 내린다.
-            guard LaunchArguments.current.scrollToReview, !person.isMe else { return }
-            try? await Task.sleep(for: .milliseconds(500))
-            proxy.scrollTo(RelationshipReviewSection.anchor, anchor: .top)
+            // CI 스크린샷: 관계 돌아보기 · 다음에 이야기할 것 구역까지 내린다.
+            guard !person.isMe else { return }
+            if LaunchArguments.current.scrollToReview {
+                try? await Task.sleep(for: .milliseconds(500))
+                proxy.scrollTo(RelationshipReviewSection.anchor, anchor: .top)
+            } else if LaunchArguments.current.scrollToTalk {
+                try? await Task.sleep(for: .milliseconds(500))
+                proxy.scrollTo(TalkItemsSection.anchor(for: person), anchor: .top)
+            }
         }
         }
         // 자주 쓰는 `기록 추가` 는 한 손이 닿는 아래에 — 키보드 툴바가 아니라 화면 안의 띠로 (CLAUDE.md).
@@ -87,6 +99,14 @@ struct PersonDetailView: View {
                         editing = true
                     } label: {
                         Label("편집", systemImage: "pencil")
+                    }
+                    if !person.isMe {
+                        // 고정 (11판 · 이슈 91 · FR-066) — 목록 위 고정 칸.
+                        Button {
+                            togglePin()
+                        } label: {
+                            Label(person.isPinned ? "고정 풀기" : "고정", systemImage: person.isPinned ? "pin.slash" : "pin")
+                        }
                     }
                     Button {
                         confirmingExport = true
@@ -136,6 +156,7 @@ struct PersonDetailView: View {
         } message: { _ in
             Text(pendingRecordDeleteMessage)
         }
+        .modifier(TalkItemAlerts(removing: $removingTalk, error: $saveError, store: store))
         .alert("내보내지 못했습니다", isPresented: $exportFailed) {
             Button("닫기", role: .cancel) {}
         } message: {
@@ -210,6 +231,10 @@ struct PersonDetailView: View {
                 }
                 if let subtitle = person.subtitle, subtitle != person.relationshipType {
                     Text(subtitle).font(.scaled(16)).foregroundStyle(Color.bodyText)
+                }
+                // 기억할 것 (11판 · 이슈 87 · FR-062) — 만나기 전에 꼭 볼 것이라 맨 위 칸에서 눈에 띄게.
+                if let note = person.keyNote, !note.isEmpty {
+                    KeyNoteBox(text: note)
                 }
                 WrapLayout(spacing: 8) {
                     if let type = person.relationshipType, !type.isEmpty {
@@ -427,6 +452,14 @@ struct PersonDetailView: View {
         }
     }
 
+    private func togglePin() {
+        do {
+            try store.setPinned(person, !person.isPinned)
+        } catch {
+            saveError = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
+        }
+    }
+
     private func deletePerson() {
         do {
             try DeletionUndo.shared.delete(person, in: context)
@@ -456,5 +489,27 @@ enum SpecialDayText {
             if years >= 1 { text += " · \(years)주년" }
         }
         return text
+    }
+}
+
+/// **기억할 것** 상자 (11판 · FR-062) — 사람 상세 맨 위 칸 · 만나기 전에 칸이 같이 쓴다.
+struct KeyNoteBox: View {
+    let text: String
+
+    var body: some View {
+        Label {
+            Text(text)
+                .font(.scaled(15))
+                .foregroundStyle(Color.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } icon: {
+            Image(systemName: "lightbulb")
+                .foregroundStyle(Color.accent)
+        }
+        .padding(Font.scaledLength(12))
+        .background(Color.accentSoft, in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("기억할 것, \(text)")
+        .accessibilityIdentifier("keyNoteBox")
     }
 }
