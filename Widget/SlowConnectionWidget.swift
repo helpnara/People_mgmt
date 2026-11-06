@@ -141,6 +141,8 @@ extension Font {
 
 // MARK: - 화면
 
+/// **세상에서 가장 단순하게** (2026-11-06 사용자) — 얼굴 + 한 문장. 앱 이름 글자 · 날짜 · 종류 아이콘 · 구분선 · 꼬리표를 모두 뺐다.
+/// 색은 D-day 하나(종류 색)뿐이고, 나머지는 조용하다. 그다음 것은 알약 둘로 맨 아래에.
 struct UpcomingWidgetView: View {
     let entry: UpcomingEntry
     @Environment(\.widgetFamily) private var family
@@ -170,139 +172,66 @@ struct UpcomingWidgetView: View {
         case .accessoryCircular: circular
         case .accessoryRectangular: rectangular
         case .accessoryInline: inline
-        case .systemSmall: small
-        default: medium
+        case .systemSmall: home(compact: true)
+        default: home(compact: false)
         }
     }
 
-    /// 바탕 — 카드 색 위에 강조색을 아주 옅게 흘린다. 잠금 화면은 시스템이 그린다.
     @ViewBuilder
     private var background: some View {
         switch family {
-        case .accessoryCircular:
-            AccessoryWidgetBackground()
-        case .accessoryRectangular, .accessoryInline:
-            Color.clear
-        default:
-            ZStack {
-                Color.raised
-                LinearGradient(colors: [KindStyle.soft(hero?.kind ?? .meeting).opacity(0.75), Color.clear],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
+        case .accessoryCircular: AccessoryWidgetBackground()
+        case .accessoryRectangular, .accessoryInline: Color.clear
+        default: Color.raised
         }
     }
 
-    // MARK: 홈 화면 — 중간
+    // MARK: 홈 화면
 
-    private var medium: some View {
-        Group {
-            if let summary = entry.summary {
-                if summary.mode == .countsOnly {
-                    countsOnly(summary, compact: false)
-                } else if let hero {
-                    HStack(alignment: .top, spacing: 14) {
-                        heroBlock(hero, compact: false)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Rectangle()
-                            .fill(Color.rule)
-                            .frame(width: 1)
-                            .padding(.vertical, 2)
-                        nextList
-                            .frame(width: Font.scaledLength(118), alignment: .leading)
+    private func home(compact: Bool) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if let summary = entry.summary {
+                    if summary.mode == .countsOnly {
+                        countsOnly(summary, compact: compact)
+                    } else if let hero {
+                        heroView(hero, compact: compact)
+                    } else {
+                        quiet("다가오는 약속이 없습니다", "다음 만남을 적어 두면 여기에 보입니다", compact: compact)
                     }
                 } else {
-                    empty(compact: false)
+                    quiet("앱을 한 번 열어 주세요", "다가오는 약속이 여기에 보입니다", compact: compact)
                 }
-            } else {
-                firstRun(compact: false)
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    // MARK: 홈 화면 — 작은
-
-    private var small: some View {
-        Group {
-            if let summary = entry.summary {
-                if summary.mode == .countsOnly {
-                    countsOnly(summary, compact: true)
-                } else if let hero {
-                    heroBlock(hero, compact: true)
-                } else {
-                    empty(compact: true)
-                }
-            } else {
-                firstRun(compact: true)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    /// 머리 줄 — 앱 이름 · 오늘 날짜(작은 것은 남은 건수).
-    private func header(compact: Bool) -> some View {
-        HStack(spacing: 4) {
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // 앱 표시는 잎 하나 — 글자는 두지 않는다.
             Image(systemName: "leaf.fill")
-                .font(.scaled(10, weight: .semibold))
-                .foregroundStyle(Color.accent)
-                .widgetAccentable()
-            Text("느린 인연")
                 .font(.scaled(11, weight: .semibold))
-                .foregroundStyle(Color.accent)
+                .foregroundStyle(Color.faint)
                 .widgetAccentable()
-            Spacer(minLength: 4)
-            if compact {
-                if !rest.isEmpty {
-                    Text("외 \(rest.count)")
-                        .font(.scaled(10))
-                        .foregroundStyle(Color.muted)
-                }
-            } else {
-                Text(WidgetDay.header(entry.date))
-                    .font(.scaled(10))
-                    .foregroundStyle(Color.muted)
-            }
         }
-        .lineLimit(1)
     }
 
-    /// 가장 가까운 하나 — D-day 크게, 시각 · 제목 · 얼굴.
-    private func heroBlock(_ item: WidgetSummary.Item, compact: Bool) -> some View {
-        let ink = KindStyle.ink(item.kind)
-        let time = item.minute.map { " · " + TimeOfDay.text($0) } ?? ""
-        return VStack(alignment: .leading, spacing: compact ? 3 : 4) {
-            header(compact: compact)
-            Spacer(minLength: 0)
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(WidgetSummary.dDay(day: item.day, today: today))
-                    .font(.scaledRounded(compact ? 30 : 32))
-                    .foregroundStyle(ink)
-                    .widgetAccentable()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Image(systemName: KindStyle.symbol(item.kind))
-                    .font(.scaled(12, weight: .semibold))
-                    .foregroundStyle(ink)
-                    .widgetAccentable()
-            }
-            Text(RelativeDay.phrase(days: today - item.day) + time)
-                .font(.scaled(11, weight: .medium))
-                .foregroundStyle(Color.muted)
-                .lineLimit(1)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(item.title ?? KindStyle.label(item.kind))
-                .font(.scaled(compact ? 14 : 15, weight: .semibold))
-                .foregroundStyle(Color.ink)
-                .lineLimit(compact ? 2 : 1)
-                .fixedSize(horizontal: false, vertical: true)
-            if !item.avatars.isEmpty || item.names != nil {
-                HStack(spacing: 6) {
-                    AvatarStack(avatars: item.avatars, more: item.moreCount, kind: item.kind, size: 22)
-                    if !compact, let names = item.names {
-                        Text(names)
-                            .font(.scaled(11))
-                            .foregroundStyle(Color.muted)
-                            .lineLimit(1)
+    /// 얼굴 + 한 문장. 작은 것은 세로로, 중간 것은 얼굴을 왼쪽에.
+    private func heroView(_ item: WidgetSummary.Item, compact: Bool) -> some View {
+        let faces = AvatarStack(avatars: item.avatars, more: item.moreCount, kind: item.kind, size: compact ? 40 : 52)
+        return VStack(alignment: .leading, spacing: 0) {
+            if compact {
+                faces
+                Spacer(minLength: 6)
+                sentence(item, compact: true)
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    faces
+                    sentence(item, compact: false)
+                    Spacer(minLength: 0)
+                }
+                Spacer(minLength: 6)
+                if !rest.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(Array(rest.prefix(2).enumerated()), id: \.offset) { _, next in
+                            pill(next)
+                        }
                     }
                 }
             }
@@ -310,101 +239,59 @@ struct UpcomingWidgetView: View {
         .widgetURL(link(item))
     }
 
-    /// 그다음 둘 — 작은 줄.
-    private var nextList: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("그다음")
-                .font(.scaled(10, weight: .semibold))
-                .foregroundStyle(Color.muted)
-            if rest.isEmpty {
-                Text("아직 적어 둔 다음 약속이 없습니다")
-                    .font(.scaled(10))
-                    .foregroundStyle(Color.faint)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            ForEach(Array(rest.prefix(2).enumerated()), id: \.offset) { _, item in
-                nextRow(item)
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func nextRow(_ item: WidgetSummary.Item) -> some View {
-        let row = HStack(alignment: .top, spacing: 7) {
-            ZStack {
-                Circle().fill(KindStyle.soft(item.kind))
-                Image(systemName: KindStyle.symbol(item.kind))
-                    .font(.scaled(9, weight: .semibold))
-                    .foregroundStyle(KindStyle.ink(item.kind))
-            }
-            .frame(width: Font.scaledLength(20), height: Font.scaledLength(20))
-            .widgetAccentable()
-            VStack(alignment: .leading, spacing: 1) {
-                Text(WidgetSummary.dDay(day: item.day, today: today) + (item.minute.map { " · " + TimeOfDay.text($0) } ?? ""))
-                    .font(.scaled(10, weight: .semibold))
-                    .foregroundStyle(KindStyle.ink(item.kind))
-                    .lineLimit(1)
-                Text([item.title ?? KindStyle.label(item.kind), item.names].compactMap { $0 }.joined(separator: " · "))
-                    .font(.scaled(11))
-                    .foregroundStyle(Color.ink)
-                    .lineLimit(1)
-            }
-        }
-        return Group {
-            if let url = link(item) {
-                Link(destination: url) { row }
-            } else {
-                row
-            }
-        }
-    }
-
-    /// 앱 잠금 — 건수만.
-    private func countsOnly(_ summary: WidgetSummary, compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            header(compact: compact)
-            Spacer(minLength: 0)
-            HStack(alignment: .top, spacing: compact ? 12 : 20) {
-                stat(summary.meetingCount, "약속", kind: .meeting)
-                stat(summary.dayCount, "생일 · 기념일", kind: .birthday)
-            }
-            Spacer(minLength: 0)
-            Label("앱 잠금 · 건수만 보입니다", systemImage: "lock.fill")
-                .font(.scaled(10))
-                .foregroundStyle(Color.faint)
-                .lineLimit(1)
-        }
-    }
-
-    private func stat(_ count: Int, _ label: String, kind: WidgetSummary.Item.Kind) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("\(count)")
-                .font(.scaledRounded(30))
-                .foregroundStyle(KindStyle.ink(kind))
+    /// `D-DAY` 크게 · 제목 · `오늘 오후 6:00 · 김하늘 외 2명`.
+    private func sentence(_ item: WidgetSummary.Item, compact: Bool) -> some View {
+        let when = RelativeDay.phrase(days: today - item.day) + (item.minute.map { " " + TimeOfDay.text($0) } ?? "")
+        let detail = [when, compact ? nil : item.names].compactMap { $0 }.joined(separator: " · ")
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(WidgetSummary.dDay(day: item.day, today: today))
+                .font(.scaledRounded(compact ? 28 : 30))
+                .foregroundStyle(KindStyle.ink(item.kind))
                 .widgetAccentable()
-            Text(label)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(item.title ?? KindStyle.label(item.kind))
+                .font(.scaled(compact ? 14 : 15, weight: .semibold))
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(detail)
                 .font(.scaled(11))
                 .foregroundStyle(Color.muted)
                 .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private func empty(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            header(compact: compact)
+    /// 그다음 하나 — `D-5 저녁식사` 알약. 누르면 그것으로.
+    private func pill(_ item: WidgetSummary.Item) -> some View {
+        let text = Text(WidgetSummary.dDay(day: item.day, today: today) + " " + (item.title ?? KindStyle.label(item.kind)))
+            .font(.scaled(11, weight: .medium))
+            .foregroundStyle(KindStyle.ink(item.kind))
+            .lineLimit(1)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(KindStyle.soft(item.kind), in: Capsule())
+        return Group {
+            if let url = link(item) {
+                Link(destination: url) { text }
+            } else {
+                text
+            }
+        }
+    }
+
+    /// 아무것도 없을 때 · 처음 — 한 줄만, 조용하게.
+    private func quiet(_ main: String, _ sub: String, compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             Spacer(minLength: 0)
-            Image(systemName: "calendar.badge.plus")
-                .font(.scaled(compact ? 22 : 26))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(Color.accent)
-                .widgetAccentable()
-            Text("다가오는 약속 · 생일이 없습니다")
-                .font(.scaled(12, weight: .medium))
+            Text(main)
+                .font(.scaled(14, weight: .semibold))
                 .foregroundStyle(Color.ink)
                 .fixedSize(horizontal: false, vertical: true)
             if !compact {
-                Text("앱에서 다음 만남을 적어 두면 여기에 D-day 로 보입니다.")
-                    .font(.scaled(10))
+                Text(sub)
+                    .font(.scaled(11))
                     .foregroundStyle(Color.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -412,34 +299,45 @@ struct UpcomingWidgetView: View {
         }
     }
 
-    private func firstRun(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            header(compact: compact)
+    /// 앱 잠금 — 숫자 둘.
+    private func countsOnly(_ summary: WidgetSummary, compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             Spacer(minLength: 0)
-            Image(systemName: "hand.tap.fill")
-                .font(.scaled(compact ? 22 : 26))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(Color.accent)
+            HStack(alignment: .firstTextBaseline, spacing: compact ? 12 : 20) {
+                stat(summary.meetingCount, "약속", kind: .meeting)
+                stat(summary.dayCount, compact ? "생일" : "생일 · 기념일", kind: .birthday)
+            }
+            Text("잠금 중 · 건수만")
+                .font(.scaled(11))
+                .foregroundStyle(Color.muted)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func stat(_ count: Int, _ label: String, kind: WidgetSummary.Item.Kind) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text("\(count)")
+                .font(.scaledRounded(30))
+                .foregroundStyle(KindStyle.ink(kind))
                 .widgetAccentable()
-            Text("앱을 한 번 열면 다가오는 약속이 보입니다")
+            Text(label)
                 .font(.scaled(12, weight: .medium))
-                .foregroundStyle(Color.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+                .foregroundStyle(Color.muted)
+                .lineLimit(1)
         }
     }
 
     // MARK: 잠금 화면
 
     private var circular: some View {
-        VStack(spacing: 1) {
+        VStack(spacing: 0) {
             if let hero {
                 Text(hero.day == today ? "오늘" : WidgetSummary.dDay(day: hero.day, today: today))
                     .font(.scaledRounded(15))
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 Image(systemName: KindStyle.symbol(hero.kind))
-                    .font(.scaled(10, weight: .semibold))
+                    .font(.scaled(9, weight: .semibold))
             } else {
                 Image(systemName: "leaf.fill")
                     .font(.scaled(16))
@@ -450,16 +348,12 @@ struct UpcomingWidgetView: View {
     }
 
     private var rectangular: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 1) {
             if let hero {
-                HStack(spacing: 4) {
-                    Image(systemName: KindStyle.symbol(hero.kind))
-                        .font(.scaled(10, weight: .semibold))
-                    Text(WidgetSummary.dDay(day: hero.day, today: today) + (hero.minute.map { " · " + TimeOfDay.text($0) } ?? ""))
-                        .font(.scaled(12, weight: .semibold))
-                        .lineLimit(1)
-                }
-                .widgetAccentable()
+                Text(WidgetSummary.dDay(day: hero.day, today: today) + (hero.minute.map { " · " + TimeOfDay.text($0) } ?? ""))
+                    .font(.scaled(12, weight: .semibold))
+                    .lineLimit(1)
+                    .widgetAccentable()
                 Text(hero.title ?? KindStyle.label(hero.kind))
                     .font(.scaled(14, weight: .bold))
                     .lineLimit(1)
@@ -486,7 +380,7 @@ struct UpcomingWidgetView: View {
                 let time = hero.minute.map { " " + TimeOfDay.text($0) } ?? ""
                 Text("\(Image(systemName: KindStyle.symbol(hero.kind))) \(RelativeDay.phrase(days: today - hero.day))\(time) · \(hero.title ?? KindStyle.label(hero.kind))")
             } else {
-                Text("\(Image(systemName: "leaf.fill")) 느린 인연 · 다가오는 약속 없음")
+                Text("\(Image(systemName: "leaf.fill")) 다가오는 약속 없음")
             }
         }
         .widgetURL(hero.flatMap(link))
@@ -499,7 +393,7 @@ struct UpcomingWidgetView: View {
     }
 }
 
-/// 겹친 얼굴 — 사진이 있으면 사진, 없으면 첫 글자. 테두리를 카드 색으로 둘러 겹침이 보이게.
+/// 겹친 얼굴 — 사진이 있으면 사진, 없으면 첫 글자. 얼굴이 하나도 없으면(이름 숨김 · 사람 없음) 종류 그림 하나.
 struct AvatarStack: View {
     let avatars: [WidgetSummary.Avatar]
     let more: Int
@@ -508,22 +402,31 @@ struct AvatarStack: View {
 
     var body: some View {
         let side = Font.scaledLength(size)
-        HStack(spacing: -side * 0.3) {
+        HStack(spacing: -side * 0.28) {
+            if avatars.isEmpty {
+                ZStack {
+                    Circle().fill(KindStyle.soft(kind))
+                    Image(systemName: KindStyle.symbol(kind))
+                        .font(.scaled(size * 0.4, weight: .semibold))
+                        .foregroundStyle(KindStyle.ink(kind))
+                }
+                .frame(width: side, height: side)
+                .widgetAccentable()
+            }
             ForEach(Array(avatars.enumerated()), id: \.offset) { _, avatar in
                 face(avatar, side: side)
             }
             if more > 0 {
                 Text("+\(more)")
-                    .font(.scaled(size * 0.4, weight: .semibold))
+                    .font(.scaled(size * 0.34, weight: .semibold))
                     .foregroundStyle(Color.muted)
                     .frame(width: side, height: side)
                     .background(Color.chip, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.raised, lineWidth: 1.5))
+                    .overlay(Circle().strokeBorder(Color.raised, lineWidth: 2))
             }
         }
     }
 
-    @ViewBuilder
     private func face(_ avatar: WidgetSummary.Avatar, side: CGFloat) -> some View {
         Group {
             if let data = avatar.photo, let image = UIImage(data: data) {
@@ -532,7 +435,7 @@ struct AvatarStack: View {
                     .scaledToFill()
             } else {
                 Text(avatar.initial)
-                    .font(.scaled(size * 0.42, weight: .semibold))
+                    .font(.scaled(size * 0.4, weight: .semibold))
                     .foregroundStyle(KindStyle.ink(kind))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(KindStyle.soft(kind))
@@ -540,6 +443,6 @@ struct AvatarStack: View {
         }
         .frame(width: side, height: side)
         .clipShape(Circle())
-        .overlay(Circle().strokeBorder(Color.raised, lineWidth: 1.5))
+        .overlay(Circle().strokeBorder(Color.raised, lineWidth: 2))
     }
 }
