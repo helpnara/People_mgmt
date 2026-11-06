@@ -291,6 +291,8 @@ enum NetworkSnapshotBuilder {
         }
         let parts = Parts()
         let peopleCount = people.count
+        // 고쳐 둔 모임 이름 (12판 · 이슈 96 · FR-071) — 지금 · 시점 모임 모두 이것과 먼저 맞춰 본다. 값이라 일꾼끼리 나눠 읽는다.
+        let savedLabels = TemplateStore.labels(in: context)
         DispatchQueue.concurrentPerform(iterations: 4) { job in
             let begun = Date()
             switch job {
@@ -309,12 +311,12 @@ enum NetworkSnapshotBuilder {
                 LaunchTiming.log("  인맥 · 자리 잡기", since: begun)
             case 2:
                 (parts.communities, parts.status) = findCommunities(people: people, strong: strong, index: indexOf,
-                                                                    readiness: readiness, nameOrder: nameOrder)
+                                                                    readiness: readiness, nameOrder: nameOrder, saved: savedLabels)
                 LaunchTiming.log("  인맥 · 모임 찾기 \(parts.communities.count)개", since: begun)
             default:
                 parts.timeline = makeTimeline(people: people, nameOrder: nameOrder, index: indexOf, introducedBy: introducedBy,
                                               recordDays: days, participantLists: lists, ties: ties,
-                                              now: now, today: today, usageStart: usageStart, calendar: calendar)
+                                              now: now, today: today, usageStart: usageStart, calendar: calendar, saved: savedLabels)
                 LaunchTiming.log("  인맥 · 시점 \(parts.timeline.slices.count)개 · 변화 \(parts.timeline.changes.count)개", since: begun)
             }
         }
@@ -341,7 +343,7 @@ enum NetworkSnapshotBuilder {
     private static func makeTimeline(people: [NetworkSnapshot.PersonInfo], nameOrder: [UUID], index: [UUID: Int],
                                      introducedBy: [UUID: UUID], recordDays: [Int], participantLists: [[UUID]],
                                      ties: [(UUID, UUID)], now: Date, today: Int, usageStart: Int,
-                                     calendar: Calendar) -> NetworkSnapshot.Timeline {
+                                     calendar: Calendar, saved: [CommunityNaming.SavedLabel] = []) -> NetworkSnapshot.Timeline {
         guard let firstDay = recordDays.min() else { return NetworkSnapshot.Timeline() }
         // 해 끝 날 — 오늘 이전에 끝난 해만. 올해는 맨 오른쪽 `지금`(오늘까지 12개월)이 맡는다.
         var ends: [(day: Int, label: String)] = []
@@ -380,10 +382,12 @@ enum NetworkSnapshotBuilder {
             // 지금 화면과 같은 재료(소속 · 태그 · 알게 된 경로)로 짓는다 (이슈 82 · D-75 · 2026-11-05 사용자). 빌드 56 까지는 시점마다
             // 소속을 빼고 지어, 지금은 소속 이름인 모임이 지난 해에는 알게 된 경로 이름이 되고 다른 모임과 겹쳐 ` · 모임 1` 이 붙었다.
             // 소속은 지금 값 하나뿐이다 — 옮긴 사람은 지난 해에도 지금 소속으로 센다(사용자: 옮긴 이력은 태그로 남긴다).
-            let suggested = CommunityNaming.suggest(group.map {
-                let person = people[personAt[$0]]
-                return CommunityNaming.Member(organization: person.organization, tags: person.tags, metThrough: person.metThrough)
-            })
+            // 사용자가 고쳐 둔 이름이 먼저 (12판 · FR-071) — 그 묶음과 절반 넘게 겹치면.
+            let suggested = CommunityNaming.saved(members: group.map { people[personAt[$0]].id.uuidString }, labels: saved)
+                ?? CommunityNaming.suggest(group.map {
+                    let person = people[personAt[$0]]
+                    return CommunityNaming.Member(organization: person.organization, tags: person.tags, metThrough: person.metThrough)
+                })
             var result: String
             if let suggested {
                 result = suggested
@@ -449,7 +453,7 @@ enum NetworkSnapshotBuilder {
     /// 모임 찾기 (D-30) — **진한 선만** 쓴다. 무게는 함께한 기록 무게(n명 기록은 쌍마다 1/(n−1)) + 소개 1 + 아는 사이 1. 같은 소속은 넣지 않는다
     /// (소속으로 묶으면 이미 아는 것을 다시 보여 줄 뿐이다). 조건에 못 미치거나 뚜렷하게 나뉘지 않으면 묶지 않는다.
     private static func findCommunities(people: [NetworkSnapshot.PersonInfo], strong: [GraphEdge], index: [UUID: Int],
-                                        readiness: ReadinessInput, nameOrder: [UUID])
+                                        readiness: ReadinessInput, nameOrder: [UUID], saved: [CommunityNaming.SavedLabel] = [])
         -> ([NetworkSnapshot.Community], NetworkSnapshot.CommunityStatus) {
         guard readiness.strongEdges >= InputReadiness.groupsMinimumStrongEdges,
               readiness.linkedPeople >= InputReadiness.groupsMinimumLinkedPeople else { return ([], .notEnoughLinks) }
@@ -476,10 +480,12 @@ enum NetworkSnapshotBuilder {
         for nodes in found.communities where nodes.count >= CommunityDetection.minimumGroupSize {
             // 점 번호가 이름 순이라 오름차순이면 곧 이름 순이다.
             let members = nodes.map { personAt[$0] }
-            let suggested = CommunityNaming.suggest(members.map {
-                CommunityNaming.Member(organization: people[$0].organization, tags: people[$0].tags,
-                                       metThrough: people[$0].metThrough)
-            })
+            // 사용자가 고쳐 둔 이름이 먼저 (12판 · FR-071).
+            let suggested = CommunityNaming.saved(members: members.map { people[$0].id.uuidString }, labels: saved)
+                ?? CommunityNaming.suggest(members.map {
+                    CommunityNaming.Member(organization: people[$0].organization, tags: people[$0].tags,
+                                           metThrough: people[$0].metThrough)
+                })
             var name: String
             if let suggested {
                 name = suggested

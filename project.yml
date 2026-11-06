@@ -24,7 +24,7 @@ packages:
 settings:
   base:
     # App Store Connect 의 첫 트레인. "1.0.0" 으로 쓰면 트레인이 하나 더 생긴다 (느린 부자).
-    MARKETING_VERSION: "1.1.7"
+    MARKETING_VERSION: "1.1.9"
     # CI 가 실행 번호를 넣는다 — 빌드 번호와 실행 번호가 늘 같게.
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "6.0"
@@ -44,6 +44,9 @@ targets:
     dependencies:
       - package: Core
         product: Core
+      # 위젯 · 공유 시트 (1.1.9 · 빌드 63 · 이슈 100 · 101) — 앱 안 PlugIns 에 넣는다.
+      - target: SlowConnectionWidget
+      - target: SlowConnectionShare
     # **iCloud 동기화** (D-42 · ADR-0005) — 내 iCloud 비공개 영역(CloudKit). 앱 소스 폴더 밖에 둔다 — App/ 안이면 리소스로 잡힌다.
     # 푸시는 CloudKit 이 다른 기기의 변경을 조용히 알리는 데만 쓴다(사용자에게 보이는 원격 알림은 없다).
     # 내보내는 판은 늘 iCloud 배포 환경(Production). 스키마는 CI(cloudkit-schema.yml)가 개발 환경에 올리고 사람이 배포한다 (ADR-0005).
@@ -55,6 +58,9 @@ targets:
         com.apple.developer.icloud-services:
           - CloudKit
         aps-environment: development
+        # App Group (1.1.9 · 빌드 63) — 위젯 요약 · 공유 초안 파일만 오간다. 저장소는 앱 그릇에 그대로 (D-79).
+        com.apple.security.application-groups:
+          - group.com.helpnara.slow.connection
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.helpnara.slow.connection
@@ -94,6 +100,10 @@ targets:
         # iCloud 동기화 (D-42) — 다른 기기의 변경을 조용한 푸시로 받아 앱이 잠깐 깨어 내려받는다.
         UIBackgroundModes:
           - remote-notification
+        # 위젯 · 잠금 화면 위젯에서 그 기록 · 사람을 바로 연다 (1.1.9 · FR-075 · `Core.AppLink`).
+        CFBundleURLTypes:
+          - CFBundleURLName: com.helpnara.slow.connection
+            CFBundleURLSchemes: [slowconnection]
         # 암호화를 직접 쓰지 않는다. 없으면 TestFlight 에 올릴 때마다 수출 규정 질문에 손으로 답해야 한다.
         ITSAppUsesNonExemptEncryption: false
         # 앱 잠금 (FR-029 · 빌드 27). 없으면 Face ID 를 부르는 순간 앱이 꺼진다.
@@ -102,6 +112,84 @@ targets:
         # 사진첩은 시스템 선택기라 권한 창이 뜨지 않는다. 문구는 느린 여백과 맞춰 둔다 (이슈 10). 연락처도 시스템 선택기라 문구가 필요 없다.
         NSPhotoLibraryUsageDescription: 명함 · 사람 사진 · 기록 사진을 고르려고 사진첩을 씁니다. 고르신 사진만 읽고 기기 안(동기화를 켜면 내 iCloud)에만 저장합니다.
         NSCameraUsageDescription: 명함 · 사람 사진 · 기록 사진을 촬영할 때 카메라를 씁니다. 사진과 읽은 글자는 기기 안(동기화를 켜면 내 iCloud)에만 저장됩니다.
+
+  # **홈 화면 위젯** (1.1.9 · 빌드 63 · 이슈 100 · FR-075) — 앱이 App Group 에 남긴 요약만 읽는다. 저장소를 열지 않는다.
+  # 색 · 글자는 앱과 같은 토큰 파일을 함께 쓴다(Palette · Typography — UIKit · SwiftUI 만 쓴다).
+  SlowConnectionWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widget
+      - path: App/DesignSystem/Palette.swift
+      - path: App/DesignSystem/Typography.swift
+    dependencies:
+      - package: Core
+        product: Core
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    entitlements:
+      path: Config/SlowConnectionWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.helpnara.slow.connection
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.helpnara.slow.connection.widget
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_STRICT_CONCURRENCY: complete
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: Config/Widget-Info.plist
+      properties:
+        CFBundleDisplayName: 느린 인연
+        CFBundleDevelopmentRegion: ko
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+  # **공유 시트** (1.1.9 · 빌드 63 · 이슈 101 · FR-076) — 다른 앱의 글 · 주소 · 사진을 초안 파일로 남긴다. 통신 · 저장소 없음.
+  SlowConnectionShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Share
+      - path: App/DesignSystem/Palette.swift
+      - path: App/DesignSystem/Typography.swift
+    dependencies:
+      - package: Core
+        product: Core
+    entitlements:
+      path: Config/SlowConnectionShare.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.helpnara.slow.connection
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.helpnara.slow.connection.share
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_STRICT_CONCURRENCY: complete
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: Config/Share-Info.plist
+      properties:
+        CFBundleDisplayName: 느린 인연
+        CFBundleDevelopmentRegion: ko
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          # @objc(ShareViewController) 로 이름을 못 박았다 — 모듈 이름에 기대지 않는다.
+          NSExtensionPrincipalClass: ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 4
 
   # **앱 테스트** — 저장소를 쓰는 규칙(삭제 범위 · 소개자 비우기 · 같은 이름)을 인메모리 저장소로 시험한다.
   # 순수 셈은 Core 의 `swift test` 가 맡고, 여기는 SwiftData 가 있어야만 시험되는 것만 둔다.

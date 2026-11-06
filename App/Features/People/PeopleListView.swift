@@ -67,6 +67,25 @@ struct PeopleListView: View {
     @State private var recentRecords: [Record] = []
     /// 예정된 만남 (D-62) — 다가오는 만남 · 결과를 적을 만남. 규칙은 `Core.PlannedMeetings`, 자료가 바뀔 때만 읽는다.
     @State private var upcomingRecords: [Record] = []
+    /// 고정한 사람 (11판 · 이슈 91 · FR-066) — 이름순. 자료가 바뀔 때만 센다(본문에서 전원을 훑지 않는다 · 이슈 10).
+    @State private var pinnedPeople: [Person] = []
+    /// 다가오는 날 (1.1.8 · 이슈 93 · FR-068) — 한 해 안의 생일 · 기념일. 홈은 30일 안의 다섯, 모두 보기는 한 해.
+    @State private var upcomingDays: [UpcomingDay] = []
+    @State private var showingAllDays = false
+    @State private var showingCardBatch = false
+    /// 공유로 받은 초안 (1.1.9 · 이슈 101 · FR-076) — 고른 초안 · 기록 추가에 채울 값 · 버릴 초안.
+    @State private var sharedDrafts: [SharedDraft] = []
+    @State private var pendingShare: SharedDraft?
+    @State private var shareSeed: RecordSeed?
+    @State private var discardingShare: SharedDraft?
+    /// 기간 · 장소로 찾기 (1.1.9 · 이슈 97 · FR-072) — 검색 아래 칩. 규칙은 `Core.RecordFinder` · `PlaceCatalog`.
+    @State private var searchPeriod: RecordPeriod?
+    @State private var searchPlace: String?
+    @State private var placeChoices: [String] = []
+    @State private var foundRecords: [Record] = []
+    @State private var foundTotal = 0
+    @State private var openAfterDays: Person?
+    @State private var saveError: String?
     @State private var awaitingRecords: [Record] = []
     /// 목록 거르기 (FR-013) — 관계 유형 · 태그. 둘 다 고르면 둘 다 맞는 사람. 기기 편의라 저장하지 않는다.
     @State private var filterType: String?
@@ -123,7 +142,22 @@ struct PeopleListView: View {
         let version: Int
     }
 
+    private struct RecordSearchKey: Hashable {
+        let text: String
+        let period: RecordPeriod?
+        let place: String?
+        let version: Int
+    }
+
+    /// 기간 · 장소 칩을 골랐나 (FR-072).
+    private var isRecordSearching: Bool { searchPeriod != nil || searchPlace != nil }
+
     var body: some View {
+        // 긴 수정자 사슬을 넷으로 나눈다 — 한 식이면 컴파일러가 형식을 제때 못 맞춘다 (CI 150 · 빌드 45 교훈).
+        withObservers(withAlerts(withSheets(rootView)))
+    }
+
+    private var rootView: some View {
         Group {
             if isWide {
                 wideLayout
@@ -134,16 +168,29 @@ struct PeopleListView: View {
                 }
             }
         }
+    }
+
+    /// 시트 — 사람 추가 · 명함 여러 장 · 기록 추가 · 다가오는 날 · 나.
+    private func withSheets<Content: View>(_ content: Content) -> some View {
+        content
         .sheet(isPresented: $showingAdd, onDismiss: { scanOnAdd = false }) {
             PersonEditView(mode: .create, startsScan: scanOnAdd) { person in
                 show(person)
             }
+        }
+        // 명함 여러 장 등록 (1.1.9 · 이슈 103) — 홈 `+` 차림표에서. 저장하면 최근 등록순 목록에서 바로 보인다.
+        .sheet(isPresented: $showingCardBatch) {
+            CardBatchView { _ in noteChange() }
         }
         // 단축어 기록 추가 — 누구와의 기록인지 고르고, 고르기 창이 닫힌 뒤 기록 쓰기를 띄운다.
         .sheet(isPresented: $pickingRecordPerson, onDismiss: {
             if let person = recordPick {
                 recordPick = nil
                 recordAnchor = person
+            } else {
+                // 사람을 고르지 않고 닫았으면 초안은 그대로 남는다.
+                pendingShare = nil
+                shareSeed = nil
             }
         }) {
             NavigationStack {
@@ -155,14 +202,39 @@ struct PeopleListView: View {
                     }
             }
         }
-        .sheet(item: $recordAnchor) { person in
-            RecordEditView(mode: .create(anchor: person)) { _ in
+        .sheet(item: $recordAnchor, onDismiss: {
+            pendingShare = nil
+            shareSeed = nil
+        }) { person in
+            RecordEditView(mode: .create(anchor: person), seed: shareSeed) { _ in
+                // 공유 초안으로 쓴 기록이면 저장한 뒤에 초안을 지운다 — 취소하면 남는다.
+                if let draft = pendingShare {
+                    SharedDraftStore.remove(draft)
+                    loadSharedDrafts()
+                }
                 show(person)
+            }
+        }
+        .modifier(SharedDraftDialogs(discarding: $discardingShare, scenePhase: scenePhase, onChange: loadSharedDrafts))
+        .sheet(isPresented: $showingAllDays, onDismiss: {
+            if let person = openAfterDays {
+                openAfterDays = nil
+                show(person)
+            }
+        }) {
+            UpcomingDaysView(days: upcomingDays) { person in
+                openAfterDays = person
+                showingAllDays = false
             }
         }
         .sheet(isPresented: $addingMe) {
             PersonEditView(mode: .createMe) { _ in }
         }
+    }
+
+    /// 확인 창 · 알림.
+    private func withAlerts<Content: View>(_ content: Content) -> some View {
+        content
         .confirmationDialog(
             "삭제",
             isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
@@ -179,6 +251,23 @@ struct PeopleListView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+        .alert("저장하지 못했습니다", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("닫기", role: .cancel) {}
+        } message: {
+            Text(saveError ?? "")
+        }
+        .alert("나는 한 사람만 둡니다", isPresented: Binding(get: { !demotedMe.isEmpty }, set: { if !$0 { demotedMe = [] } })) {
+            Button("확인", role: .cancel) {
+                UserDefaults.standard.removeObject(forKey: PersonStore.demotedMeKey)
+            }
+        } message: {
+            Text("다른 기기에서도 나를 적어 두어 나가 둘이 되었습니다. 먼저 만든 나를 남기고 나머지는 보통 사람으로 바꿨습니다 — \(demotedMe.joined(separator: ", ")). 지우지는 않았습니다.")
+        }
+    }
+
+    /// 저장소 · 장면 · 단축어 감시와 자료 세기.
+    private func withObservers<Content: View>(_ content: Content) -> some View {
+        content
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
             noteChange()
         }
@@ -204,26 +293,31 @@ struct PeopleListView: View {
                 pendingChange = false
                 dataVersion += 1
             }
+            // 잠긴 채 받은 위젯 URL 은 풀린 뒤에 연다 (FR-075).
+            handleShortcut()
         }
-        .alert("나는 한 사람만 둡니다", isPresented: Binding(get: { !demotedMe.isEmpty }, set: { if !$0 { demotedMe = [] } })) {
-            Button("확인", role: .cancel) {
-                UserDefaults.standard.removeObject(forKey: PersonStore.demotedMeKey)
-            }
-        } message: {
-            Text("다른 기기에서도 나를 적어 두어 나가 둘이 되었습니다. 먼저 만든 나를 남기고 나머지는 보통 사람으로 바꿨습니다 — \(demotedMe.joined(separator: ", ")). 지우지는 않았습니다.")
-        }
+        .onChange(of: fetched.count) { _, _ in handleShortcut() }
         .task(id: ListKey(version: dataVersion, sort: sortOption, count: fetched.count, type: filterType, tag: filterTag)) {
             sortedPeople = LaunchTiming.measure("목록 정렬 (\(fetched.count)명)") {
                 PersonStore.sorted(fetched, by: sortOption)
             }
             if !sortedPeople.isEmpty { LaunchTiming.once("목록 정렬 끝 (\(sortedPeople.count)명)") }
             refreshFilter()
+            pinnedPeople = NameSort.sorted(fetched.filter { !$0.isGone && $0.isPinned }, name: \.name, createdAt: \.createdAt)
+            loadPlaceChoices()
             // 예정을 먼저 — 최근 기록은 결과를 적을 만남과 겹치는 기록을 뺀다.
             LaunchTiming.measure("예정된 만남 읽기") { loadPlannedRecords() }
             LaunchTiming.measure("최근 기록 3건 읽기") { loadRecentRecords() }
+            LaunchTiming.measure("다가오는 날 읽기") {
+                upcomingDays = StoreAccess.isReadable(scenePhase)
+                    ? UpcomingDays.all(in: context, today: UpcomingDays.today(), within: UpcomingDays.year) : upcomingDays
+            }
         }
         .task(id: SearchKey(text: searchText, version: dataVersion)) {
             await runSearch()
+        }
+        .task(id: RecordSearchKey(text: searchText, period: searchPeriod, place: searchPlace, version: dataVersion)) {
+            findRecords()
         }
         .task(id: dataVersion) {
             // 저장이 이어지면(하루 10명 입력) 마지막 저장 뒤 한 번만 센다.
@@ -234,12 +328,17 @@ struct PeopleListView: View {
                 pendingChange = true
                 return
             }
+            // 반복 약속의 다음 회차 (1.1.9 · 이슈 94 · FR-069) — 때가 된 회차마다 하나. 만들면 저장 알림으로 다시 센다.
+            _ = try? RecordStore(context: context).spawnDueRepeats()
             LaunchTiming.once("입력 상태 세기 시작 (자료 판 \(dataVersion))")
             let input = await NetworkSnapshotBuilder.readiness(container: context.container, version: dataVersion)
             guard !Task.isCancelled else { return }
             readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
             // 알림도 다시 건다 (D-40) — 생일 · 처음 만난 날 · 기록이 바뀌었을 수 있다. 켠 알림이 없으면 바로 끝난다.
             await ReminderScheduler.refresh(container: context.container)
+            // 홈 화면 위젯의 요약 (1.1.9 · 이슈 100) · 공유로 받은 초안 (이슈 101).
+            await WidgetBridge.refresh(container: context.container)
+            loadSharedDrafts()
             // 검색 색인도 미리 만들어 둔다 (이슈 8) — 첫 검색이 기다리지 않게.
             if !fetched.isEmpty, indexVersion != dataVersion {
                 await rebuildIndex()
@@ -256,14 +355,6 @@ struct PeopleListView: View {
         Group {
             if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
                 EmptyPeopleView(onAdd: { showingAdd = true }, onDemo: { DemoMode.shared.start() })
-            } else if isQuerying && searchRows.isEmpty && searchedText == searchText {
-                // 요구사항 문구 그대로 — 시스템 기본 문구 대신 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
-                let shown = TextNormalization.normalized(searchText)
-                ContentUnavailableView {
-                    Label("'\(shown)'\(Josa.gwaWa(shown)) 일치하는 사람이 없습니다", systemImage: "magnifyingglass")
-                } description: {
-                    Text("이름 · 소속 · 메모 · 태그로 찾습니다. 태그만 찾으려면 #을 붙이세요.")
-                }
             } else {
                 list
             }
@@ -323,11 +414,22 @@ struct PeopleListView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAdd = true
+                // 사람 추가 · 명함 여러 장 등록 (1.1.9 · 이슈 103 · 2026-11-06 사용자) — 여러 장은 따로 메뉴로.
+                Menu {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label("사람 추가", systemImage: "person.badge.plus")
+                    }
+                    Button {
+                        showingCardBatch = true
+                    } label: {
+                        Label("명함 여러 장 등록", systemImage: "rectangle.stack.badge.plus")
+                    }
                 } label: {
-                    Label("사람 추가", systemImage: "plus")
+                    Label("추가", systemImage: "plus")
                 }
+                .accessibilityIdentifier("addMenu")
             }
         }
     }
@@ -351,8 +453,23 @@ struct PeopleListView: View {
     /// 단축어가 남긴 요청을 한 번 처리한다 (빌드 16). 앱이 꺼져 있었으면 목록이 뜬 뒤에, 켜져 있었으면 바로.
     private func handleShortcut() {
         guard let request = shortcuts.pending else { return }
+        // 잠겨 있거나 아직 자료를 못 읽었으면 두었다가 — 풀리면 `onChange(scenePhase)` · 자료를 읽으면 다시 온다.
+        if case .open = request, !StoreAccess.isReadable(scenePhase) || fetched.isEmpty { return }
         shortcuts.pending = nil
         switch request {
+        case .open(let target):
+            // 위젯에서 (1.1.9 · FR-075) — 그 사람 · 그 기록. 지운 사람이면 아무것도 열지 않는다.
+            let personID: UUID
+            var recordID: UUID?
+            switch target {
+            case .person(let id): personID = id
+            case .record(let id, let person):
+                personID = person
+                recordID = id
+            }
+            guard let person = fetched.first(where: { $0.uuid == personID && !$0.isGone }) else { return }
+            path = NavigationPath()
+            open(person, recordID: recordID)
         case .addPerson:
             scanOnAdd = false
             showingAdd = true
@@ -373,6 +490,8 @@ struct PeopleListView: View {
 
     private var list: some View {
         List {
+            // 기간 · 장소로 찾기 (1.1.9 · FR-072) — 검색창을 열었을 때만(또는 칩을 골라 둔 동안) 보인다.
+            SearchFilterChips(period: $searchPeriod, place: $searchPlace, places: placeChoices)
             // 견본 둘러보기 (D-55) — 목록 첫 칸. 화면 위에 띄우면 내비게이션 막대의 단추를 덮는다(빌드 33 CI 스크린샷 36).
             if isDemo {
                 Section {
@@ -386,8 +505,12 @@ struct PeopleListView: View {
                         .foregroundStyle(Color.muted)
                 }
             }
-            if !isQuerying {
+            if !isQuerying && !isRecordSearching {
+                if !sharedDrafts.isEmpty { sharedDraftSection }
                 meSection
+                if !pinnedPeople.isEmpty && !isFiltering {
+                    pinnedSection
+                }
                 if let readinessLine, !fetched.isEmpty {
                     Section {
                         // 입력 상태 (D-31) — 무엇을 더 적으면 무엇이 보이는지. 내 인맥의 입력 상태 칸으로 간다.
@@ -413,6 +536,9 @@ struct PeopleListView: View {
                 }
                 if !upcomingRecords.isEmpty {
                     recordSection(upcomingRecords, title: "다가오는 만남", id: "upcomingSection") { $0.upcomingPhrase }
+                }
+                if upcomingDays.contains(where: { $0.daysAway <= UpcomingDays.soon }) {
+                    upcomingDaysSection
                 }
                 if !recentRecords.isEmpty {
                     recordSection(recentRecords, title: "최근 기록", id: "recentSection", lead: nil)
@@ -450,6 +576,9 @@ struct PeopleListView: View {
                                 }
                                 .tint(Color.danger)
                             }
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                pinButton(person)
+                            }
                         }
                     }
                 } header: {
@@ -458,7 +587,12 @@ struct PeopleListView: View {
                          : "\(displayedPeople.count)명 · \(sortOption.label)")
                 }
             } else {
+                if isRecordSearching { recordSearchSection }
+                if isQuerying {
                 Section {
+                    if searchRows.isEmpty && searchedText == searchText {
+                        noPeopleFound
+                    }
                     ForEach(searchRows) { row in
                         LiveRow(isGone: row.person.isGone) {
                             // 기록에서 일치했으면 그 기록 상세까지 바로 연다 (FR-034). 그래서 NavigationLink 가 아니라 Button 이다.
@@ -478,6 +612,7 @@ struct PeopleListView: View {
                     }
                 } header: {
                     Text(searchedText == searchText ? "\(searchRows.count)명" : "찾는 중…")
+                }
                 }
             }
         }
@@ -592,6 +727,236 @@ struct PeopleListView: View {
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         upcomingRecords = plan.upcoming.compactMap { byID[$0] }
         awaitingRecords = plan.awaiting.compactMap { byID[$0] }
+    }
+
+    /// **공유로 받은 초안** (1.1.9 · 이슈 101 · FR-076) — 누르면 누구와의 기록인지 고르고 기록 추가로. 밀어서 버리기(확인).
+    private var sharedDraftSection: some View {
+        Section {
+            ForEach(sharedDrafts) { draft in
+                Button {
+                    startShare(draft)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: draft.photoFiles.isEmpty ? "square.and.arrow.down" : "photo")
+                            .font(.scaled(16))
+                            .foregroundStyle(Color.accent)
+                            .frame(width: Font.scaledLength(24))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(draft.headline)
+                                .font(.scaled(16, weight: .medium))
+                                .foregroundStyle(Color.ink)
+                                .lineLimit(2)
+                            Text(sharedDetail(draft))
+                                .font(.scaled(13))
+                                .foregroundStyle(Color.muted)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.scaled(13, weight: .semibold))
+                            .foregroundStyle(Color.faint)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    // 역할 없는 단추 — 확인 전에 줄을 접지 않게 (느린 부자 178~182).
+                    Button {
+                        discardingShare = draft
+                    } label: {
+                        Label("버리기", systemImage: "trash")
+                    }
+                    .tint(Color.danger)
+                }
+                .accessibilityIdentifier("sharedDraftRow")
+            }
+        } header: {
+            Text("공유로 받은 초안 \(sharedDrafts.count)")
+        } footer: {
+            Text("누르면 누구와의 기록인지 고른 뒤 기록 추가로 이어집니다. 왼쪽으로 밀면 버립니다.")
+        }
+    }
+
+    private func sharedDetail(_ draft: SharedDraft) -> String {
+        let when = RelativeDay.phrase(from: draft.createdAt, to: Date(), calendar: .current)
+        return draft.photoFiles.isEmpty ? "\(when) 받음" : "\(when) 받음 · 사진 \(draft.photoFiles.count)장"
+    }
+
+    private func loadSharedDrafts() {
+        sharedDrafts = SharedDraftStore.drafts()
+    }
+
+    /// 초안의 사진을 기록 사진 크기로 줄여 두고 사람을 고르게 한다. 사람이 없으면 사람 추가부터.
+    private func startShare(_ draft: SharedDraft) {
+        guard !fetched.isEmpty else {
+            showingAdd = true
+            return
+        }
+        Task {
+            var photos: [Data] = []
+            for data in SharedDraftStore.photos(of: draft) {
+                if let photo = await RecordPhotos.normalized(from: data) { photos.append(photo) }
+            }
+            pendingShare = draft
+            shareSeed = RecordSeed(note: draft.text, photos: photos)
+            recordCandidates = PersonStore.sorted(fetched.filter { !$0.isGone }, by: .name)
+            recordPick = nil
+            pickingRecordPerson = true
+        }
+    }
+
+    /// 일치하는 사람이 없을 때 — 요구사항 문구 그대로 (전수조사 이슈 22). 조사는 `Core.Josa` 로.
+    /// 1.1.9 부터 목록 안의 줄이다 — 화면 전체를 덮으면 기간 · 장소 칩(FR-072)까지 가린다.
+    private var noPeopleFound: some View {
+        let shown = TextNormalization.normalized(searchText)
+        return VStack(alignment: .leading, spacing: 6) {
+            Label("'\(shown)'\(Josa.gwaWa(shown)) 일치하는 사람이 없습니다", systemImage: "magnifyingglass")
+                .font(.scaled(16, weight: .medium))
+                .foregroundStyle(Color.ink)
+            Text("이름 · 소속 · 메모 · 태그로 찾습니다. 태그만 찾으려면 #을 붙이세요.")
+                .font(.scaled(14))
+                .foregroundStyle(Color.muted)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// 기간 · 장소 칩으로 찾은 기록 (FR-072) — 최근 것부터 50건. 누르면 그 기록.
+    private var recordSearchSection: some View {
+        Section {
+            if foundRecords.isEmpty {
+                Text("조건에 맞는 기록이 없습니다")
+                    .font(.scaled(15))
+                    .foregroundStyle(Color.muted)
+            }
+            ForEach(foundRecords) { record in
+                if !record.isGone {
+                    if isWide {
+                        Button {
+                            if let person = Self.firstCompanion(of: record) { open(person, recordID: record.uuid) }
+                        } label: {
+                            HStack {
+                                RecentRecordRow(record: record)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        NavigationLink(value: record) {
+                            RecentRecordRow(record: record)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text(foundTotal > foundRecords.count ? "기록 \(foundTotal)건 · 최근 \(foundRecords.count)건" : "기록 \(foundTotal)건")
+                .accessibilityIdentifier("recordSearchSection")
+        }
+    }
+
+    /// 자주 쓴 장소 여섯 (FR-072) — 최근 기록 500건에서. 자료가 바뀔 때만 센다.
+    private func loadPlaceChoices() {
+        guard StoreAccess.isReadable(scenePhase) else { return }
+        var descriptor = FetchDescriptor<Record>(sortBy: [SortDescriptor(\.occurredAt, order: .reverse)])
+        descriptor.fetchLimit = 500
+        let records = ((try? context.fetch(descriptor)) ?? []).filter { !$0.isGone }
+        placeChoices = PlaceCatalog.top(records.map(\.location))
+        if let place = searchPlace, !placeChoices.contains(place) { searchPlace = nil }
+    }
+
+    /// 칩 · 검색어로 기록을 찾는다 (FR-072) — 기간이 있으면 그 날들만 읽는다. 규칙은 `Core.RecordFinder` 하나다.
+    private func findRecords() {
+        guard isRecordSearching, StoreAccess.isReadable(scenePhase) else {
+            foundRecords = []
+            foundTotal = 0
+            return
+        }
+        let calendar = Calendar.current
+        let today = UpcomingDays.today(calendar: calendar)
+        let range = searchPeriod.map { RecordFinder.range($0, today: today) }
+        var descriptor = FetchDescriptor<Record>()
+        func start(of dayNumber: Int) -> Date? {
+            let civil = CivilDate(dayNumber: dayNumber)
+            return calendar.date(from: DateComponents(year: civil.year, month: civil.month, day: civil.day))
+        }
+        if let range, let from = start(of: range.lowerBound), let to = start(of: range.upperBound + 1) {
+            descriptor.predicate = #Predicate<Record> { $0.occurredAt >= from && $0.occurredAt < to }
+        }
+        let query = searchText
+        let matched = ((try? context.fetch(descriptor)) ?? []).filter { record in
+            guard !record.isGone else { return false }
+            let parts = calendar.dateComponents([.year, .month, .day], from: record.occurredAt)
+            let day = CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1).dayNumber
+            return RecordFinder.matches(RecordFinder.Item(day: day, location: record.location, title: record.title,
+                                                          note: record.note, tags: record.tags),
+                                        range: range, place: searchPlace, query: query)
+        }.sorted {
+            TimelineSort.areInIncreasingOrder((occurredAt: $0.occurredAt, minute: $0.occurredMinute, createdAt: $0.createdAt),
+                                              (occurredAt: $1.occurredAt, minute: $1.occurredMinute, createdAt: $1.createdAt))
+        }
+        foundTotal = matched.count
+        foundRecords = Array(matched.prefix(50))
+    }
+
+    /// **다가오는 날** (1.1.8 · 이슈 93 · FR-068) — 30일 안의 생일 · 기념일 다섯. 누르면 그 사람. 더 있으면 모두 보기(한 해).
+    private var upcomingDaysSection: some View {
+        let soon = upcomingDays.filter { $0.daysAway <= UpcomingDays.soon }
+        return Section {
+            ForEach(soon.prefix(Self.plannedShown)) { day in
+                LiveRow(isGone: day.person.isGone) {
+                    personLink(day.person) {
+                        UpcomingDayRow(day: day)
+                    }
+                    .accessibilityIdentifier("upcomingDayRow")
+                }
+            }
+            if upcomingDays.count > min(soon.count, Self.plannedShown) {
+                Button {
+                    showingAllDays = true
+                } label: {
+                    Label("한 해 모두 보기 · \(upcomingDays.count)건", systemImage: "calendar")
+                        .font(.scaled(15))
+                        .foregroundStyle(Color.accent)
+                }
+                .accessibilityIdentifier("allUpcomingDays")
+            }
+        } header: {
+            Text("다가오는 날")
+                .accessibilityIdentifier("upcomingDaysSection")
+        }
+    }
+
+    /// **고정** (11판 · 이슈 91 · FR-066) — 자주 만나는 사람을 목록 위에. 아래 목록에도 그대로 남는다.
+    private var pinnedSection: some View {
+        Section {
+            ForEach(pinnedPeople) { person in
+                LiveRow(isGone: person.isGone) {
+                    personLink(person) {
+                        PersonRow(person: person, evidence: nil, showsLastRecord: true, showsPhoto: true)
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        pinButton(person)
+                    }
+                    .accessibilityIdentifier("pinnedRow")
+                }
+            }
+        } header: {
+            Text("고정")
+        }
+    }
+
+    /// 줄을 왼쪽에서 밀어 고정 · 고정 풀기. 지우는 일이 아니라 확인 없이 바로 한다.
+    private func pinButton(_ person: Person) -> some View {
+        Button {
+            do {
+                try store.setPinned(person, !person.isPinned)
+            } catch {
+                saveError = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
+            }
+        } label: {
+            Label(person.isPinned ? "고정 풀기" : "고정", systemImage: person.isPinned ? "pin.slash" : "pin")
+        }
+        .tint(Color.accent)
     }
 
     /// **나** (이슈 12). 인맥은 나를 기준으로 그린다 — 목록 맨 위에 늘 있다.
@@ -851,6 +1216,7 @@ struct PeopleListView: View {
         }
         if arguments.measureSave { measureSaves() }
         if arguments.addPerson { showingAdd = true }
+        if arguments.cardBatch { showingCardBatch = true }
         var opened: Person?
         if arguments.openMe {
             opened = meList.first
@@ -1016,5 +1382,32 @@ struct PersonRow: View {
     private var lastRecordText: String {
         guard let last = person.lastRecordAt else { return "기록 없음" }
         return "마지막 기록 " + RelativeDay.phrase(from: last, to: Date(), calendar: .current)
+    }
+}
+
+/// 공유 초안 버리기 확인 · 앞으로 나올 때 다시 읽기 (1.1.9 · 이슈 101) — 홈의 긴 식에서 떼어 둔다(형식 맞추기 시간).
+private struct SharedDraftDialogs: ViewModifier {
+    @Binding var discarding: SharedDraft?
+    let scenePhase: ScenePhase
+    let onChange: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog("이 초안을 버릴까요?",
+                                isPresented: Binding(get: { discarding != nil }, set: { if !$0 { discarding = nil } }),
+                                titleVisibility: .visible, presenting: discarding) { draft in
+                Button("버리기", role: .destructive) {
+                    SharedDraftStore.remove(draft)
+                    discarding = nil
+                    onChange()
+                }
+                Button("취소", role: .cancel) { discarding = nil }
+            } message: { draft in
+                Text(draft.headline)
+            }
+            // 공유 시트에서 돌아오면 바로 보이게 — 자료가 바뀌지 않아도.
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { onChange() }
+            }
     }
 }

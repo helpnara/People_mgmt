@@ -1,3 +1,4 @@
+import Core
 import SwiftUI
 
 /// 앱의 뿌리. 탭바 없이 스택 하나다 (요구사항 4.1). 화면 깊이는 목록 → 사람 상세 → 기록 상세 셋을 넘지 않는다.
@@ -24,6 +25,10 @@ struct RootView: View {
                 if lock.isLocked { LockScreen(lock: lock) }
             }
             .task { lock.launch(isActive: scenePhase == .active) }
+            // 위젯 · 잠금 화면 위젯에서 (1.1.9 · FR-075) — 사람 목록이 받아 그 사람 · 기록을 연다. 잠겨 있으면 풀린 뒤에 연다.
+            .onOpenURL { url in
+                if let target = AppLink.parse(url) { ShortcutRequests.shared.ask(.open(target)) }
+            }
             .onAppear { LaunchTiming.once("뿌리 화면 나타남") }
             // 앱이 앞으로 나올 때 알림을 다시 건다 — 날이 바뀌었을 수 있다 (D-40).
             .onChange(of: scenePhase) { _, phase in
@@ -31,7 +36,11 @@ struct RootView: View {
                 // 잠긴 채 앞으로 나오는 일은 없지만, 저장소를 읽는 곳은 같은 문을 지난다 (이슈 31).
                 guard StoreAccess.isReadable(phase) else { return }
                 let container = context.container
-                Task { await ReminderScheduler.refresh(container: container) }
+                Task {
+                    await ReminderScheduler.refresh(container: container)
+                    // 날이 바뀌었을 수 있다 — 위젯의 `오늘` · `내일` 도 새로 (이슈 100).
+                    await WidgetBridge.refresh(container: container)
+                }
             }
     }
 }

@@ -198,12 +198,205 @@ def planned_follow_ups(records, today, limit=FOLLOW_UP_LIMIT):
     return [r["id"].upper() for r in picked[:limit]]
 
 
+DAY_REMINDER_LIMIT = 4
+DAY_REMINDER_LEAD = 60
+
+
+def planned_day_reminders(records, today, limit=DAY_REMINDER_LIMIT):
+    """약속 당일 알림 (1.1.8 · FR-064) — 날짜까지 · 그날보다 미리 만듦 · 그날 이후 안 고침 · 그날이 오늘 이후. 가까운 날 → 시각 → id."""
+    picked = [r for r in records if r["dayPrecise"] and r["day"] >= today
+              and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+    picked.sort(key=lambda r: (r["day"], time_key(r.get("minute")), r["id"].upper()))
+    return [r["id"].upper() for r in picked[:limit]]
+
+
+def day_reminder_minute(meeting, preferred, lead=DAY_REMINDER_LEAD):
+    """약속 당일 알림의 시각(자정부터 분) — 고른 알림 시각. 약속 시각이 있고 그보다 lead 분 앞이 알림 시각보다 이르면 그때(0 아래면 0)."""
+    if meeting is not None and meeting - lead < preferred:
+        return max(0, meeting - lead)
+    return preferred
+
+
 # ── 생일 · 알림 계획 (BirthdayRule · ReminderPlanner · 빌드 18 · D-40) ───────────────────────
 # 달력의 날만 센다(시간대 없음). 생일 당일 · 알게 된 지 n주년 · 연락 주기(고른 사람만, 지났으면 오늘로 한 번).
 # 오늘부터 366일 안, 날짜 → 종류(생일 · n주년 · 연락 주기) → 이름 순, 한도까지.
 
 import calendar as _calendar
 import datetime as _dt
+
+
+# ── 반복 약속 · 기간 · 장소로 찾기 · 자주 쓴 장소 · 고쳐 둔 모임 이름 (1.1.9 · D-79) ──────────────────────
+
+REPEAT_WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"]
+REPEAT_ORDINALS = ["첫째", "둘째", "셋째", "넷째"]
+_EPOCH = None
+
+
+def _day_number(d):
+    return (d - _dt.date(1970, 1, 1)).days
+
+
+def _weekday(d):
+    return (d.weekday() + 1) % 7   # 0 일요일
+
+
+def _next_month(d):
+    idx = d.year * 12 + (d.month - 1) + 1
+    return idx // 12, idx % 12 + 1
+
+
+def repeat_next(rule, date_str, anchor=None):
+    d = _dt.date.fromisoformat(date_str)
+    if rule == 0:
+        return None
+    if rule == 1:
+        return (d + _dt.timedelta(days=7)).isoformat()
+    if rule == 2:
+        return (d + _dt.timedelta(days=14)).isoformat()
+    y, m = _next_month(d)
+    if rule == 3:
+        return _dt.date(y, m, min(anchor or d.day, _days_in(m, y))).isoformat()
+    wd = _weekday(d)
+    first = _dt.date(y, m, 1)
+    first_match = 1 + (wd - _weekday(first) + 7) % 7
+    n = (d.day - 1) // 7 + 1
+    if n >= 5:
+        day = first_match
+        while day + 7 <= _days_in(m, y):
+            day += 7
+        return _dt.date(y, m, day).isoformat()
+    return _dt.date(y, m, first_match + (n - 1) * 7).isoformat()
+
+
+def repeat_is_due(day, updated_day, today):
+    return day < today or (day <= today and updated_day >= day)
+
+
+def widget_dday(day, today):
+    """위젯의 큰 글씨 (1.1.9 · FR-075) — D-DAY · D-n · 지난 날은 D+n."""
+    left = day - today
+    if left == 0:
+        return "D-DAY"
+    return "D-%d" % left if left > 0 else "D+%d" % (-left)
+
+
+def app_link_parse(url):
+    """위젯 → 앱 URL (FR-075) — slowconnection://person/<uuid> · slowconnection://record/<uuid>?person=<uuid>."""
+    import urllib.parse as _u
+    import uuid as _uuid
+    try:
+        parts = _u.urlsplit(url)
+    except ValueError:
+        return None
+    if parts.scheme != "slowconnection":
+        return None
+    path = [p for p in parts.path.split("/") if p]
+    def _uuid_of(text):
+        try:
+            return str(_uuid.UUID(text)).upper() if text else None
+        except (ValueError, AttributeError):
+            return None
+    ident = _uuid_of(path[0]) if path else None
+    if parts.netloc == "person":
+        return {"kind": "person", "id": ident} if ident else None
+    if parts.netloc == "record":
+        person = _uuid_of(dict(_u.parse_qsl(parts.query)).get("person"))
+        return {"kind": "record", "id": ident, "person": person} if ident and person else None
+    return None
+
+
+def repeat_next_upcoming(rule, date_str, today_str, anchor=None):
+    nxt = repeat_next(rule, date_str, anchor)
+    if nxt is None:
+        return None
+    today = _dt.date.fromisoformat(today_str)
+    count = 0
+    while _dt.date.fromisoformat(nxt) <= today and count < 2000:
+        nxt = repeat_next(rule, nxt, anchor)
+        count += 1
+    return nxt
+
+
+def repeat_describe(rule, date_str, anchor=None):
+    d = _dt.date.fromisoformat(date_str)
+    weekday = REPEAT_WEEKDAYS[_weekday(d)] + "요일"
+    if rule == 0:
+        return "반복 안 함"
+    if rule == 1:
+        return "매주 " + weekday
+    if rule == 2:
+        return "2주마다 " + weekday
+    if rule == 3:
+        return f"매달 {anchor or d.day}일"
+    n = (d.day - 1) // 7 + 1
+    return "매달 " + ("마지막" if n >= 5 else REPEAT_ORDINALS[n - 1]) + " " + weekday
+
+
+def record_range(period, today_str):
+    t = _dt.date.fromisoformat(today_str)
+    n = _day_number(t)
+    if period == "week":
+        return n - 6, n
+    if period == "month":
+        return n - 29, n
+    if period == "thisYear":
+        return _day_number(_dt.date(t.year, 1, 1)), _day_number(_dt.date(t.year, 12, 31))
+    return _day_number(_dt.date(t.year - 1, 1, 1)), _day_number(_dt.date(t.year - 1, 12, 31))
+
+
+def record_matches(item, rng, place, query):
+    day = _day_number(_dt.date.fromisoformat(item["date"]))
+    if rng is not None and not (rng[0] <= day <= rng[1]):
+        return False
+    wanted = folded(collapsed_spaces(normalized(place or "")))
+    if wanted:
+        loc = item.get("location")
+        if loc is None or wanted not in folded(collapsed_spaces(loc)):
+            return False
+    words = [folded(w) for w in collapsed_spaces(normalized(query)).split()]
+    if not words:
+        return True
+    hay = folded("\n".join([v for v in (item.get("title"), item.get("note"), item.get("location")) if v is not None] + item.get("tags", [])))
+    return all(w in hay for w in words)
+
+
+def place_catalog(locations, limit=6):
+    order, counts, shown = [], {}, {}
+    for raw in locations:
+        clean = collapsed_spaces(normalized(raw or ""))
+        if not clean:
+            continue
+        key = folded(clean)
+        if key not in counts:
+            order.append(key)
+            shown[key] = clean
+            counts[key] = 0
+        counts[key] += 1
+    first = {k: i for i, k in enumerate(order)}
+    ranked = sorted(order, key=lambda k: (-counts[k], first[k]))
+    return [shown[k] for k in ranked[:limit]]
+
+
+def saved_community_name(members, labels):
+    mine = set(members)
+    if not mine:
+        return None
+    best = None
+    for label in labels:
+        name = collapsed_spaces(normalized(label["name"]))
+        if not name:
+            continue
+        theirs = set(label["members"])
+        union = len(mine | theirs)
+        if union == 0:
+            continue
+        score = len(mine & theirs) / union
+        if score <= 0.5:
+            continue
+        if best is None or score > best[1]:
+            best = (name, score)
+    return best[0] if best else None
+
 
 REMINDER_LIMIT = 60
 REMINDER_HORIZON = 366
@@ -329,6 +522,13 @@ def vcard_encode(people):
                 lines.append(f"BDAY:{p['birthYear']:04d}-{p['birthMonth']:02d}-{p['birthDay']:02d}")
             else:
                 lines.append(f"BDAY:--{p['birthMonth']:02d}{p['birthDay']:02d}")
+        # 기념일 (1.1.8 · FR-068) — 기기 연락처와 같은 묶음 꼴: itemN.X-ABDATE + itemN.X-ABLabel. 해를 모르면 1604 + 빼는 해 표시.
+        for i, a in enumerate(p.get("anniversaries", []), start=1):
+            if a.get("year") is not None:
+                lines.append(f"item{i}.X-ABDATE:{a['year']:04d}-{a['month']:02d}-{a['day']:02d}")
+            else:
+                lines.append(f"item{i}.X-ABDATE;X-APPLE-OMIT-YEAR=1604:1604-{a['month']:02d}-{a['day']:02d}")
+            lines.append(f"item{i}.X-ABLabel:{vcard_escape(a['label'] or '기념일')}")
         if f["other"]:
             lines.append(f"NOTE:{vcard_escape(f['other'])}")
         lines.append("END:VCARD")
@@ -436,10 +636,13 @@ def vcard_parse(text):
         head, value = line.split(":", 1)
         head_parts = head.split(";")
         name = head_parts.pop(0).upper()
+        group = ""
         if "." in name:
+            group = name[:name.rindex(".")]
             name = name[name.rindex(".") + 1:]
         if name == "BEGIN" and value.upper() == "VCARD":
-            card = {"fn": "", "family": "", "given": "", "nickname": "", "org": "", "role": "", "phones": [], "emails": [], "note": "", "bday": None}
+            card = {"fn": "", "family": "", "given": "", "nickname": "", "org": "", "role": "", "phones": [], "emails": [], "note": "", "bday": None,
+                    "dates": [], "labels": {}}
             continue
         if name == "END" and value.upper() == "VCARD":
             if card is not None:
@@ -449,9 +652,14 @@ def vcard_parse(text):
                     if card["note"]:
                         contact_place(f, card["note"], "other")
                     b = card["bday"]
+                    anniversaries = []
+                    for grp, d in card["dates"]:
+                        label = _vcard_date_label(card["labels"].get(grp, "") if grp else "")
+                        anniversaries.append({"label": label, "month": d[0], "day": d[1], "year": d[2]})
                     people.append({"name": nm, "nickname": clean(card["nickname"]), "organization": clean(card["org"]),
                                    "role": clean(card["role"]), "fields": f,
-                                   "birthMonth": b[0] if b else None, "birthDay": b[1] if b else None, "birthYear": b[2] if b else None})
+                                   "birthMonth": b[0] if b else None, "birthDay": b[1] if b else None, "birthYear": b[2] if b else None,
+                                   "anniversaries": anniversaries})
             card = None
             continue
         if card is None:
@@ -493,7 +701,21 @@ def vcard_parse(text):
             card["note"] = _vcard_unescape(value)
         elif name == "BDAY":
             card["bday"] = _vcard_birthday(value, params.get("X-APPLE-OMIT-YEAR"))
+        elif name in ("X-ABDATE", "ANNIVERSARY"):
+            d = _vcard_birthday(value, params.get("X-APPLE-OMIT-YEAR"))
+            if d is not None:
+                card["dates"].append((group, d))
+        elif name == "X-ABLABEL" and group:
+            card["labels"][group] = _vcard_unescape(value)
     return people
+
+
+def _vcard_date_label(raw):
+    """기기 연락처의 이름표 — `_$!<Anniversary>!$_` 같은 기본 이름은 `기념일`, 빈 것도 `기념일`."""
+    text = collapsed_spaces(normalized(raw))
+    if text.startswith("_$!<") and text.endswith(">!$_"):
+        return "기념일"
+    return text or "기념일"
 
 
 def import_name_key(name):
@@ -1908,6 +2130,9 @@ def person_export(p: dict) -> str:
         facts.append(f"- 알게 된 경로: {path} ({intro}의 소개)" if intro else f"- 알게 된 경로: {path}")
     if filled(p.get("birthday")):
         facts.append(f"- 생일: {filled(p['birthday'])}")
+    for s in p.get("specialDays", []):
+        if filled(s["value"]):
+            facts.append(f"- {filled(s['label']) or '기념일'}: {filled(s['value'])}")
     if hash_tags(p.get("tags", [])):
         facts.append(f"- 태그: {hash_tags(p['tags'])}")
     if facts:
@@ -1915,6 +2140,11 @@ def person_export(p: dict) -> str:
     contacts = [f"- {c['label']}: {filled(c['value'])}" for c in p.get("contacts", []) if filled(c["value"])]
     if contacts:
         lines += ["## 연락 수단", ""] + contacts + [""]
+    if filled(p.get("keyNote")):
+        lines += ["## 기억할 것", "", filled(p["keyNote"]), ""]
+    talks = [f"- {filled(t)}" for t in p.get("talkItems", []) if filled(t)]
+    if talks:
+        lines += ["## 다음에 이야기할 것", ""] + talks + [""]
     first_met, first_note = filled(p.get("firstMet")), filled(p.get("firstNote"))
     if first_met or first_note:
         lines += ["## 첫 인연", "", first_met or "날짜 미상", ""]
@@ -1972,7 +2202,8 @@ def best_match(term: tuple[str, bool], person: dict):
     if not tag_only:
         for field, evidence in (("nickname", "별명 일치"), ("organization", "소속 일치"),
                                 ("role", "직무 일치"), ("relationshipType", "관계 유형 일치"),
-                                ("metThrough", "알게 된 경로 일치"), ("firstNote", "첫 인연 메모 일치")):
+                                ("metThrough", "알게 된 경로 일치"), ("firstNote", "첫 인연 메모 일치"),
+                                ("keyNote", "기억할 것 일치")):
             if has(person.get(field)):
                 return ("person", evidence, None)
     for record in person.get("records", []):
@@ -2062,6 +2293,28 @@ def build() -> dict:
                        "expected": louvain(c["nodeCount"], c["links"], c.get("resolution", 1.0))} for c in cases["louvain"]]
     out["splitConnected"] = [{"name": c["name"], "nodeCount": c["nodeCount"], "links": c["links"], "communities": c["communities"],
                               "expected": split_connected(c["communities"], c["nodeCount"], c["links"])} for c in cases["splitConnected"]]
+    out["repeatRule"] = [{"rule": c["rule"], "date": c["date"], "anchorDay": c.get("anchorDay"),
+                          "next": repeat_next(c["rule"], c["date"], c.get("anchorDay")),
+                          "describe": repeat_describe(c["rule"], c["date"], c.get("anchorDay")),
+                          "upcoming": [{"today": t, "expected": repeat_next_upcoming(c["rule"], c["date"], t, c.get("anchorDay"))}
+                                       for t in c.get("todays", [])]} for c in cases["repeatRule"]]
+    out["repeatDue"] = [dict(c, expected=repeat_is_due(c["day"], c["updatedDay"], c["today"])) for c in cases["repeatDue"]]
+    out["widgetDDay"] = [dict(c, expected=widget_dday(c["day"], c["today"])) for c in cases["widgetDDay"]]
+    out["appLink"] = [{"url": u, "expected": app_link_parse(u)} for u in cases["appLink"]]
+    out["recordFinder"] = [{"name": c["name"], "today": c["today"], "items": c["items"],
+                            "ranges": [{"period": p, "from": record_range(p, c["today"])[0], "to": record_range(p, c["today"])[1],
+                                        "today": _day_number(_dt.date.fromisoformat(c["today"]))}
+                                       for p in ("week", "month", "thisYear", "lastYear")],
+                            "queries": [{"period": q.get("period"), "place": q.get("place"), "query": q.get("query", ""),
+                                         "expected": [it["id"] for it in c["items"]
+                                                      if record_matches(it, record_range(q["period"], c["today"]) if q.get("period") else None,
+                                                                        q.get("place"), q.get("query", ""))]}
+                                        for q in c["queries"]]}
+                           for c in cases["recordFinder"]]
+    out["placeCatalog"] = [{"name": c["name"], "locations": c["locations"], "limit": c.get("limit", 6),
+                            "expected": place_catalog(c["locations"], c.get("limit", 6))} for c in cases["placeCatalog"]]
+    out["savedCommunityName"] = [{"name": c["name"], "members": c["members"], "labels": c["labels"],
+                                  "expected": saved_community_name(c["members"], c["labels"])} for c in cases["savedCommunityName"]]
     out["communityName"] = [{"name": c["name"], "members": c["members"], "expected": community_name(c["members"])}
                             for c in cases["communityName"]]
     out["temporal"] = []
@@ -2104,8 +2357,12 @@ def build() -> dict:
                                "window": c.get("window", PLANNED_WINDOW),
                                "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW)),
                                "followUps": planned_follow_ups(c["records"], c["today"]),
+                               "dayReminders": planned_day_reminders(c["records"], c["today"]),
                                "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}
                               for c in cases["plannedMeetings"]]
+    out["dayReminderMinute"] = [{"meeting": c.get("meeting"), "preferred": c["preferred"],
+                                 "expected": day_reminder_minute(c.get("meeting"), c["preferred"])}
+                                for c in cases["dayReminderMinute"]]
     out["timeOfDay"] = [{"minute": m, "text": time_text(m), "sortKey": time_key(m)} for m in cases["timeOfDay"]]
     out["milestones"] = [{"name": c["name"], "records": c["records"], "firstMetDay": c.get("firstMetDay"),
                           "firstMetYear": c.get("firstMetYear"), "today": c["today"],

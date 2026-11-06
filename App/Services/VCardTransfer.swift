@@ -31,7 +31,11 @@ enum VCardTransfer {
                             fields: ContactFields(mobile: person.mobilePhone ?? "", office: person.officePhone ?? "",
                                                   fax: person.faxNumber ?? "", email: person.email ?? "",
                                                   other: person.contactNote ?? ""),
-                            birthMonth: person.birthMonth, birthDay: person.birthDay, birthYear: person.birthYear)
+                            birthMonth: person.birthMonth, birthDay: person.birthDay, birthYear: person.birthYear,
+                            // 기념일 (1.1.8 · FR-068) — 기기 연락처가 읽는 꼴로.
+                            anniversaries: person.sortedSpecialDays.map {
+                                VCardDate(label: $0.label, month: $0.month, day: $0.day, year: $0.year)
+                            })
             }
             return (Data(VCard.encode(cards).utf8), cards.count)
         }.value
@@ -75,6 +79,10 @@ enum VCardTransfer {
             draft.birthMonth = month
             draft.birthDay = day
             draft.birthYear = person.birthYear
+        }
+        // 기념일 (1.1.8 · FR-068) — 종류 이름은 기념일 칸의 한도로 자른다. 맞지 않는 날은 저장할 때 걸러진다.
+        draft.specialDays = person.anniversaries.map {
+            DraftSpecialDay(label: String($0.label.prefix(Limits.specialDayLabel)), month: $0.month, day: $0.day, year: $0.year)
         }
         return draft
     }

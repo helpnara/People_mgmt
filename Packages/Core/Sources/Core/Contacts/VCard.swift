@@ -1,5 +1,19 @@
 import Foundation
 
+/// vCard 의 기념일 한 줄 (1.1.8 · FR-068) — 이름 · 월 · 일 · 해(모르면 nil).
+public struct VCardDate: Sendable, Equatable {
+    public var label: String
+    public var month: Int
+    public var day: Int
+    public var year: Int?
+    public init(label: String, month: Int, day: Int, year: Int? = nil) {
+        self.label = label
+        self.month = month
+        self.day = day
+        self.year = year
+    }
+}
+
 /// vCard(.vcf) 한 사람 (빌드 18 · D-41) — 내보내기 · 가져오기가 주고받는 칸.
 public struct VCardPerson: Sendable, Equatable {
     public var name: String
@@ -10,9 +24,12 @@ public struct VCardPerson: Sendable, Equatable {
     public var birthMonth: Int?
     public var birthDay: Int?
     public var birthYear: Int?
+    /// 기념일 (1.1.8 · FR-068) — 기기 연락처의 `itemN.X-ABDATE` · `itemN.X-ABLabel`.
+    public var anniversaries: [VCardDate]
 
     public init(name: String, nickname: String = "", organization: String = "", role: String = "",
-                fields: ContactFields = ContactFields(), birthMonth: Int? = nil, birthDay: Int? = nil, birthYear: Int? = nil) {
+                fields: ContactFields = ContactFields(), birthMonth: Int? = nil, birthDay: Int? = nil, birthYear: Int? = nil,
+                anniversaries: [VCardDate] = []) {
         self.name = name
         self.nickname = nickname
         self.organization = organization
@@ -21,6 +38,7 @@ public struct VCardPerson: Sendable, Equatable {
         self.birthMonth = birthMonth
         self.birthDay = birthDay
         self.birthYear = birthYear
+        self.anniversaries = anniversaries
     }
 }
 
@@ -54,6 +72,17 @@ public enum VCard {
                 } else {
                     lines.append(String(format: "BDAY:--%02d%02d", month, day))
                 }
+            }
+            // 기념일 (1.1.8) — 기기 연락처와 같은 묶음 꼴. 해를 모르면 1604 와 빼는 해 표시(기기 연락처가 그렇게 쓴다).
+            for (index, date) in person.anniversaries.enumerated() {
+                let group = "item\(index + 1)"
+                // `%@` 에 글자를 넘기지 않는다 — 리눅스 Foundation 에서는 Swift 글자가 CVarArg 가 아니다.
+                if let year = date.year {
+                    lines.append(group + String(format: ".X-ABDATE:%04d-%02d-%02d", year, date.month, date.day))
+                } else {
+                    lines.append(group + String(format: ".X-ABDATE;X-APPLE-OMIT-YEAR=1604:1604-%02d-%02d", date.month, date.day))
+                }
+                lines.append("\(group).X-ABLabel:\(escape(date.label.isEmpty ? "기념일" : date.label))")
             }
             if !f.other.isEmpty { lines.append("NOTE:\(escape(f.other))") }
             lines.append("END:VCARD")
@@ -104,7 +133,11 @@ public enum VCard {
             var value = String(line[line.index(after: colon)...])
             var headParts = head.split(separator: ";", omittingEmptySubsequences: false).map(String.init)
             var name = headParts.removeFirst().uppercased()
-            if let dot = name.lastIndex(of: ".") { name = String(name[name.index(after: dot)...]) }
+            var group = ""
+            if let dot = name.lastIndex(of: ".") {
+                group = String(name[..<dot])
+                name = String(name[name.index(after: dot)...])
+            }
             if name == "BEGIN", value.uppercased() == "VCARD" {
                 card = Card()
                 continue
@@ -149,6 +182,10 @@ public enum VCard {
             case "EMAIL": card?.emails.append(unescape(value))
             case "NOTE": card?.note = unescape(value)
             case "BDAY": card?.birthday = birthday(value, omitYear: params["X-APPLE-OMIT-YEAR"])
+            case "X-ABDATE", "ANNIVERSARY":
+                if let date = birthday(value, omitYear: params["X-APPLE-OMIT-YEAR"]) { card?.dates.append((group, date)) }
+            case "X-ABLABEL":
+                if !group.isEmpty { card?.labels[group] = unescape(value) }
             default: break
             }
         }
@@ -166,6 +203,8 @@ public enum VCard {
         var emails: [String] = []
         var note = ""
         var birthday: (month: Int, day: Int, year: Int?)?
+        var dates: [(group: String, date: (month: Int, day: Int, year: Int?))] = []
+        var labels: [String: String] = [:]
 
         func finish() -> VCardPerson? {
             let clean = { (text: String) in TextNormalization.collapsedSpaces(TextNormalization.normalized(text)) }
@@ -173,9 +212,21 @@ public enum VCard {
             guard !name.isEmpty else { return nil }
             var fields = ContactSorter.fromContact(phones: phones, emails: emails)
             if !note.isEmpty { fields.place(note, as: .other) }
+            let anniversaries = dates.map { entry in
+                VCardDate(label: VCard.dateLabel(entry.group.isEmpty ? "" : labels[entry.group] ?? ""),
+                          month: entry.date.month, day: entry.date.day, year: entry.date.year)
+            }
             return VCardPerson(name: name, nickname: clean(nickname), organization: clean(organization), role: clean(role),
-                               fields: fields, birthMonth: birthday?.month, birthDay: birthday?.day, birthYear: birthday?.year)
+                               fields: fields, birthMonth: birthday?.month, birthDay: birthday?.day, birthYear: birthday?.year,
+                               anniversaries: anniversaries)
         }
+    }
+
+    /// 기기 연락처의 이름표 — `_$!<Anniversary>!$_` 같은 기본 이름과 빈 것은 `기념일`.
+    static func dateLabel(_ raw: String) -> String {
+        let text = TextNormalization.collapsedSpaces(TextNormalization.normalized(raw))
+        if text.hasPrefix("_$!<") && text.hasSuffix(">!$_") { return "기념일" }
+        return text.isEmpty ? "기념일" : text
     }
 
     static func isQuotedPrintable(_ line: String) -> Bool {

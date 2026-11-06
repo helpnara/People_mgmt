@@ -50,6 +50,19 @@ struct BackupFile: Codable, Sendable {
         var muteBirthdayReminder: Bool?
         /// 10판(빌드 59)부터 — 기념일(D-77). 옛 백업에는 없으니 옵셔널.
         var specialDays: [SpecialDayItem]?
+        /// 11판(빌드 61)부터 — 기억할 것(FR-062) · 고정(FR-066) · 다음에 이야기할 것(FR-063). 옛 백업에는 없으니 옵셔널.
+        var keyNote: String?
+        var isPinned: Bool?
+        var talkItems: [TalkItemItem]?
+    }
+
+    /// 11판(빌드 61)부터 — 다음에 이야기할 것 한 줄(FR-063).
+    struct TalkItemItem: Codable, Sendable {
+        var uuid: UUID
+        var text: String
+        var isDone: Bool
+        var doneAt: Date?
+        var createdAt: Date
     }
 
     /// 10판(빌드 59)부터 — 기념일 한 줄(D-77).
@@ -81,6 +94,32 @@ struct BackupFile: Codable, Sendable {
         var occurredMinute: Int?
         /// 9판(빌드 45)부터 — 기록 사진(FR-058 · 차례대로 · 최대 4장). 옛 백업에는 없으니 옵셔널.
         var photos: [Data]?
+        /// 12판(빌드 62)부터 — 반복(FR-069). 옛 백업에는 없으니 옵셔널(없으면 반복 안 함).
+        var repeatRule: Int?
+        var repeatAnchorDay: Int?
+        var repeatSeriesID: UUID?
+        var repeatSpawned: Bool?
+    }
+
+    /// 12판(빌드 62)부터 — 기록 틀(FR-070).
+    struct TemplateItem: Codable, Sendable {
+        var uuid: UUID
+        var name: String
+        var recordType: String
+        var title: String?
+        var location: String?
+        var tags: [String]
+        var participantIDs: [String]
+        var createdAt: Date
+        var updatedAt: Date
+    }
+
+    /// 12판(빌드 62)부터 — 고쳐 둔 모임 이름(FR-071).
+    struct CommunityLabelItem: Codable, Sendable {
+        var uuid: UUID
+        var name: String
+        var memberIDs: [String]
+        var updatedAt: Date
     }
 
     /// 9판(빌드 45)부터 — 내 선택지(FR-035). 종류마다 보이는 차례 · 숨긴 것.
@@ -107,6 +146,9 @@ struct BackupFile: Codable, Sendable {
     var ties: [TieItem]
     /// 9판(빌드 45)부터 — 옛 백업에는 없으니 옵셔널.
     var choices: [ChoiceItem]?
+    /// 12판(빌드 62)부터 — 옛 백업에는 없으니 옵셔널.
+    var templates: [TemplateItem]?
+    var communityLabels: [CommunityLabelItem]?
 }
 
 enum Backup {
@@ -176,7 +218,21 @@ enum Backup {
             people: people.map { item(of: $0) },
             records: records.map { item(of: $0) },
             ties: ties.compactMap { item(of: $0) },
-            choices: choices.isEmpty ? nil : choices)
+            choices: choices.isEmpty ? nil : choices,
+            templates: {
+                let items = ((try? context.fetch(FetchDescriptor<RecordTemplate>())) ?? []).filter { !$0.isGone }.map {
+                    BackupFile.TemplateItem(uuid: $0.uuid, name: $0.name, recordType: $0.recordType, title: $0.title,
+                                            location: $0.location, tags: $0.tags, participantIDs: $0.participantIDs,
+                                            createdAt: $0.createdAt, updatedAt: $0.updatedAt)
+                }
+                return items.isEmpty ? nil : items
+            }(),
+            communityLabels: {
+                let items = ((try? context.fetch(FetchDescriptor<CommunityLabel>())) ?? []).filter { !$0.isGone }.map {
+                    BackupFile.CommunityLabelItem(uuid: $0.uuid, name: $0.name, memberIDs: $0.memberIDs, updatedAt: $0.updatedAt)
+                }
+                return items.isEmpty ? nil : items
+            }())
     }
 
     // MARK: - 값으로 옮기기 — 백업 · 삭제 실행취소(`DeletionUndo`)가 같은 길을 쓴다
@@ -197,7 +253,27 @@ enum Backup {
                                               remind: $0.remind, position: $0.position, createdAt: $0.createdAt)
                 }
                 return days.isEmpty ? nil : days
+            }(),
+            keyNote: p.keyNote, isPinned: p.isPinned ? true : nil,
+            talkItems: {
+                let items = (p.openTalkItems + p.doneTalkItems).map {
+                    BackupFile.TalkItemItem(uuid: $0.uuid, text: $0.text, isDone: $0.isDone, doneAt: $0.doneAt, createdAt: $0.createdAt)
+                }
+                return items.isEmpty ? nil : items
             }())
+    }
+
+    /// 다음에 이야기할 것을 값에서 다시 붙인다 (11판) — 사람을 저장소에 넣은 **뒤에**.
+    static func attachTalkItems(to person: Person, from item: BackupFile.PersonItem, in context: ModelContext) {
+        for talk in item.talkItems ?? [] where !talk.text.isEmpty {
+            let entry = TalkItem(text: String(talk.text.prefix(Limits.talkItem)))
+            context.insert(entry)
+            entry.uuid = talk.uuid
+            entry.isDone = talk.isDone
+            entry.doneAt = talk.doneAt
+            entry.createdAt = talk.createdAt
+            entry.person = person
+        }
     }
 
     /// 기념일을 값에서 다시 붙인다 (10판) — 사람을 저장소에 넣은 **뒤에**. 맞지 않는 날(2월 30일)은 넣지 않는다.
@@ -218,7 +294,9 @@ enum Backup {
             location: r.location, note: r.note, tags: r.tags, participants: (r.participants ?? []).map(\.uuid),
             createdAt: r.createdAt, updatedAt: r.updatedAt, occurredPrecision: r.occurredPrecision,
             occurredMinute: r.occurredMinute,
-            photos: { let data = r.sortedPhotos.compactMap(\.data); return data.isEmpty ? nil : data }())
+            photos: { let data = r.sortedPhotos.compactMap(\.data); return data.isEmpty ? nil : data }(),
+            repeatRule: r.repeatRule == 0 ? nil : r.repeatRule, repeatAnchorDay: r.repeatAnchorDay,
+            repeatSeriesID: r.repeatSeriesID, repeatSpawned: r.repeatSpawned ? true : nil)
     }
 
     /// 기록 사진을 값에서 다시 붙인다 — 기록을 저장소에 넣은 **뒤에**. 많으면 앞의 `RecordPhotos.limit` 장만.
@@ -262,6 +340,8 @@ enum Backup {
         person.birthYear = item.birthYear
         person.contactCadenceMonths = item.contactCadenceMonths
         person.muteBirthdayReminder = item.muteBirthdayReminder ?? false
+        person.keyNote = item.keyNote
+        person.isPinned = item.isPinned ?? false
     }
 
     /// 기록의 칸을 값에서 채운다 — 함께한 사람은 부르는 쪽이 잇는다.
@@ -277,6 +357,10 @@ enum Backup {
         record.tags = item.tags
         record.createdAt = item.createdAt
         record.updatedAt = item.updatedAt
+        record.repeatRule = RepeatRule.of(item.repeatRule ?? 0).rawValue
+        record.repeatAnchorDay = item.repeatAnchorDay
+        record.repeatSeriesID = item.repeatSeriesID
+        record.repeatSpawned = item.repeatSpawned ?? false
     }
 
     static func summary(of file: BackupFile) -> Summary {
@@ -338,6 +422,7 @@ enum Backup {
             context.insert(person)
             fill(person, from: item)
             attachSpecialDays(to: person, from: item, in: context)
+            attachTalkItems(to: person, from: item, in: context)
             // 나는 하나뿐이다 (이슈 12) — 백업에 둘이 있으면 앞의 하나만.
             person.isMe = item.isMe && !hasMe
             if person.isMe { hasMe = true }
@@ -386,6 +471,26 @@ enum Backup {
             list.hidden = choice.hidden
             list.updatedAt = choice.updatedAt
         }
+        // 기록 틀 · 고쳐 둔 모임 이름 (12판) — 같은 식별자가 이미 있으면 건너뛴다.
+        let haveTemplates = Set(((try? context.fetch(FetchDescriptor<RecordTemplate>())) ?? []).map(\.uuid))
+        for item in file.templates ?? [] where !haveTemplates.contains(item.uuid) && !item.name.isEmpty {
+            let template = RecordTemplate(name: item.name)
+            context.insert(template)
+            template.uuid = item.uuid
+            template.recordType = item.recordType
+            template.title = item.title
+            template.location = item.location
+            template.tags = item.tags
+            template.participantIDs = item.participantIDs
+            template.createdAt = item.createdAt
+            template.updatedAt = item.updatedAt
+        }
+        for item in file.communityLabels ?? [] where !item.name.isEmpty {
+            let label = CommunityLabel(name: item.name, memberIDs: item.memberIDs)
+            context.insert(label)
+            label.uuid = item.uuid
+            label.updatedAt = item.updatedAt
+        }
         do {
             try context.save()
         } catch {
@@ -416,5 +521,33 @@ struct BackupDocument: FileDocument {
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         FileWrapper(regularFileWithContents: data)
+    }
+}
+
+/// **백업 챙김** (1.1.8 · 이슈 92 · FR-067 · D-78) — 마지막으로 백업 파일을 저장한 때를 이 기기에 기억하고 설정에 한 줄.
+/// iCloud 동기화를 끈 채 `days` 일 넘게(또는 한 번도) 저장하지 않았으면 권한다 — 동기화를 켜 두었으면 자료가 iCloud 에도 있다.
+enum BackupReminder {
+    static let lastSavedKey = "backup.lastSavedAt"
+    static let days = 30
+
+    struct Status: Equatable {
+        let text: String
+        let urges: Bool
+    }
+
+    static func status(lastSaved: Double, syncOn: Bool, now: Date = Date(), calendar: Calendar = .current) -> Status {
+        guard lastSaved > 0 else {
+            return Status(text: syncOn ? "아직 백업 파일을 만든 적이 없습니다"
+                                       : "아직 백업 파일을 만든 적이 없습니다 — 동기화가 꺼져 있어 이 기기에만 있습니다",
+                          urges: !syncOn)
+        }
+        let saved = Date(timeIntervalSince1970: lastSaved)
+        let elapsed = max(0, (calendar.dateComponents([.day], from: calendar.startOfDay(for: saved),
+                                                     to: calendar.startOfDay(for: now)).day ?? 0))
+        let when = elapsed == 0 ? "오늘" : "\(elapsed)일 전"
+        if !syncOn && elapsed > days {
+            return Status(text: "마지막 백업 \(when) — 동기화가 꺼져 있으니 새로 만들어 두세요", urges: true)
+        }
+        return Status(text: "마지막 백업 \(when)", urges: false)
     }
 }

@@ -71,6 +71,11 @@ struct RelationGraphView: View {
     @State private var moveStart: Date?
     /// 지금이나 어느 시점에든 모임이 있는가 — 모임 줄을 시점마다 넣었다 뺐다 하지 않는다 (이슈 29).
     @State private var hasAnyCommunities = false
+    /// 모임 이름 고치기 (12판 · 이슈 96 · FR-071) — 고를 모임 · 새 이름.
+    @State private var renamingCommunity: NetworkSnapshot.Community?
+    @State private var communityName = ""
+    @State private var renameFailed = false
+    @Environment(\.modelContext) private var modelContext
     /// 사람 자리 → 이름표를 놓는 차례 (이슈 73 · `Core.LabelPriority`) — 모임마다 돌아가며, 모임 안은 나와의 기록이 많은 사람부터.
     /// 이름이 다 들어가지 않을 때 어느 모임이든 대표 이름이 보이게. 차례는 화면에 드러내지 않는다(ADR-0004). 모임이 바뀔 때 센다.
     @State private var nameRank: [Int] = []
@@ -110,6 +115,23 @@ struct RelationGraphView: View {
     private static let maxStretch: CGFloat = 1.8
 
     var body: some View {
+        graphBody
+            .sensoryFeedback(.impact(weight: .light), trigger: renamingCommunity?.id) { _, new in new != nil }
+            .alert("모임 이름 고치기", isPresented: Binding(get: { renamingCommunity != nil }, set: { if !$0 { renamingCommunity = nil } })) {
+                TextField("모임 이름", text: $communityName)
+                Button("저장", action: saveCommunityName)
+                Button("취소", role: .cancel) { renamingCommunity = nil }
+            } message: {
+                Text("이 모임의 사람들과 함께 저장합니다. 다음에도 절반 넘게 같은 사람이 모이면 이 이름으로 부릅니다. 비우고 저장하면 제안 이름으로 돌아갑니다.")
+            }
+            .alert("저장하지 못했습니다", isPresented: $renameFailed) {
+                Button("닫기", role: .cancel) {}
+            } message: {
+                Text("기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요.")
+            }
+    }
+
+    private var graphBody: some View {
         VStack(spacing: 0) {
             if compact {
                 compactControls
@@ -319,9 +341,7 @@ struct RelationGraphView: View {
                             Text("이 시점에는 묶인 모임이 없습니다").font(.scaled(13)).foregroundStyle(Color.muted)
                         }
                         ForEach(activeCommunities) { community in
-                            chip("\(community.name) \(community.memberIDs.count)", selected: highlightCommunity == community.id) {
-                                toggleCommunity(community.id)
-                            }
+                            communityChip(community)
                         }
                     }
                     .frame(minHeight: Font.scaledLength(44))
@@ -354,9 +374,7 @@ struct RelationGraphView: View {
                             Text("이 시점에는 묶인 모임이 없습니다").font(.scaled(13)).foregroundStyle(Color.muted)
                         }
                         ForEach(activeCommunities) { community in
-                            chip("\(community.name) \(community.memberIDs.count)", selected: highlightCommunity == community.id) {
-                                toggleCommunity(community.id)
-                            }
+                            communityChip(community)
                         }
                     }
                 }
@@ -393,6 +411,11 @@ struct RelationGraphView: View {
                         ForEach(activeCommunities) { community in
                             Button { toggleCommunity(community.id) } label: {
                                 menuLabel("\(community.name) \(community.memberIDs.count)명", selected: highlightCommunity == community.id)
+                            }
+                        }
+                        if let current = highlightedCommunity {
+                            Button { beginRename(current) } label: {
+                                Label("\(current.name) 이름 고치기", systemImage: "pencil")
                             }
                         }
                     }
@@ -456,6 +479,44 @@ struct RelationGraphView: View {
         highlight = highlight == type ? nil : type
         highlightKey = highlight.map { NameSort.key($0) }
         highlightCommunity = nil
+    }
+
+    /// 고른 모임 — 이름 고치기 단추가 쓴다.
+    private var highlightedCommunity: NetworkSnapshot.Community? {
+        guard let id = highlightCommunity else { return nil }
+        return activeCommunities.first { $0.id == id }
+    }
+
+    /// 모임 칩 (12판 · 이슈 96 · FR-071) — 누르면 그 모임만 진하게, **길게 누르면 바로 이름 고치기**
+    /// (빌드 62 실기기 · 2026-11-06 사용자: 칩을 고른 뒤 줄 끝의 단추를 찾는 것은 불편하다).
+    /// 짧게 누르기를 먼저 붙여야 가로로 미는 칩 줄이 길게 누르기에 막히지 않는다.
+    private func communityChip(_ community: NetworkSnapshot.Community) -> some View {
+        let selected = highlightCommunity == community.id
+        return Chip(text: "\(community.name) \(community.memberIDs.count)", selected: selected)
+            .tapTarget()
+            .onTapGesture { toggleCommunity(community.id) }
+            .onLongPressGesture(minimumDuration: 0.45) { beginRename(community) }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+            .accessibilityHint("길게 누르면 이름을 고칩니다")
+            .accessibilityAction { toggleCommunity(community.id) }
+            .accessibilityAction(named: "이름 고치기") { beginRename(community) }
+            .accessibilityIdentifier("communityChip")
+    }
+
+    private func beginRename(_ community: NetworkSnapshot.Community) {
+        communityName = community.name
+        renamingCommunity = community
+    }
+
+    private func saveCommunityName() {
+        guard let community = renamingCommunity else { return }
+        do {
+            try TemplateStore(context: modelContext).renameCommunity(members: community.memberIDs, to: communityName)
+        } catch {
+            renameFailed = true
+        }
+        renamingCommunity = nil
     }
 
     private func toggleCommunity(_ id: Int) {
@@ -672,7 +733,7 @@ struct RelationGraphView: View {
     private var communityText: String {
         switch snapshot.communityStatus {
         case .shown:
-            return "모임 \(snapshot.communities.count)개 — 진한 선으로 서로 많이 이어진 사람들을 테두리로 묶었습니다. 이름은 소속 · 태그 · 알게 된 경로에서 제안합니다."
+            return "모임 \(snapshot.communities.count)개 — 진한 선으로 서로 많이 이어진 사람들을 테두리로 묶었습니다. 이름은 소속 · 태그 · 알게 된 경로에서 제안하고, 위의 모임 칩을 길게 누르면 고칩니다."
         case .noClearGroups:
             return "모임 찾기 — 연결은 넉넉하지만 아직 뚜렷하게 나뉘는 모임이 없습니다."
         case .notEnoughLinks:
