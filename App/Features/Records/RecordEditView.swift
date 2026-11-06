@@ -51,7 +51,8 @@ struct RecordEditView: View {
     @State private var templateName = ""
     @State private var templateSaved = false
 
-    init(mode: Mode, onSaved: @escaping (Record) -> Void) {
+    /// `seed` — 공유 시트로 받은 초안의 메모 · 사진 (1.1.9 · 이슈 101 · FR-076). 새 기록일 때만 쓴다.
+    init(mode: Mode, seed: RecordSeed? = nil, onSaved: @escaping (Record) -> Void) {
         self.mode = mode
         self.onSaved = onSaved
         let draft: RecordDraft
@@ -60,6 +61,10 @@ struct RecordEditView: View {
             var fresh = RecordDraft(anchor: anchor)
             // 지난번에 고른 기록 유형으로 시작한다 (빌드 16) — 하루 여러 명이면 같은 유형이 이어진다.
             if let last = RecordMemory.lastType { fresh.recordType = last }
+            if let seed {
+                fresh.note = seed.note
+                fresh.photos = seed.photos.prefix(RecordPhotos.limit).map { DraftPhoto(data: $0) }
+            }
             draft = fresh
         case .edit(let record): draft = RecordDraft(record: record)
         }
@@ -633,4 +638,10 @@ private struct TemplateNaming: ViewModifier {
                 Text("새 기록을 적을 때 맨 위 틀에서 고르세요.")
             }
     }
+}
+
+/// 공유로 받은 초안을 기록 추가에 채울 값 (1.1.9 · 이슈 101) — 사진은 이미 기록 사진 크기로 줄인 것.
+struct RecordSeed {
+    let note: String
+    let photos: [Data]
 }

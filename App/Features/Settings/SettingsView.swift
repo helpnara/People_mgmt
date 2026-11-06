@@ -49,6 +49,8 @@ struct SettingsView: View {
     @AppStorage(CloudSync.enabledKey) private var syncWanted = true
     /// 앱 잠금 (FR-029 · D-51 — 기본 꺼짐).
     @AppStorage(AppLock.enabledKey) private var lockEnabled = false
+    /// 위젯에 이름 숨기기 (1.1.9 · 이슈 100 · FR-075 · D-79).
+    @AppStorage(WidgetBridge.hideNamesKey) private var widgetHidesNames = false
     /// 이 기기의 확인 방법 이름 — 화면을 열 때 한 번.
     @State private var lockMethod = AppLock.methodName()
     /// CI 스크린샷 — 태그 관리를 바로 연다 (`-openTags`).
@@ -129,6 +131,7 @@ struct SettingsView: View {
             }
 
             lockSection
+            widgetSection
 
             // 관계 유형 · 알게 된 경로 선택지 (FR-035 · 9판 · D-66).
             Section {
@@ -379,6 +382,29 @@ struct SettingsView: View {
                  ? "이 기기에 암호가 설정되어 있지 않아 앱 잠금을 켤 수 없습니다. 기기의 설정 앱에서 암호를 먼저 설정하세요."
                  : "켜 두면 앱을 열 때와 다른 앱에 갔다 돌아올 때 \(lockName)로 확인합니다. 기본은 꺼져 있습니다. 확인은 기기가 하고, 앱은 얼굴 · 지문 정보를 받지 않습니다.")
         }
+    }
+
+    /// 홈 화면 위젯 (1.1.9 · 이슈 100 · FR-075) — 이름을 보일지. 앱 잠금이 켜져 있으면 늘 건수만.
+    private var widgetSection: some View {
+        Section {
+            Toggle("위젯에 이름 숨기기", isOn: $widgetHidesNames)
+                .tint(Color.accent)
+                .disabled(lockEnabled)
+                .accessibilityIdentifier("widgetHideNames")
+        } header: {
+            Text("위젯")
+        } footer: {
+            Text(lockEnabled
+                 ? "앱 잠금이 켜져 있어 위젯에는 약속 · 생일 · 기념일의 건수만 보입니다."
+                 : "홈 화면 위젯에 다가오는 약속 · 생일 · 기념일을 보입니다. 켜면 제목 · 이름 없이 날짜와 종류만 보입니다. 앱 잠금을 켜면 건수만 보입니다. 위젯은 홈 화면을 길게 눌러 더합니다.")
+        }
+        .onChange(of: widgetHidesNames) { _, _ in refreshWidget() }
+        .onChange(of: lockEnabled) { _, _ in refreshWidget() }
+    }
+
+    private func refreshWidget() {
+        let container = context.container
+        Task { await WidgetBridge.refresh(container: container) }
     }
 
     /// 켤 때는 한 번 확인해 본다 — 확인이 되는 기기에서만 켜진다.
