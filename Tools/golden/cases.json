@@ -4999,6 +4999,35 @@
       ]
     },
     {
+      "name": "시각을 넣은 오늘 예정은 그 시각 전까지 다가오는 만남(오늘) — 같은 분이면 결과를 적을 만남 · 시각 없음 · 월까지는 그대로 (이슈 108)",
+      "today": 1000,
+      "nowMinute": 420,
+      "phraseDays": [1000, 1001],
+      "records": [
+        {"id": "00000000-0000-0000-0000-000000000401", "day": 1000, "createdDay": 998, "updatedDay": 998, "dayPrecise": true, "minute": 1050},
+        {"id": "00000000-0000-0000-0000-000000000402", "day": 1000, "createdDay": 998, "updatedDay": 998, "dayPrecise": true, "minute": 420},
+        {"id": "00000000-0000-0000-0000-000000000403", "day": 1000, "createdDay": 998, "updatedDay": 998, "dayPrecise": true, "minute": 360},
+        {"id": "00000000-0000-0000-0000-000000000404", "day": 1000, "createdDay": 998, "updatedDay": 998, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000405", "day": 1001, "createdDay": 998, "updatedDay": 998, "dayPrecise": true, "minute": 600},
+        {"id": "00000000-0000-0000-0000-000000000406", "day": 1000, "createdDay": 990, "updatedDay": 990, "dayPrecise": false, "minute": 1200},
+        {"id": "00000000-0000-0000-0000-000000000407", "day": 1000, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true, "minute": 900}
+      ]
+    },
+    {
+      "name": "같은 기록, 그날 늦게(23:59) — 오늘 예정은 모두 결과를 적을 만남 · 오늘 적은 것은 어느 쪽에도 없다 (이슈 108)",
+      "today": 1000,
+      "nowMinute": 1439,
+      "records": [
+        {"id": "00000000-0000-0000-0000-000000000401", "day": 1000, "createdDay": 998, "updatedDay": 998, "dayPrecise": true, "minute": 1050},
+        {"id": "00000000-0000-0000-0000-000000000402", "day": 1000, "createdDay": 998, "updatedDay": 998, "dayPrecise": true, "minute": 420},
+        {"id": "00000000-0000-0000-0000-000000000403", "day": 1000, "createdDay": 998, "updatedDay": 998, "dayPrecise": true, "minute": 360},
+        {"id": "00000000-0000-0000-0000-000000000404", "day": 1000, "createdDay": 998, "updatedDay": 998, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000405", "day": 1001, "createdDay": 998, "updatedDay": 998, "dayPrecise": true, "minute": 600},
+        {"id": "00000000-0000-0000-0000-000000000406", "day": 1000, "createdDay": 990, "updatedDay": 990, "dayPrecise": false, "minute": 1200},
+        {"id": "00000000-0000-0000-0000-000000000407", "day": 1000, "createdDay": 1000, "updatedDay": 1000, "dayPrecise": true, "minute": 900}
+      ]
+    },
+    {
       "name": "그날 뒤에 만든 기록(지난 일을 적은 것)은 묻지 않는다",
       "today": 1000,
       "records": [

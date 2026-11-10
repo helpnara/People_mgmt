@@ -14,18 +14,15 @@ enum SharedContainer {
 /// **홈 화면 위젯의 요약** (이슈 100 · FR-075) — 자료가 바뀔 때 · 앱이 앞으로 나올 때 · 설정을 바꿀 때 새로 쓰고 위젯을 다시 그리게 한다.
 ///
 /// - 오늘부터 14일 안의 약속, 7일 안의 생일 · 기념일. 셈은 앱(`UpcomingDays` · `TimelineSort`)이 하고 위젯은 그리기만.
-/// - 설정 `위젯에 이름 숨기기` 면 제목 · 이름을 파일에 **쓰지 않는다**. 앱 잠금이 켜져 있으면 건수만 쓴다 (D-79).
+/// - 제목 · 이름 · 얼굴을 늘 쓴다. 앱 잠금이 켜져 있으면 건수만 쓴다 (D-79). 설정 `위젯에 이름 숨기기` 는 1.1.10 에서 없앴다
+///   (이슈 106 · 2026-11-09 사용자 — 종류만 보이는 위젯은 쓸모가 없다). 전에 켜 둔 값(`widget.hideNames`)은 읽지 않는다.
 /// - 견본 둘러보기 중에는 쓰지 않는다 — 견본 사람이 내 홈 화면에 나오지 않게 (D-55).
 enum WidgetBridge {
-    static let hideNamesKey = "widget.hideNames"
-
     @MainActor
     static func refresh(container: ModelContainer, now: Date = Date()) async {
         if DemoMode.shared.isActive { return }
         guard let folder = SharedContainer.url else { return }
-        let defaults = UserDefaults.standard
-        let mode: WidgetSummary.Mode = defaults.bool(forKey: AppLock.enabledKey) ? .countsOnly
-            : (defaults.bool(forKey: hideNamesKey) ? .hidden : .names)
+        let mode: WidgetSummary.Mode = UserDefaults.standard.bool(forKey: AppLock.enabledKey) ? .countsOnly : .names
         let summary = await Task.detached(priority: .utility) {
             make(container: container, mode: mode, now: now)
         }.value

@@ -177,12 +177,19 @@ def recent_companions(records, excluding, limit=8):
 PLANNED_WINDOW = 60
 
 
-def planned_meetings(records, today, window=PLANNED_WINDOW):
-    upcoming = sorted((r for r in records if r["day"] > today),
+def planned_later_today(r, today, now_minute):
+    """오늘이지만 넣은 시각이 아직 오지 않은 예정 (이슈 108 · 1.1.10) — 같은 분이면 이미 온 것."""
+    return (r["dayPrecise"] and r["day"] == today and now_minute is not None
+            and r.get("minute") is not None and r["minute"] > now_minute)
+
+
+def planned_meetings(records, today, window=PLANNED_WINDOW, now_minute=None):
+    upcoming = sorted((r for r in records if r["day"] > today or planned_later_today(r, today, now_minute)),
                       key=lambda r: (r["day"], time_key(r.get("minute")), r["createdDay"], r["id"].upper()))
     awaiting = [r for r in records
                 if r["dayPrecise"] and today - window <= r["day"] <= today
-                and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+                and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]
+                and not planned_later_today(r, today, now_minute)]
     awaiting.sort(key=lambda r: (-r["day"], -time_key(r.get("minute")), r["id"].upper()))
     return {"upcoming": [r["id"].upper() for r in upcoming], "awaiting": [r["id"].upper() for r in awaiting]}
 
@@ -2354,8 +2361,9 @@ def build() -> dict:
                                 "expected": recent_companions(c["records"], c.get("excluding", []), c.get("limit", 8))}
                                for c in cases["recentCompanions"]]
     out["plannedMeetings"] = [{"name": c["name"], "records": c["records"], "today": c["today"],
-                               "window": c.get("window", PLANNED_WINDOW),
-                               "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW)),
+                               "window": c.get("window", PLANNED_WINDOW), "nowMinute": c.get("nowMinute"),
+                               "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW),
+                                                            c.get("nowMinute")),
                                "followUps": planned_follow_ups(c["records"], c["today"]),
                                "dayReminders": planned_day_reminders(c["records"], c["today"]),
                                "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}
