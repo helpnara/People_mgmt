@@ -220,7 +220,7 @@ final class GoldenTests: XCTestCase {
             let expected: [MilestoneRaw]; let summary: String?
         }
         struct PlannedCase: Decodable {
-            let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int
+            let name: String; let records: [PlannedRecordRaw]; let today: Int; let window: Int; let nowMinute: Int?
             let expected: PlannedExpected; let followUps: [UUID]; let dayReminders: [UUID]; let phrases: [PlannedPhrase]
         }
         struct DayReminderMinuteCase: Decodable { let meeting: Int?; let preferred: Int; let expected: Int }
@@ -502,7 +502,7 @@ final class GoldenTests: XCTestCase {
                 PlannedMeetings.Entry(id: $0.id, day: $0.day, createdDay: $0.createdDay, updatedDay: $0.updatedDay,
                                       isDayPrecise: $0.dayPrecise, minute: $0.minute)
             }
-            let got = PlannedMeetings.plan(entries, today: c.today, window: c.window)
+            let got = PlannedMeetings.plan(entries, today: c.today, nowMinute: c.nowMinute, window: c.window)
             XCTAssertEqual(got.upcoming, c.expected.upcoming, "\(c.name) — 다가오는 만남")
             XCTAssertEqual(got.awaiting, c.expected.awaiting, "\(c.name) — 결과를 적을 만남")
             XCTAssertEqual(PlannedMeetings.followUps(entries, today: c.today), c.followUps, "\(c.name) — 결과 적기 알림")

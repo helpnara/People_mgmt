@@ -8,6 +8,8 @@ struct SlowConnectionApp: App {
 
     init() {
         _ = LaunchTiming.start
+        // 알림을 누르면 그 기록 · 그 사람 (1.1.10 · 이슈 107) — 꺼진 앱을 알림으로 깨웠을 때도 받게 맨 먼저 단다.
+        NotificationRouter.install()
         let opened = Persistence.open(arguments: LaunchArguments.current)
         self.opened = opened
         if LaunchArguments.current.seedSampleData, opened.failure == nil {

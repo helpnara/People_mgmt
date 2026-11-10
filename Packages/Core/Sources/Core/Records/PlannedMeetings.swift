@@ -8,9 +8,11 @@ import Foundation
 ///   그날이 온 뒤로 **한 번도 고치지 않았고**, 그날이 지난 `window` 일 안이다. 최근 날부터.
 ///   결과를 적거나 `그대로 만났어요` 로 고친 때가 그날 이후가 되면 빠진다. 같은 날은 늦은 시각부터(타임라인과 같은 차례).
 ///
-/// 날은 모두 같은 달력의 **날 번호**(부르는 쪽이 `DayIndex` 로 센다)라 시각 · 시간대는 셈에 들지 않는다.
+/// 날은 모두 같은 달력의 **날 번호**(부르는 쪽이 `DayIndex` 로 센다)라 시간대는 셈에 들지 않는다.
 /// 오늘 날짜의 예정은 다가오는 만남이 아니라 결과를 적을 만남이다 — 목록의 마지막 기록일 · 최근 기록이
-/// 오늘까지를 지난 기록으로 보는 것과 같은 금(이슈 20).
+/// 오늘까지를 지난 기록으로 보는 것과 같은 금(이슈 20). **다만 시각을 넣은 오늘 예정은 그 시각이 오기 전까지
+/// 다가오는 만남(`오늘`)** 이다(이슈 108 · 1.1.10) — 부르는 쪽이 지금 분(`nowMinute` · 자정부터)을 주면 그렇게 가른다.
+/// 그 시각이 되면(같은 분 포함) 결과를 적을 만남으로 옮긴다. `nowMinute` 가 없으면 예전처럼 날만 본다.
 /// 파이썬 정답표(`Tools/golden` 의 `plannedMeetings`)와 같은 셈이다.
 public enum PlannedMeetings {
     /// 결과를 적을 만남으로 남겨 두는 날 수. 그보다 오래된 예정은 더 묻지 않는다.
@@ -39,23 +41,35 @@ public enum PlannedMeetings {
         public let awaiting: [UUID]
     }
 
-    public static func isAwaiting(_ entry: Entry, today: Int, window: Int = window) -> Bool {
+    /// 오늘이지만 넣은 시각이 아직 오지 않은 예정 (이슈 108) — 다가오는 만남 쪽에 둔다.
+    public static func isLaterToday(_ entry: Entry, today: Int, nowMinute: Int?) -> Bool {
+        guard entry.isDayPrecise, entry.day == today, let now = nowMinute, let minute = entry.minute else { return false }
+        return minute > now
+    }
+
+    /// 다가오는 만남인가 — 오늘보다 뒤이거나, 오늘이지만 넣은 시각이 아직 오지 않았다.
+    public static func isUpcoming(_ entry: Entry, today: Int, nowMinute: Int? = nil) -> Bool {
+        entry.day > today || isLaterToday(entry, today: today, nowMinute: nowMinute)
+    }
+
+    public static func isAwaiting(_ entry: Entry, today: Int, nowMinute: Int? = nil, window: Int = window) -> Bool {
         entry.isDayPrecise
+            && !isLaterToday(entry, today: today, nowMinute: nowMinute)
             && entry.day <= today
             && entry.day >= today - window
             && entry.createdDay < entry.day
             && entry.updatedDay < entry.day
     }
 
-    public static func plan(_ entries: [Entry], today: Int, window: Int = window) -> Plan {
+    public static func plan(_ entries: [Entry], today: Int, nowMinute: Int? = nil, window: Int = window) -> Plan {
         let upcoming = entries
-            .filter { $0.day > today }
+            .filter { isUpcoming($0, today: today, nowMinute: nowMinute) }
             .sorted {
                 ($0.day, TimeOfDay.sortKey($0.minute), $0.createdDay, $0.id.uuidString)
                     < ($1.day, TimeOfDay.sortKey($1.minute), $1.createdDay, $1.id.uuidString)
             }
         let awaiting = entries
-            .filter { isAwaiting($0, today: today, window: window) }
+            .filter { isAwaiting($0, today: today, nowMinute: nowMinute, window: window) }
             .sorted {
                 if $0.day != $1.day { return $0.day > $1.day }
                 let l = TimeOfDay.sortKey($0.minute), r = TimeOfDay.sortKey($1.minute)

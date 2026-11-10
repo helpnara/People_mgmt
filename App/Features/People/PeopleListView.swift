@@ -87,6 +87,8 @@ struct PeopleListView: View {
     @State private var openAfterDays: Person?
     @State private var saveError: String?
     @State private var awaitingRecords: [Record] = []
+    /// 오늘 시각을 넣은 다가오는 만남 가운데 가장 이른 시각 — 그때 예정을 다시 가른다 (이슈 108).
+    @State private var plannedBoundary: Date?
     /// 목록 거르기 (FR-013) — 관계 유형 · 태그. 둘 다 고르면 둘 다 맞는 사람. 기기 편의라 저장하지 않는다.
     @State private var filterType: String?
     @State private var filterTag: String?
@@ -295,6 +297,20 @@ struct PeopleListView: View {
             }
             // 잠긴 채 받은 위젯 URL 은 풀린 뒤에 연다 (FR-075).
             handleShortcut()
+            // 뒤에 있는 동안 약속 시각 · 날이 지났을 수 있다 — 예정을 다시 가른다 (이슈 108).
+            if scenePhase == .active {
+                loadPlannedRecords()
+                loadRecentRecords()
+            }
+        }
+        .task(id: plannedBoundary) {
+            // 앱을 켜 둔 채 오늘 약속의 시각이 오면 다가오는 만남 → 결과를 적을 만남 (이슈 108).
+            guard let boundary = plannedBoundary else { return }
+            let wait = boundary.timeIntervalSinceNow
+            if wait > 0 { try? await Task.sleep(for: .seconds(wait + 1)) }
+            guard !Task.isCancelled else { return }
+            loadPlannedRecords()
+            loadRecentRecords()
         }
         .onChange(of: fetched.count) { _, _ in handleShortcut() }
         .task(id: ListKey(version: dataVersion, sort: sortOption, count: fetched.count, type: filterType, tag: filterTag)) {
@@ -699,11 +715,11 @@ struct PeopleListView: View {
             predicate: #Predicate<Record> { $0.occurredAt < endOfToday },
             sortBy: [SortDescriptor(\.occurredAt, order: .reverse), SortDescriptor(\.createdAt, order: .reverse)]
         )
-        // 결과를 적을 만남(D-62)에 이미 보이는 기록은 빼고 셋 — 홈에 같은 기록이 두 번 서지 않게.
-        descriptor.fetchLimit = 3 + Self.plannedShown
-        let awaiting = Set(awaitingRecords.map(\.uuid))
+        // 결과를 적을 만남(D-62) · 오늘의 다가오는 만남(시각 전 · 이슈 108)에 이미 보이는 기록은 빼고 셋 — 홈에 같은 기록이 두 번 서지 않게.
+        descriptor.fetchLimit = 3 + Self.plannedShown * 2
+        let shown = Set(awaitingRecords.map(\.uuid) + upcomingRecords.map(\.uuid))
         // 같은 날 안의 차례는 시각까지 (8판 · D-63) — 규칙은 `Core.TimelineSort` 하나다.
-        let fetchedRecent = ((try? context.fetch(descriptor)) ?? []).filter { !awaiting.contains($0.uuid) }.sorted {
+        let fetchedRecent = ((try? context.fetch(descriptor)) ?? []).filter { !shown.contains($0.uuid) }.sorted {
             TimelineSort.areInIncreasingOrder((occurredAt: $0.occurredAt, minute: $0.occurredMinute, createdAt: $0.createdAt),
                                               (occurredAt: $1.occurredAt, minute: $1.occurredMinute, createdAt: $1.createdAt))
         }
@@ -723,10 +739,21 @@ struct PeopleListView: View {
                                  to: calendar.startOfDay(for: Date())) ?? .distantPast
         let descriptor = FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= from })
         let records = ((try? context.fetch(descriptor)) ?? []).filter { !$0.isGone }
-        let plan = PlannedMeetings.plan(records.map { $0.plannedEntry(calendar: calendar) }, today: today)
+        let now = Date()
+        let nowMinute = Record.nowMinute(now, calendar: calendar)
+        let entries = records.map { $0.plannedEntry(calendar: calendar) }
+        let plan = PlannedMeetings.plan(entries, today: today, nowMinute: nowMinute)
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         upcomingRecords = plan.upcoming.compactMap { byID[$0] }
         awaitingRecords = plan.awaiting.compactMap { byID[$0] }
+        // 오늘 시각을 넣은 다가오는 만남 가운데 가장 이른 시각 — 그때 다시 가른다(앱을 켜 둔 채 시각을 넘길 때 · 이슈 108).
+        let nextMinute = entries
+            .filter { PlannedMeetings.isLaterToday($0, today: today, nowMinute: nowMinute) }
+            .compactMap(\.minute)
+            .min()
+        plannedBoundary = nextMinute.flatMap {
+            calendar.date(bySettingHour: $0 / 60, minute: $0 % 60, second: 0, of: now)
+        }
     }
 
     /// **공유로 받은 초안** (1.1.9 · 이슈 101 · FR-076) — 누르면 누구와의 기록인지 고르고 기록 추가로. 밀어서 버리기(확인).

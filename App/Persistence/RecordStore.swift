@@ -286,14 +286,20 @@ extension SchemaV12.Record {
         return timeText.map { "\(date) \($0)" } ?? date
     }
 
-    /// 아직 오지 않은 날의 기록 — 다가오는 만남 · 타임라인의 `예정` 표시.
-    var isUpcoming: Bool {
-        DayIndex.of(occurredAt) > DayIndex.of(Date())
+    /// 지금이 그날의 몇 분째인가 (자정부터) — 시각을 넣은 오늘 예정을 가른다 (이슈 108 · 1.1.10).
+    static func nowMinute(_ now: Date = Date(), calendar: Calendar = .current) -> Int {
+        let parts = calendar.dateComponents([.hour, .minute], from: now)
+        return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
     }
 
-    /// 미리 적어 둔 만남의 날이 왔는데 아직 결과를 적지 않았다 — 기록 상세의 결과 적기 띠.
+    /// 아직 오지 않은 기록 — 다가오는 만남 · 타임라인의 `예정` 표시. 오늘이어도 넣은 시각 전이면 예정이다 (이슈 108).
+    var isUpcoming: Bool {
+        PlannedMeetings.isUpcoming(plannedEntry(), today: DayIndex.of(Date()), nowMinute: Self.nowMinute())
+    }
+
+    /// 미리 적어 둔 만남의 날(시각을 넣었으면 그 시각)이 왔는데 아직 결과를 적지 않았다 — 기록 상세의 결과 적기 띠.
     var isAwaitingResult: Bool {
-        PlannedMeetings.isAwaiting(plannedEntry(), today: DayIndex.of(Date()))
+        PlannedMeetings.isAwaiting(plannedEntry(), today: DayIndex.of(Date()), nowMinute: Self.nowMinute())
     }
 
     /// 다가오는 만남의 앞말 — `내일` · `3일 후`.
