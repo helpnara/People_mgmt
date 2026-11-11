@@ -7,6 +7,8 @@ import Foundation
 /// - **결과를 적을 만남** — 날짜까지 정한 기록(월까지 · 연도만은 빼고)이 그날보다 **앞서 만들어졌고**(미리 적은 예정),
 ///   그날이 온 뒤로 **한 번도 고치지 않았고**, 그날이 지난 `window` 일 안이다. 최근 날부터.
 ///   결과를 적거나 `그대로 만났어요` 로 고친 때가 그날 이후가 되면 빠진다. 같은 날은 늦은 시각부터(타임라인과 같은 차례).
+///   **시각을 넣은 예정은 날 대신 그 시각으로 가른다**(이슈 109 · 1.1.10) — 약속 날 시각 전에 만들거나 고친 것도 미리 적은 예정이다
+///   (`isPlannedAhead`). 약속 당일 · 결과 적기 알림도 같은 금을 쓴다.
 ///
 /// 날은 모두 같은 달력의 **날 번호**(부르는 쪽이 `DayIndex` 로 센다)라 시간대는 셈에 들지 않는다.
 /// 오늘 날짜의 예정은 다가오는 만남이 아니라 결과를 적을 만남이다 — 목록의 마지막 기록일 · 최근 기록이
@@ -26,14 +28,37 @@ public enum PlannedMeetings {
         public let isDayPrecise: Bool
         /// 그날의 시각 (8판 · D-63). 같은 날 안의 차례 — 없으면 그날의 끝.
         public let minute: Int?
-        public init(id: UUID, day: Int, createdDay: Int, updatedDay: Int, isDayPrecise: Bool, minute: Int? = nil) {
+        /// 만든 때 · 고친 때의 시각(자정부터 분 · 이슈 109) — 약속과 **같은 날** 만들거나 고쳤을 때 약속 시각 앞인지 가른다.
+        /// 없으면 예전처럼 날만 본다(같은 날이면 약속 뒤로 본다).
+        public let createdMinute: Int?
+        public let updatedMinute: Int?
+        public init(id: UUID, day: Int, createdDay: Int, updatedDay: Int, isDayPrecise: Bool, minute: Int? = nil,
+                    createdMinute: Int? = nil, updatedMinute: Int? = nil) {
             self.id = id
             self.day = day
             self.createdDay = createdDay
             self.updatedDay = updatedDay
             self.isDayPrecise = isDayPrecise
             self.minute = minute
+            self.createdMinute = createdMinute
+            self.updatedMinute = updatedMinute
         }
+    }
+
+    /// 약속보다 **앞선** 때인가 (이슈 109 · 1.1.10) — 앞선 날이면 앞이다. 같은 날이면 약속에 시각이 있고 그 때의 시각이
+    /// 약속 시각보다 이를 때만 앞이다(같은 분은 뒤). 약속에 시각이 없거나 그 때의 시각을 모르면 같은 날은 뒤로 본다.
+    static func isBefore(day: Int, minute: Int?, atDay: Int, atMinute: Int?) -> Bool {
+        if atDay != day { return atDay < day }
+        guard let minute, let atMinute else { return false }
+        return atMinute < minute
+    }
+
+    /// **미리 적은 예정**인가 — 약속(시각을 넣었으면 그 시각)보다 앞서 만들었고, 그 뒤로 고치지 않았다.
+    /// 약속 날에 약속 시각 전에 고친 것(사람을 더하거나 장소를 바꾼 것)은 결과를 적은 것이 아니다 (이슈 109 · 2026-11-11 사용자).
+    public static func isPlannedAhead(_ entry: Entry) -> Bool {
+        let minute = entry.isDayPrecise ? entry.minute : nil
+        return isBefore(day: entry.day, minute: minute, atDay: entry.createdDay, atMinute: entry.createdMinute)
+            && isBefore(day: entry.day, minute: minute, atDay: entry.updatedDay, atMinute: entry.updatedMinute)
     }
 
     public struct Plan: Sendable, Equatable {
@@ -57,8 +82,7 @@ public enum PlannedMeetings {
             && !isLaterToday(entry, today: today, nowMinute: nowMinute)
             && entry.day <= today
             && entry.day >= today - window
-            && entry.createdDay < entry.day
-            && entry.updatedDay < entry.day
+            && isPlannedAhead(entry)
     }
 
     public static func plan(_ entries: [Entry], today: Int, nowMinute: Int? = nil, window: Int = window) -> Plan {
@@ -86,7 +110,7 @@ public enum PlannedMeetings {
     /// 울릴 시각이 이미 지났는지는 부르는 쪽이 본다(시각은 날 번호에 없다).
     public static func followUps(_ entries: [Entry], today: Int, limit: Int = followUpLimit) -> [UUID] {
         entries
-            .filter { $0.isDayPrecise && $0.day >= today - 1 && $0.createdDay < $0.day && $0.updatedDay < $0.day }
+            .filter { $0.isDayPrecise && $0.day >= today - 1 && isPlannedAhead($0) }
             .sorted {
                 ($0.day, TimeOfDay.sortKey($0.minute), $0.id.uuidString) < ($1.day, TimeOfDay.sortKey($1.minute), $1.id.uuidString)
             }
@@ -105,7 +129,7 @@ public enum PlannedMeetings {
     /// 울릴 시각이 이미 지났는지는 부르는 쪽이 본다.
     public static func dayReminders(_ entries: [Entry], today: Int, limit: Int = dayReminderLimit) -> [UUID] {
         entries
-            .filter { $0.isDayPrecise && $0.day >= today && $0.createdDay < $0.day && $0.updatedDay < $0.day }
+            .filter { $0.isDayPrecise && $0.day >= today && isPlannedAhead($0) }
             .sorted {
                 ($0.day, TimeOfDay.sortKey($0.minute), $0.id.uuidString) < ($1.day, TimeOfDay.sortKey($1.minute), $1.id.uuidString)
             }

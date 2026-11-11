@@ -209,7 +209,7 @@ final class GoldenTests: XCTestCase {
             let records: [ExportRecord]?; let exportedOn: String
             let specialDays: [ExportContact]?; let keyNote: String?; let talkItems: [String]?
         }
-        struct PlannedRecordRaw: Decodable { let id: UUID; let day: Int; let createdDay: Int; let updatedDay: Int; let dayPrecise: Bool; let minute: Int? }
+        struct PlannedRecordRaw: Decodable { let id: UUID; let day: Int; let createdDay: Int; let updatedDay: Int; let dayPrecise: Bool; let minute: Int?; let createdMinute: Int?; let updatedMinute: Int? }
         struct PlannedExpected: Decodable { let upcoming: [UUID]; let awaiting: [UUID] }
         struct PlannedPhrase: Decodable { let day: Int; let expected: String }
         struct TimeCase: Decodable { let minute: Int; let text: String; let sortKey: Int }
@@ -500,7 +500,8 @@ final class GoldenTests: XCTestCase {
         for c in try Self.loadGolden().plannedMeetings {
             let entries = c.records.map {
                 PlannedMeetings.Entry(id: $0.id, day: $0.day, createdDay: $0.createdDay, updatedDay: $0.updatedDay,
-                                      isDayPrecise: $0.dayPrecise, minute: $0.minute)
+                                      isDayPrecise: $0.dayPrecise, minute: $0.minute,
+                                      createdMinute: $0.createdMinute, updatedMinute: $0.updatedMinute)
             }
             let got = PlannedMeetings.plan(entries, today: c.today, nowMinute: c.nowMinute, window: c.window)
             XCTAssertEqual(got.upcoming, c.expected.upcoming, "\(c.name) — 다가오는 만남")

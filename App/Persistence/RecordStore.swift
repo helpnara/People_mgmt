@@ -266,7 +266,10 @@ extension SchemaV12.Record {
                               createdDay: DayIndex.of(createdAt, calendar: calendar),
                               updatedDay: DayIndex.of(updatedAt, calendar: calendar),
                               isDayPrecise: DatePrecision.of(occurredPrecision) == .day,
-                              minute: occurredMinute)
+                              minute: occurredMinute,
+                              // 약속 날 시각 전에 만들거나 고친 것도 미리 적은 예정이다 (이슈 109 · 1.1.10).
+                              createdMinute: Self.nowMinute(createdAt, calendar: calendar),
+                              updatedMinute: Self.nowMinute(updatedAt, calendar: calendar))
     }
 
     /// 그날의 시각 글자 (8판 · D-63) — `오후 2:30`. 날짜까지 정한 기록에만.

@@ -5028,6 +5028,21 @@
       ]
     },
     {
+      "name": "시각을 넣은 약속은 날 대신 시각으로 — 약속 날 시각 전에 만들거나 고친 것은 미리 적은 예정, 시각 뒤(같은 분 포함)는 결과를 적은 것 · 시각 없으면 같은 날은 뒤 (이슈 109)",
+      "today": 1000,
+      "nowMinute": 1100,
+      "records": [
+        {"id": "00000000-0000-0000-0000-000000000501", "day": 1000, "createdDay": 998, "updatedDay": 1000, "updatedMinute": 600, "dayPrecise": true, "minute": 1050},
+        {"id": "00000000-0000-0000-0000-000000000502", "day": 1000, "createdDay": 998, "updatedDay": 1000, "updatedMinute": 1060, "dayPrecise": true, "minute": 1050},
+        {"id": "00000000-0000-0000-0000-000000000503", "day": 1000, "createdDay": 1000, "createdMinute": 480, "updatedDay": 1000, "updatedMinute": 480, "dayPrecise": true, "minute": 1050},
+        {"id": "00000000-0000-0000-0000-000000000504", "day": 1000, "createdDay": 998, "updatedDay": 1000, "updatedMinute": 1050, "dayPrecise": true, "minute": 1050},
+        {"id": "00000000-0000-0000-0000-000000000505", "day": 1000, "createdDay": 998, "updatedDay": 1000, "updatedMinute": 600, "dayPrecise": true},
+        {"id": "00000000-0000-0000-0000-000000000506", "day": 999, "createdDay": 990, "updatedDay": 999, "updatedMinute": 700, "dayPrecise": true, "minute": 1200},
+        {"id": "00000000-0000-0000-0000-000000000507", "day": 1000, "createdDay": 998, "updatedDay": 1000, "dayPrecise": true, "minute": 1050},
+        {"id": "00000000-0000-0000-0000-000000000508", "day": 1002, "createdDay": 1002, "createdMinute": 400, "updatedDay": 1002, "updatedMinute": 400, "dayPrecise": true, "minute": 600}
+      ]
+    },
+    {
       "name": "그날 뒤에 만든 기록(지난 일을 적은 것)은 묻지 않는다",
       "today": 1000,
       "records": [
