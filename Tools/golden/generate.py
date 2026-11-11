@@ -177,12 +177,35 @@ def recent_companions(records, excluding, limit=8):
 PLANNED_WINDOW = 60
 
 
-def planned_meetings(records, today, window=PLANNED_WINDOW):
-    upcoming = sorted((r for r in records if r["day"] > today),
+def planned_before(day, minute, at_day, at_minute):
+    """약속보다 앞선 때인가 (이슈 109) — 앞선 날이면 앞. 같은 날이면 약속 시각 · 그 때의 시각이 둘 다 있고 더 이를 때만(같은 분은 뒤)."""
+    if at_day != day:
+        return at_day < day
+    if minute is None or at_minute is None:
+        return False
+    return at_minute < minute
+
+
+def planned_ahead(r):
+    """미리 적은 예정 — 약속(시각을 넣었으면 그 시각)보다 앞서 만들었고 그 뒤로 고치지 않았다 (이슈 109 · 1.1.10)."""
+    minute = r.get("minute") if r["dayPrecise"] else None
+    return (planned_before(r["day"], minute, r["createdDay"], r.get("createdMinute"))
+            and planned_before(r["day"], minute, r["updatedDay"], r.get("updatedMinute")))
+
+
+def planned_later_today(r, today, now_minute):
+    """오늘이지만 넣은 시각이 아직 오지 않은 예정 (이슈 108 · 1.1.10) — 같은 분이면 이미 온 것."""
+    return (r["dayPrecise"] and r["day"] == today and now_minute is not None
+            and r.get("minute") is not None and r["minute"] > now_minute)
+
+
+def planned_meetings(records, today, window=PLANNED_WINDOW, now_minute=None):
+    upcoming = sorted((r for r in records if r["day"] > today or planned_later_today(r, today, now_minute)),
                       key=lambda r: (r["day"], time_key(r.get("minute")), r["createdDay"], r["id"].upper()))
     awaiting = [r for r in records
                 if r["dayPrecise"] and today - window <= r["day"] <= today
-                and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+                and planned_ahead(r)
+                and not planned_later_today(r, today, now_minute)]
     awaiting.sort(key=lambda r: (-r["day"], -time_key(r.get("minute")), r["id"].upper()))
     return {"upcoming": [r["id"].upper() for r in upcoming], "awaiting": [r["id"].upper() for r in awaiting]}
 
@@ -193,7 +216,7 @@ FOLLOW_UP_LIMIT = 4
 def planned_follow_ups(records, today, limit=FOLLOW_UP_LIMIT):
     """결과 적기 알림 — 그날 다음 날에 울릴 예정. 날짜까지 · 미리 만듦 · 그날 이후 안 고침 · 그날이 어제 이후. 가까운 날 → id."""
     picked = [r for r in records if r["dayPrecise"] and r["day"] >= today - 1
-              and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+              and planned_ahead(r)]
     picked.sort(key=lambda r: (r["day"], time_key(r.get("minute")), r["id"].upper()))
     return [r["id"].upper() for r in picked[:limit]]
 
@@ -205,7 +228,7 @@ DAY_REMINDER_LEAD = 60
 def planned_day_reminders(records, today, limit=DAY_REMINDER_LIMIT):
     """약속 당일 알림 (1.1.8 · FR-064) — 날짜까지 · 그날보다 미리 만듦 · 그날 이후 안 고침 · 그날이 오늘 이후. 가까운 날 → 시각 → id."""
     picked = [r for r in records if r["dayPrecise"] and r["day"] >= today
-              and r["createdDay"] < r["day"] and r["updatedDay"] < r["day"]]
+              and planned_ahead(r)]
     picked.sort(key=lambda r: (r["day"], time_key(r.get("minute")), r["id"].upper()))
     return [r["id"].upper() for r in picked[:limit]]
 
@@ -2354,8 +2377,9 @@ def build() -> dict:
                                 "expected": recent_companions(c["records"], c.get("excluding", []), c.get("limit", 8))}
                                for c in cases["recentCompanions"]]
     out["plannedMeetings"] = [{"name": c["name"], "records": c["records"], "today": c["today"],
-                               "window": c.get("window", PLANNED_WINDOW),
-                               "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW)),
+                               "window": c.get("window", PLANNED_WINDOW), "nowMinute": c.get("nowMinute"),
+                               "expected": planned_meetings(c["records"], c["today"], c.get("window", PLANNED_WINDOW),
+                                                            c.get("nowMinute")),
                                "followUps": planned_follow_ups(c["records"], c["today"]),
                                "dayReminders": planned_day_reminders(c["records"], c["today"]),
                                "phrases": [{"day": d, "expected": relative_day(c["today"] - d)} for d in c.get("phraseDays", [])]}

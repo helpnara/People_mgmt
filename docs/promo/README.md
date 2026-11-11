@@ -5,6 +5,9 @@
 - `make_record.py` — 쇼츠 3 **만나고 30초 기록** (2026-11-03 · `../promo-youtube-3.md`) · 화면은 1.0 을 낸 커밋 `134054a` 의 스크린샷을 git 에서 꺼내 쓴다
 - `make_year.py` — 쇼츠 4 **올해, 누구와 보냈나요?** (2026-11-04 · `../promo-youtube-4.md`)
 - `make_plan.py` — 쇼츠 5 **약속 그다음까지** (2026-11-05 · `../promo-youtube-5.md`) · 지금 브랜치의 스크린샷 10 · 41 · 42 와 결과 적기 알림 문구
+- `make_brief.py` — 쇼츠 8 **만나기 전 30초** (2026-11-08 · `../promo-youtube-8.md`) · 스크린샷 48 과 스크린샷 49 의 줄 · 문구 그대로 그린 다음에 이야기할 것
+- `make_widget.py` — 쇼츠 7 **홈 화면에서 만나는 인연** (2026-11-07 · `../promo-youtube-7.md`) · 스크린샷 48 · 50 과 위젯 코드 그대로 그린 홈 · 잠금 화면 위젯
+- `make_cards.py` — 쇼츠 9 **명함 30장, 누가 누군지 기억나요?** (2026-11-09 · `../promo-youtube-9.md`) · 스크린샷 52 와 명함 여러 장 등록 · 첫 인연 · 검색 문구 그대로 그린 장면
 - `make_day.py` — 쇼츠 6 **그날을 잊지 않게** (2026-11-06 · `../promo-youtube-6.md`) · 스크린샷 03 과 앱 문구 그대로 그린 기념일 칸 · 설정 알림 칸 · 알림
 
 장면마다 프레임을 PIL 로 그리고 ffmpeg 로 묶는다(1080 × 1920 · 30fps · H.264 · 무음 스테레오 AAC). 앱 화면은 저장소의
@@ -23,6 +26,9 @@ python3 docs/promo/make_record.py . short3.mp4
 python3 docs/promo/make_year.py . short4.mp4
 python3 docs/promo/make_plan.py . short5.mp4
 python3 docs/promo/make_day.py . short6.mp4
+python3 docs/promo/make_widget.py . short7.mp4
+python3 docs/promo/make_brief.py . short8.mp4
+python3 docs/promo/make_cards.py . short9.mp4
 ```
 
 - 필요한 것: Python 3 · Pillow · ffmpeg. 글꼴 폴더 `font/` 는 커밋하지 않는다(6MB × 2).

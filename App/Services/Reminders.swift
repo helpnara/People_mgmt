@@ -49,6 +49,8 @@ struct ReminderFollowUp: Sendable {
     /// 울릴 날 (그날 다음 날).
     let date: CivilDate
     let body: String
+    /// 누르면 열 기록 (이슈 107 · `Core.AppLink`).
+    let link: String?
 }
 
 /// 약속 당일 알림 하나 (1.1.8 · FR-064).
@@ -59,6 +61,8 @@ struct ReminderDayItem: Sendable {
     /// 그 기록의 시각(자정부터 분) — 없으면 nil.
     let meetingMinute: Int?
     let body: String
+    /// 누르면 열 기록 (이슈 107 · `Core.AppLink`).
+    let link: String?
 }
 
 /// 달마다 돌아보기 알림 하나 (1.1.9 · FR-074).
@@ -189,6 +193,10 @@ enum ReminderScheduler {
             content.body = reminder.body
             content.sound = .default
             content.threadIdentifier = reminder.kind.rawValue
+            // 누르면 그 사람 (이슈 107).
+            if let link = AppLink.person(reminder.personID) {
+                content.userInfo = [NotificationRouter.linkKey: link.absoluteString]
+            }
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: when)
             let request = UNNotificationRequest(identifier: reminder.id, content: content,
                                                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
@@ -209,6 +217,7 @@ enum ReminderScheduler {
             content.body = item.body
             content.sound = .default
             content.threadIdentifier = "plannedDay"
+            if let link = item.link { content.userInfo = [NotificationRouter.linkKey: link] }
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: when)
             let request = UNNotificationRequest(identifier: item.id, content: content,
                                                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
@@ -227,6 +236,7 @@ enum ReminderScheduler {
             content.body = item.body
             content.sound = .default
             content.threadIdentifier = "followUp"
+            if let link = item.link { content.userInfo = [NotificationRouter.linkKey: link] }
             let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: when)
             let request = UNNotificationRequest(identifier: item.id, content: content,
                                                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
@@ -294,7 +304,8 @@ enum ReminderScheduler {
                                                                        : names.joined(separator: ", "))
             return ReminderFollowUp(id: "followUp|\(record.uuid.uuidString)|\(DayIndex.of(record.occurredAt, calendar: calendar))",
                             date: CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1),
-                            body: "어제 예정이던 \(record.displayTitle)\(who). 느린 인연에 결과를 남겨 두세요.")
+                            body: "어제 예정이던 \(record.displayTitle)\(who). 느린 인연에 결과를 남겨 두세요.",
+                            link: recordLink(record, others: others))
         }
     }
 
@@ -318,8 +329,16 @@ enum ReminderScheduler {
             return ReminderDayItem(id: "plannedDay|\(record.uuid.uuidString)|\(DayIndex.of(record.occurredAt, calendar: calendar))",
                                    date: CivilDate(year: parts.year ?? 2000, month: parts.month ?? 1, day: parts.day ?? 1),
                                    meetingMinute: record.occurredMinute,
-                                   body: "\(time)\(record.displayTitle)\(who)")
+                                   body: "\(time)\(record.displayTitle)\(who)",
+                                   link: recordLink(record, others: others))
         }
+    }
+
+    /// 알림을 누르면 열 기록의 URL (이슈 107) — 기록은 사람 화면 위에 열리니 함께한 사람 가운데 이름 차례로 첫 사람.
+    /// 나만 있는 기록이면 URL 이 없다(홈이 열린다).
+    nonisolated private static func recordLink(_ record: Record, others: [Person]) -> String? {
+        guard let person = NameSort.sorted(others.filter { !$0.isGone }, name: \.name, createdAt: \.createdAt).first else { return nil }
+        return AppLink.record(record.uuid, person: person.uuid)?.absoluteString
     }
 
     /// 그 날의 그 시각(자정부터 분 · 기기 시간대).
