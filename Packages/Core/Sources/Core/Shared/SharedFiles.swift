@@ -18,7 +18,8 @@ public enum SharedFiles {
 
 /// 위젯이 그리는 요약 (FR-075). 날은 `CivilDate.dayNumber`(1970 기준) — 위젯이 오늘과 견줘 `오늘` · `내일` · `3일 후` 로 쓴다.
 public struct WidgetSummary: Codable, Sendable, Equatable {
-    /// 이름을 보이나 · 숨기나 · 건수만인가 (D-79 — 이름 보임, 설정에서 숨김, 앱 잠금이면 건수만).
+    /// 이름을 보이나 · 건수만인가 (D-79 — 이름 보임, 앱 잠금이면 건수만). `hidden` 은 1.1.9 의 설정 `위젯에 이름 숨기기` 몫 —
+    /// 1.1.10 에서 설정을 없애 앱은 더 쓰지 않지만(이슈 106), 앞 판이 남긴 파일을 위젯이 읽을 수 있게 남겨 둔다.
     public enum Mode: String, Codable, Sendable {
         case names
         case hidden

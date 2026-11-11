@@ -27,3 +27,4 @@ _site/
 # 임시
 *.log
 node_modules/
+promo-out/
