@@ -469,7 +469,7 @@ struct RecordEditView: View {
         } header: {
             Text("사진 \(draft.photos.count)/\(RecordPhotos.limit)")
         } footer: {
-            Text("한 기록에 4장까지 붙입니다. 대표(첫 사진)가 목록에 작게 보입니다 — 사진을 누르면 맨 앞으로 옮길 수 있습니다. 긴 변 1,024px 로 줄여 이 기기(동기화를 켜면 내 iCloud)에만 저장합니다.")
+            FootnoteText("한 기록에 4장까지 붙입니다. 대표(첫 사진)가 목록에 작게 보입니다 — 사진을 누르면 맨 앞으로 옮길 수 있습니다. 긴 변 1,024px 로 줄여 이 기기(동기화를 켜면 내 iCloud)에만 저장합니다.")
         }
     }
 
