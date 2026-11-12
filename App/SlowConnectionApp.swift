@@ -29,6 +29,9 @@ struct SlowConnectionApp: App {
                     DemoSwitch(arguments: arguments, isSampleData: opened.isInMemory)
                 }
             }
+            // 앱 전체 강조색 (1.1.11 · 이슈 111) — `AccentColor` 자산만으로는 빌드 69 스크린샷에서 단추 · 링크가 여전히
+            // 기본 파랑이었다. 맨 바깥에서 직접 건다(안쪽 화면 · 시트가 이어받는다). 삭제처럼 따로 건 색은 그대로다.
+            .tint(Color.accent)
         }
         .modelContainer(opened.container)
     }
