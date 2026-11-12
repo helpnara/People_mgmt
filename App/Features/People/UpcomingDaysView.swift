@@ -128,7 +128,7 @@ struct SearchFilterChips: View {
                 if !places.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            Image(systemName: "mappin.and.ellipse")
+                            Image(systemName: "mappin")
                                 .font(.scaled(13))
                                 .foregroundStyle(Color.muted)
                                 .accessibilityHidden(true)

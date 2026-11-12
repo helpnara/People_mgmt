@@ -92,7 +92,7 @@ struct ChoiceEditorView: View {
             } header: {
                 Text("보이는 선택지")
             } footer: {
-                Text("오른쪽 손잡이를 끌어 차례를 바꾸고, 눈 단추로 숨깁니다. 사람 수정 화면의 \(kind.title) 칩이 이 차례로 나옵니다. 숨겨도 이미 적어 둔 사람의 값은 지워지지 않습니다.")
+                FootnoteText("오른쪽 손잡이를 끌어 차례를 바꾸고, 눈 단추로 숨깁니다. 사람 수정 화면의 \(kind.title) 칩이 이 차례로 나옵니다. 숨겨도 이미 적어 둔 사람의 값은 지워지지 않습니다.")
             }
 
             if !hiddenItems.isEmpty {

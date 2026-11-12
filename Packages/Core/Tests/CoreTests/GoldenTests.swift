@@ -228,6 +228,8 @@ final class GoldenTests: XCTestCase {
         struct RepeatCase: Decodable { let rule: Int; let date: String; let anchorDay: Int?; let next: String?; let describe: String; let upcoming: [RepeatUpcoming] }
         struct RepeatDueCase: Decodable { let day: Int; let updatedDay: Int; let today: Int; let expected: Bool }
         struct DDayCase: Decodable { let day: Int; let today: Int; let expected: String }
+        struct FootnoteExpected: Decodable { let head: String; let rest: String }
+        struct FootnoteCase: Decodable { let text: String; let expected: FootnoteExpected }
         struct LinkExpected: Decodable { let kind: String; let id: String; let person: String? }
         struct LinkCase: Decodable { let url: String; let expected: LinkExpected? }
         struct FinderItem: Decodable { let id: String; let date: String; let location: String?; let title: String?; let note: String?; let tags: [String] }
@@ -243,6 +245,7 @@ final class GoldenTests: XCTestCase {
         let repeatRule: [RepeatCase]
         let repeatDue: [RepeatDueCase]
         let widgetDDay: [DDayCase]
+        let footnoteSplit: [FootnoteCase]
         let appLink: [LinkCase]
         let recordFinder: [FinderCase]
         let placeCatalog: [PlaceCase]
@@ -551,6 +554,14 @@ final class GoldenTests: XCTestCase {
     }
 
     /// 위젯의 D-day 글씨 · 위젯 → 앱 URL (1.1.9 · FR-075).
+    func testFootnoteSplit() throws {
+        for c in try Self.loadGolden().footnoteSplit {
+            let got = Footnote.split(c.text)
+            XCTAssertEqual(got.head, c.expected.head, "첫 문장 — \(c.text)")
+            XCTAssertEqual(got.rest, c.expected.rest, "나머지 — \(c.text)")
+        }
+    }
+
     func testWidgetDDayAndAppLink() throws {
         let golden = try Self.loadGolden()
         for c in golden.widgetDDay {

@@ -29,7 +29,7 @@ struct RelationshipReviewSection: View {
             Text("관계 돌아보기")
         } footer: {
             // 무엇을 얼마나 적으면 무엇이 보이는지 — 앱이 알려 줄 수 있는 것의 조건 (사용자 요청 · 2026-10-18).
-            Text("내가 기록한 범위 기준입니다. 적지 않은 만남은 계산되지 않습니다. 이 사람과의 기록이 쌓이면 만남 빈도(\(DyadMetricsCalculator.frequencyMinimum)건) · 흐름(\(DyadMetricsCalculator.trendMinimum)건) · 함께한 일(\(DyadMetricsCalculator.diversityMinimum)건)이 차례로 열립니다. 처음 만난 날을 적으면 인연 기간이 그날부터 셉니다.")
+            FootnoteText("내가 기록한 범위 기준입니다. 적지 않은 만남은 계산되지 않습니다. 이 사람과의 기록이 쌓이면 만남 빈도(\(DyadMetricsCalculator.frequencyMinimum)건) · 흐름(\(DyadMetricsCalculator.trendMinimum)건) · 함께한 일(\(DyadMetricsCalculator.diversityMinimum)건)이 차례로 열립니다. 처음 만난 날을 적으면 인연 기간이 그날부터 셉니다.")
         }
         .id(RelationshipReviewSection.anchor)
         .task(id: Key(count: records.count, latestEdit: records.map(\.updatedAt).max(), firstMet: person.firstMetDate)) {

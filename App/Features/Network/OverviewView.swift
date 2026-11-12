@@ -28,7 +28,7 @@ struct OverviewView: View {
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                 } footer: {
                     // 숫자가 무엇으로 세어지는지 · 지금 얼마나 채워졌는지 (사용자 요청 · 2026-10-18).
-                    Text("최근 12개월은 기록 날짜로 셉니다 — 기록이 있는 사람 \(withRecords)명 / \(overview.total)명. 올해 처음 만남은 처음 만난 날을 적은 사람만 셉니다 — 적은 사람 \(withFirstMet)명 / \(overview.total)명.")
+                    FootnoteText("최근 12개월은 기록 날짜로 셉니다 — 기록이 있는 사람 \(withRecords)명 / \(overview.total)명. 올해 처음 만남은 처음 만난 날을 적은 사람만 셉니다 — 적은 사람 \(withFirstMet)명 / \(overview.total)명.")
                 }
                 Section {
                     link("올해 처음 만난 사람", ids: overview.newThisYearIDs, detail: .firstMet)
@@ -99,7 +99,7 @@ struct OverviewView: View {
         } header: {
             Text("모임의 변화")
         } footer: {
-            Text("해마다 그 해 12개월의 함께한 기록 · 아는 사이 · 소개로 모임을 다시 찾고, 전 해와 사람이 얼마나 겹치는지로 견줍니다 — 작은 모임은 절반 넘게 겹치면 같은 모임으로 보고, 쉬었다가 다시 보인 모임은 다시 모임으로 알립니다. 여럿이 함께한 기록은 사람 수로 나눠 셉니다. 소속은 날짜가 없어 넣지 않습니다. 앱을 쓰기 시작한 뒤의 시기가 더 정확합니다.")
+            FootnoteText("해마다 그 해 12개월의 함께한 기록 · 아는 사이 · 소개로 모임을 다시 찾고, 전 해와 사람이 얼마나 겹치는지로 견줍니다 — 작은 모임은 절반 넘게 겹치면 같은 모임으로 보고, 쉬었다가 다시 보인 모임은 다시 모임으로 알립니다. 여럿이 함께한 기록은 사람 수로 나눠 셉니다. 소속은 날짜가 없어 넣지 않습니다. 앱을 쓰기 시작한 뒤의 시기가 더 정확합니다.")
         }
     }
 

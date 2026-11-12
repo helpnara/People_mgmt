@@ -80,7 +80,7 @@ struct RecordDetailView: View {
                         .font(.scaled(22, weight: .bold))
                         .foregroundStyle(Color.ink)
                     if let location = record.location, !location.isEmpty {
-                        Label(location, systemImage: "mappin.and.ellipse")
+                        Label(location, systemImage: "mappin")
                             .font(.scaled(15))
                             .foregroundStyle(Color.bodyText)
                     }
