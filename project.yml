@@ -24,7 +24,7 @@ packages:
 settings:
   base:
     # App Store Connect 의 첫 트레인. "1.0.0" 으로 쓰면 트레인이 하나 더 생긴다 (느린 부자).
-    MARKETING_VERSION: "1.1.10"
+    MARKETING_VERSION: "1.1.11"
     # CI 가 실행 번호를 넣는다 — 빌드 번호와 실행 번호가 늘 같게.
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "6.0"
@@ -68,6 +68,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         # 아이콘이 없으면 App Store 검증이 CFBundleIconName 누락으로 막는다.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # 앱 전체 강조색 (1.1.11 · 이슈 111) — Palette.accent 와 같은 초록. 없으면 단추 · 링크 · 경고창이 기본 파랑이 된다.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_USER_SCRIPT_SANDBOXING: YES
         SWIFT_STRICT_CONCURRENCY: complete
         # 인증서를 여기서 지정하지 않는다. 자동 서명은 아카이브를 개발용으로 굽고 내보내기에서

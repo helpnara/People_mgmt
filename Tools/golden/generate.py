@@ -295,6 +295,16 @@ def repeat_is_due(day, updated_day, today):
     return day < today or (day <= today and updated_day >= day)
 
 
+def footnote_split(text):
+    """긴 설명의 첫 문장 · 나머지 (이슈 111) — 마침표 다음에 빈칸 · 줄바꿈이 오면 문장 끝. 숫자 바로 뒤 마침표는 아니다."""
+    i = 1
+    while i < len(text) - 1:
+        if text[i] == "." and text[i + 1].isspace() and not ("0" <= text[i - 1] <= "9"):
+            return {"head": text[:i + 1].strip(), "rest": text[i + 1:].strip()}
+        i += 1
+    return {"head": text.strip(), "rest": ""}
+
+
 def widget_dday(day, today):
     """위젯의 큰 글씨 (1.1.9 · FR-075) — D-DAY · D-n · 지난 날은 D+n."""
     left = day - today
@@ -2322,6 +2332,7 @@ def build() -> dict:
                           "upcoming": [{"today": t, "expected": repeat_next_upcoming(c["rule"], c["date"], t, c.get("anchorDay"))}
                                        for t in c.get("todays", [])]} for c in cases["repeatRule"]]
     out["repeatDue"] = [dict(c, expected=repeat_is_due(c["day"], c["updatedDay"], c["today"])) for c in cases["repeatDue"]]
+    out["footnoteSplit"] = [{"text": t, "expected": footnote_split(t)} for t in cases["footnoteSplit"]]
     out["widgetDDay"] = [dict(c, expected=widget_dday(c["day"], c["today"])) for c in cases["widgetDDay"]]
     out["appLink"] = [{"url": u, "expected": app_link_parse(u)} for u in cases["appLink"]]
     out["recordFinder"] = [{"name": c["name"], "today": c["today"], "items": c["items"],
