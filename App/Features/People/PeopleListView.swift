@@ -61,7 +61,7 @@ struct PeopleListView: View {
     @State private var searchRows: [SearchRow] = []
     /// `searchRows` 가 어느 검색어의 결과인가 — 아직 찾는 중인지 가르려고.
     @State private var searchedText = ""
-    /// 입력 상태 한 줄 (D-31). 따로 연 문맥에서 자료가 바뀔 때만 센다 — 본문에서 세지 않는다.
+    /// 입력 상태 한 줄 (D-31). 따로 연 문맥에서 자료가 바뀔 때만 센다 — 본문에서 세지 않는다. 모두 준비되면 nil(이슈 112).
     @State private var readinessLine: String?
     /// 최근 기록 3건 (FR-028) — 오늘까지의 기록 가운데 날짜가 늦은 것부터. 자료가 바뀔 때만 읽는다.
     @State private var recentRecords: [Record] = []
@@ -349,7 +349,11 @@ struct PeopleListView: View {
             LaunchTiming.once("입력 상태 세기 시작 (자료 판 \(dataVersion))")
             let input = await NetworkSnapshotBuilder.readiness(container: context.container, version: dataVersion)
             guard !Task.isCancelled else { return }
-            readinessLine = input.people > 0 ? InputReadiness.summary(InputReadiness.evaluate(input)) : nil
+            // 모두 준비되면 홈에서는 접는다 (1.1.11 · 이슈 112 · 2026-11-14 사용자) — 덜 된 칸이 다시 생기면(사람이 늘어 비율이
+            // 내려가는 등) 다시 보인다. 내 인맥 → 입력 상태에서는 늘 본다.
+            let readiness = InputReadiness.evaluate(input)
+            readinessLine = input.people > 0 && readiness.contains(where: { $0.level != .ready })
+                ? InputReadiness.summary(readiness) : nil
             // 알림도 다시 건다 (D-40) — 생일 · 처음 만난 날 · 기록이 바뀌었을 수 있다. 켠 알림이 없으면 바로 끝난다.
             await ReminderScheduler.refresh(container: context.container)
             // 홈 화면 위젯의 요약 (1.1.9 · 이슈 100) · 공유로 받은 초안 (이슈 101).
