@@ -961,6 +961,9 @@ struct RelationGraphView: View {
         var drawn = 0
         for (k, box) in placed.enumerated() {
             guard let box else { continue }
+            // 이름 뒤에 바탕색을 옅게 깐다 (1.1.12 · 이슈 115) — 선이 글자를 가로지르면 이름이 흐려 보였다. 점과는 틈이 있어 덮지 않는다.
+            let halo = CGRect(x: box.x - 1, y: box.y, width: box.width + 2, height: box.height)
+            context.fill(Path(roundedRect: halo, cornerRadius: 3), with: .color(Color.raised.opacity(0.85)))
             context.draw(texts[k], at: CGPoint(x: box.centerX, y: box.centerY), anchor: .center)
             drawn += 1
         }

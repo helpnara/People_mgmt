@@ -41,6 +41,24 @@ final class LabelPlacementTests: XCTestCase {
         }
     }
 
+    /// 이름표끼리는 `labelSpacing` 만큼 떨어진다 (이슈 115) — 맞닿아 한 낱말로 읽히지 않게.
+    func testCrowdedLabelsKeepSpacingBetweenEachOther() {
+        var anchors: [(Double, Double)] = []
+        for i in 0..<30 {
+            let x: Double = 100 + Double(i % 6) * 18
+            let y: Double = 100 + Double(i / 6) * 16
+            anchors.append((x, y))
+        }
+        let placed = LabelPlacement.place(anchors.map { request($0.0, $0.1) }, obstacles: anchors.map { dot($0.0, $0.1) })
+        let boxes = placed.compactMap { $0 }
+        let half = LabelPlacement.labelSpacing / 2 - 0.01
+        for (a, first) in boxes.enumerated() {
+            for second in boxes[(a + 1)...] {
+                XCTAssertFalse(first.inflated(by: half).intersects(second.inflated(by: half)), "이름끼리 틈을 둔다")
+            }
+        }
+    }
+
     func testFarApartLabelsAllFit() {
         let anchors = [(50.0, 50.0), (200.0, 50.0), (50.0, 200.0), (200.0, 200.0)]
         let placed = LabelPlacement.place(anchors.map { request($0.0, $0.1) }, obstacles: anchors.map { dot($0.0, $0.1) })
