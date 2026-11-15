@@ -5,7 +5,7 @@
   · 자리 잡기 `Core.GraphLayout.layout` — k = 0.6·√(1/n), 끄는 힘 1.5, 당기는 힘 (min(1, 30/n))^0.75, 온도 0.08 → 0.002,
     반복 160(500명 넘으면 줄임), 0.02 ~ 0.98 안. 미는 힘은 사분 나무 대신 정확히 센다(차이 1% 안팎).
   · 화면에 펴기 `RelationGraphView.screenPoint` — 가장자리 36 · 34pt, 퍼진 거리로 칸을 채우되 한쪽 늘이기는 1.8배까지.
-  · 이름표 `Core.LabelPlacement` — 점 반지름 5, 틈 2, 여덟 자리(아래 → 위 → 오른 → 왼 → 대각), 칸 밖 · 점 · 이름표 · 나 · 모임 이름과 안 겹치게.
+  · 이름표 `Core.LabelPlacement` — 점 반지름 5, 틈 2, 이름표끼리 틈 5, 여덟 자리(아래 → 위 → 오른 → 왼 → 대각), 칸 밖 · 점 · 이름표 · 나 · 모임 이름과 안 겹치게.
     차례는 이름 순(여기서는 무작위 순서와 같다). 한 번에 150개.
   · 글자 11pt — 한글 한 자 폭 0.82em · 줄 높이 1.25em(아이패드 실기기 사진에서 잰 값). 이름은 2 ~ 4자(대부분 3자).
 인맥은 지어낸 것이다 — 모임 4 ~ 13명이 여럿, 모임 안은 절반쯤 이어지고 모임 사이는 드문드문, 기록 없는 사람 5%.
@@ -23,6 +23,7 @@ CHAR_W = 0.82 * FONT
 LINE_H = 1.25 * FONT
 RADIUS = 5.0
 GAP = 2.0
+LABEL_SPACING = 5.0   # 이름표끼리의 틈 (1.1.12 · 이슈 115 — Core.LabelPlacement.labelSpacing)
 EDGE_X, EDGE_Y, MAX_STRETCH = 36.0, 34.0, 1.8
 LIMIT = 150
 SCREENS = {
@@ -125,7 +126,8 @@ def place(requests, obstacles, bounds):
             padded = (box[0] - GAP / 2, box[1] - GAP / 2, w + GAP, h + GAP)
             if any(overlaps(padded, o) for o in taken):
                 continue
-            taken.append(box)
+            s = LABEL_SPACING - GAP / 2
+            taken.append((box[0] - s, box[1] - s, w + 2 * s, h + 2 * s))
             placed += 1
             break
     return placed
