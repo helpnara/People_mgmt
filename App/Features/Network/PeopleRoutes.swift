@@ -270,7 +270,7 @@ struct RecordFillRouteView: View {
             } header: {
                 Text("\(ordered.count)건")
             } footer: {
-                Text("누르면 기록 수정이 바로 열립니다. 그 자리에 함께한 사람이 더 있었다면 더하세요 — 함께한 사람끼리 관계도에 선이 생깁니다. 둘만 만난 기록이면 그대로 두어도 됩니다.")
+                FootnoteText("누르면 기록 수정이 바로 열립니다. 그 자리에 함께한 사람이 더 있었다면 더하세요 — 함께한 사람끼리 관계도에 선이 생깁니다. 둘만 만난 기록이면 그대로 두어도 됩니다.")
             }
         }
         .listStyle(.insetGrouped)

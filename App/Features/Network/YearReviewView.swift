@@ -84,8 +84,9 @@ struct YearReviewView: View {
         Section {
             AdaptiveStack(spacing: 10) {
                 ReviewTile(value: summary.recordCount, label: "기록")
-                ReviewTile(value: summary.peopleCount, label: "함께한\n사람")
-                ReviewTile(value: summary.newlyMet.count, label: "처음\n만난 사람")
+                // 숫자 아래 이름표는 한 줄로 — 두 줄로 꺾이면 작은 글씨가 더 작아 보였다 (1.1.12 · 이슈 113).
+                ReviewTile(value: summary.peopleCount, label: "함께한 사람")
+                ReviewTile(value: summary.newlyMet.count, label: "처음 만남")
             }
             .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
             if summary.peopleCount > 0, let lists {
@@ -254,9 +255,10 @@ private struct ReviewTile: View {
                 .foregroundStyle(Color.ink)
                 .monospacedDigit()
             Text(label)
-                .font(.scaled(12))
+                .font(.scaled(13))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
+                .readableLineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)

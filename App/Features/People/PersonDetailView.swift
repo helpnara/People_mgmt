@@ -58,6 +58,8 @@ struct PersonDetailView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
+        // 떠 있는 `기록 추가` 뒤로 줄 글자가 비쳐 겹쳐 보였다 (1.1.12 · 이슈 113).
+        .bottomFade(height: person.isMe ? 0 : 40)
         .task {
             // CI 스크린샷: 관계 돌아보기 · 다음에 이야기할 것 구역까지 내린다.
             guard !person.isMe else { return }
@@ -216,6 +218,21 @@ struct PersonDetailView: View {
         }
     }
 
+    /// 머리 칸의 날짜 줄 — 연락 수단 줄(`ContactRows`)과 같은 그림 칸: 14pt · 흐린 색 · 폭 20 (이슈 113).
+    private func infoLine(_ text: String, symbol: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol)
+                .font(.scaled(14))
+                .foregroundStyle(Color.muted)
+                .frame(width: Font.scaledLength(20))
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.scaled(15))
+                .foregroundStyle(Color.bodyText)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private var headerSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 10) {
@@ -247,23 +264,20 @@ struct PersonDetailView: View {
                         Chip(text: "#\(tag)")
                     }
                 }
+                // 연락 수단 · 날짜 줄은 같은 그림 칸(폭 · 크기 · 색)에 맞춘다 (1.1.12 · 이슈 113 · 디자인 정리 2).
                 ContactRows(person: person)
+                    .padding(.top, 4)
                 // 생일 · 연락 주기 (5판 · D-40) — 적은 사람만.
                 if let month = person.birthMonth, let day = person.birthDay {
-                    Label("생일 " + BirthdayRule.text(month: month, day: day, year: person.birthYear), systemImage: "gift")
-                        .font(.scaled(15))
-                        .foregroundStyle(Color.bodyText)
+                    infoLine("생일 " + BirthdayRule.text(month: month, day: day, year: person.birthYear), symbol: "gift")
+                        .padding(.top, 4)
                 }
                 // 기념일 (10판 · D-77) — 더한 차례대로. 해를 적었으면 몇 주년인지.
                 ForEach(person.sortedSpecialDays) { special in
-                    Label(SpecialDayText.line(special), systemImage: "heart")
-                        .font(.scaled(15))
-                        .foregroundStyle(Color.bodyText)
+                    infoLine(SpecialDayText.line(special), symbol: "heart")
                 }
                 if let months = person.contactCadenceMonths, !person.isMe {
-                    Label("연락 주기 \(months)개월", systemImage: "bell")
-                        .font(.scaled(15))
-                        .foregroundStyle(Color.bodyText)
+                    infoLine("연락 주기 \(months)개월", symbol: "bell")
                 }
                 if let introducer = person.introducedBy, !introducer.isGone {
                     NavigationLink(value: introducer) {

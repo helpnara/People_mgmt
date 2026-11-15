@@ -22,8 +22,9 @@ struct OverviewView: View {
                     // 큰 글씨에서는 세 칸을 위아래로 (D-33).
                     AdaptiveStack(spacing: 10) {
                         Tile(value: overview.total, label: "사람")
-                        Tile(value: overview.activeCount, label: "최근 12개월\n기록 있음")
-                        Tile(value: overview.newThisYearIDs.count, label: "올해\n처음 만남")
+                        // 이름표는 한 줄로 (1.1.12 · 이슈 113).
+                        Tile(value: overview.activeCount, label: "최근 1년 만남")
+                        Tile(value: overview.newThisYearIDs.count, label: "올해 첫 만남")
                     }
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                 } footer: {
@@ -156,9 +157,10 @@ private struct Tile: View {
                 .foregroundStyle(Color.ink)
                 .monospacedDigit()
             Text(label)
-                .font(.scaled(12))
+                .font(.scaled(13))
                 .foregroundStyle(Color.muted)
                 .multilineTextAlignment(.center)
+                .readableLineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
