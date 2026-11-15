@@ -376,7 +376,8 @@ struct PeopleListView: View {
             if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
                 EmptyPeopleView(onAdd: { showingAdd = true }, onDemo: { DemoMode.shared.start() })
             } else {
-                list
+                // 아래 찾기 칸 뒤로 목록 글자가 비치지 않게 (1.1.12 · 이슈 113).
+                list.bottomFade()
             }
         }
         .background(Color.ground)
@@ -637,6 +638,8 @@ struct PeopleListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        // 홈 칸 사이를 한 간격으로 (1.1.12 · 이슈 113) — 머리글 없는 칸과 있는 칸의 간격이 들쭉날쭉했다.
+        .listSectionSpacing(.custom(24))
         .scrollContentBackground(.hidden)
         // 검색하는 동안 키보드가 가린 아래 결과까지 내려갈 수 있게 (이슈 80).
         .keyboardScrollRoom()
@@ -1379,24 +1382,28 @@ struct PersonRow: View {
 
     private var text: some View {
         VStack(alignment: .leading, spacing: 3) {
-            // 큰 글씨에서는 마지막 기록일을 이름 아래로 (D-33).
-            AdaptiveStack {
-                Text(person.name)
-                    .font(.scaled(17, weight: .semibold))
-                    .foregroundStyle(Color.ink)
-                if showsLastRecord {
-                    Spacer(minLength: 8)
-                    Text(lastRecordText)
-                        .font(.scaled(12))
-                        .foregroundStyle(Color.muted)
-                        .readableLineLimit(1)
+            Text(person.name)
+                .font(.scaled(17, weight: .semibold))
+                .foregroundStyle(Color.ink)
+            // 마지막 기록일은 소속 줄 오른쪽에 — 이름 옆 위쪽에 떠 있으면 어긋나 보였다 (1.1.12 · 이슈 113).
+            // 큰 글씨에서는 소속 아래로 (D-33).
+            if person.subtitle != nil || showsLastRecord {
+                AdaptiveStack {
+                    if let subtitle = person.subtitle {
+                        Text(subtitle)
+                            .font(.scaled(14))
+                            .foregroundStyle(Color.muted)
+                            .readableLineLimit(1)
+                    }
+                    if showsLastRecord {
+                        Spacer(minLength: 8)
+                        Text(lastRecordText)
+                            .font(.scaled(12))
+                            .foregroundStyle(Color.muted)
+                            .readableLineLimit(1)
+                            .layoutPriority(1)
+                    }
                 }
-            }
-            if let subtitle = person.subtitle {
-                Text(subtitle)
-                    .font(.scaled(14))
-                    .foregroundStyle(Color.muted)
-                    .readableLineLimit(1)
             }
             if let evidence {
                 Text(evidence)

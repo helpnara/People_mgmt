@@ -92,7 +92,7 @@ struct SettingsView: View {
             } header: {
                 Text("복원")
             } footer: {
-                Text(CloudSync.isActive
+                FootnoteText(CloudSync.isActive
                      ? "iCloud 동기화가 켜져 있으면 복원하지 않습니다 — 복원한 사람과 iCloud 의 사람이 둘씩 생길 수 있습니다. 위에서 동기화를 끄고 앱을 다시 연 뒤 복원하세요."
                      : "앱에 사람이나 기록이 하나도 없을 때만 복원합니다 — 지금 자료와 섞이지 않게. 새 기기나 다시 설치한 뒤에 쓰세요.")
             }
@@ -110,7 +110,7 @@ struct SettingsView: View {
                 Button {
                     exportVCard()
                 } label: {
-                    Label("vCard 파일로 내보내기", systemImage: "person.crop.rectangle.stack")
+                    Label("vCard 파일로 내보내기", systemImage: "person.text.rectangle")
                         .mutedWhenDisabled()
                 }
                 .disabled(working != nil)
@@ -263,6 +263,8 @@ struct SettingsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        // 칸 사이를 넉넉히 — 위 칸의 설명 바로 아래에 다음 머리글이 붙어 보였다 (1.1.12 · 이슈 113).
+        .listSectionSpacing(.custom(28))
         .scrollContentBackground(.hidden)
         .background(Color.ground)
         .navigationTitle("설정")
@@ -543,7 +545,7 @@ struct SettingsView: View {
         } header: {
             Text("iCloud 동기화")
         } footer: {
-            Text(CloudSync.mainStoreSyncAvailable
+            FootnoteText(CloudSync.mainStoreSyncAvailable
                  ? "같은 Apple 계정으로 로그인한 아이폰 · 아이패드가 같은 사람 · 기록을 봅니다. 자료는 내 iCloud 의 비공개 영역에 저장되고 개발자는 볼 수 없습니다. 끄면 이 기기 안에만 둡니다."
                  : "같은 Apple 계정의 아이폰 · 아이패드가 같은 사람 · 기록을 보게 하는 기능입니다. 지금은 이 기기 안에만 저장합니다.")
         }

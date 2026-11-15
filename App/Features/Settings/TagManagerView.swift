@@ -92,7 +92,7 @@ struct TagManagerView: View {
             } header: {
                 Text("태그 \(catalog.entries.count)개 · 많이 쓴 순")
             } footer: {
-                Text("태그를 누르면 이름을 바꿉니다. 이미 있는 태그 이름을 적으면 두 태그를 하나로 합칩니다. 사람과 기록에 붙은 태그가 함께 바뀝니다.")
+                FootnoteText("태그를 누르면 이름을 바꿉니다. 이미 있는 태그 이름을 적으면 두 태그를 하나로 합칩니다. 사람과 기록에 붙은 태그가 함께 바뀝니다.")
             }
         }
         .listStyle(.insetGrouped)

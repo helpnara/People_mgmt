@@ -18,7 +18,7 @@ struct ReadinessView: View {
                         .font(.scaled(15, weight: .semibold))
                         .foregroundStyle(Color.ink)
                 } footer: {
-                    Text("앱이 보여 주는 것은 모두 내가 적은 것에서 나옵니다. 기능마다 뜻을 갖는 최소 조건을 두고, 지금 입력이 거기까지 얼마나 왔는지 보입니다. 사람을 평가하는 점수가 아닙니다.")
+                    FootnoteText("앱이 보여 주는 것은 모두 내가 적은 것에서 나옵니다. 기능마다 뜻을 갖는 최소 조건을 두고, 지금 입력이 거기까지 얼마나 왔는지 보입니다. 사람을 평가하는 점수가 아닙니다.")
                 }
             }
             ForEach(items) { item in
