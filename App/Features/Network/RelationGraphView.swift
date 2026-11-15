@@ -867,12 +867,15 @@ struct RelationGraphView: View {
             }
             if highlightCommunity == nil || highlightCommunity == community.id,
                let top = hull.min(by: { $0.y < $1.y }) {
-                let centerX = hull.map(\.x).reduce(0, +) / CGFloat(hull.count)
                 // 모임 이름은 그 모임 색의 연한 알약에 진한 굵은 글자 — 회색 사람 이름과 한눈에 갈리게 (이슈 74 · 75).
                 // 글자 대비 라이트 5.3 ~ 6.3 · 다크 7.1 ~ 8.7 (`Tools/contrast.py` 의 clusterXInk on clusterXSoft).
                 let title = context.resolve(Text(community.name).font(.scaledCapped(11, weight: .semibold)).foregroundStyle(ink))
                 let titleSize = title.measure(in: CGSize(width: 400, height: 100))
-                let titleCenter = CGPoint(x: centerX, y: top.y - 20)
+                // 테두리의 가장 위 꼭짓점 바로 위에 매단다 (1.1.12 · 이슈 116) — 전에는 가로를 꼭짓점들의 가운데로 잡아,
+                // 비스듬히 길게 누운 모임에서 이름이 테두리 밖 빈 곳에 떠 있었다. 관계도 칸 밖으로 나가면 칸 안으로 당긴다.
+                let halfWidth = titleSize.width / 2 + 7, halfHeight = titleSize.height / 2 + 2.5
+                let titleCenter = CGPoint(x: min(max(top.x, halfWidth + 4), max(size.width - halfWidth - 4, halfWidth + 4)),
+                                          y: max(top.y - 20, halfHeight + 4))
                 let pill = CGRect(x: titleCenter.x - titleSize.width / 2 - 7, y: titleCenter.y - titleSize.height / 2 - 2.5,
                                   width: titleSize.width + 14, height: titleSize.height + 5)
                 context.fill(Path(roundedRect: pill, cornerRadius: pill.height / 2), with: .color(soft))
