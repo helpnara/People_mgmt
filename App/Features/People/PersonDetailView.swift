@@ -58,8 +58,6 @@ struct PersonDetailView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.ground)
-        // 떠 있는 `기록 추가` 뒤로 줄 글자가 비쳐 겹쳐 보였다 (1.1.12 · 이슈 113).
-        .bottomFade(height: person.isMe ? 0 : 40)
         .task {
             // CI 스크린샷: 관계 돌아보기 · 다음에 이야기할 것 구역까지 내린다.
             guard !person.isMe else { return }
@@ -73,7 +71,8 @@ struct PersonDetailView: View {
         }
         }
         // 자주 쓰는 `기록 추가` 는 한 손이 닿는 아래에 — 키보드 툴바가 아니라 화면 안의 띠로 (CLAUDE.md).
-        .safeAreaInset(edge: .bottom) {
+        // iOS 26 은 시스템 아래 막대로 — 뒤 줄 글자가 막대처럼 흐려진다 (1.1.12 · 이슈 113 → 114).
+        .floatingBottomBar {
             if !person.isMe {
             HStack {
                 Spacer()
