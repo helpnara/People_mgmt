@@ -376,8 +376,8 @@ struct PeopleListView: View {
             if fetched.isEmpty && meList.isEmpty && searchText.isEmpty {
                 EmptyPeopleView(onAdd: { showingAdd = true }, onDemo: { DemoMode.shared.start() })
             } else {
-                // 아래 찾기 칸 뒤로 목록 글자가 비치지 않게 (1.1.12 · 이슈 113).
-                list.bottomFade()
+                // 아래 찾기 칸 뒤로 목록 글자가 비치지 않게 — 시스템 가장자리 흐림 (1.1.12 · 이슈 113 → 114).
+                list.softBottomEdge()
             }
         }
         .background(Color.ground)
