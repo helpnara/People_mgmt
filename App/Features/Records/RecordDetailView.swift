@@ -137,7 +137,9 @@ struct RecordDetailView: View {
                     }
                 }
             }
+            // 만든 날 · 고친 날은 내용이 아니라 꼬리말 — 흰 상자 없이 맨 아래에 작게 (1.1.12 · 이슈 113 · 디자인 정리 2).
             Section {
+            } footer: {
                 Text("만든 날 \(record.createdAt.formatted(date: .abbreviated, time: .shortened)) · 고친 날 \(record.updatedAt.formatted(date: .abbreviated, time: .shortened))")
                     .font(.scaled(12))
                     .foregroundStyle(Color.muted)

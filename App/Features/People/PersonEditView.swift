@@ -364,7 +364,7 @@ struct PersonEditView: View {
             Text("생일")
         } footer: {
             if draft.hasBirthday {
-                Text("태어난 해는 몰라도 됩니다. 설정 → 알림에서 생일 당일을 켜면 그날 아침에 알려 드립니다. 이 사람만 알리지 않으려면 위를 끄세요.")
+                FootnoteText("태어난 해는 몰라도 됩니다. 설정 → 알림에서 생일 당일을 켜면 그날 아침에 알려 드립니다. 이 사람만 알리지 않으려면 위를 끄세요.")
             }
         }
         .onChange(of: draft.birthMonth) { _, _ in clampBirthDay() }
@@ -612,7 +612,7 @@ struct PersonEditView: View {
         } header: {
             Text("명함")
         } footer: {
-            Text("촬영하면 명함 테두리를 자동으로 찾아 반듯하게 폅니다. 사진첩 사진도 테두리를 찾아 폅니다. 글자는 기기 안에서만 읽고 어디로도 보내지 않습니다.")
+            FootnoteText("촬영하면 명함 테두리를 자동으로 찾아 반듯하게 폅니다. 사진첩 사진도 테두리를 찾아 폅니다. 글자는 기기 안에서만 읽고 어디로도 보내지 않습니다.")
         }
     }
 

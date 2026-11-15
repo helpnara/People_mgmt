@@ -248,7 +248,7 @@ struct RecordEditView: View {
                 .accessibilityIdentifier("repeatPicker")
             }
         } footer: {
-            Text(draft.repeatRule == .none || draft.occurredPrecision != .day
+            FootnoteText(draft.repeatRule == .none || draft.occurredPrecision != .day
                  ? "기본은 오늘입니다. 예정된 만남은 앞날짜로 적어도 됩니다. 같은 날 약속이 여럿이면 시각을 넣어 두면 차례대로 보입니다. 날짜가 정확하지 않으면 월까지 · 연도만을 고르세요."
                  : "반복하는 약속은 이 회차의 날이 지나거나 결과를 적으면 다음 회차 하나를 앞날짜로 만들어 둡니다. 다음 회차에서 반복을 끄면 더 만들지 않습니다.")
         }

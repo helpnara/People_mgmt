@@ -2,6 +2,7 @@ import Foundation
 
 /// **관계도 이름표 자리 잡기** (이슈 30) — 이름끼리 · 이름과 점이 겹치지 않는 자리를 찾는다.
 ///
+/// - 이름표끼리는 `labelSpacing`(5pt) 띄운다 — 맞닿으면 두 이름이 한 낱말로 읽힌다(이슈 115).
 /// - 점마다 자리 후보 여덟 곳을 차례로 본다: 아래 → 위 → 오른쪽 → 왼쪽 → 오른아래 → 왼아래 → 오른위 → 왼위.
 ///   이미 놓은 이름표 · 다른 점 · 미리 막아 둔 칸(나 · 모임 이름)과 겹치지 않고 그림 칸 안에 드는 첫 자리에 놓는다.
 /// - 놓을 자리가 없으면 그 이름은 **이번 크기에서는 쓰지 않는다**(`nil`). 두 손가락으로 키우면 점 사이가 벌어져 자리가 생긴다.
@@ -36,6 +37,11 @@ public enum LabelPlacement {
             x < other.x + other.width && other.x < x + width && y < other.y + other.height && other.y < y + height
         }
 
+        /// 사방으로 `amount` 만큼 넓힌 네모.
+        public func inflated(by amount: Double) -> Box {
+            Box(x: x - amount, y: y - amount, width: width + amount * 2, height: height + amount * 2)
+        }
+
         func contains(_ other: Box) -> Bool {
             other.x >= x && other.y >= y && other.x + other.width <= x + width && other.y + other.height <= y + height
         }
@@ -58,8 +64,11 @@ public enum LabelPlacement {
         }
     }
 
-    /// 이름표와 점 사이 · 이름표끼리의 틈.
+    /// 이름표와 점 사이의 틈.
     public static let gap = 2.0
+    /// 이름표끼리의 틈 (1.1.12 · 이슈 115 · 2026-11-15 사용자) — 틈 2 로는 사람이 몰린 곳에서 이름이 맞닿아
+    /// `한지우송예준` 처럼 한 낱말로 붙어 읽혔다. 놓은 이름표를 이만큼 띄워 둔다(자리가 모자라면 그 이름은 이번 크기에서 비운다).
+    public static let labelSpacing = 5.0
 
     /// 요청 차례대로 자리를 잡는다. 결과는 요청과 같은 차례 — 놓은 이름표의 네모, 못 놓았으면 `nil`.
     /// `obstacles` 는 피할 칸(점 · 나 · 모임 이름). 자기 점은 후보가 처음부터 비켜 서므로 함께 넣어도 된다.
@@ -77,7 +86,8 @@ public enum LabelPlacement {
                 chosen = candidate
                 break
             }
-            if let chosen { grid.add(chosen) }
+            // 다음 이름표가 이 이름표와 `labelSpacing` 만큼 떨어지게 — 견줄 때 틈 절반(`gap / 2`)을 더 넓히므로 그만큼 뺀다.
+            if let chosen { grid.add(chosen.inflated(by: labelSpacing - gap / 2)) }
             result.append(chosen)
         }
         return result
