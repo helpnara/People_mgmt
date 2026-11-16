@@ -82,7 +82,7 @@
 - **작업 브랜치 `claude/slow-connection`** 에서 개발한다. CI · TestFlight · 처리방침 게시가 전부 여기서 돈다.
 - **`main` 은 App Store 에 낸 판**을 가리킨다. 심사에 낼 때 작업 브랜치를 `main` 에 **병합**(강제 푸시 · 되감기 없이)한다. 스크린샷 충돌은 `-X theirs` 로 작업 브랜치 것을 쓴다.
 - `master` 는 저장소가 만들어질 때의 기본 브랜치다. 기본 브랜치를 `main` 으로 바꾸면 더는 쓰지 않는다 (`docs/06-ci.md`).
-- 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `cloudkit-schema.yml`(수동 · CloudKit 개발 환경에 읽기 · 검사 · 적용) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나).
+- 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `cloudkit-schema.yml`(수동 · CloudKit 개발 환경에 읽기 · 검사 · 적용) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나) · `promo-stats.yml`(매주 월 08:41 · 쇼츠 조회수 → `docs/promo-youtube-stats.md`, App Store 획득 경로 → 비공개 저장소만 · 예약 실행은 기본 브랜치 `main` 의 파일로 돈다).
 - `paths-ignore` 로 문서만 고친 푸시는 건너뛴다. `concurrency` + `cancel-in-progress`. 커밋하는 워크플로에는 `permissions: contents: write`. **아티팩트 업로드를 커밋보다 앞에.**
 - 소스 안의 안내 문구 강조는 `**…**`. **곧은 따옴표(`"`)를 문구 안에 쓰지 않는다** — 지난 앱에서 빌드 시스템이 같은 자리에서 두 번 죽었다.
 - 개발자 콘솔(App ID · 컨테이너)의 Description 칸은 **영문**만 받는다. 콘솔에 넣을 값을 안내할 때는 영문 · 숫자 · 빈칸으로 적는다.
