@@ -1,0 +1,134 @@
+name: 쇼츠 조회수 · App Store 획득 경로 (매주)
+
+# 2026-11-16 사용자: 화면을 하나하나 찍어 보내는 일을 없애자.
+# - 유튜브: 조회수 · 좋아요 · 댓글 · 평균 시청률 → docs/promo-youtube-stats.md 에 새 회차 + docs/promo-stats/날짜.json (공개 자료)
+# - App Store: 획득 경로(출처 유형 · 출처 정보) → 이 실행의 요약 화면에만 (저장소가 공개라 문서에 남기지 않는다)
+# 준비(시크릿)는 docs/promo/README.md 의 자동 수집 절.
+
+on:
+  schedule:
+    - cron: "41 23 * * 0"   # 월요일 08:41 (한국 시간)
+  workflow_dispatch:
+    inputs:
+      days:
+        description: App Store 획득 경로를 볼 날 수
+        default: "14"
+
+concurrency:
+  group: promo-stats
+  cancel-in-progress: false
+
+jobs:
+  youtube:
+    name: 유튜브 조회수
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/slow-connection
+
+      - name: 시크릿 확인
+        id: ready
+        env:
+          A: ${{ secrets.YT_CLIENT_ID }}
+          B: ${{ secrets.YT_CLIENT_SECRET }}
+          C: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: |
+          if [ -z "$A" ] || [ -z "$B" ] || [ -z "$C" ]; then
+            echo "::warning::YT_CLIENT_ID · YT_CLIENT_SECRET · YT_REFRESH_TOKEN 시크릿이 없어 유튜브 수집을 건너뜁니다 (docs/promo/README.md)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 모으기
+        if: steps.ready.outputs.ok == 'true'
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python3 -I Tools/promo-stats/youtube_stats.py .
+
+      - name: 문서에 커밋
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/promo-youtube-stats.md docs/promo-stats
+          if git diff --cached --quiet; then
+            echo "변화 없음"
+            exit 0
+          fi
+          git commit -m "chore: 쇼츠 조회수 자동 수집 $(TZ=Asia/Seoul date +%F) [skip ci]"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:claude/slow-connection; then
+              echo "올렸습니다 (시도 $attempt)"
+              exit 0
+            fi
+            git fetch origin claude/slow-connection
+            git rebase origin/claude/slow-connection || { git rebase --abort || true; }
+            sleep $((attempt * 5))
+          done
+          echo "::error::푸시하지 못했습니다"
+          exit 1
+
+  appstore:
+    name: App Store 획득 경로 (비공개 저장소로)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/slow-connection
+
+      - name: 시크릿 확인
+        id: ready
+        env:
+          REPO: ${{ vars.STATS_REPO }}
+          T: ${{ secrets.STATS_REPO_TOKEN }}
+          K: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+        run: |
+          if [ -z "$REPO" ] || [ -z "$T" ] || [ -z "$K" ]; then
+            echo "::warning::변수 STATS_REPO · 시크릿 STATS_REPO_TOKEN 이 없어 App Store 수집을 건너뜁니다 (docs/promo/README.md)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 이 저장소는 공개라 Actions 기록 · 요약 · 결과 파일도 누구나 본다 — 숫자는 기록에 찍지 않고 파일로만 넘긴다.
+      - name: 모으기 (숫자는 기록에 찍지 않는다)
+        if: steps.ready.outputs.ok == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          DAYS: ${{ inputs.days || '14' }}
+        run: python3 -I Tools/promo-stats/appstore_sources.py --out "$RUNNER_TEMP/appstore.md"
+
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.ok == 'true'
+        with:
+          repository: ${{ vars.STATS_REPO }}
+          token: ${{ secrets.STATS_REPO_TOKEN }}
+          path: private-stats
+
+      - name: 비공개 저장소에 커밋
+        if: steps.ready.outputs.ok == 'true'
+        working-directory: private-stats
+        run: |
+          day=$(TZ=Asia/Seoul date +%F)
+          mkdir -p slow-connection/appstore
+          cp "$RUNNER_TEMP/appstore.md" "slow-connection/appstore/$day.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add slow-connection
+          if git diff --cached --quiet; then
+            echo "변화 없음"
+            exit 0
+          fi
+          git commit -q -m "느린 인연 App Store 획득 경로 $day"
+          git push -q
+          echo "비공개 저장소에 올렸습니다: slow-connection/appstore/$day.md"
