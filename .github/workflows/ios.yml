@@ -14,6 +14,8 @@ on:
       - "Tools/golden/**"
       - "Tools/site/**"
       - "Tools/cloudkit/**"
+      - "Tools/promo-stats/**"
+      - ".github/workflows/promo-stats.yml"
       - ".github/workflows/cloudkit-schema.yml"
       - ".github/workflows/core-test.yml"
       - ".github/workflows/probe.yml"
