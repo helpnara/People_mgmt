@@ -30,7 +30,7 @@ struct GraphPersonCard: View {
         if let person = found.first, !person.isGone {
             card(person)
                 .task(id: person.uuid) {
-                    summary = Summary(records: (person.records ?? []).filter { !$0.isGone }.count,
+                    summary = Summary(records: (person.records ?? []).filter { !$0.isGone && $0.countsAsMeeting }.count,
                                       last: person.lastRecordAt)
                 }
         }

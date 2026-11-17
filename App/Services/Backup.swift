@@ -99,6 +99,8 @@ struct BackupFile: Codable, Sendable {
         var repeatAnchorDay: Int?
         var repeatSeriesID: UUID?
         var repeatSpawned: Bool?
+        /// 13판부터 — 안 만난 약속(이슈 117 · D-81). 옛 백업에는 없으니 옵셔널(없으면 만난 기록).
+        var didNotMeet: Bool?
     }
 
     /// 12판(빌드 62)부터 — 기록 틀(FR-070).
@@ -296,7 +298,8 @@ enum Backup {
             occurredMinute: r.occurredMinute,
             photos: { let data = r.sortedPhotos.compactMap(\.data); return data.isEmpty ? nil : data }(),
             repeatRule: r.repeatRule == 0 ? nil : r.repeatRule, repeatAnchorDay: r.repeatAnchorDay,
-            repeatSeriesID: r.repeatSeriesID, repeatSpawned: r.repeatSpawned ? true : nil)
+            repeatSeriesID: r.repeatSeriesID, repeatSpawned: r.repeatSpawned ? true : nil,
+            didNotMeet: r.didNotMeet ? true : nil)
     }
 
     /// 기록 사진을 값에서 다시 붙인다 — 기록을 저장소에 넣은 **뒤에**. 많으면 앞의 `RecordPhotos.limit` 장만.
@@ -361,6 +364,7 @@ enum Backup {
         record.repeatAnchorDay = item.repeatAnchorDay
         record.repeatSeriesID = item.repeatSeriesID
         record.repeatSpawned = item.repeatSpawned ?? false
+        record.didNotMeet = item.didNotMeet ?? false
     }
 
     static func summary(of file: BackupFile) -> Summary {

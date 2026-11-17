@@ -20,7 +20,7 @@ struct RelationshipReviewSection: View {
 
     var body: some View {
         // 지운 기록의 고친 날을 읽지 않는다 — 지운 직후 다시 그려질 때 앱이 꺼진다 (이슈 27).
-        let records = LaunchTiming.measure("상세 · 관계 돌아보기 기록 거르기") { (person.records ?? []).filter { !$0.isGone } }
+        let records = LaunchTiming.measure("상세 · 관계 돌아보기 기록 거르기") { (person.records ?? []).filter { !$0.isGone && $0.countsAsMeeting } }
         Section {
             if let metrics {
                 content(metrics)
@@ -35,7 +35,7 @@ struct RelationshipReviewSection: View {
         .task(id: Key(count: records.count, latestEdit: records.map(\.updatedAt).max(), firstMet: person.firstMetDate)) {
             // 바깥의 `records` 를 붙잡지 않고 다시 읽는다 — 이 화면이 가진 값(`person`)만 쓴다.
             metrics = DyadMetricsCalculator.compute(
-                records: (person.records ?? []).filter { !$0.isGone }.map { MetricRecord(id: $0.uuid, day: DayIndex.of($0.occurredAt), type: $0.recordType) },
+                records: (person.records ?? []).filter { !$0.isGone && $0.countsAsMeeting }.map { MetricRecord(id: $0.uuid, day: DayIndex.of($0.occurredAt), type: $0.recordType) },
                 firstMetDay: person.firstMetDate.map { DayIndex.of($0) },
                 today: DayIndex.of(Date()))
         }

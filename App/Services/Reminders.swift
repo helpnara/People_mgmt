@@ -273,7 +273,7 @@ enum ReminderScheduler {
         let start = plan.start, end = plan.end
         let records = ((try? context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> {
             $0.occurredAt >= start && $0.occurredAt < end
-        }))) ?? []).filter { !$0.isGone }
+        }))) ?? []).filter { !$0.isGone && $0.countsAsMeeting }
         var people = Set<UUID>()
         for record in records {
             for person in record.participants ?? [] where !person.isGone && !person.isMe {
@@ -290,7 +290,8 @@ enum ReminderScheduler {
         let context = ModelContext(container)
         let calendar = Calendar.current
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: now)) else { return [] }
-        let records = (try? context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= yesterday }))) ?? []
+        let records = ((try? context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= yesterday }))) ?? [])
+            .filter { $0.countsAsMeeting }
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         let picked = PlannedMeetings.followUps(records.map { $0.plannedEntry(calendar: calendar) },
                                                today: DayIndex.of(now, calendar: calendar))
@@ -314,7 +315,8 @@ enum ReminderScheduler {
         let context = ModelContext(container)
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: now)
-        let records = (try? context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= start }))) ?? []
+        let records = ((try? context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= start }))) ?? [])
+            .filter { $0.countsAsMeeting }
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         let picked = PlannedMeetings.dayReminders(records.map { $0.plannedEntry(calendar: calendar) },
                                                   today: DayIndex.of(now, calendar: calendar))

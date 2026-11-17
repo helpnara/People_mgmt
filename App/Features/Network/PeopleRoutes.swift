@@ -52,7 +52,7 @@ enum FillField: String, Hashable {
         case .tags: return !person.tags.isEmpty
         case .firstMet: return person.firstMetDate != nil
         case .acquaintances: return !person.acquaintances.isEmpty
-        case .record: return !(person.records ?? []).isEmpty
+        case .record: return (person.records ?? []).contains { $0.countsAsMeeting }
         }
     }
 }
