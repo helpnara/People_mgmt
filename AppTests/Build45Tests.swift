@@ -203,7 +203,10 @@ final class Build45Tests: XCTestCase {
         let data = YearReviewData.make(context: context)
         let calendar = Calendar.current
         let today = DayIndex.of(Date())
-        let records = try context.fetch(FetchDescriptor<Record>())
+        // 안 만난 약속(13판 · 이슈 117 · 견본 북카페 약속)은 한 해 돌아보기에 세지 않는다 — 만난 기록만 센다.
+        let all = try context.fetch(FetchDescriptor<Record>())
+        XCTAssertTrue(all.contains { $0.didNotMeet }, "견본에 안 만난 약속이 있어야 이 시험이 뺀 것을 본다")
+        let records = all.filter { $0.countsAsMeeting }
         XCTAssertTrue(data.years.contains(calendar.component(.year, from: Date())), "올해는 늘 고를 수 있다")
         for year in data.years {
             let expected = records.filter {
@@ -212,7 +215,7 @@ final class Build45Tests: XCTestCase {
             XCTAssertEqual(data.summary(of: year).recordCount, expected, "\(year)년 기록 수")
         }
         let total = data.years.reduce(0) { $0 + data.summary(of: $1).recordCount }
-        XCTAssertEqual(total, records.filter { DayIndex.of($0.occurredAt) <= today }.count, "예정된 만남은 빼고 모두")
+        XCTAssertEqual(total, records.filter { DayIndex.of($0.occurredAt) <= today }.count, "예정된 만남 · 안 만난 약속은 빼고 모두")
     }
 
     func testSampleTripHasTwoPhotos() throws {
