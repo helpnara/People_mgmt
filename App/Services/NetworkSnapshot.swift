@@ -176,7 +176,8 @@ enum NetworkSnapshotBuilder {
         lap("사람 읽기 \(others.count)명")
         var recordDescriptor = FetchDescriptor<Record>()
         recordDescriptor.relationshipKeyPathsForPrefetching = [\.participants]
-        let records = (try? context.fetch(recordDescriptor)) ?? []
+        // 안 만난 약속은 관계도 · 돌아보기 · 입력 상태의 셈에 넣지 않는다 (이슈 117).
+        let records = ((try? context.fetch(recordDescriptor)) ?? []).filter { $0.countsAsMeeting }
         lap("기록 읽기 \(records.count)건")
         var tieDescriptor = FetchDescriptor<Tie>()
         tieDescriptor.relationshipKeyPathsForPrefetching = [\.first, \.second]

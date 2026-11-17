@@ -540,7 +540,7 @@ struct RecordEditView: View {
     /// 오늘까지의 최근 기록 40건에서 사람을 모은다 — 본문이 아니라 화면을 열 때 한 번 (CLAUDE.md).
     private func loadRecentPeople() {
         let todayNoon = DayNormalizer.noon(of: Date(), calendar: .current)
-        var descriptor = FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt <= todayNoon },
+        var descriptor = FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt <= todayNoon && $0.didNotMeet == false },
                                                  sortBy: [SortDescriptor(\Record.occurredAt, order: .reverse)])
         descriptor.fetchLimit = 40
         let recent = (try? context.fetch(descriptor)) ?? []

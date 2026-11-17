@@ -29,7 +29,7 @@ struct MilestoneSection: View {
 
     var body: some View {
         // 지운 기록의 고친 날을 읽지 않는다 — 지운 직후 다시 그려질 때 앱이 꺼진다 (이슈 27).
-        let records = (person.records ?? []).filter { !$0.isGone }
+        let records = (person.records ?? []).filter { !$0.isGone && $0.countsAsMeeting }
         Section {
             if milestones.isEmpty {
                 Text("처음 만난 날이나 함께한 기록을 적으면 이 사람과의 연표가 그려집니다.")
@@ -127,7 +127,7 @@ struct MilestoneSection: View {
     /// 표식 · 한 줄 · 표식 아래 글을 센다 — 기록이 바뀔 때만.
     private func compute() {
         let calendar = Calendar.current
-        let records = (person.records ?? []).filter { !$0.isGone }
+        let records = (person.records ?? []).filter { !$0.isGone && $0.countsAsMeeting }
         let today = DayIndex.of(Date(), calendar: calendar)
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         let input = records.map {
