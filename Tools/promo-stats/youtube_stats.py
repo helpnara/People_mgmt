@@ -29,8 +29,12 @@ KST = dt.timezone(dt.timedelta(hours=9))
 DATA = "https://www.googleapis.com/youtube/v3"
 ANALYTICS = "https://youtubeanalytics.googleapis.com/v2/reports"
 APPS = [("인연", ("느린인연", "느린 인연", "slow ties")),
-        ("부자", ("느린부자", "느린 부자")),
-        ("여백", ("느린여백", "느린 여백"))]
+        ("부자", ("느린부자", "느린 부자", "노후")),
+        ("여백", ("느린여백", "느린 여백", "slow margin"))]
+# 이 저장소는 공개다 — 원자료 · 문서에는 이 날 이후 올린 '공개' 영상만 남긴다.
+# 2026-11-18 첫 수집이 일부 공개 · 비공개 영상의 제목 · 주소까지 커밋했다.
+# 일부 공개 영상은 주소만 알면 누구나 본다. 채널의 옛 영상(앱과 상관없는 것)도 뺀다.
+SERIES_START = "2026-10-01"
 APP_NAMES = {"인연": "느린 인연", "부자": "느린 부자", "여백": "느린 여백", "기타": "앱 표시 없음"}
 
 
@@ -106,6 +110,10 @@ def collect():
                 v["avgViewSeconds"] = round(float(m["averageViewDuration"]))
     return {"channel": ch["snippet"]["title"], "collectedAt": dt.datetime.now(KST).isoformat(timespec="minutes"),
             "videos": videos}
+
+
+def keep(v):
+    return v.get("privacy") == "public" and v.get("publishedAt", "") >= SERIES_START
 
 
 def iso_seconds(s):
@@ -226,6 +234,7 @@ def main():
         snapshot = json.loads(pathlib.Path(sys.argv[sys.argv.index("--sample") + 1]).read_text(encoding="utf-8"))
     else:
         snapshot = collect()
+    snapshot["videos"] = [v for v in snapshot["videos"] if keep(v)]
     stats_dir.mkdir(parents=True, exist_ok=True)
     day = snapshot["collectedAt"][:10]
     olders = sorted(p for p in stats_dir.glob("*.json") if p.stem < day)
