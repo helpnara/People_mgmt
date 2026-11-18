@@ -2,7 +2,7 @@ name: 쇼츠 조회수 · App Store 획득 경로 (매주)
 
 # 2026-11-16 사용자: 화면을 하나하나 찍어 보내는 일을 없애자.
 # - 유튜브: 조회수 · 좋아요 · 댓글 · 평균 시청률 → docs/promo-youtube-stats.md 에 새 회차 + docs/promo-stats/날짜.json (공개 자료)
-# - App Store: 획득 경로(출처 유형 · 출처 정보) → 이 실행의 요약 화면에만 (저장소가 공개라 문서에 남기지 않는다)
+# - App Store: 획득 경로(출처 유형 · 출처 정보) → 비공개 저장소(변수 STATS_REPO)에만 — 이 저장소는 공개라 문서 · Actions 기록에 숫자를 남기지 않는다
 # 준비(시크릿)는 docs/promo/README.md 의 자동 수집 절.
 
 on:
