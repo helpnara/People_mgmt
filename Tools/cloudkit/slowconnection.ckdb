@@ -133,6 +133,7 @@ DEFINE SCHEMA
         CD_repeatSeriesID STRING,
         CD_repeatSeriesID_ckAsset ASSET,
         CD_repeatSpawned INT64,
+        CD_didNotMeet INT64,
         CD_location STRING,
         CD_location_ckAsset ASSET,
         CD_note STRING,

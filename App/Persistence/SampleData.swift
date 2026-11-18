@@ -211,6 +211,12 @@ enum SampleData {
             walk.repeatRule = RepeatRule.weekly.rawValue
             walk.repeatSeriesID = UUID()
         }
+        // 안 만난 약속 (13판 · 이슈 117) — 열흘 전 북카페 약속을 못 만나 남겨 두었다. 타임라인에 흐리게 서고 셈에서는 빠진다.
+        make("meal", in: -10, at: 15 * 60, title: "북카페 약속", note: "새로 연 북카페에 가 보기로.", location: "북카페 소요",
+             with: [haneul], writtenDaysAgo: 16)
+        if let missed = ((try? context.fetch(FetchDescriptor<Record>())) ?? []).first(where: { $0.title == "북카페 약속" }) {
+            missed.didNotMeet = true
+        }
         // 기록 틀 (12판 · FR-070) — 기록 추가 맨 위 틀 칩에 보인다.
         let lunch = RecordTemplate(name: "점심 약속")
         context.insert(lunch)

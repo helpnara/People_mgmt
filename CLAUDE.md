@@ -23,7 +23,7 @@
 - **사람(Person)이 중심 객체다.** 전화번호가 아니다. 기록(Record)은 참여자 1명 이상에 속하고 한 번만 저장된다 (N:M, ADR-0003).
 - **첫 인연은 사람의 속성이다.** 기록 유형에 "첫 만남" 이 없다. 타임라인 맨 아래에 시작점으로 파생 표시한다 (ADR-0003).
 - **사람을 점수화하지 않는다.** 관계 지표는 "내가 이 인연을 어떻게 돌보고 있는가" 에만 답한다. 종합 점수 · 순위표는 기본 화면에 두지 않는다 (ADR-0004 · 요구사항 13절).
-- **저장 계층은 SwiftData, 기기 내 저장 + 내 iCloud 동기화(빌드 21 부터 · 기본 켬 · ADR-0005).** CloudKit 제약(유니크 없음 · 모든 속성 기본값 · 모든 관계 옵셔널)을 지킨다 (ADR-0001). 스키마는 판을 얼려 쌓는다(지금 12판 · `App/Persistence/Schema.swift`). **스키마를 바꾸면** `Tools/cloudkit/generate-ckdb.py` 로 파일을 다시 만들고 → `cloudkit-schema.yml` 로 개발 환경에 적용 → 사용자가 CloudKit 콘솔에서 Production 배포 (06-ci §7). 배포 전 판을 올리면 그 기기의 올리기가 거부된다.
+- **저장 계층은 SwiftData, 기기 내 저장 + 내 iCloud 동기화(빌드 21 부터 · 기본 켬 · ADR-0005).** CloudKit 제약(유니크 없음 · 모든 속성 기본값 · 모든 관계 옵셔널)을 지킨다 (ADR-0001). 스키마는 판을 얼려 쌓는다(지금 13판 · `App/Persistence/Schema.swift`). **스키마를 바꾸면** `Tools/cloudkit/generate-ckdb.py` 로 파일을 다시 만들고 → `cloudkit-schema.yml` 로 개발 환경에 적용 → 사용자가 CloudKit 콘솔에서 Production 배포 (06-ci §7). 배포 전 판을 올리면 그 기기의 올리기가 거부된다.
 - **고유 식별자 칸은 `uuid` 다.** 설계서의 `id` 가 코드에서는 `uuid` — `PersistentModel` 이 `id` 를 이미 쓴다.
 - **`Packages/Core` 는 Foundation 만 쓴다.** SwiftUI · SwiftData 를 import 하면 리눅스 `swift test` 가 통째로 없어진다 (ADR-0002). 검색 · 태그 정리 · 정렬 · 표시명 · 검증 · 조사(을/를) · 날짜 정규화가 Core 에 있다.
 - **같은 것을 재는 곳은 하나다.** 정렬은 `NameSort`, 태그 정리는 `TagNormalizer`, 표시명은 `DisplayTitle` — 화면이 따로 셈하지 않는다. 사람을 고치는 문은 `PersonStore` 하나다.
@@ -82,7 +82,7 @@
 - **작업 브랜치 `claude/slow-connection`** 에서 개발한다. CI · TestFlight · 처리방침 게시가 전부 여기서 돈다.
 - **`main` 은 App Store 에 낸 판**을 가리킨다. 심사에 낼 때 작업 브랜치를 `main` 에 **병합**(강제 푸시 · 되감기 없이)한다. 스크린샷 충돌은 `-X theirs` 로 작업 브랜치 것을 쓴다.
 - `master` 는 저장소가 만들어질 때의 기본 브랜치다. 기본 브랜치를 `main` 으로 바꾸면 더는 쓰지 않는다 (`docs/06-ci.md`).
-- 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `cloudkit-schema.yml`(수동 · CloudKit 개발 환경에 읽기 · 검사 · 적용) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나).
+- 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `cloudkit-schema.yml`(수동 · CloudKit 개발 환경에 읽기 · 검사 · 적용) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나) · `promo-stats.yml`(매주 월 08:41 · 쇼츠 조회수 → `docs/promo-youtube-stats.md`, App Store 획득 경로 → 비공개 저장소만 · 예약 실행은 기본 브랜치 `main` 의 파일로 돈다).
 - `paths-ignore` 로 문서만 고친 푸시는 건너뛴다. `concurrency` + `cancel-in-progress`. 커밋하는 워크플로에는 `permissions: contents: write`. **아티팩트 업로드를 커밋보다 앞에.**
 - 소스 안의 안내 문구 강조는 `**…**`. **곧은 따옴표(`"`)를 문구 안에 쓰지 않는다** — 지난 앱에서 빌드 시스템이 같은 자리에서 두 번 죽었다.
 - 개발자 콘솔(App ID · 컨테이너)의 Description 칸은 **영문**만 받는다. 콘솔에 넣을 값을 안내할 때는 영문 · 숫자 · 빈칸으로 적는다.

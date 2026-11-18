@@ -15,10 +15,11 @@ struct TimelineRow: View {
         }
     }
 
-    /// 이 사람 말고 함께한 사람 — `외 2명`. 없으면 nil.
+    /// 이 사람 말고 함께한 사람 — `외 2명`. 안 만난 약속이면 앞에 `안 만남` (이슈 117). 없으면 nil.
     private var othersText: String? {
         let others = record.otherParticipantCount(besides: viewer)
-        return others > 0 ? "외 " + String(others) + "명" : nil
+        let parts = [record.didNotMeet ? "안 만남" : nil, others > 0 ? "외 " + String(others) + "명" : nil].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private var row: some View {
@@ -66,6 +67,8 @@ struct TimelineRow: View {
             }
         }
         .padding(.vertical, 2)
+        // 안 만난 약속은 흐리게 — 남아 있되 만난 기록과 한눈에 갈리게 (13판 · 이슈 117 · D-81).
+        .opacity(record.didNotMeet ? 0.5 : 1)
         .accessibilityElement(children: .combine)
     }
 }

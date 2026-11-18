@@ -20,7 +20,8 @@ final class PlannedMeetingTests: XCTestCase {
     }
 
     private func plan(_ context: ModelContext) throws -> (upcoming: [Record], awaiting: [Record]) {
-        let records = try context.fetch(FetchDescriptor<Record>()).filter { !$0.isGone }
+        // 홈과 같이 거른다 — 안 만난 약속(13판 · 이슈 117 · 견본 북카페 약속)은 예정된 만남에 서지 않는다.
+        let records = try context.fetch(FetchDescriptor<Record>()).filter { !$0.isGone && $0.countsAsMeeting }
         let result = PlannedMeetings.plan(records.map { $0.plannedEntry() }, today: DayIndex.of(Date()))
         let byID = Dictionary(records.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         return (result.upcoming.compactMap { byID[$0] }, result.awaiting.compactMap { byID[$0] })
@@ -41,6 +42,10 @@ final class PlannedMeetingTests: XCTestCase {
         XCTAssertEqual(past.count, 1)
         XCTAssertFalse(past[0].isAwaitingResult)
         XCTAssertFalse(past[0].isUpcoming)
+        // 안 만난 약속 견본 — 미리 적은 지난 약속이지만 결과를 묻지 않는다 (이슈 117).
+        let missed = try XCTUnwrap(try context.fetch(FetchDescriptor<Record>()).first { $0.displayTitle == "북카페 약속" })
+        XCTAssertTrue(missed.didNotMeet)
+        XCTAssertFalse(missed.isAwaitingResult)
     }
 
     func testConfirmMetRemovesFromAwaiting() throws {

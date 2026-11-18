@@ -719,7 +719,8 @@ struct PeopleListView: View {
         let calendar = Calendar.current
         let endOfToday = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
         var descriptor = FetchDescriptor<Record>(
-            predicate: #Predicate<Record> { $0.occurredAt < endOfToday },
+            // 안 만난 약속은 최근 기록이 아니다 (이슈 117).
+            predicate: #Predicate<Record> { $0.occurredAt < endOfToday && $0.didNotMeet == false },
             sortBy: [SortDescriptor(\.occurredAt, order: .reverse), SortDescriptor(\.createdAt, order: .reverse)]
         )
         // 결과를 적을 만남(D-62) · 오늘의 다가오는 만남(시각 전 · 이슈 108)에 이미 보이는 기록은 빼고 셋 — 홈에 같은 기록이 두 번 서지 않게.
@@ -745,7 +746,8 @@ struct PeopleListView: View {
         let from = calendar.date(byAdding: .day, value: -(PlannedMeetings.window + 1),
                                  to: calendar.startOfDay(for: Date())) ?? .distantPast
         let descriptor = FetchDescriptor<Record>(predicate: #Predicate<Record> { $0.occurredAt >= from })
-        let records = ((try? context.fetch(descriptor)) ?? []).filter { !$0.isGone }
+        // 안 만난 약속은 다가오는 만남 · 결과를 적을 만남에 서지 않는다 (이슈 117).
+        let records = ((try? context.fetch(descriptor)) ?? []).filter { !$0.isGone && $0.countsAsMeeting }
         let now = Date()
         let nowMinute = Record.nowMinute(now, calendar: calendar)
         let entries = records.map { $0.plannedEntry(calendar: calendar) }
