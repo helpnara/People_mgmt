@@ -11,6 +11,8 @@
 - `make_cards.py` — 쇼츠 9 **명함 30장, 누가 누군지 기억나요?** (2026-11-09 · `../promo-youtube-9.md`) · 스크린샷 52 와 명함 여러 장 등록 · 첫 인연 · 검색 문구 그대로 그린 장면
 - `make_story.py` — 쇼츠 11 **연락처 812명, 힘든 날 전화할 사람은 몇 명인가요?** (2026-11-15 · `../promo-youtube-11.md`) · 이야기형 — 스크린샷 03 · 47 과 `make_quiet.py` 의 연락 주기 알림
 - `make_intro.py` — 쇼츠 12 **지금 가까운 그 사람, 처음엔 누구 소개였나요?** (2026-11-17 · `../promo-youtube-12.md`) · 0초부터 글이 뜬 첫 장면 · 스크린샷 30 · 16 과 소개 문구 그대로 그린 장면
+- `make_firstmet.py` — 쇼츠 13 **가까운 사람 10명, 처음 만난 날 다 기억하나요?** (2026-11-18 · `../promo-youtube-13.md`) · 0초 장면에 질문 · 스크린샷 20 · 31 과 첫 인연 칸 · 시작점 · n주년 알림 문구 그대로 그린 장면
+- `make_search.py` — 쇼츠 14 **작년 그 냉면집, 누구랑 갔더라?** (2026-11-18 · `../promo-youtube-14.md`) · 0초 장면에 질문 · 찾기 칸 · 근거 줄 · 기록 상세 · 장소 칸을 앱 문구 그대로 그린 장면
 - `make_day.py` — 쇼츠 6 **그날을 잊지 않게** (2026-11-06 · `../promo-youtube-6.md`) · 스크린샷 03 과 앱 문구 그대로 그린 기념일 칸 · 설정 알림 칸 · 알림
 
 장면마다 프레임을 PIL 로 그리고 ffmpeg 로 묶는다(1080 × 1920 · 30fps · H.264 · 무음 스테레오 AAC). 앱 화면은 저장소의
@@ -65,6 +67,8 @@ CI 스크린샷 · 스토어 녹화본이고 사람은 모두 지어낸 견본�
    **액세스가 관리자** 인지 본다. 분석 보고서 요청을 처음 만들 때 관리자 권한이 있어야 한다. 아니면 관리자 키를 새로 만들어 세 시크릿을 바꾼다.
 5. 첫 실행이 보고서 요청을 만든다. **보고서는 하루 이틀 뒤부터** 나오니, 숫자는 그다음 실행부터 보인다.
 
+**준비 상태** — 준비 A(유튜브) 2026-11-18 다른 세션에서 시험 · 준비 B(App Store) 2026-11-18 완료(사용자 · 비공개 저장소 `STATS_REPO` · fine-grained 토큰 `STATS_REPO_TOKEN`). 첫 실행(run 2 · 2026-11-18 15:08)이 비공개 저장소에 `slow-connection/appstore/2026-11-18.md` 를 올렸다. 토큰이 만료되면 그 단계만 실패한다 — 새 토큰으로 같은 이름의 시크릿을 Update.
+
 ## 다시 만들 때
 
 ```
@@ -84,6 +88,8 @@ python3 docs/promo/make_cards.py . short9.mp4
 python3 docs/promo/make_quiet.py . short10.mp4
 python3 docs/promo/make_story.py . short11.mp4
 python3 docs/promo/make_intro.py . short12.mp4
+python3 docs/promo/make_firstmet.py . short13.mp4
+python3 docs/promo/make_search.py . short14.mp4
 ```
 
 - 필요한 것: Python 3 · Pillow · ffmpeg. 글꼴 폴더 `font/` 는 커밋하지 않는다(6MB × 2).
