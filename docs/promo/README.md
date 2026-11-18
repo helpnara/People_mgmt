@@ -11,6 +11,7 @@
 - `make_cards.py` — 쇼츠 9 **명함 30장, 누가 누군지 기억나요?** (2026-11-09 · `../promo-youtube-9.md`) · 스크린샷 52 와 명함 여러 장 등록 · 첫 인연 · 검색 문구 그대로 그린 장면
 - `make_story.py` — 쇼츠 11 **연락처 812명, 힘든 날 전화할 사람은 몇 명인가요?** (2026-11-15 · `../promo-youtube-11.md`) · 이야기형 — 스크린샷 03 · 47 과 `make_quiet.py` 의 연락 주기 알림
 - `make_intro.py` — 쇼츠 12 **지금 가까운 그 사람, 처음엔 누구 소개였나요?** (2026-11-17 · `../promo-youtube-12.md`) · 0초부터 글이 뜬 첫 장면 · 스크린샷 30 · 16 과 소개 문구 그대로 그린 장면
+- `make_firstmet.py` — 쇼츠 13 **가까운 사람 10명, 처음 만난 날 다 기억하나요?** (2026-11-18 · `../promo-youtube-13.md`) · 0초 장면에 질문 · 스크린샷 20 · 31 과 첫 인연 칸 · 시작점 · n주년 알림 문구 그대로 그린 장면
 - `make_day.py` — 쇼츠 6 **그날을 잊지 않게** (2026-11-06 · `../promo-youtube-6.md`) · 스크린샷 03 과 앱 문구 그대로 그린 기념일 칸 · 설정 알림 칸 · 알림
 
 장면마다 프레임을 PIL 로 그리고 ffmpeg 로 묶는다(1080 × 1920 · 30fps · H.264 · 무음 스테레오 AAC). 앱 화면은 저장소의
@@ -86,6 +87,7 @@ python3 docs/promo/make_cards.py . short9.mp4
 python3 docs/promo/make_quiet.py . short10.mp4
 python3 docs/promo/make_story.py . short11.mp4
 python3 docs/promo/make_intro.py . short12.mp4
+python3 docs/promo/make_firstmet.py . short13.mp4
 ```
 
 - 필요한 것: Python 3 · Pillow · ffmpeg. 글꼴 폴더 `font/` 는 커밋하지 않는다(6MB × 2).
