@@ -68,7 +68,9 @@ struct RecentRecordRow: View {
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
                 // 길면 날짜 다음에서만 꺾는다 (이슈 68). 함께한 사람은 셋째 줄로 옮겼다 (이슈 110).
-                RecordWhenLine(date: record.dateText(style: .abbreviated), time: record.timeText, lead: lead)
+                // 안 만난 약속(이슈 117)은 기록 찾기에 나올 수 있다 — 날짜 줄 끝에 `안 만남`, 줄은 흐리게.
+                RecordWhenLine(date: record.dateText(style: .abbreviated), time: record.timeText, lead: lead,
+                               extra: record.didNotMeet ? "안 만남" : nil)
                     .font(.scaled(13))
                     .foregroundStyle(Color.muted)
                 Text(record.displayTitle)
@@ -87,6 +89,7 @@ struct RecentRecordRow: View {
             }
         }
         .padding(.vertical, 2)
+        .opacity(record.didNotMeet ? 0.5 : 1)
         .accessibilityElement(children: .combine)
     }
 }

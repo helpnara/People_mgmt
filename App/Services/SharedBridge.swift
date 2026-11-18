@@ -40,7 +40,7 @@ enum WidgetBridge {
         let records = ((try? context.fetch(FetchDescriptor<Record>(predicate: #Predicate<Record> {
             $0.occurredAt >= start && $0.occurredAt < end
         }))) ?? [])
-            .filter { !$0.isGone && DatePrecision.of($0.occurredPrecision) == .day }
+            .filter { !$0.isGone && $0.countsAsMeeting && DatePrecision.of($0.occurredPrecision) == .day }
             .sorted {
                 // 가까운 날 · 이른 시각부터 (다가오는 만남과 같은 차례 — 시각 없는 것은 그날 끝).
                 if $0.occurredAt != $1.occurredAt { return $0.occurredAt < $1.occurredAt }

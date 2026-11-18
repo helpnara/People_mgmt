@@ -68,7 +68,8 @@ struct YearReviewData: Sendable {
         // 함께한 사람을 미리 읽는다 — 기록마다 따로 읽으면 기록 수만큼이다 (이슈 15).
         var recordDescriptor = FetchDescriptor<Record>()
         recordDescriptor.relationshipKeyPathsForPrefetching = [\.participants]
-        let records = (try? context.fetch(recordDescriptor)) ?? []
+        // 안 만난 약속은 한 해 돌아보기에 세지 않는다 (이슈 117).
+        let records = ((try? context.fetch(recordDescriptor)) ?? []).filter { $0.countsAsMeeting }
         let people = (try? context.fetch(FetchDescriptor<Person>(predicate: #Predicate<Person> { $0.isMe == false }))) ?? []
 
         let items = records.map { record -> YearInReview.Record in

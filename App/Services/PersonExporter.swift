@@ -26,7 +26,8 @@ enum PersonExporter {
             let others = (record.participants ?? []).filter { !$0.isGone && !$0.isMe && $0 !== person }
             return PersonExport.Record(
                 date: record.whenText(style: .long),
-                type: record.type.label,
+                // 안 만난 약속은 지우지 않고 남긴 기록이다 — 내보낸 파일에서도 알아보게 (이슈 117).
+                type: record.didNotMeet ? record.type.label + " · 안 만난 약속" : record.type.label,
                 title: record.displayTitle,
                 note: record.note,
                 location: record.location,

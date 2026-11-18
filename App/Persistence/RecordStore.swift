@@ -108,6 +108,47 @@ struct RecordStore {
         }
     }
 
+    /// 예정이던 만남을 **안 만난 약속으로 남긴다** (13판 · 이슈 117 · D-81). 지우지 않고 타임라인에 흐리게 남고,
+    /// 만남을 세는 곳에서는 모두 빠진다(`countsAsMeeting`). `false` 를 주면 만난 기록으로 되돌린다. 실패하면 옛 값으로.
+    func setDidNotMeet(_ record: Record, _ value: Bool) throws {
+        let before = record.didNotMeet, updatedAt = record.updatedAt
+        record.didNotMeet = value
+        record.updatedAt = Date()
+        do {
+            try commit()
+        } catch {
+            record.didNotMeet = before
+            record.updatedAt = updatedAt
+            throw error
+        }
+    }
+
+    /// **다른 날로 다시 잡는다** (이슈 117) — 원래 기록은 안 만난 약속으로 남기고, 같은 사람 · 유형 · 제목 · 메모 · 장소 · 태그로
+    /// 새 약속을 고른 날(· 시각)에 만든다. 사진은 그날의 것이라 옮기지 않고, 반복은 원래 회차가 이어 가므로 새 약속에는 두지 않는다.
+    /// 한 번에 저장한다 — 실패하면 새 약속도, 안 만남 표시도 남지 않는다.
+    func reschedule(_ record: Record, to date: Date, minute: Int?) throws -> Record {
+        var draft = RecordDraft(record: record)
+        draft.occurredAt = date
+        draft.occurredPrecision = .day
+        draft.occurredMinute = minute
+        draft.photos = []
+        draft.repeatRule = .none
+        let before = record.didNotMeet, updatedAt = record.updatedAt
+        let copy = Record(recordType: draft.recordType)
+        context.insert(copy)
+        fill(copy, from: draft)
+        record.didNotMeet = true
+        record.updatedAt = Date()
+        do {
+            try commit()
+        } catch {
+            record.didNotMeet = before
+            record.updatedAt = updatedAt
+            throw error
+        }
+        return copy
+    }
+
     /// 기록만 지운다. 참여자는 남는다 (6.5).
     func delete(_ record: Record) throws {
         context.delete(record)
@@ -238,7 +279,7 @@ struct RecordStore {
     }
 }
 
-extension SchemaV12.Record {
+extension SchemaV13.Record {
     /// 목록에 보일 이름 (요구사항 6.2). 규칙은 `Core.DisplayTitle` 하나다.
     var displayTitle: String { DisplayTitle.make(title: title, note: note) }
 
@@ -258,6 +299,10 @@ extension SchemaV12.Record {
         }
         return text + " 지운 뒤 5초 안에는 되돌릴 수 있습니다."
     }
+
+    /// 만남으로 세는 기록인가 (13판 · 이슈 117 · D-81) — **안 만난 약속은 빠진다**. 타임라인 · 검색 · 내보내기에는 남지만
+    /// 마지막 기록 · 연락 주기 · 돌아보기 · 관계도 · 한 해 돌아보기 · 예정된 만남 · 알림 · 최근 기록은 이 값이 참인 기록만 센다.
+    var countsAsMeeting: Bool { !didNotMeet }
 
     /// 예정된 만남 판정에 넣을 값 (D-62). 날은 모두 `DayIndex` 로 센다 — 규칙은 `Core.PlannedMeetings` 하나다.
     func plannedEntry(calendar: Calendar = .current) -> PlannedMeetings.Entry {
@@ -297,12 +342,12 @@ extension SchemaV12.Record {
 
     /// 아직 오지 않은 기록 — 다가오는 만남 · 타임라인의 `예정` 표시. 오늘이어도 넣은 시각 전이면 예정이다 (이슈 108).
     var isUpcoming: Bool {
-        PlannedMeetings.isUpcoming(plannedEntry(), today: DayIndex.of(Date()), nowMinute: Self.nowMinute())
+        countsAsMeeting && PlannedMeetings.isUpcoming(plannedEntry(), today: DayIndex.of(Date()), nowMinute: Self.nowMinute())
     }
 
     /// 미리 적어 둔 만남의 날(시각을 넣었으면 그 시각)이 왔는데 아직 결과를 적지 않았다 — 기록 상세의 결과 적기 띠.
     var isAwaitingResult: Bool {
-        PlannedMeetings.isAwaiting(plannedEntry(), today: DayIndex.of(Date()), nowMinute: Self.nowMinute())
+        countsAsMeeting && PlannedMeetings.isAwaiting(plannedEntry(), today: DayIndex.of(Date()), nowMinute: Self.nowMinute())
     }
 
     /// 다가오는 만남의 앞말 — `내일` · `3일 후`.

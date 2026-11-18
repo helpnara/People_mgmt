@@ -15,8 +15,12 @@ struct RecordDetailView: View {
     @State private var deleteMessage = ""
     @State private var errorMessage: String?
     @State private var errorTitle = "삭제하지 못했습니다"
-    /// 예정이던 만남을 안 만났을 때 — 날짜 바꾸기 · 기록 지우기 (D-62).
+    /// 예정이던 만남을 안 만났을 때 — 안 만남으로 남기기 · 다른 날로 다시 잡기 · 기록 지우기 (D-62 · 이슈 117).
     @State private var confirmingNoShow = false
+    /// 다른 날로 다시 잡기 시트 (이슈 117).
+    @State private var rescheduling = false
+    /// 다시 잡은 뒤 한 줄 안내 — `11월 24일에 새 약속을 만들었습니다`.
+    @State private var rescheduledText: String?
     /// 크게 볼 사진 (9판 · FR-058).
     @State private var viewingPhoto: RecordPhoto?
     /// 다음에 이야기할 것 (11판 · FR-063) — 만나기 전에 칸에서 뺄 줄 · 저장 실패 문구.
@@ -24,7 +28,7 @@ struct RecordDetailView: View {
     @State private var saveError: String?
 
     /// 만나기 전에 칸 · 캘린더에 추가를 보일까 — 그날이 오늘이거나 뒤인 기록 (FR-061 · FR-065).
-    private var isAhead: Bool { DayIndex.of(record.occurredAt) >= DayIndex.of(Date()) }
+    private var isAhead: Bool { record.countsAsMeeting && DayIndex.of(record.occurredAt) >= DayIndex.of(Date()) }
 
     /// `매주 금요일 반복` — 다음 회차를 이미 만들었으면 그렇다고.
     private var repeatText: String {
@@ -52,7 +56,10 @@ struct RecordDetailView: View {
     private var content: some View {
         List {
             // 예정된 만남 (D-62) — 날이 왔는데 결과를 적지 않았으면 띠, 아직 오지 않았으면 한 줄.
-            if record.isAwaitingResult {
+            // 안 만난 약속(이슈 117)은 그렇다는 띠와 되돌리기.
+            if record.didNotMeet {
+                Section { notMetBanner }
+            } else if record.isAwaitingResult {
                 Section { awaitingBanner }
             } else if record.isUpcoming {
                 Section {
@@ -172,6 +179,11 @@ struct RecordDetailView: View {
         .sheet(isPresented: $editing) {
             RecordEditView(mode: .edit(record)) { _ in }
         }
+        .sheet(isPresented: $rescheduling) {
+            RescheduleSheet(record: record) { copy in
+                rescheduledText = "\(copy.dateText(style: .long))에 새 약속을 만들었습니다. 홈의 다가오는 만남에서 볼 수 있습니다."
+            }
+        }
         .onAppear {
             // 화면 이동 시험: -editRecord 면 수정 시트를 바로 연다 (한 번만 · 이슈 77).
             if !appliedArguments {
@@ -190,7 +202,8 @@ struct RecordDetailView: View {
             Text(deleteMessage)
         }
         .confirmationDialog("안 만난 약속", isPresented: $confirmingNoShow, titleVisibility: .visible) {
-            Button("날짜 바꾸기") { editing = true }
+            Button("안 만남으로 남기기") { setDidNotMeet(true) }
+            Button("다른 날로 다시 잡기") { rescheduling = true }
             Button("기록 지우기", role: .destructive) {
                 deleteMessage = record.deletionMessage(viewer: nil)
                 // 이 창이 내려간 뒤에 삭제 확인을 띄운다 — 내려가는 중에 띄우면 묻힌다.
@@ -201,7 +214,7 @@ struct RecordDetailView: View {
             }
             Button("취소", role: .cancel) {}
         } message: {
-            Text("날짜를 바꿔 다시 예정으로 두거나, 기록을 지울 수 있습니다.")
+            Text("남겨 두면 타임라인에 흐리게 보이고, 만남을 세는 곳에서는 빠집니다.")
         }
         .alert(errorTitle, isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("닫기", role: .cancel) {}
@@ -277,6 +290,38 @@ struct RecordDetailView: View {
             .accessibilityIdentifier("plannedNoShow")
         }
         .padding(.vertical, 6)
+    }
+
+    /// 안 만난 약속의 띠 (13판 · 이슈 117 · D-81) — 만나지 못한 약속으로 남았다는 것과 되돌리기.
+    private var notMetBanner: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("안 만난 약속", systemImage: "calendar.badge.minus")
+                .font(.scaled(16, weight: .semibold))
+                .foregroundStyle(Color.muted)
+            Text(rescheduledText ?? "만나지 못한 약속으로 남겨 두었습니다. 마지막 기록 · 연락 주기 · 돌아보기 · 관계도의 셈에는 들어가지 않습니다.")
+                .font(.scaled(14))
+                .foregroundStyle(Color.bodyText)
+            Button {
+                setDidNotMeet(false)
+            } label: {
+                Text("만난 기록으로 되돌리기").font(.scaled(15, weight: .medium))
+            }
+            .buttonStyle(.bordered)
+            .tint(Color.accent)
+            .accessibilityIdentifier("notMetUndo")
+        }
+        .padding(.vertical, 6)
+        .accessibilityIdentifier("notMetBanner")
+    }
+
+    private func setDidNotMeet(_ value: Bool) {
+        do {
+            try RecordStore(context: context).setDidNotMeet(record, value)
+            if !value { rescheduledText = nil }
+        } catch {
+            errorTitle = "저장하지 못했습니다"
+            errorMessage = "\(error.localizedDescription) 기기 저장 공간이 부족하지 않은지 확인한 뒤 다시 시도해 주세요."
+        }
     }
 
     private func confirmMet() {

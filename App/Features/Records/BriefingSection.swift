@@ -26,7 +26,7 @@ struct BriefingSection: View {
     private var content: some View {
         let today = DayIndex.of(Date())
         let past = RecordStore.timeline(of: person).filter {
-            $0.uuid != record.uuid && DayIndex.of($0.occurredAt) <= today
+            $0.uuid != record.uuid && $0.countsAsMeeting && DayIndex.of($0.occurredAt) <= today
         }
         let days = UpcomingDays.of(person, today: UpcomingDays.today(), within: UpcomingDays.soon)
         return Section {
