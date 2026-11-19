@@ -38,8 +38,14 @@ final class NavigationUITests: XCTestCase {
     /// 사람 상세 맨 위 칸 · 이야기할 것 칸이 길어져 타임라인 · 소개한 인연 줄이 첫 화면 밖으로 밀렸다). 그래서 없으면 먼저 올려 본다.
     @MainActor
     private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication, _ what: String) {
+        // 단계마다 걸린 시간을 로그에 (이슈 120 · Xcode 27 러너에서 화면 구조를 제때 못 받아 시간 초과) —
+        // CI 의 로그 거르기가 `단계 ` 로 시작하는 줄을 남긴다. 어느 화면에서 멈췄는지 가른다.
+        let started = Date()
+        print("단계 \(name) · \(what) — 찾기 시작")
+        defer { print("단계 \(name) · \(what) — 끝 \(String(format: "%.1f", Date().timeIntervalSince(started)))초") }
         var scrolls = 0
         while !element.waitForExistence(timeout: scrolls == 0 ? 10 : 2) && scrolls < 6 {
+            print("단계 \(name) · \(what) — 아직 없음, 올림 \(scrolls + 1) (\(String(format: "%.1f", Date().timeIntervalSince(started)))초)")
             app.swipeUp()
             scrolls += 1
         }
