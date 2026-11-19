@@ -30,7 +30,7 @@ concurrency:
 jobs:
   app:
     name: 빌드 · 테스트 · 스크린샷
-    runs-on: macos-26
+    runs-on: xcode-27
     permissions:
       contents: write
     env:
