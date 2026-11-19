@@ -17,7 +17,7 @@ on:
 jobs:
   probe:
     name: 명령 실행
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
