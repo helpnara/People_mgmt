@@ -7,7 +7,7 @@ name: 쇼츠 조회수 · App Store 획득 경로 (매주)
 
 on:
   schedule:
-    - cron: "41 23 * * 0"   # 월요일 08:41 (한국 시간)
+    - cron: "41 19 * * 4"   # 금요일 04:41 (한국 시간) — 2026-11-19 사용자: 금요일 오전 6시에 보고를 보게. 정각은 예약이 밀려 앞당겼다
   workflow_dispatch:
     inputs:
       days:
