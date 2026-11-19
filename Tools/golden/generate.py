@@ -1846,6 +1846,13 @@ DEPARTMENT_SUFFIXES = ["팀", "부", "실", "과", "처", "국", "센터", "본�
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 PHONE_RE = re.compile(r"(?:\+82[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}")
 LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
+# 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
+# 대문자 E 하나 · Email · E-mail · Mail 만 이름표로 본다 — 소문자 `e.kim@…` 은 메일 주소 그대로 둔다.
+EMAIL_LABEL_RE = re.compile(r"(?<![A-Za-z0-9._%+-])(E|EMAIL|Email|E-mail|E-Mail|MAIL|Mail)([.:])(?=[A-Za-z0-9._%+-]+@)")
+
+
+def separating_email_label(text: str) -> str:
+    return EMAIL_LABEL_RE.sub(r"\1\2 ", text)
 
 
 def latin_letters(token: str) -> str:
@@ -1900,10 +1907,11 @@ def parse_card(lines: list[list]) -> dict:
             continue
         out["lines"].append(text)
         lower = text.lower()
-        emails = EMAIL_RE.findall(text)
-        phones = PHONE_RE.findall(text)
+        contact_text = separating_email_label(text)
+        emails = EMAIL_RE.findall(contact_text)
+        phones = PHONE_RE.findall(contact_text)
         if emails or phones or "www." in lower or "http" in lower:
-            contact_lines.append(text)
+            contact_lines.append(contact_text)
             for e in (x.lower() for x in emails):
                 if e not in out["emails"]:
                     out["emails"].append(e)
