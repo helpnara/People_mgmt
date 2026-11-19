@@ -27,15 +27,15 @@ concurrency:
 jobs:
   upload:
     name: 빌드 · 서명 · TestFlight 업로드
-    runs-on: macos-26
+    runs-on: xcode-27
     env:
       SCHEME: SlowConnection
     steps:
       - uses: actions/checkout@v4
 
-      # 애플은 **iOS 26 SDK(Xcode 26+)** 로 빌드한 바이너리만 받는다. 26 미만이면 여기서 멈춘다 —
+      # 애플은 **2027년 4월부터 iOS 27 SDK(Xcode 27+)** 로 빌드한 바이너리만 받는다(이슈 118). 27 미만이면 여기서 멈춘다 —
       # 빌드 · 서명을 다 마친 뒤 업로드에서 409 를 보는 것보다 낫다.
-      - name: Xcode 26 이상 선택
+      - name: Xcode 27 이상 선택
         run: |
           set -uo pipefail
           xcver() {
@@ -50,7 +50,7 @@ jobs:
           NEED=1
           case "${CUR_V%%.*}" in
             ''|*[!0-9]*) ;;
-            *) [ "${CUR_V%%.*}" -ge 26 ] && NEED=0 ;;
+            *) [ "${CUR_V%%.*}" -ge 27 ] && NEED=0 ;;
           esac
           if [ "$NEED" -eq 1 ]; then
             BEST=""; BEST_K=0; BEST_V=""
@@ -73,8 +73,8 @@ jobs:
             ''|*[!0-9]*)
               echo "::error::Xcode 버전을 읽지 못했습니다 (CUR_V='${CUR_V}')."; exit 1 ;;
             *)
-              if [ "${CUR_V%%.*}" -lt 26 ]; then
-                echo "::error::Xcode 가 ${CUR_V} 입니다. App Store Connect 는 iOS 26 SDK 빌드만 받습니다 — runs-on 러너 이미지를 올려야 합니다."
+              if [ "${CUR_V%%.*}" -lt 27 ]; then
+                echo "::error::Xcode 가 ${CUR_V} 입니다. App Store Connect 는 2027년 4월부터 iOS 27 SDK 빌드만 받습니다 — runs-on 을 xcode-27 러너로."
                 exit 1
               fi ;;
           esac
