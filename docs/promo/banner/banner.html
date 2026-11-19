@@ -1,0 +1,52 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<title>느린 나눔 채널 배너</title>
+<!--
+  유튜브 채널 `느린 나눔` 배너 (2026-11-19 · 사용자가 올림). 2560 × 1440.
+  휴대폰에는 가운데 1546 × 423(x 507~2053 · y 508~931 — `.safe`)만 보인다 — 글과 앱은 모두 그 안에.
+  문구는 세 앱 문서에서 확인한 것만: 무료 · 회원가입 없음 · 광고 없음 · iPhone · iPad.
+  다시 만들기는 README.md.
+-->
+<style>
+@font-face{font-family:S;font-weight:500;src:url('fonts/NotoSansKR-500.ttf')}
+@font-face{font-family:S;font-weight:700;src:url('fonts/NotoSansKR-700.ttf')}
+@font-face{font-family:M;font-weight:700;src:url('fonts/NotoSerifKR-700.ttf')}
+@font-face{font-family:M;font-weight:900;src:url('fonts/NotoSerifKR-900.ttf')}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:2560px;height:1440px;overflow:hidden}
+body{font-family:S;color:#2A2622;position:relative;
+  background:linear-gradient(180deg,#F7F1E6 0%,#F3E8D6 48%,#EAD9BE 100%)}
+/* 해 — 느리게 뜨는 */
+.sun{position:absolute;left:50%;top:930px;width:1500px;height:1500px;margin-left:-750px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,214,150,.55) 0%,rgba(255,214,150,.18) 38%,rgba(255,214,150,0) 62%)}
+.horizon{position:absolute;left:0;right:0;top:1000px;height:2px;background:linear-gradient(90deg,rgba(160,120,70,0),rgba(160,120,70,.35),rgba(160,120,70,0))}
+.sea{position:absolute;left:0;right:0;top:1002px;bottom:0;background:linear-gradient(180deg,rgba(214,186,140,.35),rgba(196,160,110,.45))}
+.ln{position:absolute;height:2px;border-radius:2px;background:rgba(255,240,215,.7)}
+/* 가운데 안전 영역 1546 × 423 (x 507~2053 · y 508~931) */
+.safe{position:absolute;left:507px;top:508px;width:1546px;height:423px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.tag{font-family:M;font-weight:900;font-size:60px;letter-spacing:-1px;color:#2A2622}
+.tag b{color:#7A5A1E;font-weight:900}
+.sub{margin-top:10px;font-size:28px;font-weight:500;color:#6E6458;letter-spacing:1px}
+.apps{margin-top:40px;display:flex;gap:56px}
+.app{display:flex;align-items:center;gap:24px;width:420px}
+.app img{width:112px;height:112px;border-radius:25px;box-shadow:0 14px 34px rgba(90,60,20,.22)}
+.app .nm{font-family:M;font-weight:700;font-size:46px;color:#2A2622;line-height:1.1}
+.app .d{margin-top:10px;font-size:26px;font-weight:500;color:#6E6458;line-height:1.35}
+/* PC · TV 에서만 보이는 바깥 */
+.corner{position:absolute;font-family:M;font-weight:700;font-size:34px;color:rgba(122,90,30,.55);letter-spacing:6px}
+</style></head><body>
+<div class="sun"></div><div class="horizon"></div><div class="sea"></div>
+<div class="ln" style="left:1080px;width:400px;top:1040px"></div>
+<div class="ln" style="left:1160px;width:240px;top:1075px;opacity:.7"></div>
+<div class="ln" style="left:1215px;width:130px;top:1110px;opacity:.5"></div>
+<div class="corner" style="left:120px;top:110px">느린 나눔</div>
+<div class="corner" style="right:120px;top:110px;font-family:S;font-weight:500;font-size:30px;letter-spacing:3px">iPhone · iPad</div>
+<div class="safe">
+  <div class="tag">느리게, 그래도 <b>꾸준히</b></div>
+  <div class="sub">삶을 기록하는 아이폰 앱 세 가지 · 무료 · 회원가입 없음 · 광고 없음</div>
+  <div class="apps">
+    <div class="app"><img src="rich.png"><div><div class="nm">느린 부자</div><div class="d">매주 3분으로<br>우리 집 노후 점검</div></div></div>
+    <div class="app"><img src="ties.png"><div><div class="nm">느린 인연</div><div class="d">어떻게 알게 되었는지<br>사람과의 인연 기록</div></div></div>
+    <div class="app"><img src="margin.png"><div><div class="nm">느린 여백</div><div class="d">글이 파일로 남는<br>마크다운 노트</div></div></div>
+  </div>
+</div>
+</body></html>
