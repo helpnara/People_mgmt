@@ -29,7 +29,7 @@ CI 스크린샷 · 스토어 녹화본이고 사람은 모두 지어낸 견본�
 
 ## 조회수 자동 수집 (2026-11-16 사용자 — 화면을 찍어 보내는 일을 없앤다)
 
-`.github/workflows/promo-stats.yml` 이 매주 월요일 08:41(한국 시간)에 돈다. **Actions → 쇼츠 조회수 · App Store 획득 경로 → Run workflow** 로 바로 돌릴 수도 있다.
+`.github/workflows/promo-stats.yml` 이 매주 금요일 04:41(한국 시간)에 돈다(2026-11-19 사용자 — 월요일 08:41 에서 바꿈). 그 뒤 05:31 에 예약 작업이 새 세션을 열어 분석을 `promo-youtube-stats.md` 에 적고 휴대폰 알림으로 보고한다(금요일 오전 6시 전). **Actions → 쇼츠 조회수 · App Store 획득 경로 → Run workflow** 로 바로 돌릴 수도 있다.
 
 | 무엇 | 어디에 남나 | 스크립트 |
 |---|---|---|
