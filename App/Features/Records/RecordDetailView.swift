@@ -121,7 +121,8 @@ struct RecordDetailView: View {
             }
             photoSection
             Section("함께한 사람") {
-                ForEach(record.participants ?? []) { person in
+                // 이름 차례로 — 관계의 차례는 저장소가 보장하지 않아 열 때마다 바뀌었다 (이슈 119 · `NameSort`).
+                ForEach(NameSort.sorted((record.participants ?? []).filter { !$0.isGone }, name: \.name, createdAt: \.createdAt)) { person in
                     NavigationLink(value: person) {
                         PersonRow(person: person, evidence: nil)
                     }
