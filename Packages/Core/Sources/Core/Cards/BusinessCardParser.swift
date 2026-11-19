@@ -55,6 +55,9 @@ public enum BusinessCardParser {
     static let emailPattern = #"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#
     static let phonePattern = #"(?:\+82[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}"#
     static let latinNamePattern = #"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$"#
+    /// 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
+    /// 대문자 E 하나 · Email · E-mail · Mail 만 이름표로 본다 — 소문자 `e.kim@…` 은 메일 주소 그대로 둔다.
+    static let emailLabelPattern = #"(?<![A-Za-z0-9._%+-])(E|EMAIL|Email|E-mail|E-Mail|MAIL|Mail)([.:])(?=[A-Za-z0-9._%+-]+@)"#
 
     public static func parse(_ raw: [CardLine]) -> CardSuggestion {
         var suggestion = CardSuggestion(name: nil, organization: nil, role: nil, phones: [], emails: [], lines: [])
@@ -72,11 +75,12 @@ public enum BusinessCardParser {
             suggestion.lines.append(text)
             let lower = text.lowercased()
 
-            // 1. 연락 줄
-            let emails = matches(emailPattern, in: text)
-            let phones = matches(phonePattern, in: text)
+            // 1. 연락 줄 — 메일에 붙은 이름표는 떼고 본다(보이는 줄은 읽은 그대로).
+            let contactText = separatingEmailLabel(text)
+            let emails = matches(emailPattern, in: contactText)
+            let phones = matches(phonePattern, in: contactText)
             if !emails.isEmpty || !phones.isEmpty || lower.contains("www.") || lower.contains("http") {
-                contactLines.append(text)
+                contactLines.append(contactText)
                 for email in emails.map({ $0.lowercased() }) where !suggestion.emails.contains(email) {
                     suggestion.emails.append(email)
                 }
@@ -155,6 +159,13 @@ public enum BusinessCardParser {
         guard (2...4).contains(joined.count) else { return false }
         guard joined.unicodeScalars.allSatisfy({ (0xAC00...0xD7A3).contains($0.value) }) else { return false }
         return !departmentSuffixes.contains { joined.hasSuffix($0) }
+    }
+
+    /// `E.haneul@example.com` → `E. haneul@example.com` (이슈 118).
+    static func separatingEmailLabel(_ text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: emailLabelPattern) else { return text }
+        let range = NSRange(text.startIndex..., in: text)
+        return regex.stringByReplacingMatches(in: text, range: range, withTemplate: "$1$2 ")
     }
 
     static func matches(_ pattern: String, in text: String) -> [String] {
