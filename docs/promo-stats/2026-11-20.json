@@ -1,6 +1,6 @@
 {
  "channel": "느린 나눔",
- "collectedAt": "2026-11-20T05:43+09:00",
+ "collectedAt": "2026-11-20T10:26+09:00",
  "videos": [
   {
    "id": "FFA8SEp6eMs",
@@ -9,7 +9,7 @@
    "publishedAt": "2026-11-18T21:30:09Z",
    "privacy": "public",
    "seconds": 35,
-   "views": 1111,
+   "views": 1112,
    "likes": 1,
    "comments": 1,
    "avgViewPercent": 37.2,
@@ -22,7 +22,7 @@
    "publishedAt": "2026-11-17T21:30:25Z",
    "privacy": "public",
    "seconds": 39,
-   "views": 166,
+   "views": 163,
    "likes": 0,
    "comments": 0,
    "avgViewPercent": 29.2,
@@ -555,7 +555,7 @@
    "publishedAt": "2026-10-30T01:03:10Z",
    "privacy": "public",
    "seconds": 35,
-   "views": 1078,
+   "views": 1079,
    "likes": 1,
    "comments": 0,
    "avgViewPercent": 34.4,
