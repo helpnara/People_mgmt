@@ -64,6 +64,8 @@ def chip(i):
         return f'<span class="st pub">{"공개 · " + format(i["views"], ",") if i["views"] is not None else "공개 · 집계 전"}</span>'
     if i["status"] == "예약":
         return '<span class="st res">예약</span>'
+    if i["status"] == "후보":
+        return '<span class="st cand">후보</span>'
     return '<span class="st todo">만들 것</span>'
 
 
@@ -75,7 +77,7 @@ def month_page(year, month, items, collected):
     cal = calendar.Calendar(firstweekday=6)  # 일요일부터
     weeks = cal.monthdayscalendar(year, month)
     counts = {a: sum(1 for i in mitems if i["app"] == a) for a in APPS}
-    st = {s: sum(1 for i in mitems if i["status"] == s) for s in ["공개", "예약", "만들 것"]}
+    st = {s: sum(1 for i in mitems if i["status"] == s) for s in ["공개", "예약", "만들 것", "후보"]}
     views = sum(i["views"] or 0 for i in mitems)
     legend = "".join(f'<span class="lg"><i style="background:{c}"></i>{n} <b>{counts[a]}</b></span>' for a, (n, c, _) in APPS.items())
     rows = []
@@ -86,7 +88,7 @@ def month_page(year, month, items, collected):
                 cells.append('<td class="empty"></td>')
                 continue
             today = (year, month, d) == (NOW.year, NOW.month, NOW.day)
-            cls = ["day"] + (["sun"] if idx == 0 else []) + (["sat"] if idx == 6 else []) + (["today"] if today else [])
+            cls = ["day"] + (["sun"] if idx == 0 else []) + (["sat"] if idx == 6 else []) + (["today"] if today else []) + (["dense"] if len(by_day.get(d, [])) >= 3 else [])
             ents = []
             for i in by_day.get(d, []):
                 name, color, soft = APPS[i["app"]]
@@ -102,11 +104,11 @@ def month_page(year, month, items, collected):
     <div class="t"><span class="ch">느린 나눔 · 쇼츠 게시 달력</span><h1>{year}년 {month}월</h1></div>
     <div class="sum">
       <div class="legend">{legend}</div>
-      <div class="meta">공개 <b>{st["공개"]}</b> · 예약 <b>{st["예약"]}</b> · 만들 것 <b>{st["만들 것"]}</b> · 공개분 조회수 합 <b>{views:,}</b></div>
+      <div class="meta">공개 <b>{st["공개"]}</b> · 예약 <b>{st["예약"]}</b> · 만들 것 <b>{st["만들 것"]}</b>{" · 후보 <b>" + str(st["후보"]) + "</b>" if st["후보"] else ""} · 공개분 조회수 합 <b>{views:,}</b></div>
     </div>
   </header>
   <table class="cal rows{len(weeks)}"><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>
-  <footer>조회수는 {collected[:16].replace("T", " ")} 수집 기준 · 시각은 한국 시간 · 공개 · 집계 전 = 수집 뒤 공개되어 다음 수집에 들어감 · 만든 날 {NOW:%Y-%m-%d %H:%M}</footer>
+  <footer>조회수는 {collected[:16].replace("T", " ")} 수집 기준 · 시각은 한국 시간 · 공개 · 집계 전 = 수집 뒤 공개되어 다음 수집에 들어감{" · 후보 = 브레인스토밍 주제, 12-11 시험 판정(여백 · 인연 돈 · 시간 다리) 뒤 바뀔 수 있음" if st["후보"] else ""} · 만든 날 {NOW:%Y-%m-%d %H:%M}</footer>
 </section>'''
 
 
@@ -136,12 +138,14 @@ td.today{border:.5mm solid #24211E}
 .dn em{font-style:normal;font-size:6.5pt;font-weight:700;background:#24211E;color:#fff;border-radius:1mm;padding:.2mm 1.2mm}
 .e{border-left:1mm solid var(--c);background:var(--s);border-radius:1mm;padding:.6mm 1.2mm .7mm 1.4mm;margin-bottom:.8mm}
 .e.만들것{background:#fff;border:.25mm dashed var(--c);border-left:1mm solid var(--c)}
+.e.후보{background:#fff;border:.25mm dashed #C9C2B6;border-left:1mm solid var(--c);opacity:.92}
 .l1{display:flex;align-items:center;gap:1.2mm;font-size:7pt;line-height:1.25}
 .l1 b{font-weight:900}.l1 .ap{font-weight:700;color:var(--c)}
 .st{margin-left:auto;font-size:6pt;font-weight:700;border-radius:.8mm;padding:.1mm 1mm;white-space:nowrap}
-.st.pub{background:#24211E;color:#fff}.st.res{background:#fff;color:#24211E;border:.25mm solid #24211E}.st.todo{background:#fff;color:#C0533F;border:.25mm solid #C0533F}
-.l2{font-size:6.6pt;font-weight:500;color:#3A3631;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.2mm}
+.st.pub{background:#24211E;color:#fff}.st.res{background:#fff;color:#24211E;border:.25mm solid #24211E}.st.todo{background:#fff;color:#C0533F;border:.25mm solid #C0533F}.st.cand{background:#fff;color:#8A8276;border:.25mm dashed #8A8276}
+.l2{font-size:6.6pt;font-weight:500;color:#3A3631;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all;margin-top:.2mm}
 footer{margin-top:2.5mm;font-size:6.8pt;color:#8A8276}
+td.dense .l2{display:block;white-space:nowrap;text-overflow:ellipsis}
 """
 
 
