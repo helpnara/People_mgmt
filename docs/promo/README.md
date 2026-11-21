@@ -98,3 +98,15 @@ python3 docs/promo/make_gift.py . short15.mp4
 - `make_short.py` 의 기록 · 관계도 장면은 `screenshots/store/upload/preview-iphone.mp4` 의 초(4.3 ~ 7.1 · 9.5 ~ 16.3)를 쓴다 —
   CI 가 녹화본을 다시 찍으면 장면 초가 달라질 수 있으니 먼저 프레임을 뽑아 확인한다.
 - 스크린샷은 CI 가 새 판으로 다시 찍는다 — **아직 출시 전인 기능이 화면에 섞이지 않았는지** 먼저 본다(CLAUDE.md §7).
+
+## 쇼츠 게시 달력 (2026-11-21 사용자 — A4 가로 출력용 · 일정 관리)
+
+`calendar/shorts-calendar.pdf` — 한 달 한 장. 날짜 칸마다 시각 · 앱 · 영상 · 상태(`공개 · 조회수` / `공개 · 집계 전` / `예약` / `만들 것`).
+
+```
+python3 docs/promo/calendar/make_calendar.py      # 최신 수집 JSON + calendar/schedule.json → shorts-calendar.html
+node docs/promo/calendar/pdf.mjs                  # → shorts-calendar.pdf (A4 가로)
+```
+
+- 공개된 영상은 `docs/promo-stats/` 의 가장 최근 JSON 에서 저절로 들어온다. 예약 · 만들 것은 **`calendar/schedule.json` 에 한 줄씩** 더한다 — 업로드 신호를 받을 때마다 고친다.
+- 글꼴은 `calendar/fonts/` 에 Noto Sans KR 500 · 700 · 900 (커밋 안 함 — 여백 `docs/promo/README.md` 의 받는 법과 같다).
