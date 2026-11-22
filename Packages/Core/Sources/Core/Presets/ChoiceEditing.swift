@@ -106,6 +106,19 @@ public enum ChoiceEditing {
         return (items.filter { $0 != value }, hidden.contains(value) ? hidden : hidden + [value])
     }
 
+    /// 숨긴 선택지를 지운다 (이슈 121 · 2026-11-22 사용자) — **숨긴 것만, 기본 선택지가 아닌 것만**.
+    /// 기본 선택지는 숨김에서 빼면 다시 보이므로 지울 수 없다(숨긴 채로 둔다 · `처음 선택지로` 로 돌아온다).
+    /// 사람에게 적힌 말은 지워도 칩으로 다시 나오므로 부르는 쪽이 `removable` 로 먼저 막는다(사용자 결정: 막기).
+    public static func removing(_ value: String, in items: [String], hidden: [String], presets: [String]) -> (items: [String], hidden: [String]) {
+        guard hidden.contains(value), !presets.contains(value) else { return (items, hidden) }
+        return (items, hidden.filter { $0 != value })
+    }
+
+    /// `지우기` 단추를 보일까 — 숨긴 것 · 기본이 아님 · 적힌 사람이 없음.
+    public static func removable(_ value: String, hidden: [String], presets: [String], usedCount: Int) -> Bool {
+        hidden.contains(value) && !presets.contains(value) && usedCount == 0
+    }
+
     /// 숨긴 것을 다시 보이게 — 보이는 목록 끝에.
     public static func showing(_ value: String, in items: [String], hidden: [String]) -> (items: [String], hidden: [String]) {
         guard hidden.contains(value) else { return (items, hidden) }
