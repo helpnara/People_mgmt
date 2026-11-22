@@ -132,8 +132,9 @@ struct ChoiceEditorView: View {
                                 }
                                 .buttonStyle(.borderless)
                             }
-                            if let count = usedCounts[item], count > 0, !kind.presets.contains(item) {
-                                Text("\(count)명에게 적혀 있어 숨길 수만 있습니다.")
+                            // 지우기가 없는 줄에는 늘 이유를 (빌드 79 · 2026-11-22 사용자 — 기본 칩을 숨기면 아무 말이 없었다).
+                            if let reason = Self.keepReason(item, presets: kind.presets, usedCount: usedCounts[item] ?? 0) {
+                                Text(reason)
                                     .font(.scaled(13))
                                     .foregroundStyle(Color.muted)
                             }
@@ -191,6 +192,13 @@ struct ChoiceEditorView: View {
         } message: {
             Text(failure ?? "")
         }
+    }
+
+    /// 숨긴 줄에 `지우기` 가 없는 이유 — 기본 선택지면 그것을, 아니면 적힌 사람 수를. 지울 수 있으면 nil.
+    static func keepReason(_ value: String, presets: [String], usedCount: Int) -> String? {
+        if presets.contains(value) { return "기본 선택지라 숨길 수만 있습니다." }
+        if usedCount > 0 { return "\(usedCount)명에게 적혀 있어 숨길 수만 있습니다." }
+        return nil
     }
 
     /// 화면을 열 때 한 번 — 내가 정한 것 + 사람들에게 직접 입력해 쓴 값.
