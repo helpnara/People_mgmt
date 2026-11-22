@@ -1568,6 +1568,10 @@ def choice_op(case):
             items = [i for i in items if i != value]
             if value not in hidden:
                 hidden.append(value)
+    elif case["op"] == "remove":
+        # 숨긴 것만, 기본 선택지가 아닌 것만 지운다 (이슈 121). 사람에게 적힌 말은 화면이 먼저 막는다.
+        if value in hidden and value not in case.get("presets", []):
+            hidden = [h for h in hidden if h != value]
     elif case["op"] == "show":
         if value in hidden:
             hidden = [h for h in hidden if h != value]
