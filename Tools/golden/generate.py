@@ -1534,10 +1534,11 @@ def choice_hidden(fixed, setting):
 
 
 def choice_visible(presets, fixed, setting):
+    # 숨길 수 없는 것(소개)이 늘 맨 앞 (이슈 123).
     if setting is None:
-        return presets + [f for f in fixed if f not in presets]
+        return fixed + [p for p in presets if p not in fixed]
     hidden = set(choice_hidden(fixed, setting))
-    line = [normalized(x) for x in setting["items"]] + presets + fixed
+    line = fixed + [normalized(x) for x in setting["items"]] + presets
     out = []
     for v in line:
         if v and v not in hidden and v not in out:

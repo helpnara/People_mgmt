@@ -63,17 +63,18 @@ public enum ChoiceEditing {
         return out
     }
 
-    /// 보이는 선택지(직접 입력해 쓴 값은 빼고).
+    /// 보이는 선택지(직접 입력해 쓴 값은 빼고). **숨길 수 없는 것(`소개`)이 늘 맨 앞** (이슈 123 · 2026-11-22 사용자) —
+    /// 끌어 옮길 수 없고, 저장해 둔 차례에 가운데 끼어 있어도 맨 앞으로 온다.
     public static func visible(presets: [String], fixed: [String], setting: ChoiceSetting?) -> [String] {
-        guard let setting else { return presets + fixed.filter { !presets.contains($0) } }
+        guard let setting else { return fixed + presets.filter { !fixed.contains($0) } }
         let hiddenValues = hidden(fixed: fixed, setting: setting)
-        var out: [String] = []
+        var out: [String] = fixed
         for raw in setting.items {
             let value = TextNormalization.normalized(raw)
             guard !value.isEmpty, !out.contains(value), !hiddenValues.contains(value) else { continue }
             out.append(value)
         }
-        for value in presets + fixed where !out.contains(value) && !hiddenValues.contains(value) {
+        for value in presets where !out.contains(value) && !hiddenValues.contains(value) {
             out.append(value)
         }
         return out

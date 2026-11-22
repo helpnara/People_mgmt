@@ -150,8 +150,17 @@ public enum GraphLayout {
     ///
     /// `initial` 이 있으면 해바라기 대신 그 자리에서 시작하고 `startTemperature` 만큼만 움직인다 — 지난 시점의 관계도를
     /// 지금 자리에서 출발시켜 같은 사람이 비슷한 자리에 머물고 변한 곳만 움직이게 (8번째 묶음 · D-32).
+    ///
+    /// **모임을 알고 자리 잡기 (1.1.15 · 이슈 124 · 2026-11-22 사용자 — 관계도 겹침이 심하다).** 전에는 자리 잡기와 모임 찾기가
+    /// 서로 모른 채 따로 돌아, 다른 모임과도 이어진 사람이 많은 모임(직장 같은)은 그림 곳곳에 흩어지고 테두리가 남의 모임을 덮었다.
+    /// `groups`(사람마다 모임 번호, 없으면 음수)를 주면 둘을 더한다:
+    /// - **모으기** — 모임 사람을 그 모임의 무게중심 쪽으로 끈다(선과 같은 꼴 d²/k, 세기 `groupCohesion` × 사람 수 보정).
+    /// - **떼기** — 모임마다 무게중심 둘레 원(가장 먼 사람 + 여백 `groupMargin`·k)을 그리고, 두 원이 겹치면 겹친 만큼 두 모임을 통째로 민다.
+    /// 그리고 모임과 상관없이 **나 둘레를 비운다** — 가운데에서 `centerClearance`·k 안에 들어온 사람을 밖으로 민다
+    /// (내 점 · 내 이름이 다른 점과 겹쳤다). 세기는 파이썬으로 같은 셈을 돌려 골랐다(모임 6개 · 60명 견본 넷):
+    /// 남의 테두리 안에 든 점 11~19 → 0~5, 테두리끼리 겹친 넓이 12~23% → 0~4%, 가장 가까운 점 간격 · 퍼짐은 그대로.
     public static func layout(nodeCount n: Int, center: Int?, links: [Link], iterations: Int = 160,
-                              initial: [Point]? = nil, startTemperature: Double = 0.08) -> [Point] {
+                              initial: [Point]? = nil, startTemperature: Double = 0.08, groups: [Int]? = nil) -> [Point] {
         guard n > 0 else { return [] }
         let goldenAngle = 2.399963229728653
         var positions = (0..<n).map { i -> Point in
@@ -173,6 +182,24 @@ public enum GraphLayout {
         // **바닥 40 → 25 (D-47 · 빌드 23).** 5,000명 모임 견본을 파이썬(정확한 미는 힘)으로 견줌 — 모임 안 거리 / 모임 밖 거리
         // 160번 0.222 · 40번 0.230 · 25번 0.227, 반지름 중앙값 0.309 · 0.302 · 0.298. 3,200명 아래는 계산식이 25 보다 커서 그대로.
         let rounds = n <= 500 ? iterations : max(25, iterations * 500 / n)
+
+        // 모임 번호를 0 부터 촘촘하게 (이슈 124). 모임이 둘 이상일 때만 — 하나뿐이면 모으기만 남아 그림이 한쪽으로 쏠린다.
+        var groupOf = [Int](repeating: -1, count: n)
+        var groupCount = 0
+        if let groups, groups.count == n {
+            var dense: [Int: Int] = [:]
+            for i in 0..<n where groups[i] >= 0 && i != center {
+                if dense[groups[i]] == nil {
+                    dense[groups[i]] = groupCount
+                    groupCount += 1
+                }
+                groupOf[i] = dense[groups[i]] ?? -1
+            }
+            if groupCount < 2 {
+                groupOf = [Int](repeating: -1, count: n)
+                groupCount = 0
+            }
+        }
         for iteration in 0..<rounds {
             let temperature = startTemperature * (1 - Double(iteration) / Double(rounds)) + 0.002
             var dx = [Double](repeating: 0, count: n)
@@ -204,11 +231,26 @@ public enum GraphLayout {
                 dx[link.j] += ddx / distance * force
                 dy[link.j] += ddy / distance * force
             }
+            if groupCount > 0 {
+                applyGroupForces(positions: positions, groupOf: groupOf, groupCount: groupCount, k: k,
+                                 attraction: attraction, dx: &dx, dy: &dy)
+            }
             var next = positions
             for i in 0..<n {
                 dx[i] -= (positions[i].x - 0.5) * gravity
                 dy[i] -= (positions[i].y - 0.5) * gravity
                 guard i != center else { continue }
+                // 나 둘레 비우기 (이슈 124).
+                if center != nil {
+                    let cx = positions[i].x - 0.5
+                    let cy = positions[i].y - 0.5
+                    let d = max((cx * cx + cy * cy).squareRoot(), 1e-4)
+                    let clearance = centerClearance * k
+                    if d < clearance {
+                        dx[i] += cx / d * (clearance - d) / k * 2
+                        dy[i] += cy / d * (clearance - d) / k * 2
+                    }
+                }
                 let length = (dx[i] * dx[i] + dy[i] * dy[i]).squareRoot()
                 guard length > 0 else { continue }
                 let step = min(length, temperature)
@@ -218,6 +260,69 @@ public enum GraphLayout {
             positions = next
         }
         return positions
+    }
+
+    /// 모으기 세기 — 선 하나(무게 1)의 0.75 배로 무게중심에 끈다 (이슈 124 · 파이썬으로 0.3 · 0.45 · 0.6 · 0.75 를 견줌).
+    static let groupCohesion = 0.75
+    /// 모임 원의 여백 — 가장 먼 사람에서 k 의 0.8 배 (테두리 둘레 선 · 이름표 자리).
+    static let groupMargin = 0.8
+    /// 떼기 세기 — 겹친 길이 / k 에 곱한다.
+    static let groupSeparation = 0.025
+    /// 나 둘레를 비우는 반지름 — k 의 1.5 배 (아이폰에서 30pt 안팎 · 내 점 18pt 와 그 아래 이름).
+    static let centerClearance = 1.5
+
+    /// 모으기 · 떼기 (이슈 124) — 이번 반복의 자리로 모임마다 무게중심 · 원을 세고, 사람마다 받을 힘을 `dx` · `dy` 에 더한다.
+    /// 떼기는 모임 쌍마다 한 번 세어 모임 단위로 쌓은 뒤 사람에게 나눈다 — 모임 수² + 사람 수.
+    static func applyGroupForces(positions: [Point], groupOf: [Int], groupCount: Int, k: Double, attraction: Double,
+                                 dx: inout [Double], dy: inout [Double]) {
+        let n = positions.count
+        var sumX = [Double](repeating: 0, count: groupCount)
+        var sumY = [Double](repeating: 0, count: groupCount)
+        var members = [Double](repeating: 0, count: groupCount)
+        for i in 0..<n where groupOf[i] >= 0 {
+            sumX[groupOf[i]] += positions[i].x
+            sumY[groupOf[i]] += positions[i].y
+            members[groupOf[i]] += 1
+        }
+        var centerX = [Double](repeating: 0, count: groupCount)
+        var centerY = [Double](repeating: 0, count: groupCount)
+        for g in 0..<groupCount where members[g] > 0 {
+            centerX[g] = sumX[g] / members[g]
+            centerY[g] = sumY[g] / members[g]
+        }
+        var radius = [Double](repeating: 0, count: groupCount)
+        for i in 0..<n where groupOf[i] >= 0 {
+            let g = groupOf[i]
+            let ddx = positions[i].x - centerX[g]
+            let ddy = positions[i].y - centerY[g]
+            radius[g] = max(radius[g], (ddx * ddx + ddy * ddy).squareRoot())
+        }
+        for g in 0..<groupCount { radius[g] += k * groupMargin }
+        var pushX = [Double](repeating: 0, count: groupCount)
+        var pushY = [Double](repeating: 0, count: groupCount)
+        for a in 0..<groupCount where members[a] > 0 {
+            for b in (a + 1)..<max(groupCount, a + 1) where members[b] > 0 {
+                let ddx = centerX[a] - centerX[b]
+                let ddy = centerY[a] - centerY[b]
+                let d = max((ddx * ddx + ddy * ddy).squareRoot(), 1e-4)
+                let overlap = radius[a] + radius[b] - d
+                guard overlap > 0 else { continue }
+                let force = overlap / k * groupSeparation
+                pushX[a] += ddx / d * force
+                pushY[a] += ddy / d * force
+                pushX[b] -= ddx / d * force
+                pushY[b] -= ddy / d * force
+            }
+        }
+        for i in 0..<n where groupOf[i] >= 0 {
+            let g = groupOf[i]
+            let ddx = positions[i].x - centerX[g]
+            let ddy = positions[i].y - centerY[g]
+            let d = max((ddx * ddx + ddy * ddy).squareRoot(), 1e-4)
+            let force = d * d / k * groupCohesion * attraction
+            dx[i] += pushX[g] - ddx / d * force
+            dy[i] += pushY[g] - ddy / d * force
+        }
     }
 
     /// 사분 나무 — 0~1 정사각형을 넷씩 나눈다. 칸마다 사람 수(무게)와 무게중심을 쥔다.
