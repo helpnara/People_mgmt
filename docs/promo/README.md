@@ -110,3 +110,10 @@ node docs/promo/calendar/pdf.mjs                  # → shorts-calendar.pdf (A4 
 
 - 공개된 영상은 `docs/promo-stats/` 의 가장 최근 JSON 에서 저절로 들어온다. 예약 · 만들 것은 **`calendar/schedule.json` 에 한 줄씩** 더한다 — 업로드 신호를 받을 때마다 고친다.
 - 글꼴은 `calendar/fonts/` 에 Noto Sans KR 500 · 700 · 900 (커밋 안 함 — 여백 `docs/promo/README.md` 의 받는 법과 같다).
+
+### 업로드 · 고정 댓글 신호 (2026-11-22 사용자)
+
+- `schedule.json` 의 `pin` — `달림` · `확인 필요` · `게시 뒤`. 수집 자료에만 있는 옛 편은 `달림` 으로 본다.
+- 공개됐는데 `달림` 이 아니면 달력 칸에 빨간 **● 고정 댓글 달기**(확인 필요면 **— 달았나요?**), 예약 편은 회색 `고정 댓글 · 게시 뒤`. 머리에 `고정 댓글 남음 N`.
+- `make_calendar.py` 를 돌리면 남은 목록과 다가오는 예약을 찍는다 — 세션은 답 끝에 그 줄로 리마인드한다(`CLAUDE.md` §7).
+
