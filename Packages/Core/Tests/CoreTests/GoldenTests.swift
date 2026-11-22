@@ -135,6 +135,7 @@ final class GoldenTests: XCTestCase {
         }
         struct ChoiceOpsCase: Decodable {
             let name: String; let op: String; let value: String; let items: [String]; let hidden: [String]; let fixed: [String]
+            let presets: [String]?
             let expected: ChoiceSettingRaw
         }
         struct ContactSplitCase: Decodable { let text: String; let expected: FieldsExpected }
@@ -867,11 +868,20 @@ final class GoldenTests: XCTestCase {
             switch c.op {
             case "add": got = ChoiceEditing.adding(c.value, to: c.items, hidden: c.hidden)
             case "hide": got = ChoiceEditing.hiding(c.value, in: c.items, hidden: c.hidden, fixed: c.fixed)
+            case "remove": got = ChoiceEditing.removing(c.value, in: c.items, hidden: c.hidden, presets: c.presets ?? [])
             default: got = ChoiceEditing.showing(c.value, in: c.items, hidden: c.hidden)
             }
             XCTAssertEqual(got.items, c.expected.items, "\(c.name) — 보이는 것")
             XCTAssertEqual(got.hidden, c.expected.hidden, "\(c.name) — 숨긴 것")
         }
+    }
+
+    /// 지우기 단추를 보일 말 (이슈 121) — 숨긴 것 · 기본이 아님 · 적힌 사람 없음, 셋 다일 때만.
+    func testChoiceRemovable() {
+        XCTAssertTrue(ChoiceEditing.removable("단골·생활", hidden: ["단골·생활"], presets: ["생활"], usedCount: 0))
+        XCTAssertFalse(ChoiceEditing.removable("단골·생활", hidden: ["단골·생활"], presets: ["생활"], usedCount: 2), "적힌 사람이 있으면 막는다")
+        XCTAssertFalse(ChoiceEditing.removable("생활", hidden: ["생활"], presets: ["생활"], usedCount: 0), "기본 선택지는 숨기기만")
+        XCTAssertFalse(ChoiceEditing.removable("단골·생활", hidden: [], presets: ["생활"], usedCount: 0), "숨긴 것만")
     }
 
     func testContactSplit() throws {

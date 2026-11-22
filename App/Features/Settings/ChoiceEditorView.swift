@@ -17,7 +17,15 @@ struct ChoiceEditorView: View {
     @State private var newValue = ""
     @State private var loaded = false
     @State private var confirmingReset = false
+    /// 지울까 묻는 숨긴 선택지 (이슈 121).
+    @State private var pendingRemoval: String?
+    /// 말마다 그 말을 적어 둔 사람 수 — 화면을 열 때 한 번 센다(본문에서 사람 전원을 훑지 않는다).
+    @State private var usedCounts: [String: Int] = [:]
     @State private var failure: String?
+
+    /// 늘 보이는 것(맨 위 · 옮길 수 없음)과 끌어 옮기는 것 (이슈 123).
+    private var fixedItems: [String] { items.filter { kind.fixed.contains($0) } }
+    private var movableItems: [String] { items.filter { !kind.fixed.contains($0) } }
 
     /// 보이는 선택지의 최대 수 — 칩이 화면을 덮지 않게.
     static let limit = 40
@@ -44,35 +52,42 @@ struct ChoiceEditorView: View {
     var body: some View {
         List {
             Section {
-                ForEach(items, id: \.self) { item in
+                // 숨길 수 없는 것(`소개`)은 맨 위에 손잡이 없이 (이슈 123 · 2026-11-22 사용자 — 가운데 끼어 있어 이상했다).
+                ForEach(fixedItems, id: \.self) { item in
                     HStack(spacing: 12) {
                         Text(item)
                             .font(.scaled(16))
                             .foregroundStyle(Color.ink)
                         Spacer(minLength: 8)
-                        if kind.fixed.contains(item) {
-                            Text("늘 보임")
-                                .font(.scaled(13))
+                        Text("늘 보임")
+                            .font(.scaled(13))
+                            .foregroundStyle(Color.muted)
+                    }
+                    .moveDisabled(true)
+                }
+                ForEach(movableItems, id: \.self) { item in
+                    HStack(spacing: 12) {
+                        Text(item)
+                            .font(.scaled(16))
+                            .foregroundStyle(Color.ink)
+                        Spacer(minLength: 8)
+                        Button {
+                            apply(ChoiceEditing.hiding(item, in: items, hidden: hiddenItems, fixed: kind.fixed))
+                        } label: {
+                            Label("숨기기", systemImage: "eye.slash")
+                                .labelStyle(.iconOnly)
+                                .font(.scaled(16))
                                 .foregroundStyle(Color.muted)
-                        } else {
-                            Button {
-                                apply(ChoiceEditing.hiding(item, in: items, hidden: hiddenItems, fixed: kind.fixed))
-                            } label: {
-                                Label("숨기기", systemImage: "eye.slash")
-                                    .labelStyle(.iconOnly)
-                                    .font(.scaled(16))
-                                    .foregroundStyle(Color.muted)
-                                    .tapTarget()
-                            }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("\(item) 숨기기")
+                                .tapTarget()
                         }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("\(item) 숨기기")
                     }
                 }
                 .onMove { source, destination in
-                    var moved = items
+                    var moved = movableItems
                     moved.move(fromOffsets: source, toOffset: destination)
-                    apply((moved, hiddenItems))
+                    apply((fixedItems + moved, hiddenItems))
                 }
                 HStack(spacing: 12) {
                     TextField("새 선택지", text: $newValue)
@@ -98,15 +113,31 @@ struct ChoiceEditorView: View {
             if !hiddenItems.isEmpty {
                 Section {
                     ForEach(hiddenItems, id: \.self) { item in
-                        HStack(spacing: 12) {
-                            Text(item)
-                                .font(.scaled(16))
-                                .foregroundStyle(Color.muted)
-                            Spacer(minLength: 8)
-                            Button("다시 보이기") {
-                                apply(ChoiceEditing.showing(item, in: items, hidden: hiddenItems))
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 12) {
+                                Text(item)
+                                    .font(.scaled(16))
+                                    .foregroundStyle(Color.muted)
+                                Spacer(minLength: 8)
+                                // 지우기 (이슈 121 · 2026-11-22 사용자) — 기본이 아니고 아무에게도 적히지 않은 말만.
+                                // 역할 없는 단추 + 확인 창(CLAUDE.md §1 — 모든 삭제에 확인).
+                                if ChoiceEditing.removable(item, hidden: hiddenItems, presets: kind.presets,
+                                                           usedCount: usedCounts[item] ?? 0) {
+                                    Button("지우기") { pendingRemoval = item }
+                                        .buttonStyle(.borderless)
+                                        .foregroundStyle(Color.danger)
+                                }
+                                Button("다시 보이기") {
+                                    apply(ChoiceEditing.showing(item, in: items, hidden: hiddenItems))
+                                }
+                                .buttonStyle(.borderless)
                             }
-                            .buttonStyle(.borderless)
+                            // 지우기가 없는 줄에는 늘 이유를 (빌드 79 · 2026-11-22 사용자 — 기본 칩을 숨기면 아무 말이 없었다).
+                            if let reason = Self.keepReason(item, presets: kind.presets, usedCount: usedCounts[item] ?? 0) {
+                                Text(reason)
+                                    .font(.scaled(13))
+                                    .foregroundStyle(Color.muted)
+                            }
                         }
                     }
                 } header: {
@@ -120,7 +151,8 @@ struct ChoiceEditorView: View {
                 Text("내 iCloud 로 같은 Apple 계정의 아이폰 · 아이패드에 함께 적용됩니다.")
             }
         }
-        // 손잡이가 늘 보이게 — 편집 단추를 따로 누르지 않는다. 지우기 단추는 없다(`onDelete` 를 두지 않음).
+        // 손잡이가 늘 보이게 — 편집 단추를 따로 누르지 않는다. 밀어서 지우기는 없다(`onDelete` 를 두지 않음) —
+        // 지우기는 숨긴 선택지 줄의 단추 + 확인 창으로만 (이슈 121).
         .environment(\.editMode, .constant(.active))
         .listStyle(.insetGrouped)
         // 키보드가 가린 만큼 끝에 여백 — 키보드가 올라와도 마지막 칸까지 내려간다 (이슈 80).
@@ -142,6 +174,19 @@ struct ChoiceEditorView: View {
         } message: {
             Text("더한 선택지 · 바꾼 차례 · 숨긴 것을 모두 처음대로 돌립니다. 사람에게 적어 둔 값은 그대로입니다.")
         }
+        .confirmationDialog("\(pendingRemoval ?? "")\(Josa.eulReul(pendingRemoval ?? "")) 지울까요?",
+                            isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
+                            titleVisibility: .visible) {
+            Button("지우기", role: .destructive) {
+                if let value = pendingRemoval {
+                    apply(ChoiceEditing.removing(value, in: items, hidden: hiddenItems, presets: kind.presets))
+                }
+                pendingRemoval = nil
+            }
+            Button("취소", role: .cancel) { pendingRemoval = nil }
+        } message: {
+            Text("숨긴 선택지에서 없앱니다. 다시 쓰려면 새 선택지로 더하면 됩니다.")
+        }
         .alert("저장하지 못했습니다", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("닫기", role: .cancel) {}
         } message: {
@@ -149,10 +194,23 @@ struct ChoiceEditorView: View {
         }
     }
 
+    /// 숨긴 줄에 `지우기` 가 없는 이유 — 기본 선택지면 그것을, 아니면 적힌 사람 수를. 지울 수 있으면 nil.
+    static func keepReason(_ value: String, presets: [String], usedCount: Int) -> String? {
+        if presets.contains(value) { return "기본 선택지라 숨길 수만 있습니다." }
+        if usedCount > 0 { return "\(usedCount)명에게 적혀 있어 숨길 수만 있습니다." }
+        return nil
+    }
+
     /// 화면을 열 때 한 번 — 내가 정한 것 + 사람들에게 직접 입력해 쓴 값.
     private func load() {
         let people = (try? PersonStore(context: context).allPeople()) ?? []
         let used = people.compactMap { kind == .relationshipType ? $0.relationshipType : $0.metThrough }
+        var counts: [String: Int] = [:]
+        for raw in used {
+            let value = TextNormalization.normalized(raw)
+            if !value.isEmpty { counts[value, default: 0] += 1 }
+        }
+        usedCounts = counts
         let setting = ChoiceStore.setting(kind, in: context)
         items = ChoiceEditing.choices(kind, setting: setting, used: used)
         hiddenItems = ChoiceEditing.hidden(fixed: kind.fixed, setting: setting)

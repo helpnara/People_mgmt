@@ -115,4 +115,46 @@ final class GraphLayoutTests: XCTestCase {
         }
         XCTAssertEqual(again[6], GraphLayout.Point(x: 0.5, y: 0.5), "나는 가운데")
     }
+
+    /// 모임을 알고 자리 잡기 (이슈 124) — 두 모임(고리 둘)의 사람이 짝마다 서로 이어져 있으면, 모임을 모르면 섞인다.
+    /// 모임을 주면 모임마다 모인다. 파이썬으로 같은 셈을 돌리면 (무게중심까지 평균 거리 / 두 무게중심 사이) 2.31 → 0.57 — 문턱은 반.
+    func testGroupsKeepCommunitiesApart() {
+        var links: [GraphLayout.Link] = []
+        for base in [0, 6] {
+            for i in 0..<6 { links.append(.init(i: base + i, j: base + (i + 1) % 6, weight: 1)) }
+        }
+        for i in 0..<6 { links.append(.init(i: i, j: 6 + i, weight: 1)) }
+        let groups = [Int](repeating: 0, count: 6) + [Int](repeating: 1, count: 6) + [-1]
+        func spreadRatio(_ p: [GraphLayout.Point]) -> Double {
+            let centers = [0, 1].map { g -> GraphLayout.Point in
+                let members = (0..<12).filter { groups[$0] == g }.map { p[$0] }
+                return GraphLayout.Point(x: members.map(\.x).reduce(0, +) / 6, y: members.map(\.y).reduce(0, +) / 6)
+            }
+            let inside = (0..<12).map { distance(p[$0], centers[groups[$0]]) }.reduce(0, +) / 12
+            return inside / max(distance(centers[0], centers[1]), 1e-6)
+        }
+        let plain = GraphLayout.layout(nodeCount: 13, center: 12, links: links)
+        let grouped = GraphLayout.layout(nodeCount: 13, center: 12, links: links, groups: groups)
+        XCTAssertLessThan(spreadRatio(grouped), spreadRatio(plain) * 0.5,
+                          "모임마다 모인다 — 모르면 \(spreadRatio(plain)) · 알면 \(spreadRatio(grouped))")
+        XCTAssertEqual(grouped[12], GraphLayout.Point(x: 0.5, y: 0.5), "나는 가운데")
+        XCTAssertEqual(GraphLayout.layout(nodeCount: 13, center: 12, links: links, groups: groups), grouped, "난수가 없다")
+    }
+
+    /// 나 둘레를 비운다 (이슈 124) — 아무도 가운데에서 k(사람 수로 정해지는 간격) 안에 들지 않는다.
+    /// 파이썬: 30명 · 선 없음이면 가장 가까운 사람 0.159 (k 0.108).
+    func testNobodySitsOnMe() {
+        let n = 31
+        let p = GraphLayout.layout(nodeCount: n, center: 30, links: [])
+        let k = (1.0 / Double(n)).squareRoot() * 0.6
+        let closest = (0..<30).map { distance(p[$0], GraphLayout.Point(x: 0.5, y: 0.5)) }.min() ?? 0
+        XCTAssertGreaterThan(closest, k, "나와 가장 가까운 사람 \(closest)")
+    }
+
+    /// 모임이 하나뿐이거나 `groups` 의 길이가 다르면 모임을 모르는 것과 같다.
+    func testSingleOrMismatchedGroupsAreIgnored() {
+        let plain = GraphLayout.layout(nodeCount: 7, center: 6, links: twoClumps)
+        XCTAssertEqual(GraphLayout.layout(nodeCount: 7, center: 6, links: twoClumps, groups: [0, 0, 0, 0, 0, 0, -1]), plain)
+        XCTAssertEqual(GraphLayout.layout(nodeCount: 7, center: 6, links: twoClumps, groups: [0, 1]), plain)
+    }
 }

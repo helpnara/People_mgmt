@@ -13,6 +13,8 @@
 - `make_intro.py` — 쇼츠 12 **지금 가까운 그 사람, 처음엔 누구 소개였나요?** (2026-11-17 · `../promo-youtube-12.md`) · 0초부터 글이 뜬 첫 장면 · 스크린샷 30 · 16 과 소개 문구 그대로 그린 장면
 - `make_firstmet.py` — 쇼츠 13 **가까운 사람 10명, 처음 만난 날 다 기억하나요?** (2026-11-18 · `../promo-youtube-13.md`) · 0초 장면에 질문 · 스크린샷 20 · 31 과 첫 인연 칸 · 시작점 · n주년 알림 문구 그대로 그린 장면
 - `make_search.py` — 쇼츠 14 **작년 그 냉면집, 누구랑 갔더라?** (2026-11-18 · `../promo-youtube-14.md`) · 0초 장면에 질문 · 찾기 칸 · 근거 줄 · 기록 상세 · 장소 칸을 앱 문구 그대로 그린 장면
+- `make_gift.py` — 쇼츠 15 **올해 축의금 · 조의금, 누구에게 얼마 냈는지 기억나요?** (2026-11-21 · `../promo-youtube-15.md`) · 돈 · 시간 다리 시험 · 기록 메모 · #경조사 · 찾기 근거 줄 · 기록 상세 (금액 칸 없음)
+- `make_yeargift.py` — 쇼츠 16 **연말 선물 12명, 60만원 — 작년이랑 같은 걸 또?** (2026-11-22 · `../promo-youtube-16.md`) · 돈 · 시간 다리 시험 · 사람 화면(기억할 것) · 타임라인 거르기 #선물 · 다음에 이야기할 것
 - `make_day.py` — 쇼츠 6 **그날을 잊지 않게** (2026-11-06 · `../promo-youtube-6.md`) · 스크린샷 03 과 앱 문구 그대로 그린 기념일 칸 · 설정 알림 칸 · 알림
 
 장면마다 프레임을 PIL 로 그리고 ffmpeg 로 묶는다(1080 × 1920 · 30fps · H.264 · 무음 스테레오 AAC). 앱 화면은 저장소의
@@ -29,7 +31,7 @@ CI 스크린샷 · 스토어 녹화본이고 사람은 모두 지어낸 견본�
 
 ## 조회수 자동 수집 (2026-11-16 사용자 — 화면을 찍어 보내는 일을 없앤다)
 
-`.github/workflows/promo-stats.yml` 이 매주 금요일 04:41(한국 시간)에 돈다(2026-11-19 사용자 — 월요일 08:41 에서 바꿈). 그 뒤 05:31 에 예약 작업이 새 세션을 열어 분석을 `promo-youtube-stats.md` 에 적고 휴대폰 알림으로 보고한다(금요일 오전 6시 전). **Actions → 쇼츠 조회수 · App Store 획득 경로 → Run workflow** 로 바로 돌릴 수도 있다.
+`.github/workflows/promo-stats.yml` 이 매주 금요일 03:13 · 04:41(한국 시간) 두 번 돈다(2026-11-19 사용자 — 월요일 08:41 에서 바꿈 · 11-20 첫 예약이 건너뛰어져 둘로). 같은 날 두 번 돌아도 그날 회차만 다시 쓴다. 그 뒤 05:31 에 예약 작업이 새 세션을 열어 분석을 `promo-youtube-stats.md` 에 적고 휴대폰 알림으로 보고한다(금요일 오전 6시 전). **Actions → 쇼츠 조회수 · App Store 획득 경로 → Run workflow** 로 바로 돌릴 수도 있다.
 
 | 무엇 | 어디에 남나 | 스크립트 |
 |---|---|---|
@@ -90,9 +92,30 @@ python3 docs/promo/make_story.py . short11.mp4
 python3 docs/promo/make_intro.py . short12.mp4
 python3 docs/promo/make_firstmet.py . short13.mp4
 python3 docs/promo/make_search.py . short14.mp4
+python3 docs/promo/make_gift.py . short15.mp4
+python3 docs/promo/make_yeargift.py . short16.mp4
 ```
 
 - 필요한 것: Python 3 · Pillow · ffmpeg. 글꼴 폴더 `font/` 는 커밋하지 않는다(6MB × 2).
 - `make_short.py` 의 기록 · 관계도 장면은 `screenshots/store/upload/preview-iphone.mp4` 의 초(4.3 ~ 7.1 · 9.5 ~ 16.3)를 쓴다 —
   CI 가 녹화본을 다시 찍으면 장면 초가 달라질 수 있으니 먼저 프레임을 뽑아 확인한다.
 - 스크린샷은 CI 가 새 판으로 다시 찍는다 — **아직 출시 전인 기능이 화면에 섞이지 않았는지** 먼저 본다(CLAUDE.md §7).
+
+## 쇼츠 게시 달력 (2026-11-21 사용자 — A4 가로 출력용 · 일정 관리)
+
+`calendar/shorts-calendar.pdf` — 한 달 한 장. 날짜 칸마다 시각 · 앱 · 영상 · 상태(`공개 · 조회수` / `공개 · 집계 전` / `예약` / `만들 것`).
+
+```
+python3 docs/promo/calendar/make_calendar.py      # 최신 수집 JSON + calendar/schedule.json → shorts-calendar.html
+node docs/promo/calendar/pdf.mjs                  # → shorts-calendar.pdf (A4 가로)
+```
+
+- 공개된 영상은 `docs/promo-stats/` 의 가장 최근 JSON 에서 저절로 들어온다. 예약 · 만들 것은 **`calendar/schedule.json` 에 한 줄씩** 더한다 — 업로드 신호를 받을 때마다 고친다.
+- 글꼴은 `calendar/fonts/` 에 Noto Sans KR 500 · 700 · 900 (커밋 안 함 — 여백 `docs/promo/README.md` 의 받는 법과 같다).
+
+### 업로드 · 고정 댓글 신호 (2026-11-22 사용자)
+
+- `schedule.json` 의 `pin` — `달림` · `확인 필요` · `게시 뒤`. 수집 자료에만 있는 옛 편은 `달림` 으로 본다.
+- 공개됐는데 `달림` 이 아니면 달력 칸에 빨간 **● 고정 댓글 달기**(확인 필요면 **— 달았나요?**), 예약 편은 회색 `고정 댓글 · 게시 뒤`. 머리에 `고정 댓글 남음 N`.
+- `make_calendar.py` 를 돌리면 남은 목록과 다가오는 예약을 찍는다 — 세션은 답 끝에 그 줄로 리마인드한다(`CLAUDE.md` §7).
+

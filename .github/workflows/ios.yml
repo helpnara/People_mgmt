@@ -242,6 +242,8 @@ jobs:
           .ci-venv/bin/pip install --quiet --disable-pip-version-check pillow
 
       - name: 시뮬레이터 스크린샷
+        # 멈춘 단계가 일을 6시간 붙잡지 않게 (2026-11-19 · CI 176 다시 돌림에서 스토어 이미지 단계가 3시간 넘게 멈췄다).
+        timeout-minutes: 120
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
           xcrun simctl boot "$UDID" || true
@@ -560,6 +562,7 @@ jobs:
       # 3) Tools/store/check-assets.py 가 크기 · 색 칸 · 길이 · 코덱 · 소리 칸을 검사한다. 처음 판이라 막지 않는다(로그로 본다).
       - name: 스토어 이미지 · 앱 미리보기
         continue-on-error: true
+        timeout-minutes: 45
         run: |
           set -euo pipefail
           command -v ffmpeg >/dev/null || brew install ffmpeg
@@ -619,6 +622,7 @@ jobs:
           .ci-venv/bin/python Tools/store/check-assets.py
 
       - name: 화면 이동 시험 (아이폰 · 아이패드)
+        timeout-minutes: 75
         run: |
           status=0
           # 스크린샷 단계가 띄워 둔 시뮬레이터(아이폰 · 스토어용 아이폰 · 아이패드)를 모두 끄고 시작한다 — 셋이 켜진 채로는
@@ -651,7 +655,7 @@ jobs:
               test >> /tmp/ui-tests.log 2>&1 || status=$?
           fi
           # 기기를 차례로 돌려 실패 문구(제목 막대 · 화면 구조)가 로그에 찍히게 한다.
-          grep -iE "Test Case .*(passed|failed)|Executed|error:|XCTAssert|Testing (failed|passed)|TEST (SUCCEEDED|FAILED)" /tmp/ui-tests.log | tail -80 || true
+          grep -iE "Test Case .*(passed|failed)|Executed|error:|XCTAssert|Testing (failed|passed)|TEST (SUCCEEDED|FAILED)|단계 -\[" /tmp/ui-tests.log | tail -160 || true
           # 실패 까닭은 결과 묶음마다(아이폰 · 아이패드 · Pro Max 셋) — 맨 나중 것(Pro Max 돌리기)만 찍으면 앞 실행의 실패 화면 덤프가 사라진다(CI 132).
           # 실패한 시험과 그 실패 문구(화면 덤프 포함)만 골라 찍는다.
           for RESULT in $(ls -td build/Logs/Test/*SlowConnectionUITests*.xcresult 2>/dev/null | head -3); do
@@ -686,6 +690,7 @@ jobs:
       # **Release 로 잰다** (2026-10-22 사용자 · 기준 5) — 내려받는 판과 같은 최적화. Debug 는 수치가 부풀어 판단에 못 쓴다.
       - name: 큰 견본으로 화면 시간 재기 (로그만)
         continue-on-error: true
+        timeout-minutes: 15
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
           set -o pipefail

@@ -63,17 +63,18 @@ public enum ChoiceEditing {
         return out
     }
 
-    /// 보이는 선택지(직접 입력해 쓴 값은 빼고).
+    /// 보이는 선택지(직접 입력해 쓴 값은 빼고). **숨길 수 없는 것(`소개`)이 늘 맨 앞** (이슈 123 · 2026-11-22 사용자) —
+    /// 끌어 옮길 수 없고, 저장해 둔 차례에 가운데 끼어 있어도 맨 앞으로 온다.
     public static func visible(presets: [String], fixed: [String], setting: ChoiceSetting?) -> [String] {
-        guard let setting else { return presets + fixed.filter { !presets.contains($0) } }
+        guard let setting else { return fixed + presets.filter { !fixed.contains($0) } }
         let hiddenValues = hidden(fixed: fixed, setting: setting)
-        var out: [String] = []
+        var out: [String] = fixed
         for raw in setting.items {
             let value = TextNormalization.normalized(raw)
             guard !value.isEmpty, !out.contains(value), !hiddenValues.contains(value) else { continue }
             out.append(value)
         }
-        for value in presets + fixed where !out.contains(value) && !hiddenValues.contains(value) {
+        for value in presets where !out.contains(value) && !hiddenValues.contains(value) {
             out.append(value)
         }
         return out
@@ -103,6 +104,19 @@ public enum ChoiceEditing {
     public static func hiding(_ value: String, in items: [String], hidden: [String], fixed: [String]) -> (items: [String], hidden: [String]) {
         guard !fixed.contains(value), items.contains(value) else { return (items, hidden) }
         return (items.filter { $0 != value }, hidden.contains(value) ? hidden : hidden + [value])
+    }
+
+    /// 숨긴 선택지를 지운다 (이슈 121 · 2026-11-22 사용자) — **숨긴 것만, 기본 선택지가 아닌 것만**.
+    /// 기본 선택지는 숨김에서 빼면 다시 보이므로 지울 수 없다(숨긴 채로 둔다 · `처음 선택지로` 로 돌아온다).
+    /// 사람에게 적힌 말은 지워도 칩으로 다시 나오므로 부르는 쪽이 `removable` 로 먼저 막는다(사용자 결정: 막기).
+    public static func removing(_ value: String, in items: [String], hidden: [String], presets: [String]) -> (items: [String], hidden: [String]) {
+        guard hidden.contains(value), !presets.contains(value) else { return (items, hidden) }
+        return (items, hidden.filter { $0 != value })
+    }
+
+    /// `지우기` 단추를 보일까 — 숨긴 것 · 기본이 아님 · 적힌 사람이 없음.
+    public static func removable(_ value: String, hidden: [String], presets: [String], usedCount: Int) -> Bool {
+        hidden.contains(value) && !presets.contains(value) && usedCount == 0
     }
 
     /// 숨긴 것을 다시 보이게 — 보이는 목록 끝에.
