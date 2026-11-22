@@ -294,7 +294,9 @@ enum NetworkSnapshotBuilder {
         let peopleCount = people.count
         // 고쳐 둔 모임 이름 (12판 · 이슈 96 · FR-071) — 지금 · 시점 모임 모두 이것과 먼저 맞춰 본다. 값이라 일꾼끼리 나눠 읽는다.
         let savedLabels = TemplateStore.labels(in: context)
-        DispatchQueue.concurrentPerform(iterations: 4) { job in
+        // 자리 잡기는 모임을 안 뒤에 한다 (1.1.15 · 이슈 124) — 같은 모임 사람을 모으고 모임끼리 떼어 테두리가 덜 겹치게.
+        // 그래서 일은 셋: 아는 사이 후보 · (모임 찾기 → 자리 잡기) · 시점.
+        DispatchQueue.concurrentPerform(iterations: 3) { job in
             let begun = Date()
             switch job {
             case 0:
@@ -308,12 +310,13 @@ enum NetworkSnapshotBuilder {
                     }
                 LaunchTiming.log("  인맥 · 아는 사이 후보 \(parts.suggestions.count)쌍", since: begun)
             case 1:
-                parts.positions = GraphLayout.layout(nodeCount: peopleCount + 1, center: peopleCount, links: links)
-                LaunchTiming.log("  인맥 · 자리 잡기", since: begun)
-            case 2:
                 (parts.communities, parts.status) = findCommunities(people: people, strong: strong, index: indexOf,
                                                                     readiness: readiness, nameOrder: nameOrder, saved: savedLabels)
                 LaunchTiming.log("  인맥 · 모임 찾기 \(parts.communities.count)개", since: begun)
+                let placed = Date()
+                parts.positions = GraphLayout.layout(nodeCount: peopleCount + 1, center: peopleCount, links: links,
+                                                     groups: Self.groups(parts.communities, peopleCount: peopleCount))
+                LaunchTiming.log("  인맥 · 자리 잡기 (모임 \(parts.communities.count)개를 알고)", since: placed)
             default:
                 parts.timeline = makeTimeline(people: people, nameOrder: nameOrder, index: indexOf, introducedBy: introducedBy,
                                               recordDays: days, participantLists: lists, ties: ties,
@@ -449,6 +452,15 @@ enum NetworkSnapshotBuilder {
         timeline.slices = slices
         timeline.changes = changes.reversed()
         return timeline
+    }
+
+    /// 사람 자리마다 모임 번호 — 모임이 없으면 -1, 맨 끝(나)도 -1 (이슈 124 · `GraphLayout.layout` 의 `groups`).
+    static func groups(_ communities: [NetworkSnapshot.Community], peopleCount: Int) -> [Int] {
+        var groups = [Int](repeating: -1, count: peopleCount + 1)
+        for community in communities {
+            for i in community.memberIndices where i >= 0 && i < peopleCount { groups[i] = community.id }
+        }
+        return groups
     }
 
     /// 모임 찾기 (D-30) — **진한 선만** 쓴다. 무게는 함께한 기록 무게(n명 기록은 쌍마다 1/(n−1)) + 소개 1 + 아는 사이 1. 같은 소속은 넣지 않는다

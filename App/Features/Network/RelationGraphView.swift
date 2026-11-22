@@ -797,8 +797,10 @@ struct RelationGraphView: View {
                                start: [GraphLayout.Point]) async -> [GraphLayout.Point] {
         await Task.detached(priority: .userInitiated) {
             let links = slice.links.map { GraphLayout.Link(i: $0.i, j: $0.j, weight: 1 + log(1 + $0.weight)) }
+            // 그 시점의 모임도 모으고 떼어 둔다 (이슈 124).
             return GraphLayout.layout(nodeCount: peopleCount + 1, center: peopleCount, links: links,
-                                      iterations: 60, initial: start, startTemperature: 0.02)
+                                      iterations: 60, initial: start, startTemperature: 0.02,
+                                      groups: NetworkSnapshotBuilder.groups(slice.communities, peopleCount: peopleCount))
         }.value
     }
 

@@ -19,6 +19,10 @@ struct ChoiceEditorView: View {
     @State private var confirmingReset = false
     @State private var failure: String?
 
+    /// 늘 보이는 것(맨 위 · 옮길 수 없음)과 끌어 옮기는 것 (이슈 123).
+    private var fixedItems: [String] { items.filter { kind.fixed.contains($0) } }
+    private var movableItems: [String] { items.filter { !kind.fixed.contains($0) } }
+
     /// 보이는 선택지의 최대 수 — 칩이 화면을 덮지 않게.
     static let limit = 40
 
@@ -44,35 +48,42 @@ struct ChoiceEditorView: View {
     var body: some View {
         List {
             Section {
-                ForEach(items, id: \.self) { item in
+                // 숨길 수 없는 것(`소개`)은 맨 위에 손잡이 없이 (이슈 123 · 2026-11-22 사용자 — 가운데 끼어 있어 이상했다).
+                ForEach(fixedItems, id: \.self) { item in
                     HStack(spacing: 12) {
                         Text(item)
                             .font(.scaled(16))
                             .foregroundStyle(Color.ink)
                         Spacer(minLength: 8)
-                        if kind.fixed.contains(item) {
-                            Text("늘 보임")
-                                .font(.scaled(13))
+                        Text("늘 보임")
+                            .font(.scaled(13))
+                            .foregroundStyle(Color.muted)
+                    }
+                    .moveDisabled(true)
+                }
+                ForEach(movableItems, id: \.self) { item in
+                    HStack(spacing: 12) {
+                        Text(item)
+                            .font(.scaled(16))
+                            .foregroundStyle(Color.ink)
+                        Spacer(minLength: 8)
+                        Button {
+                            apply(ChoiceEditing.hiding(item, in: items, hidden: hiddenItems, fixed: kind.fixed))
+                        } label: {
+                            Label("숨기기", systemImage: "eye.slash")
+                                .labelStyle(.iconOnly)
+                                .font(.scaled(16))
                                 .foregroundStyle(Color.muted)
-                        } else {
-                            Button {
-                                apply(ChoiceEditing.hiding(item, in: items, hidden: hiddenItems, fixed: kind.fixed))
-                            } label: {
-                                Label("숨기기", systemImage: "eye.slash")
-                                    .labelStyle(.iconOnly)
-                                    .font(.scaled(16))
-                                    .foregroundStyle(Color.muted)
-                                    .tapTarget()
-                            }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("\(item) 숨기기")
+                                .tapTarget()
                         }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("\(item) 숨기기")
                     }
                 }
                 .onMove { source, destination in
-                    var moved = items
+                    var moved = movableItems
                     moved.move(fromOffsets: source, toOffset: destination)
-                    apply((moved, hiddenItems))
+                    apply((fixedItems + moved, hiddenItems))
                 }
                 HStack(spacing: 12) {
                     TextField("새 선택지", text: $newValue)
