@@ -21,7 +21,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 K = dt.timezone(dt.timedelta(hours=9))
 NOW = dt.datetime.now(K)
-APPS = {"부자": ("느린 부자", "#C8962E", "#FBF3E2"), "여백": ("느린 여백", "#4F8A3A", "#EEF5E9"), "인연": ("느린 인연", "#2F7C76", "#E6F2F1")}
+APPS = {"부자": ("느린 부자", "#C8962E", "#FBF3E2"), "여백": ("느린 여백", "#4F8A3A", "#EEF5E9"), "인연": ("느린 인연", "#8B4C8C", "#F5ECF5")}
 
 
 def app_of(t):
