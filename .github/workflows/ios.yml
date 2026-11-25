@@ -311,6 +311,14 @@ jobs:
                 sleep 5
                 continue
               fi
+              # (2-1) **홈이 찍히면 안 되는 화면인데 홈이 찍혔나** (이슈 125 — 46-choices 가 네 번 중 세 번 홈이었는데
+              # 크기 · 빈 화면 검사를 다 통과했다). Tools/ci/not-home.txt 에 적힌 것만, 먼저 찍은 02-people.png 와 견준다.
+              if grep -qxF "$file" Tools/ci/not-home.txt && [ -f screenshots/02-people.png ] \
+                 && .ci-venv/bin/python Tools/ci/same-as.py "screenshots/$file" screenshots/02-people.png; then
+                echo "  홈이 찍혔습니다 — 화면을 열지 못했습니다. 다시 ($attempt/${SHOOT_ATTEMPTS:-3})"
+                sleep 3
+                continue
+              fi
               # (3) 아직 안 그려진 화면은 단색이라 PNG 가 유난히 작다. 기기마다 문턱이 다르다.
               if [ "$size" -ge "${SHOOT_MIN:-100000}" ]; then
                 if region_is_blank "$file"; then
