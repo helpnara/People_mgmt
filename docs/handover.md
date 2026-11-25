@@ -177,3 +177,14 @@
 - 빌드는 사용자가 "착수하자" 할 때만. 확인은 체크리스트 표로, 사용자는 "0~n 확인 완료".
 - 디자인은 늘 고급스럽게(`CLAUDE.md` §1 의 원칙).
 - 쇼츠: **업로드 완료 · 고정 댓글 완료** 두 신호를 받으면 일정표 · 달력을 고치고, 답할 때마다 끝에 `python3 docs/promo/calendar/make_calendar.py` 가 찍는 고정 댓글 남은 것과 오늘 · 내일 예약을 한 줄로(`CLAUDE.md` §7).
+
+---
+
+## 9. 이관 확인 기록
+
+**2026-11-25 새 세션에서 확인:**
+- 작업 브랜치 `claude/slow-connection` 받음(맨 위 `201510b`) · 사용자가 이 브랜치로 푸시하도록 허락함.
+- 여기서 돌리는 검사 셋 모두 통과 — 정답표 · CloudKit 스키마 파일 · 개인정보 명세.
+- GitHub: `helpnara/People_mgmt` 푸시 권한 확인 · Actions 실행 기록 읽기 됨. `helpnara/slow-stats` 는 필요할 때 붙일 수 있음.
+- 예약 작업 `쇼츠 주간 분석 보고 (금요일 06시 전)` 이 이 계정에 이미 켜져 있음(금 05:31 KST · Sonnet · 휴대폰 알림) — 다시 만들지 않음. 그 프롬프트는 분석을 `docs/promo-youtube-stats.md` 회차 아래에 적는다(§3.3 의 `report-날짜.md` 와 다름).
+- 아직 남은 것: 이슈 125(🔵) · 임시 브랜치 `pending/choice-keep-reason` 지우기(저장소 Branches 화면).
