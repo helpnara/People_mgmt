@@ -244,8 +244,16 @@ jobs:
       - name: 시뮬레이터 스크린샷
         # 멈춘 단계가 일을 6시간 붙잡지 않게 (2026-11-19 · CI 176 다시 돌림에서 스토어 이미지 단계가 3시간 넘게 멈췄다).
         timeout-minutes: 120
+        # 실행 글 안에 식(${{ }})을 두지 않는다 — 식이 하나라도 있으면 GitHub 가 글 전체를 식 하나로 읽고, 식은 21,000자가 한도다.
+        # 이 단계가 그 한도에 닿아 워크플로가 통째로 안 읽혔다(CI 187 · 이슈 125). 값은 env 로 넘긴다.
+        env:
+          SIM_UDID: ${{ steps.sim.outputs.udid }}
+          STORE_UDID: ${{ steps.store.outputs.udid }}
+          STORE_NAME: ${{ steps.store.outputs.name }}
+          IPAD_UDID: ${{ steps.ipad.outputs.udid }}
+          IPAD_NAME: ${{ steps.ipad.outputs.name }}
         run: |
-          UDID="${{ steps.sim.outputs.udid }}"
+          UDID="${SIM_UDID}"
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
 
@@ -485,9 +493,9 @@ jobs:
           xcrun simctl ui "$UDID" appearance light
 
           # ── iPad ──
-          IPAD="${{ steps.ipad.outputs.udid }}"
+          IPAD="${IPAD_UDID}"
           if [ -n "$IPAD" ]; then
-            echo "── iPad: ${{ steps.ipad.outputs.name }} ──"
+            echo "── iPad: ${IPAD_NAME} ──"
             SHOOT_WAIT=12; SHOOT_ATTEMPTS=4; SHOOT_MIN=250000
             xcrun simctl boot "$IPAD" || true
             xcrun simctl bootstatus "$IPAD" -b
@@ -502,7 +510,7 @@ jobs:
             # **관계도에서 누른 사람** (이슈 51) — 관계도 위에 떠 있는 요약 카드.
             shoot ipad/06-graph-card.png -seedSampleData -seedCommunitySample -openNetwork graph -graphSelect 김하늘
             shoot ipad/05-readiness.png -seedSampleData -openNetwork readiness
-            UDID="${{ steps.sim.outputs.udid }}"
+            UDID="${SIM_UDID}"
           else
             echo "::warning::iPad 시뮬레이터가 없어 iPad 스크린샷을 건너뜁니다"
           fi
@@ -519,9 +527,9 @@ jobs:
           }
 
           # ── 스토어용 (6.9형 iPhone · 13형 iPad) — 견본 안내 띠를 숨긴다(-storeShots). 사람은 모두 지어낸 견본이다. ──
-          STORE="${{ steps.store.outputs.udid }}"
+          STORE="${STORE_UDID}"
           if [ -n "$STORE" ]; then
-            echo "── 스토어: ${{ steps.store.outputs.name }} ──"
+            echo "── 스토어: ${STORE_NAME} ──"
             # iPad 단계의 SHOOT_MIN(250,000)이 남으면 글이 적은 기록 상세(215,302 바이트)를 빈 화면으로 본다 (빌드 18 CI).
             SHOOT_WAIT=12; SHOOT_ATTEMPTS=4; SHOOT_MIN=150000
             xcrun simctl boot "$STORE" || true
@@ -539,7 +547,7 @@ jobs:
             shoot store/raw/iphone/05-timeline.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -timeSlice 2025
             shoot store/raw/iphone/06-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
             xcrun simctl shutdown "$STORE" || true
-            UDID="${{ steps.sim.outputs.udid }}"
+            UDID="${SIM_UDID}"
           else
             echo "::warning::Pro Max 시뮬레이터가 없어 스토어용 스크린샷을 건너뜁니다"
           fi
@@ -554,7 +562,7 @@ jobs:
             shoot store/raw/ipad/03-timeline.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -timeSlice 2025
             shoot store/raw/ipad/04-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
             shoot store/raw/ipad/05-add-record.png -seedSampleData -storeShots -openPerson 김하늘 -addRecord
-            UDID="${{ steps.sim.outputs.udid }}"
+            UDID="${SIM_UDID}"
           fi
 
           ls -la screenshots screenshots/dark screenshots/ipad screenshots/store 2>/dev/null || true
