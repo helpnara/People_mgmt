@@ -1,0 +1,13 @@
+# **이 그림이 찍히면 안 되는 스크린샷** — 실행 인자로 한 칸 이상 들어간 화면 (이슈 125).
+# 칸: 찍을 파일 · 그와 같으면 안 되는 기준 그림(하나 이상). shoot 이 찍은 뒤 Tools/ci/same-as.py 로 견주어 같으면 다시 찍고,
+# 끝내 같으면 못 찍은 목록으로. 기준 그림은 먼저 찍혀 있어야 한다 — 02-people · 24-settings 는 맨 앞에서 찍는다.
+# 아이폰 기본 단계만 — 기준 그림과 같은 기기 · 같은 크기여야 견줄 수 있다.
+#
+# 2026-11-25 CI 186: 46 이 처음으로 선택지 화면 · 대신 32 가 설정에 머물렀다(러너가 느려 0.8초 뒤 여는 태그 관리가 7초 안에 안 열림).
+# 홈만 견주던 심판은 이것을 못 잡았다 → 설정 아래 화면은 설정 그림과도 견준다.
+30-suggestions.png    02-people.png
+31-fill-first-met.png 02-people.png
+32-tags.png           02-people.png 24-settings.png
+37-detail-layout.png  02-people.png 24-settings.png
+40-wipe-confirm.png   02-people.png
+46-choices.png        02-people.png 24-settings.png

@@ -1,9 +1,0 @@
-# **홈이 찍히면 안 되는 스크린샷** — 실행 인자로 홈에서 한 칸 이상 들어간 화면 (이슈 125).
-# shoot 이 찍은 뒤 02-people.png 와 견주어(Tools/ci/same-as.py) 거의 같으면 다시 찍는다. 끝내 같으면 못 찍은 목록으로.
-# 아이폰 기본 단계만 — 02-people.png 와 같은 기기 · 같은 크기여야 견줄 수 있다.
-30-suggestions.png
-31-fill-first-met.png
-32-tags.png
-37-detail-layout.png
-40-wipe-confirm.png
-46-choices.png

@@ -311,11 +311,17 @@ jobs:
                 sleep 5
                 continue
               fi
-              # (2-1) **홈이 찍히면 안 되는 화면인데 홈이 찍혔나** (이슈 125 — 46-choices 가 네 번 중 세 번 홈이었는데
-              # 크기 · 빈 화면 검사를 다 통과했다). Tools/ci/not-home.txt 에 적힌 것만, 먼저 찍은 02-people.png 와 견준다.
-              if grep -qxF "$file" Tools/ci/not-home.txt && [ -f screenshots/02-people.png ] \
-                 && .ci-venv/bin/python Tools/ci/same-as.py "screenshots/$file" screenshots/02-people.png; then
-                echo "  홈이 찍혔습니다 — 화면을 열지 못했습니다. 다시 ($attempt/${SHOOT_ATTEMPTS:-3})"
+              # (2-1) **들어가야 할 화면인데 앞 화면(홈 · 설정)이 찍혔나** (이슈 125 — 46-choices 가 네 번 중 세 번 홈이었는데
+              # 크기 · 빈 화면 검사를 다 통과했다). Tools/ci/not-same.txt 에 적힌 것만, 먼저 찍은 기준 그림과 견준다.
+              local stuck=""
+              for ref in $(awk -v f="$file" '$1 == f { for (i = 2; i <= NF; i++) print $i }' Tools/ci/not-same.txt); do
+                if [ -f "screenshots/$ref" ] \
+                   && .ci-venv/bin/python Tools/ci/same-as.py "screenshots/$file" "screenshots/$ref"; then
+                  stuck="$ref"; break
+                fi
+              done
+              if [ -n "$stuck" ]; then
+                echo "  $stuck 와 같은 화면입니다 — 화면을 열지 못했습니다. 다시 ($attempt/${SHOOT_ATTEMPTS:-3})"
                 sleep 3
                 continue
               fi
@@ -348,6 +354,8 @@ jobs:
           # **빈 상태** — 진짜(시뮬레이터) 저장소. 위에서 앱을 지웠으므로 처음 설치한 모습이다.
           shoot 01-empty.png
           shoot 02-people.png -seedSampleData
+          # **설정** (빌드 13 · D-34) — 백업 · 복원 · 개인정보 안내 · 앱 버전. 설정 아래 화면(32 · 37 · 46)의 기준 그림이라 여기서 먼저 (이슈 125).
+          shoot 24-settings.png -seedSampleData -openSettings
           shoot 03-person-detail.png -seedSampleData -openPerson 김하늘
           shoot 04-add-person.png -seedSampleData -addPerson
           shoot 05-search.png -seedSampleData -search 멘토
@@ -428,8 +436,6 @@ jobs:
           # 프로젝트 모임 사람들은 아직 없다. 돌아보기 아래에 모임의 변화(새로 생긴 모임 · 최근 기록 없음)가 보여야 한다.
           shoot 22-network-timeline.png -seedSampleData -seedCommunitySample -openNetwork graph -timeSlice 2025
           shoot 23-network-changes.png -seedSampleData -seedCommunitySample -openNetwork overview
-          # **설정** (빌드 13 · D-34) — 백업 · 복원 · 개인정보 안내 · 앱 버전.
-          shoot 24-settings.png -seedSampleData -openSettings
           # **사진첩 고르기 창** (이슈 10). 빌드 4 · 5 실기기에서 이 길로 주 스레드가 쉬지 않고 돌다 꺼졌다.
           # 시뮬레이터 사진첩의 견본 사진이 뜨면 PNG 가 2MB 를 넘는다 (빌드 7 CI 에서 잡힘 — 홈 화면으로 잘못 봤다).
           SHOOT_MAX=6000000 shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto

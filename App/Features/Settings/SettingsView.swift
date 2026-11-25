@@ -285,7 +285,8 @@ struct SettingsView: View {
             let arguments = LaunchArguments.current
             guard !openedOnLaunch, arguments.openTags || arguments.openDetailLayout || arguments.openChoices else { return }
             openedOnLaunch = true
-            try? await Task.sleep(for: .milliseconds(800))
+            // 미는 움직임(0.35초 안팎)이 끝날 만큼만 — 길면 느린 러너에서 7초 안에 못 연다(CI 186 의 32-tags).
+            try? await Task.sleep(for: .milliseconds(500))
             openTagsOnLaunch = arguments.openTags
             openDetailLayoutOnLaunch = arguments.openDetailLayout
             openChoicesOnLaunch = arguments.openChoices
