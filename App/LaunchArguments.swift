@@ -68,6 +68,10 @@ struct LaunchArguments: Sendable {
     let openDetailLayout: Bool
     /// 설정의 관계 유형 선택지를 바로 연다 (`-openSettings -openChoices` · FR-035 · 빌드 45).
     let openChoices: Bool
+    /// 설정의 명함 읽기 시험을 견본 명함 셋으로 연다 (`-openSettings -openCardTest` · 이슈 127).
+    let openCardTest: Bool
+    /// 기록 수정 · 추가에서 함께한 사람 칸까지 내린다 (`-scrollToParticipants` · 이슈 128 — 빼기 칩을 찍으려고).
+    let scrollToParticipants: Bool
     /// 내 인맥 → 돌아보기의 한 해 돌아보기를 바로 연다 (`-openNetwork overview -openYearReview` · 빌드 45).
     let openYearReview: Bool
     /// 앱 잠금 가리개를 확인 없이 띄운다 (`-previewLock` · 빌드 27) — 가리개 모양만 찍는다.
@@ -120,6 +124,8 @@ struct LaunchArguments: Sendable {
         openTags = arguments.contains("-openTags")
         openDetailLayout = arguments.contains("-openDetailLayout")
         openChoices = arguments.contains("-openChoices")
+        openCardTest = arguments.contains("-openCardTest")
+        scrollToParticipants = arguments.contains("-scrollToParticipants")
         openYearReview = arguments.contains("-openYearReview")
         previewLock = arguments.contains("-previewLock")
         measureSave = arguments.contains("-measureSave")

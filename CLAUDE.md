@@ -10,6 +10,8 @@
 3. `docs/requirements-v0.5.md` — 요구사항 정의서 (확정본). 화면 · 데이터 · 검색 · 검증 규칙이 전부 여기 있다
 4. `docs/adr/` — 되돌리기 비싼 결정과 그 이유
 
+**계정이 바뀌었거나 처음 맡았으면** `docs/handover.md` 부터 — 계정을 따라오지 않는 것(예약 작업 · GitHub 연결)과 시크릿 이름 · 식별자 · 최근 함정이 한 장에 있다.
+
 **문서가 기억이다.** 세션은 기억하지 못하고 문서는 기억한다. 세션 끝에는 로드맵의 "지금 어디까지" 한 줄과 08 의 표를 갱신한다.
 
 **한글로 답변한다.** 사용자에게 보이는 글은 전부 한글이다 — 진행 설명 · 질문 · 확인 목록 · 요약까지. 코드 이름 · 파일 경로 · 명령처럼 바꿀 수 없는 것만 `코드 글씨` 로 남긴다. 결정은 **선택지로 묻고 사용자가 고른다** (2026-10-17 사용자 방식).
@@ -86,9 +88,9 @@
 - **작업 브랜치 `claude/slow-connection`** 에서 개발한다. CI · TestFlight · 처리방침 게시가 전부 여기서 돈다.
 - **`main` 은 App Store 에 낸 판**을 가리킨다. 심사에 낼 때 작업 브랜치를 `main` 에 **병합**(강제 푸시 · 되감기 없이)한다. 스크린샷 충돌은 `-X theirs` 로 작업 브랜치 것을 쓴다.
 - `master` 는 저장소가 만들어질 때의 기본 브랜치다. 기본 브랜치를 `main` 으로 바꾸면 더는 쓰지 않는다 (`docs/06-ci.md`).
-- 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `cloudkit-schema.yml`(수동 · CloudKit 개발 환경에 읽기 · 검사 · 적용) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나) — macOS 워크플로 셋은 **`xcode-27` 러너**(1.1.14 · iOS 27 SDK · 이슈 118 · `docs/06-ci.md`) · `promo-stats.yml`(매주 금 03:13 · 04:41 두 번 · 쇼츠 조회수 → `docs/promo-youtube-stats.md`, App Store 획득 경로 → 비공개 저장소만 · 예약 실행은 기본 브랜치 `main` 의 파일로 돈다 — cron 을 바꾸면 `main` 에도). 그 뒤 **금 05:31 예약 작업(claude.ai 루틴 · Sonnet)** 이 분석해 `docs/promo-stats/report-날짜.md` 로 올리고 휴대폰으로 보고한다(2026-11-19 사용자).
+- 워크플로: `core-test.yml`(리눅스, 푸시마다) · `ios.yml`(macOS, 코드 푸시마다) · `testflight.yml`(수동) · `cloudkit-schema.yml`(수동 · CloudKit 개발 환경에 읽기 · 검사 · 적용) · `site.yml`(처리방침) · `probe.yml`(macOS 명령 하나) — macOS 워크플로 셋은 **`xcode-27` 러너**(1.1.14 · iOS 27 SDK · 이슈 118 · `docs/06-ci.md`) · `promo-stats.yml`(매주 금 03:13 · 04:41 두 번 · 쇼츠 조회수 → `docs/promo-youtube-stats.md`, App Store 획득 경로 → 비공개 저장소만 · 예약 실행은 기본 브랜치 `main` 의 파일로 돈다 — cron 을 바꾸면 `main` 에도). 그 뒤 **토요일 코워크 예약 작업** 이 금요일 회차를 분석해 `docs/promo-stats/report-날짜.md` 로 올리고 보고한다(2026-11-25 사용자 — 11-28 토부터. 그 전의 금 05:31 claude.ai 루틴은 끈다 · `docs/handover.md` §3.3).
 - `paths-ignore` 로 문서만 고친 푸시는 건너뛴다. `concurrency` + `cancel-in-progress`. 커밋하는 워크플로에는 `permissions: contents: write`. **아티팩트 업로드를 커밋보다 앞에.**
-- 소스 안의 안내 문구 강조는 `**…**`. **곧은 따옴표(`"`)를 문구 안에 쓰지 않는다** — 지난 앱에서 빌드 시스템이 같은 자리에서 두 번 죽었다.
+- 소스 안의 안내 문구 강조는 `**…**` — **글자 그대로 쓴 `Text("…")` 에서만 굵어진다.** `FootnoteText` · 변수로 넘긴 `String` 은 `**` 가 그대로 보인다(이슈 129). **곧은 따옴표(`"`)를 문구 안에 쓰지 않는다** — 지난 앱에서 빌드 시스템이 같은 자리에서 두 번 죽었다.
 - 개발자 콘솔(App ID · 컨테이너)의 Description 칸은 **영문**만 받는다. 콘솔에 넣을 값을 안내할 때는 영문 · 숫자 · 빈칸으로 적는다.
 
 ## 6. 구조
@@ -96,7 +98,7 @@
 ```
 docs/            설계 문서. 코드보다 이게 먼저다 (requirements-v0.5 · roadmap · 08-feedback · 06-ci · acceptance-checklist · store-listing · privacy · adr/)
 reports/         조사 보고서 (인맥 분석 기법과 앱 벤치마킹)
-Tools/           여기서 돌릴 수 있는 도구 — golden(정답표) · privacy(명세 검사) · cloudkit(스키마 파일 · 적용 스크립트) · ci(화소 검사 · 찍을 화면 목록) · site(처리방침) · contrast.py(색 대비) · make-icon.py(아이콘: Tools/icon-source.png 가 원본)
+Tools/           여기서 돌릴 수 있는 도구 — golden(정답표) · card-reading(명함 읽기 시험의 복사 글 다시 읽기 · 이슈 127) · privacy(명세 검사) · cloudkit(스키마 파일 · 적용 스크립트) · ci(화소 검사 · 찍을 화면 목록) · site(처리방침) · contrast.py(색 대비) · make-icon.py(아이콘: Tools/icon-source.png 가 원본)
 Packages/Core/   순수 Swift. Foundation 만 → 리눅스에서 테스트된다
 App/             앱 타깃 (SwiftUI + SwiftData). macOS 에서만 빌드된다
 AppTests/        인메모리 저장소로 저장 규칙을 시험한다

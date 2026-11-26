@@ -51,12 +51,15 @@ struct SettingsView: View {
     @AppStorage(AppLock.enabledKey) private var lockEnabled = false
     /// 이 기기의 확인 방법 이름 — 화면을 열 때 한 번.
     @State private var lockMethod = AppLock.methodName()
-    /// CI 스크린샷 — 태그 관리를 바로 연다 (`-openTags`).
-    @State private var openTagsOnLaunch = LaunchArguments.current.openTags
-    /// CI 스크린샷 — 상세 화면 칸을 바로 연다 (`-openDetailLayout`).
-    @State private var openDetailLayoutOnLaunch = LaunchArguments.current.openDetailLayout
-    /// CI 스크린샷 — 관계 유형 선택지를 바로 연다 (`-openChoices`).
-    @State private var openChoicesOnLaunch = LaunchArguments.current.openChoices
+    /// CI 스크린샷 — 태그 관리 · 상세 화면 칸 · 관계 유형 선택지를 연다 (`-openTags` · `-openDetailLayout` · `-openChoices`).
+    /// 처음부터 켜 두지 않고 설정이 다 밀려 들어온 뒤에 켠다 — 설정을 밀어 넣는 중에 한 칸 더 밀면 가끔 스택이 통째로
+    /// 홈으로 되돌아갔다(이슈 125 · CI 46-choices 가 네 번 중 세 번 홈).
+    @State private var openTagsOnLaunch = false
+    @State private var openDetailLayoutOnLaunch = false
+    @State private var openChoicesOnLaunch = false
+    @State private var openCardTestOnLaunch = false
+    /// 위 셋을 한 번만 — 돌아와서 설정이 다시 나타날 때 또 밀지 않게.
+    @State private var openedOnLaunch = false
     private let syncMonitor = CloudSyncMonitor.shared
 
     var body: some View {
@@ -256,6 +259,19 @@ struct SettingsView: View {
                 wipeSection
             }
 
+            // **실험** (이슈 127 · D-84) — 명함 읽기 시험. 아무것도 저장하지 않는다(느린 부자의 캡처 읽기 시험과 같은 자리).
+            Section {
+                NavigationLink {
+                    CardReadingTestView()
+                } label: {
+                    Label("명함 읽기 시험", systemImage: "text.viewfinder")
+                }
+            } header: {
+                Text("실험")
+            } footer: {
+                Text("명함 사진을 이 기기 안에서 읽어 보기만 합니다. 저장하지 않습니다.")
+            }
+
             Section {
                 LabeledContent("버전", value: Self.version)
             } header: {
@@ -277,6 +293,22 @@ struct SettingsView: View {
         }
         .navigationDestination(isPresented: $openChoicesOnLaunch) {
             ChoiceEditorView(kind: .relationshipType)
+        }
+        .navigationDestination(isPresented: $openCardTestOnLaunch) {
+            CardReadingTestView()
+        }
+        .task {
+            // CI 스크린샷 — 설정이 자리 잡은 뒤에 한 칸 더 (이슈 125).
+            let arguments = LaunchArguments.current
+            guard !openedOnLaunch,
+                  arguments.openTags || arguments.openDetailLayout || arguments.openChoices || arguments.openCardTest else { return }
+            openedOnLaunch = true
+            // 미는 움직임(0.35초 안팎)이 끝날 만큼만 — 길면 느린 러너에서 7초 안에 못 연다(CI 186 의 32-tags).
+            try? await Task.sleep(for: .milliseconds(500))
+            openTagsOnLaunch = arguments.openTags
+            openDetailLayoutOnLaunch = arguments.openDetailLayout
+            openChoicesOnLaunch = arguments.openChoices
+            openCardTestOnLaunch = arguments.openCardTest
         }
         .task {
             // CI 스크린샷 — 모든 자료 지우기의 첫 확인 창 (`-confirmWipe`).

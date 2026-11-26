@@ -242,10 +242,19 @@ jobs:
           .ci-venv/bin/pip install --quiet --disable-pip-version-check pillow
 
       - name: 시뮬레이터 스크린샷
+        id: shots
         # 멈춘 단계가 일을 6시간 붙잡지 않게 (2026-11-19 · CI 176 다시 돌림에서 스토어 이미지 단계가 3시간 넘게 멈췄다).
         timeout-minutes: 120
+        # 실행 글 안에 식(${{ }})을 두지 않는다 — 식이 하나라도 있으면 GitHub 가 글 전체를 식 하나로 읽고, 식은 21,000자가 한도다.
+        # 이 단계가 그 한도에 닿아 워크플로가 통째로 안 읽혔다(CI 187 · 이슈 125). 값은 env 로 넘긴다.
+        env:
+          SIM_UDID: ${{ steps.sim.outputs.udid }}
+          STORE_UDID: ${{ steps.store.outputs.udid }}
+          STORE_NAME: ${{ steps.store.outputs.name }}
+          IPAD_UDID: ${{ steps.ipad.outputs.udid }}
+          IPAD_NAME: ${{ steps.ipad.outputs.name }}
         run: |
-          UDID="${{ steps.sim.outputs.udid }}"
+          UDID="${SIM_UDID}"
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
 
@@ -311,6 +320,20 @@ jobs:
                 sleep 5
                 continue
               fi
+              # (2-1) **들어가야 할 화면인데 앞 화면(홈 · 설정)이 찍혔나** (이슈 125 — 46-choices 가 네 번 중 세 번 홈이었는데
+              # 크기 · 빈 화면 검사를 다 통과했다). Tools/ci/not-same.txt 에 적힌 것만, 먼저 찍은 기준 그림과 견준다.
+              local stuck=""
+              for ref in $(awk -v f="$file" '$1 == f { for (i = 2; i <= NF; i++) print $i }' Tools/ci/not-same.txt); do
+                if [ -f "screenshots/$ref" ] \
+                   && .ci-venv/bin/python Tools/ci/same-as.py "screenshots/$file" "screenshots/$ref"; then
+                  stuck="$ref"; break
+                fi
+              done
+              if [ -n "$stuck" ]; then
+                echo "  $stuck 와 같은 화면입니다 — 화면을 열지 못했습니다. 다시 ($attempt/${SHOOT_ATTEMPTS:-3})"
+                sleep 3
+                continue
+              fi
               # (3) 아직 안 그려진 화면은 단색이라 PNG 가 유난히 작다. 기기마다 문턱이 다르다.
               if [ "$size" -ge "${SHOOT_MIN:-100000}" ]; then
                 if region_is_blank "$file"; then
@@ -340,6 +363,8 @@ jobs:
           # **빈 상태** — 진짜(시뮬레이터) 저장소. 위에서 앱을 지웠으므로 처음 설치한 모습이다.
           shoot 01-empty.png
           shoot 02-people.png -seedSampleData
+          # **설정** (빌드 13 · D-34) — 백업 · 복원 · 개인정보 안내 · 앱 버전. 설정 아래 화면(32 · 37 · 46)의 기준 그림이라 여기서 먼저 (이슈 125).
+          shoot 24-settings.png -seedSampleData -openSettings
           shoot 03-person-detail.png -seedSampleData -openPerson 김하늘
           shoot 04-add-person.png -seedSampleData -addPerson
           shoot 05-search.png -seedSampleData -search 멘토
@@ -394,12 +419,17 @@ jobs:
           shoot 52-card-batch.png -seedSampleData -cardBatch
           # **1.1.13 (스키마 13판 · 이슈 117)** — 안 만난 약속으로 남긴 기록의 상세(띠 · 만난 기록으로 되돌리기).
           shoot 53-not-met.png -seedSampleData -seedPlannedSample -openPerson 김하늘 -openRecordTitle "북카페 약속"
+          # **명함 읽기 시험** (이슈 127 · D-84) — 설정 → 실험. 견본 명함 셋을 세 방식으로 읽고 그린 값으로 채점한 칸별 인식률 표.
+          # 명함마다 세 번 읽어(1~3초씩) 오래 기다린다.
+          SHOOT_WAIT=25 shoot 54-card-test.png -seedSampleData -openSettings -openCardTest
           shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
           # 함께한 사람 고르기의 검색 (이슈 49) — 검색 칸이 늘 보이고, 초성 ㅈㅇ 으로 거른 결과.
           shoot 39-participant-search.png -seedSampleData -openPerson 김하늘 -addRecord -pickParticipants -pickerSearch ㅈㅇ
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
+          # **기록 수정의 함께한 사람 칩** (이슈 128) — 분기 회의(김하늘 · 정유진)를 고치는 화면. 칩마다 빼기 표시 · 위에 `누르면 뺍니다`.
+          shoot 55-record-edit-participants.png -seedSampleData -openPerson 김하늘 -openRecord -editRecord -scrollToParticipants
           # **명함** (FR-050). 김하늘의 견본 명함이 수정 시트에 보이고, 글자를 읽어 제안 화면을 띄운다.
           # 시뮬레이터에는 카메라가 없어 `명함 촬영` 단추는 안 보이는 것이 맞다.
           shoot 11-edit-card.png -seedSampleData -openPerson 김하늘 -editPerson
@@ -420,8 +450,6 @@ jobs:
           # 프로젝트 모임 사람들은 아직 없다. 돌아보기 아래에 모임의 변화(새로 생긴 모임 · 최근 기록 없음)가 보여야 한다.
           shoot 22-network-timeline.png -seedSampleData -seedCommunitySample -openNetwork graph -timeSlice 2025
           shoot 23-network-changes.png -seedSampleData -seedCommunitySample -openNetwork overview
-          # **설정** (빌드 13 · D-34) — 백업 · 복원 · 개인정보 안내 · 앱 버전.
-          shoot 24-settings.png -seedSampleData -openSettings
           # **사진첩 고르기 창** (이슈 10). 빌드 4 · 5 실기기에서 이 길로 주 스레드가 쉬지 않고 돌다 꺼졌다.
           # 시뮬레이터 사진첩의 견본 사진이 뜨면 PNG 가 2MB 를 넘는다 (빌드 7 CI 에서 잡힘 — 홈 화면으로 잘못 봤다).
           SHOOT_MAX=6000000 shoot 13-photo-picker.png -seedSampleData -addPerson -pickCardPhoto
@@ -471,9 +499,9 @@ jobs:
           xcrun simctl ui "$UDID" appearance light
 
           # ── iPad ──
-          IPAD="${{ steps.ipad.outputs.udid }}"
+          IPAD="${IPAD_UDID}"
           if [ -n "$IPAD" ]; then
-            echo "── iPad: ${{ steps.ipad.outputs.name }} ──"
+            echo "── iPad: ${IPAD_NAME} ──"
             SHOOT_WAIT=12; SHOOT_ATTEMPTS=4; SHOOT_MIN=250000
             xcrun simctl boot "$IPAD" || true
             xcrun simctl bootstatus "$IPAD" -b
@@ -488,7 +516,7 @@ jobs:
             # **관계도에서 누른 사람** (이슈 51) — 관계도 위에 떠 있는 요약 카드.
             shoot ipad/06-graph-card.png -seedSampleData -seedCommunitySample -openNetwork graph -graphSelect 김하늘
             shoot ipad/05-readiness.png -seedSampleData -openNetwork readiness
-            UDID="${{ steps.sim.outputs.udid }}"
+            UDID="${SIM_UDID}"
           else
             echo "::warning::iPad 시뮬레이터가 없어 iPad 스크린샷을 건너뜁니다"
           fi
@@ -505,9 +533,9 @@ jobs:
           }
 
           # ── 스토어용 (6.9형 iPhone · 13형 iPad) — 견본 안내 띠를 숨긴다(-storeShots). 사람은 모두 지어낸 견본이다. ──
-          STORE="${{ steps.store.outputs.udid }}"
+          STORE="${STORE_UDID}"
           if [ -n "$STORE" ]; then
-            echo "── 스토어: ${{ steps.store.outputs.name }} ──"
+            echo "── 스토어: ${STORE_NAME} ──"
             # iPad 단계의 SHOOT_MIN(250,000)이 남으면 글이 적은 기록 상세(215,302 바이트)를 빈 화면으로 본다 (빌드 18 CI).
             SHOOT_WAIT=12; SHOOT_ATTEMPTS=4; SHOOT_MIN=150000
             xcrun simctl boot "$STORE" || true
@@ -525,7 +553,7 @@ jobs:
             shoot store/raw/iphone/05-timeline.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -timeSlice 2025
             shoot store/raw/iphone/06-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
             xcrun simctl shutdown "$STORE" || true
-            UDID="${{ steps.sim.outputs.udid }}"
+            UDID="${SIM_UDID}"
           else
             echo "::warning::Pro Max 시뮬레이터가 없어 스토어용 스크린샷을 건너뜁니다"
           fi
@@ -540,7 +568,7 @@ jobs:
             shoot store/raw/ipad/03-timeline.png -seedSampleData -seedCommunitySample -storeShots -openNetwork graph -timeSlice 2025
             shoot store/raw/ipad/04-overview.png -seedSampleData -seedCommunitySample -storeShots -openNetwork overview
             shoot store/raw/ipad/05-add-record.png -seedSampleData -storeShots -openPerson 김하늘 -addRecord
-            UDID="${{ steps.sim.outputs.udid }}"
+            UDID="${SIM_UDID}"
           fi
 
           ls -la screenshots screenshots/dark screenshots/ipad screenshots/store 2>/dev/null || true
@@ -732,6 +760,9 @@ jobs:
           if-no-files-found: warn
 
       - name: 스크린샷을 브랜치에 커밋
+        # 스크린샷 단계가 성공했으면 뒤의 화면 이동 시험이 실패해도 올린다 — 시험 하나 때문에 원격 세션의 눈이 가려졌다
+        # (CI 184 · 188 · 192 · 이슈 132). 일의 실패는 그대로 남는다.
+        if: ${{ !cancelled() && steps.shots.outcome == 'success' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

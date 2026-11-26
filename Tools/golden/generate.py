@@ -1754,7 +1754,7 @@ def label_kind(key: str):
         return ("kind", "fax")
     if key in ("e", "email", "mail") or has(["메일"]):
         return ("kind", "email")
-    if key in ("m", "hp", "handphone") or has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]):
+    if key in ("m", "c", "hp", "handphone") or has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]):
         return ("kind", "mobile")
     if key in ("o", "main", "dir") or has(["office", "work", "company", "direct", "회사", "사무실", "직장", "대표", "직통"]):
         return ("kind", "office")
@@ -1808,7 +1808,18 @@ def contact_resolve(label: str, value: str, is_email: bool):
     return k[1]
 
 
+# 누리집 주소 — 한 조각에 번호와 함께 있으면 먼저 떼어 기타로 (이슈 130 ⓕ · 명함 2).
+URL_RE = re.compile(r"(?:https?://|www\.)[^ ]+")
+
+
 def contact_sort(token: str, f: dict) -> None:
+    urls = [m.group(0) for m in URL_RE.finditer(token)]
+    if urls:
+        rest = collapsed_spaces(URL_RE.sub(" ", token))
+        if rest:
+            for url in urls:
+                contact_place(f, url, "other")
+            token = rest
     emails = [m.span() for m in EMAIL_RE.finditer(token)]
     phones = [m.span() for m in PHONE_RE.finditer(token)
               if not any(s < m.end() and m.start() < e for s, e in emails)]
@@ -1843,31 +1854,77 @@ def contact_split(text: str) -> dict:
 ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전무", "상무", "이사", "본부장", "실장", "센터장",
                  "부장", "차장", "과장", "팀장", "대리", "주임", "사원", "책임", "선임", "수석", "연구원", "교수",
                  "원장", "매니저", "디자이너", "개발자", "엔지니어", "컨설턴트",
+                 # 이슈 130 (명함 13장 · 2026-11-26): 단장 · 소장 · 국장 · 처장 · 학위 · 영문 직함 · 흔한 오독 `팀당`
+                 "단장", "소장", "국장", "처장", "박사", "팀당",
                  "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
-                 "consultant", "president", "founder", "professor", "lead"]
+                 "consultant", "president", "founder", "professor", "lead",
+                 "executive", "officer", "head", "vp", "architect", "specialist", "phd"]
 KOREAN_ORG = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
 LATIN_ORG = {"inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"}
 DEPARTMENT_SUFFIXES = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]
+# 이슈 130 — 둘째 순위 기관 낱말(낱말 끝) · 지역 이름 · 부서 끝 · 주소 낱말 끝
+ORG2_SUFFIXES = ["대학원", "대학", "진흥원", "기술원", "조합", "공단"]
+REGION_SUFFIXES = ["특별자치도", "특별시", "광역시", "남도", "북도", "도청", "시청", "구청", "군청"]
+DEPT_SUFFIXES = ["팀", "부", "실", "과", "국", "센터", "본부", "단", "처"]
+ADDRESS_SUFFIXES = ["특별자치도", "특별시", "광역시", "도", "시", "군", "구", "읍", "면", "동", "로", "길"]
+# 흔한 성 (두 글자 성 먼저) — 글자만 큰 표어(`품격있는`)보다 성으로 시작하는 이름을 먼저 (이슈 130 ⓧ).
+SURNAMES2 = ["남궁", "황보", "제갈", "선우", "독고", "사공", "서문"]
+SURNAMES = set("김이박최정강조윤장임한오서신권황안송전홍유고문양손배백허남심노하곽성차주우구민류나진지엄채원천방공현함변염여추도소석선설마길연위표명기반라왕금옥육인맹제모탁국어은편용예경봉사부가복태목형피두감")
+KNOWN_MAIL_DOMAINS = ["gmail.com", "naver.com", "daum.net", "hanmail.net", "kakao.com", "nate.com",
+                      "hotmail.com", "outlook.com", "icloud.com"]
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 PHONE_RE = re.compile(r"(?:\+82[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}")
 LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
 # 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
 # 대문자 E 하나 · Email · E-mail · Mail 만 이름표로 본다 — 소문자 `e.kim@…` 은 메일 주소 그대로 둔다.
 EMAIL_LABEL_RE = re.compile(r"(?<![A-Za-z0-9._%+-])(E|EMAIL|Email|E-mail|E-Mail|MAIL|Mail)([.:])(?=[A-Za-z0-9._%+-]+@)")
+# 이슈 130 ⓚ — 인식이 `@` 앞뒤에 끼운 `(` · `)` · 빈칸. ⓡ — `(+82 10)` · `+82 (0)41` 꼴 번호.
+AT_NOISE_RE = re.compile(r"(?<=[A-Za-z0-9._%+-])[ (]{1,2}@[ )]{0,2}(?=[A-Za-z0-9])|(?<=[A-Za-z0-9._%+-])@[ )]{1,2}(?=[A-Za-z0-9])")
+PAREN_COUNTRY_RE = re.compile(r"\(\+82[ .-]*0?(\d{1,2})\)")
+ZERO_COUNTRY_RE = re.compile(r"\+82[ .-]*\(0\)[ .-]*")
+ROLE_SPLIT_RE = re.compile(r"[ /|,·]+")
+ZIP_RE = re.compile(r"^\(?\d{5}\)?$")
 
 
 def separating_email_label(text: str) -> str:
     return EMAIL_LABEL_RE.sub(r"\1\2 ", text)
 
 
+def tidy_contact(text: str) -> str:
+    """연락 줄 손질 — 메일 이름표 떼기 · `@` 둘레 잡음 · 국가번호 꼴 (이슈 118 · 130)."""
+    text = separating_email_label(text)
+    text = AT_NOISE_RE.sub("@", text)
+    text = PAREN_COUNTRY_RE.sub(r"0\1", text)
+    return ZERO_COUNTRY_RE.sub("0", text)
+
+
 def latin_letters(token: str) -> str:
     return "".join(ch for ch in token if ch.isascii() and ch.isalpha()).lower()
+
+
+def is_syllables(text: str) -> bool:
+    return bool(text) and all(0xAC00 <= ord(ch) <= 0xD7A3 for ch in text)
 
 
 def is_org(text: str) -> bool:
     if any(k in text for k in KOREAN_ORG):
         return True
     return any(latin_letters(t) in LATIN_ORG for t in text.split(" "))
+
+
+def is_region(token: str) -> bool:
+    return len(token) >= 3 and is_syllables(token) and any(token.endswith(s) for s in REGION_SUFFIXES)
+
+
+def is_org2(text: str) -> bool:
+    """둘째 순위 기관 — `…대학원` · `…연구조합` · 긴 `…연구원` · 지역 이름 하나 (이슈 130 ⓒ ⓗ ⓣ)."""
+    tokens = text.split(" ")
+    for t in tokens:
+        if len(t) > 2 and any(t.endswith(sfx) for sfx in ORG2_SUFFIXES):
+            return True
+        if t.endswith("연구원") and len(t) > 5:
+            return True
+    return len(tokens) == 1 and is_region(tokens[0])
 
 
 def is_role_token(token: str) -> bool:
@@ -1877,8 +1934,38 @@ def is_role_token(token: str) -> bool:
             if latin == k:
                 return True
         elif token.endswith(k):
+            # `…연구원` 은 그 낱말 하나이거나 `수석` · `책임` 따위 두 글자 뒤일 때만 직무 — 더 길면 기관 (ⓗ)
+            if k == "연구원" and len(token) > 5:
+                continue
             return True
     return False
+
+
+def role_pieces(text: str) -> list[str]:
+    return [p for p in ROLE_SPLIT_RE.split(text) if p]
+
+
+def has_role(token: str) -> bool:
+    return any(is_role_token(p) for p in role_pieces(token))
+
+
+def is_degree(piece: str) -> bool:
+    return piece.endswith("박사") or latin_letters(piece) == "phd"
+
+
+def is_dept_token(token: str) -> bool:
+    return len(token) >= 3 and not is_role_token(token) and any(token.endswith(s) for s in DEPT_SUFFIXES)
+
+
+def is_address_token(token: str) -> bool:
+    return len(token) >= 2 and is_syllables(token) and any(token.endswith(s) for s in ADDRESS_SUFFIXES)
+
+
+def is_address_line(text: str) -> bool:
+    tokens = text.split(" ")
+    if ZIP_RE.match(tokens[0]):
+        return True
+    return sum(1 for t in tokens if is_address_token(t)) >= 2
 
 
 def is_hangul_name(text: str) -> bool:
@@ -1888,31 +1975,104 @@ def is_hangul_name(text: str) -> bool:
     joined = "".join(tokens)
     if not 2 <= len(joined) <= 4:
         return False
-    if not all(0xAC00 <= ord(ch) <= 0xD7A3 for ch in joined):
+    if not is_syllables(joined):
         return False
     return not any(joined.endswith(s) for s in DEPARTMENT_SUFFIXES)
+
+
+def is_name_word(joined: str) -> bool:
+    """이름으로 볼 수 있는 한글 낱말 — 직무 · 지역 · `…대학` 은 아니다 (ⓘ ⓒ ⓧ)."""
+    return (is_hangul_name(joined) and not is_role_token(joined) and not is_region(joined)
+            and not any(joined.endswith(sfx) for sfx in ORG2_SUFFIXES))
+
+
+def has_surname(name: str) -> bool:
+    return name[:2] in SURNAMES2 or name[:1] in SURNAMES
+
+
+def is_all_caps(text: str) -> bool:
+    letters = [ch for ch in text if ch.isascii() and ch.isalpha()]
+    return len(letters) >= 2 and all("A" <= ch <= "Z" for ch in letters)
 
 
 def is_fax(lower: str) -> bool:
     return lower.startswith(("fax", "팩스", "f.", "f "))
 
 
+def levenshtein(a: str, b: str) -> int:
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def site_domain(url: str) -> str:
+    d = re.sub(r"^(?:https?://)?(?:www\.)?", "", url.lower())
+    return d.split("/")[0].rstrip(".")
+
+
+def corrected_email(email: str, sites: list[str]) -> str:
+    """메일 도메인 오독 바로잡기 (ⓤ) — 같은 명함 누리집과 두 글자 안, 흔한 메일과 한 글자 안."""
+    local, _, domain = email.rpartition("@")
+    lower = domain.lower()
+    if lower in sites or lower in KNOWN_MAIL_DOMAINS:
+        return email
+    best = None
+    for limit, pool in ((2, sites), (1, KNOWN_MAIL_DOMAINS)):
+        for cand in pool:
+            d = levenshtein(lower, cand)
+            if 0 < d <= limit and (best is None or d < best[0]):
+                best = (d, cand)
+    return f"{local}@{best[1]}" if best else email
+
+
+def role_rank(role_text: str) -> int:
+    """직무 줄의 순위 — 부서가 있는 줄 0 · 직무 낱말 줄 1 · 학위만 있는 줄 2 (ⓥ · 사용자: 직책 줄 먼저)."""
+    rest = role_pieces(role_text)
+    if any(is_dept_token(p) for p in rest):
+        return 0
+    if all(is_degree(p) for p in rest if is_role_token(p)):
+        return 2
+    return 1
+
+
+def names_from(order: int, names: list) -> bool:
+    return any(n[2] == order for n in names)
+
+
 def parse_card(lines: list[list]) -> dict:
+    """명함 줄 → 칸. 이슈 130 (2026-11-26 · 실제 명함 13장) 에서 다시 짰다 — Swift `BusinessCardParser` 와 같은 규칙.
+
+    줄마다: ① 연락 줄 ② 직무가 있는 줄(앞의 한글 조각은 이름 · 줄 끝이 직무면 기관 낱말이 있어도 직무)
+    ③ 기관 낱말 줄(첫째 순위 · 주소가 붙으면 앞에서 자름) ④ 둘째 순위 기관(대학원 · 조합 · 긴 연구원 · 지역 이름)
+    ⑤ 한글 이름 + 영문 이름 ⑥ 한글 이름 ⑦ 부서만 있는 줄 ⑧ 영문 이름(모두 대문자는 아님 — 그건 기관 후보).
+    그 뒤: 이름은 (직무 · 영문과 같은 줄 > 한글 > 영문) 순위 → 글자 크기 → 먼저 나온 줄.
+    직무는 (부서가 있는 줄 > 직무 낱말 줄 > 학위만 있는 줄) → 먼저. 소속은 (첫째 > 둘째 > 주소 바로 위 한글 낱말 > 대문자 영문)
+    → 먼저, 그리고 부서만 있는 첫 줄의 마지막 부서를 붙인다."""
     out = {"name": None, "organization": None, "role": None, "phones": [], "emails": [], "lines": []}
-    contact_lines = []
-    candidate = None
-    def offer(name, height):
-        nonlocal candidate
-        if candidate is not None and candidate[1] >= height:
-            return
-        candidate = (name, height)
+    texts = []
     for raw, height in lines:
         text = collapsed_spaces(normalized(raw))
-        if not text:
-            continue
+        if text:
+            texts.append((text, height))
+    sites = [site_domain(m.group(0)) for t, _ in texts for m in URL_RE.finditer(t)]
+    contact_lines = []
+    names = []   # (순위, -높이, 차례, 이름)
+    roles = []   # (순위, 차례, 글)
+    orgs = []    # (순위, 차례, 글)
+    depts = []
+    kinds = []
+    for order, (text, height) in enumerate(texts):
         out["lines"].append(text)
         lower = text.lower()
-        contact_text = separating_email_label(text)
+        kind = "other"
+        # ① 연락 줄
+        contact_text = tidy_contact(text)
+        for e in EMAIL_RE.findall(contact_text):
+            contact_text = contact_text.replace(e, corrected_email(e, sites))
         emails = EMAIL_RE.findall(contact_text)
         phones = PHONE_RE.findall(contact_text)
         if emails or phones or "www." in lower or "http" in lower:
@@ -1921,31 +2081,195 @@ def parse_card(lines: list[list]) -> dict:
                 if e not in out["emails"]:
                     out["emails"].append(e)
             if not is_fax(lower):
-                for p in (x.strip(" ") for x in phones):
-                    if p not in out["phones"]:
-                        out["phones"].append(p)
-            continue
-        if is_org(text):
-            if out["organization"] is None:
-                out["organization"] = text
+                for ph in (x.strip(" ") for x in phones):
+                    if ph not in out["phones"]:
+                        out["phones"].append(ph)
+            kinds.append("contact")
             continue
         tokens = text.split(" ")
-        if len(tokens) >= 2 and is_hangul_name(tokens[0]) and any(is_role_token(t) for t in tokens[1:]):
-            offer(tokens[0], height)
-            if out["role"] is None:
-                out["role"] = " ".join(tokens[1:])
+        pieces = role_pieces(text)
+        # ② 직무가 있는 줄
+        if any(is_role_token(p) for p in pieces):
+            role_text = text
+            first = next(i for i, t in enumerate(tokens) if has_role(t))
+            lead = []
+            for t in tokens[:first]:
+                if not is_syllables(t):
+                    break
+                lead.append(t)
+            after = tokens[len(lead)]
+            if lead and (len(lead) == first or after[:1].isascii() and after[:1].isalpha()) \
+                    and is_name_word("".join(lead)):
+                names.append((0, -height, order, "".join(lead)))
+                if len(lead) == first:
+                    role_text = " ".join(tokens[first:])
+            # 기관 낱말이 모든 직무 낱말보다 앞이면 그 줄을 나눈다 — `한빛대학교 연구원` → 소속 · 직무
+            org_at = next((i for i, t in enumerate(tokens) if is_org(t)), None)
+            if org_at is not None and org_at < first and not names_from(order, names):
+                orgs.append((0, order, " ".join(tokens[:org_at + 1])))
+                role_text = " ".join(tokens[org_at + 1:])
+                roles.append((role_rank(role_text), order, role_text.replace("팀당", "팀장")))
+                kinds.append("role")
+                continue
+            if is_role_token(pieces[-1]) or not (is_org(text) or is_org2(text)):
+                roles.append((role_rank(role_text), order, role_text.replace("팀당", "팀장")))
+                kinds.append("role")
+                continue
+        # ③ 첫째 순위 기관 — 같은 줄에 주소가 이어지면 앞에서 자른다 (ⓛ)
+        if is_org(text):
+            cut = next((i for i, t in enumerate(tokens) if i > 0 and is_address_token(t)), None)
+            org = text
+            if cut is not None and is_org(" ".join(tokens[:cut])):
+                org = " ".join(tokens[:cut])
+            orgs.append((0, order, org))
+            kinds.append("org")
             continue
-        if any(is_role_token(t) for t in tokens):
-            if out["role"] is None:
-                out["role"] = text
+        # ④ 둘째 순위 기관
+        if is_org2(text):
+            orgs.append((1, order, text))
+            kinds.append("org")
             continue
-        if is_hangul_name(text):
-            offer(text.replace(" ", ""), height)
-        elif LATIN_NAME_RE.search(text):
-            offer(text, height)
-    out["name"] = candidate[0] if candidate else None
+        # ⑤ 한글 이름 + 영문 이름 (ⓞ)
+        lead = []
+        for t in tokens:
+            if not is_syllables(t):
+                break
+            lead.append(t)
+        rest = tokens[len(lead):]
+        if lead and rest and rest[0][:1].isascii() and rest[0][:1].isalpha() and is_name_word("".join(lead)):
+            names.append((0, -height, order, "".join(lead)))
+            kinds.append("name")
+            continue
+        # ⑥ 한글 이름
+        if is_hangul_name(text) and is_name_word(text.replace(" ", "")):
+            joined = text.replace(" ", "")
+            names.append((1 if has_surname(joined) else 2, -height, order, joined))
+            kinds.append("name")
+            continue
+        # ⑦ 부서만 있는 줄
+        if pieces and all(is_dept_token(p) for p in pieces):
+            depts.append(pieces[-1])
+            kinds.append("dept")
+            continue
+        # ⑧ 영문 — 모두 대문자면 기관 후보, 아니면 영문 이름 후보 (ⓝ)
+        if is_all_caps(text):
+            if len(tokens) <= 3 and not any("0" <= ch <= "9" for ch in text):
+                orgs.append((3, order, text))
+            kinds.append("other")
+            continue
+        if LATIN_NAME_RE.search(text):
+            names.append((3, -height, order, text))
+            kinds.append("name")
+            continue
+        kinds.append(kind)
+    # 주소 줄 바로 위의 한글 낱말 하나 — `주식회사` 없는 회사 이름 (ⓔ)
+    for i, (text, _) in enumerate(texts[:-1]):
+        # 이름 모양(성으로 시작하는 2~3자 · 두 글자 성 4자)이면 회사로 넘기지 않는다 — 이름이 주소 바로 위에 있는 명함이 흔하다
+        looks_name = has_surname(text) and (len(text) <= 3 or text[:2] in SURNAMES2)
+        if (kinds[i] == "other" or kinds[i] == "name" and not looks_name) and " " not in text \
+                and is_syllables(text) and 3 <= len(text) <= 12 and is_address_line(texts[i + 1][0]):
+            orgs.append((2, i, text))
+            names = [n for n in names if n[2] != i]
+    if names:
+        out["name"] = min(names)[3]
+    if roles:
+        out["role"] = min(roles)[2]
+    if orgs:
+        org = min(orgs)[2]
+        if depts and depts[0] not in org:
+            org = f"{org} {depts[0]}"
+        out["organization"] = org
     out["contact"] = contact_split("\n".join(contact_lines))
     return out
+
+
+# ── 명함 읽기 시험의 가린 복사 (CardMasking · 이슈 127) ────────────────────────
+# 숫자 → # · 영문 → x/X · 한글 → ○ · 한자 · 가나 → ◇. 읽기 규칙이 보는 낱말(직무 · 회사 · 연락 이름표 · 부서 끝)과
+# 번호 앞자리(0 으로 시작하는 세 자리 이하 · +82)는 남긴다.
+
+CARD_MASK_HANGUL_KEEP = [
+    "대표이사", "주식회사", "유한회사", "휴대전화", "엔지니어", "컨설턴트", "디자이너", "홈페이지",
+    "부사장", "본부장", "센터장", "연구원", "매니저", "개발자", "대학교", "연구소", "휴대폰", "핸드폰", "모바일", "이메일", "사무실",
+    "대표", "회장", "사장", "전무", "상무", "이사", "실장", "부장", "차장", "과장", "팀장", "대리", "주임", "사원", "책임", "선임",
+    "수석", "교수", "원장", "재단", "협회", "병원", "은행", "그룹", "휴대", "전화", "팩스", "메일", "직통", "직장", "회사", "주소",
+]
+CARD_MASK_LATIN_KEEP = {
+    "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer", "consultant", "president",
+    "founder", "professor", "lead",
+    "inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab",
+    "m", "t", "f", "e", "o", "p", "h", "hp", "tel", "phone", "mobile", "cell", "fax", "email", "mail", "office", "direct",
+    "main", "dir", "www", "http", "https",
+    "com", "net", "org", "kr", "io", "gmail", "naver", "daum", "hanmail", "kakao", "nate",
+}
+
+
+def _is_syllable(o):
+    return 0xAC00 <= o <= 0xD7A3
+
+
+def _is_latin(o):
+    return 0x41 <= o <= 0x5A or 0x61 <= o <= 0x7A
+
+
+def _mask_hangul(run: str) -> str:
+    keep = [False] * len(run)
+    for kw in CARD_MASK_HANGUL_KEEP:
+        start = 0
+        while start + len(kw) <= len(run):
+            found = run.find(kw, start)
+            if found < 0:
+                break
+            if any(keep[found:found + len(kw)]):
+                start = found + 1
+            else:
+                for i in range(found, found + len(kw)):
+                    keep[i] = True
+                start = found + len(kw)
+    for suffix in DEPARTMENT_SUFFIXES:
+        if len(run) > len(suffix) and run.endswith(suffix):
+            for i in range(len(run) - len(suffix), len(run)):
+                keep[i] = True
+    return "".join(ch if keep[i] else "○" for i, ch in enumerate(run))
+
+
+def card_mask(text: str) -> str:
+    out = []
+    i = 0
+    n = len(text)
+    while i < n:
+        o = ord(text[i])
+        if _is_syllable(o):
+            j = i
+            while j < n and _is_syllable(ord(text[j])):
+                j += 1
+            out.append(_mask_hangul(text[i:j]))
+            i = j
+        elif _is_latin(o):
+            j = i
+            while j < n and _is_latin(ord(text[j])):
+                j += 1
+            run = text[i:j]
+            out.append(run if run.lower() in CARD_MASK_LATIN_KEEP else "".join("X" if "A" <= c <= "Z" else "x" for c in run))
+            i = j
+        elif 0x30 <= o <= 0x39:
+            j = i
+            while j < n and 0x30 <= ord(text[j]) <= 0x39:
+                j += 1
+            run = text[i:j]
+            # 번호의 앞자리(010 · 02 · 031 · +82)는 남긴다 — 휴대전화 · 사무실을 가르는 모양.
+            keep = (run[0] == "0" and len(run) <= 3) or (run == "82" and i > 0 and text[i - 1] == "+")
+            out.append(run if keep else "#" * len(run))
+            i = j
+        elif 0x3131 <= o <= 0x318E or 0x1100 <= o <= 0x11FF:
+            out.append("○")
+            i += 1
+        elif 0x4E00 <= o <= 0x9FFF or 0x3400 <= o <= 0x4DBF or 0x3040 <= o <= 0x30FF:
+            out.append("◇")
+            i += 1
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
 
 
 # ── 검증 (Validation) ────────────────────────────────────────────────────────
@@ -2394,6 +2718,7 @@ def build() -> dict:
                                  for c in cases["contactFromContact"]]
     out["cardParse"] = [{"name": c["name"], "lines": c["lines"], "expected": parse_card(c["lines"])}
                         for c in cases["cardParse"]]
+    out["cardMask"] = [{"text": t, "expected": card_mask(t)} for t in cases["cardMask"]]
     out["recencySort"] = [{"name": c["name"], "people": c["people"], "expected": sort_recency(c["people"])}
                           for c in cases["recencySort"]]
     out["recentCompanions"] = [{"name": c["name"], "records": c["records"], "excluding": c.get("excluding", []),

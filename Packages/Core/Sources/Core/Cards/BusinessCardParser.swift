@@ -30,27 +30,43 @@ public struct CardSuggestion: Sendable, Equatable {
 
 /// 명함 글자를 이름 · 소속 · 직무 · 전화 · 메일로 가른다. **기기 안에서만** 돈다 — 네트워크가 없다.
 ///
-/// 규칙은 단순하고 결정적이다 (파이썬 정답표 `Tools/golden/generate.py` 가 같은 규칙으로 대조한다).
-/// 한 줄씩 차례로 본다:
-/// 1. 메일 · 전화 · 웹 주소가 있으면 **연락 줄** — 메일 · 전화를 뽑는다. `Fax` · `팩스` · `F` 로 시작하는 줄의 전화는 뺀다
-/// 2. 소속 낱말(주식회사 · ㈜ · 대학교 · Inc …)이 있으면 **소속** (처음 것)
-/// 3. `한글이름 직무` 꼴이면 이름 후보 + 직무
-/// 4. 직무 낱말(팀장 · 대표 · Engineer …)로 끝나는 낱말이 있으면 **직무** (처음 것)
-/// 5. 한글 2~4음절(띄어 쓴 한 글자씩도) 또는 `Alice Park` 꼴이면 **이름 후보**
-/// 이름 후보가 여럿이면 **글자가 가장 큰 줄**, 같으면 먼저 나온 줄.
+/// 규칙은 단순하고 결정적이다 (파이썬 정답표 `Tools/golden/generate.py` 의 `parse_card` 가 같은 규칙으로 대조한다).
+/// **이슈 130 (2026-11-26 · 실제 명함 13장)** 에서 다시 짰다. 줄마다 차례로 본다:
+/// 1. 연락 줄 — 메일 이름표 · `@` 둘레 잡음 · `(+82 10)` 꼴을 손질하고, 메일 도메인 오독은 같은 명함 누리집 · 흔한 메일로 바로잡는다
+/// 2. 직무가 있는 줄 — 앞의 한글 조각(뒤가 직무나 영문)은 이름. 기관 낱말이 모든 직무 낱말보다 앞이면 소속 · 직무로 나눈다.
+///    줄 끝이 직무면 기관 낱말이 있어도 직무
+/// 3. 첫째 순위 기관(주식회사 · ㈜ · 대학교 …) — 같은 줄에 주소가 이어지면 앞에서 자른다
+/// 4. 둘째 순위 기관(대학원 · 조합 · 긴 `…연구원` · 지역 이름 하나)
+/// 5. 한글 이름 + 영문 이름 · 6. 한글 이름 · 7. 부서만 있는 줄 · 8. 영문 이름(모두 대문자는 기관 후보)
+/// 그 뒤: 이름은 (직무 · 영문과 같은 줄 > 성으로 시작하는 한글 > 그 밖의 한글 > 영문) → 글자 크기 → 먼저 나온 줄.
+/// 직무는 (부서가 있는 줄 > 직무 낱말 줄 > 학위만 있는 줄) → 먼저 나온 줄. 소속은 (첫째 > 둘째 > 주소 바로 위 한글 낱말 > 대문자 영문)
+/// → 먼저 나온 줄, 그리고 부서만 있는 첫 줄의 마지막 부서를 붙인다(사용자 · 기관 + 마지막 부서).
 public enum BusinessCardParser {
 
     static let roleKeywords = [
         "대표이사", "대표", "회장", "사장", "부사장", "전무", "상무", "이사", "본부장", "실장", "센터장",
         "부장", "차장", "과장", "팀장", "대리", "주임", "사원", "책임", "선임", "수석", "연구원", "교수",
         "원장", "매니저", "디자이너", "개발자", "엔지니어", "컨설턴트",
+        // 이슈 130: 단장 · 소장 · 국장 · 처장 · 학위 · 영문 직함 · 흔한 오독 `팀당`
+        "단장", "소장", "국장", "처장", "박사", "팀당",
         "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
         "consultant", "president", "founder", "professor", "lead",
+        "executive", "officer", "head", "vp", "architect", "specialist", "phd",
     ]
     static let koreanOrgKeywords = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
     static let latinOrgKeywords: Set<String> = ["inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"]
     /// 부서 이름 끝 — `개발팀` 을 사람 이름으로 보지 않으려고.
     static let departmentSuffixes = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]
+    /// 이슈 130 — 둘째 순위 기관 낱말 끝 · 지역 이름 끝 · 부서 끝 · 주소 낱말 끝.
+    static let org2Suffixes = ["대학원", "대학", "진흥원", "기술원", "조합", "공단"]
+    static let regionSuffixes = ["특별자치도", "특별시", "광역시", "남도", "북도", "도청", "시청", "구청", "군청"]
+    static let deptSuffixes = ["팀", "부", "실", "과", "국", "센터", "본부", "단", "처"]
+    static let addressSuffixes = ["특별자치도", "특별시", "광역시", "도", "시", "군", "구", "읍", "면", "동", "로", "길"]
+    /// 흔한 성 (두 글자 성 먼저) — 글자만 큰 표어보다 성으로 시작하는 이름을 먼저 (ⓧ).
+    static let surnames2 = ["남궁", "황보", "제갈", "선우", "독고", "사공", "서문"]
+    static let surnames = Set("김이박최정강조윤장임한오서신권황안송전홍유고문양손배백허남심노하곽성차주우구민류나진지엄채원천방공현함변염여추도소석선설마길연위표명기반라왕금옥육인맹제모탁국어은편용예경봉사부가복태목형피두감".unicodeScalars)
+    static let knownMailDomains = ["gmail.com", "naver.com", "daum.net", "hanmail.net", "kakao.com", "nate.com",
+                                   "hotmail.com", "outlook.com", "icloud.com"]
 
     static let emailPattern = #"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#
     static let phonePattern = #"(?:\+82[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}"#
@@ -58,25 +74,49 @@ public enum BusinessCardParser {
     /// 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
     /// 대문자 E 하나 · Email · E-mail · Mail 만 이름표로 본다 — 소문자 `e.kim@…` 은 메일 주소 그대로 둔다.
     static let emailLabelPattern = #"(?<![A-Za-z0-9._%+-])(E|EMAIL|Email|E-mail|E-Mail|MAIL|Mail)([.:])(?=[A-Za-z0-9._%+-]+@)"#
+    /// 이슈 130 ⓚ — 인식이 `@` 앞뒤에 끼운 `(` · `)` · 빈칸. ⓡ — `(+82 10)` · `+82 (0)41` 꼴 번호.
+    static let atNoisePattern = #"(?<=[A-Za-z0-9._%+-])[ (]{1,2}@[ )]{0,2}(?=[A-Za-z0-9])|(?<=[A-Za-z0-9._%+-])@[ )]{1,2}(?=[A-Za-z0-9])"#
+    static let parenCountryPattern = #"\(\+82[ .-]*0?(\d{1,2})\)"#
+    static let zeroCountryPattern = #"\+82[ .-]*\(0\)[ .-]*"#
+    static let urlPattern = #"(?:https?://|www\.)[^ ]+"#
+    static let zipPattern = #"^\(?\d{5}\)?$"#
+    static let siteSchemePattern = #"^(?:https?://)?(?:www\.)?"#
+    static let roleSeparators: Set<Character> = [" ", "/", "|", ",", "·"]
+
+    /// 이름 · 직무 · 소속 후보 — 순위가 작을수록, 그다음 차례가 빠를수록 먼저.
+    struct Candidate {
+        let rank: Int
+        let height: Double
+        let order: Int
+        let text: String
+    }
 
     public static func parse(_ raw: [CardLine]) -> CardSuggestion {
         var suggestion = CardSuggestion(name: nil, organization: nil, role: nil, phones: [], emails: [], lines: [])
-        var nameCandidate: (text: String, height: Double)?
-        var contactLines: [String] = []
-
-        func offer(name: String, height: Double) {
-            if let current = nameCandidate, current.height >= height { return }
-            nameCandidate = (name, height)
-        }
-
-        for line in raw {
+        let texts: [(text: String, height: Double)] = raw.compactMap { line -> (text: String, height: Double)? in
             let text = TextNormalization.collapsedSpaces(TextNormalization.normalized(line.text))
-            guard !text.isEmpty else { continue }
+            if text.isEmpty { return nil }
+            return (text: text, height: line.height)
+        }
+        let sites = texts.flatMap { matches(urlPattern, in: $0.text).map(siteDomain) }
+        var contactLines: [String] = []
+        var names: [Candidate] = []
+        var roles: [Candidate] = []
+        var orgs: [Candidate] = []
+        var depts: [String] = []
+        var kinds: [String] = []
+
+        for (order, entry) in texts.enumerated() {
+            let text = entry.text
+            let height = entry.height
             suggestion.lines.append(text)
             let lower = text.lowercased()
 
-            // 1. 연락 줄 — 메일에 붙은 이름표는 떼고 본다(보이는 줄은 읽은 그대로).
-            let contactText = separatingEmailLabel(text)
+            // 1. 연락 줄
+            var contactText = tidyContact(text)
+            for email in matches(emailPattern, in: contactText) {
+                contactText = contactText.replacingOccurrences(of: email, with: correctedEmail(email, sites: sites))
+            }
             let emails = matches(emailPattern, in: contactText)
             let phones = matches(phonePattern, in: contactText)
             if !emails.isEmpty || !phones.isEmpty || lower.contains("www.") || lower.contains("http") {
@@ -85,41 +125,129 @@ public enum BusinessCardParser {
                     suggestion.emails.append(email)
                 }
                 if !isFaxLine(lower) {
-                    for phone in phones.map({ $0.trimmingCharacters(in: .whitespaces) }) where !suggestion.phones.contains(phone) {
+                    for phone in phones.map({ $0.trimmingCharacters(in: CharacterSet(charactersIn: " ")) })
+                    where !suggestion.phones.contains(phone) {
                         suggestion.phones.append(phone)
                     }
                 }
+                kinds.append("contact")
                 continue
             }
 
-            // 2. 소속
-            if isOrganization(text) {
-                if suggestion.organization == nil { suggestion.organization = text }
-                continue
-            }
-
-            // 3. 한글이름 + 직무
             let tokens = text.split(separator: " ").map(String.init)
-            if tokens.count >= 2, isHangulName(tokens[0]), tokens.dropFirst().contains(where: isRoleToken) {
-                offer(name: tokens[0], height: line.height)
-                if suggestion.role == nil { suggestion.role = tokens.dropFirst().joined(separator: " ") }
+            let pieces = rolePieces(text)
+
+            // 2. 직무가 있는 줄
+            if pieces.contains(where: isRoleToken), let first = tokens.firstIndex(where: hasRole) {
+                var roleText = text
+                var lead: [String] = []
+                for token in tokens[..<first] {
+                    guard isSyllables(token) else { break }
+                    lead.append(token)
+                }
+                let after = tokens[lead.count]
+                if !lead.isEmpty, lead.count == first || startsWithLatinLetter(after), isNameWord(lead.joined()) {
+                    names.append(Candidate(rank: 0, height: height, order: order, text: lead.joined()))
+                    if lead.count == first { roleText = tokens[first...].joined(separator: " ") }
+                }
+                // 기관 낱말이 모든 직무 낱말보다 앞이면 그 줄을 나눈다 — `한빛대학교 연구원` → 소속 · 직무
+                if let orgAt = tokens.firstIndex(where: isOrganization), orgAt < first,
+                   !names.contains(where: { $0.order == order }) {
+                    orgs.append(Candidate(rank: 0, height: 0, order: order, text: tokens[...orgAt].joined(separator: " ")))
+                    let rest = tokens[(orgAt + 1)...].joined(separator: " ")
+                    roles.append(Candidate(rank: roleRank(rest), height: 0, order: order, text: fixedRole(rest)))
+                    kinds.append("role")
+                    continue
+                }
+                if let last = pieces.last, isRoleToken(last) || !(isOrganization(text) || isOrganization2(text)) {
+                    roles.append(Candidate(rank: roleRank(roleText), height: 0, order: order, text: fixedRole(roleText)))
+                    kinds.append("role")
+                    continue
+                }
+            }
+
+            // 3. 첫째 순위 기관 — 같은 줄에 주소가 이어지면 앞에서 자른다 (ⓛ)
+            if isOrganization(text) {
+                var org = text
+                if let cut = tokens.indices.first(where: { $0 > 0 && isAddressToken(tokens[$0]) }) {
+                    let head = tokens[..<cut].joined(separator: " ")
+                    if isOrganization(head) { org = head }
+                }
+                orgs.append(Candidate(rank: 0, height: 0, order: order, text: org))
+                kinds.append("org")
                 continue
             }
 
-            // 4. 직무
-            if tokens.contains(where: isRoleToken) {
-                if suggestion.role == nil { suggestion.role = text }
+            // 4. 둘째 순위 기관
+            if isOrganization2(text) {
+                orgs.append(Candidate(rank: 1, height: 0, order: order, text: text))
+                kinds.append("org")
                 continue
             }
 
-            // 5. 이름 후보
-            if isHangulName(text) {
-                offer(name: text.replacingOccurrences(of: " ", with: ""), height: line.height)
-            } else if !matches(latinNamePattern, in: text).isEmpty {
-                offer(name: text, height: line.height)
+            // 5. 한글 이름 + 영문 이름 (ⓞ)
+            var lead: [String] = []
+            for token in tokens {
+                guard isSyllables(token) else { break }
+                lead.append(token)
+            }
+            if !lead.isEmpty, lead.count < tokens.count, startsWithLatinLetter(tokens[lead.count]), isNameWord(lead.joined()) {
+                names.append(Candidate(rank: 0, height: height, order: order, text: lead.joined()))
+                kinds.append("name")
+                continue
+            }
+
+            // 6. 한글 이름
+            let joined = text.replacingOccurrences(of: " ", with: "")
+            if isHangulName(text), isNameWord(joined) {
+                names.append(Candidate(rank: hasSurname(joined) ? 1 : 2, height: height, order: order, text: joined))
+                kinds.append("name")
+                continue
+            }
+
+            // 7. 부서만 있는 줄
+            if let last = pieces.last, pieces.allSatisfy(isDeptToken) {
+                depts.append(last)
+                kinds.append("dept")
+                continue
+            }
+
+            // 8. 영문 — 모두 대문자면 기관 후보, 아니면 영문 이름 후보 (ⓝ)
+            if isAllCaps(text) {
+                if tokens.count <= 3, !text.unicodeScalars.contains(where: { (0x30...0x39).contains($0.value) }) {
+                    orgs.append(Candidate(rank: 3, height: 0, order: order, text: text))
+                }
+                kinds.append("other")
+                continue
+            }
+            if !matches(latinNamePattern, in: text).isEmpty {
+                names.append(Candidate(rank: 3, height: height, order: order, text: text))
+                kinds.append("name")
+                continue
+            }
+            kinds.append("other")
+        }
+
+        // 주소 줄 바로 위의 한글 낱말 하나 — `주식회사` 없는 회사 이름 (ⓔ).
+        // 이름 모양(성으로 시작하는 2~3자 · 두 글자 성 4자)이면 넘기지 않는다 — 이름이 주소 바로 위에 있는 명함이 흔하다.
+        for index in texts.indices.dropLast() {
+            let text = texts[index].text
+            let length = text.unicodeScalars.count
+            let looksName = hasSurname(text) && (length <= 3 || surnames2.contains(prefix(text, 2)))
+            if kinds[index] == "other" || (kinds[index] == "name" && !looksName),
+               !text.contains(" "), isSyllables(text), (3...12).contains(length), isAddressLine(texts[index + 1].text) {
+                orgs.append(Candidate(rank: 2, height: 0, order: index, text: text))
+                names.removeAll { $0.order == index }
             }
         }
-        suggestion.name = nameCandidate?.text
+
+        // 이름: 순위 → 글자 큰 것 → 먼저 나온 줄. 직무 · 소속: 순위 → 먼저 나온 줄.
+        suggestion.name = names.min { ($0.rank, -$0.height, $0.order) < ($1.rank, -$1.height, $1.order) }?.text
+        suggestion.role = roles.min { ($0.rank, $0.order) < ($1.rank, $1.order) }?.text
+        if var org = orgs.min(by: { ($0.rank, $0.order) < ($1.rank, $1.order) })?.text {
+            if let dept = depts.first, !org.contains(dept) { org += " " + dept }
+            suggestion.organization = org
+        }
         suggestion.contact = ContactSorter.split(contactLines.joined(separator: "\n"))
         return suggestion
     }
@@ -131,12 +259,41 @@ public enum BusinessCardParser {
     }
 
     static func latinLetters(_ token: String) -> String {
-        String(token.filter { $0.isASCII && $0.isLetter }).lowercased()
+        String(String.UnicodeScalarView(token.unicodeScalars.filter {
+            (0x41...0x5A).contains($0.value) || (0x61...0x7A).contains($0.value)
+        })).lowercased()
+    }
+
+    static func isSyllables(_ text: String) -> Bool {
+        !text.isEmpty && text.unicodeScalars.allSatisfy { (0xAC00...0xD7A3).contains($0.value) }
+    }
+
+    static func startsWithLatinLetter(_ token: String) -> Bool {
+        guard let first = token.unicodeScalars.first else { return false }
+        return (0x41...0x5A).contains(first.value) || (0x61...0x7A).contains(first.value)
+    }
+
+    static func prefix(_ text: String, _ count: Int) -> String {
+        String(String.UnicodeScalarView(text.unicodeScalars.prefix(count)))
     }
 
     static func isOrganization(_ text: String) -> Bool {
         if koreanOrgKeywords.contains(where: { text.contains($0) }) { return true }
         return text.split(separator: " ").contains { latinOrgKeywords.contains(latinLetters(String($0))) }
+    }
+
+    static func isRegion(_ token: String) -> Bool {
+        token.unicodeScalars.count >= 3 && isSyllables(token) && regionSuffixes.contains { token.hasSuffix($0) }
+    }
+
+    /// 둘째 순위 기관 — `…대학원` · `…연구조합` · 긴 `…연구원` · 지역 이름 하나 (ⓒ ⓗ ⓣ).
+    static func isOrganization2(_ text: String) -> Bool {
+        let tokens = text.split(separator: " ").map(String.init)
+        for token in tokens {
+            if token.unicodeScalars.count > 2, org2Suffixes.contains(where: { token.hasSuffix($0) }) { return true }
+            if token.hasSuffix("연구원"), token.unicodeScalars.count > 5 { return true }
+        }
+        return tokens.count == 1 && isRegion(tokens[0])
     }
 
     static func isRoleToken(_ token: String) -> Bool {
@@ -145,27 +302,140 @@ public enum BusinessCardParser {
             if keyword.unicodeScalars.first.map({ $0.isASCII }) == true {
                 if latin == keyword { return true }
             } else if token.hasSuffix(keyword) {
+                // `…연구원` 은 그 낱말 하나이거나 `수석` · `책임` 따위 두 글자 뒤일 때만 직무 — 더 길면 기관 (ⓗ)
+                if keyword == "연구원", token.unicodeScalars.count > 5 { continue }
                 return true
             }
         }
         return false
     }
 
+    static func rolePieces(_ text: String) -> [String] {
+        text.split(whereSeparator: { roleSeparators.contains($0) }).map(String.init)
+    }
+
+    static func hasRole(_ token: String) -> Bool {
+        rolePieces(token).contains(where: isRoleToken)
+    }
+
+    static func isDegree(_ piece: String) -> Bool {
+        piece.hasSuffix("박사") || latinLetters(piece) == "phd"
+    }
+
+    static func isDeptToken(_ token: String) -> Bool {
+        token.unicodeScalars.count >= 3 && !isRoleToken(token) && deptSuffixes.contains { token.hasSuffix($0) }
+    }
+
+    static func isAddressToken(_ token: String) -> Bool {
+        token.unicodeScalars.count >= 2 && isSyllables(token) && addressSuffixes.contains { token.hasSuffix($0) }
+    }
+
+    static func isAddressLine(_ text: String) -> Bool {
+        let tokens = text.split(separator: " ").map(String.init)
+        guard let first = tokens.first else { return false }
+        if !matches(zipPattern, in: first).isEmpty { return true }
+        return tokens.filter(isAddressToken).count >= 2
+    }
+
+    /// 직무 줄의 순위 — 부서가 있는 줄 0 · 직무 낱말 줄 1 · 학위만 있는 줄 2 (ⓥ · 사용자: 직책 줄 먼저).
+    static func roleRank(_ roleText: String) -> Int {
+        let pieces = rolePieces(roleText)
+        if pieces.contains(where: isDeptToken) { return 0 }
+        if pieces.filter(isRoleToken).allSatisfy(isDegree) { return 2 }
+        return 1
+    }
+
+    /// 흔한 오독 바로잡기 — `팀당` → `팀장` (ⓜ).
+    static func fixedRole(_ text: String) -> String {
+        text.replacingOccurrences(of: "팀당", with: "팀장")
+    }
+
     /// 한글 2~4음절 — 한 낱말이거나, 한 글자씩 띄어 쓴 것(`김 하 늘`). 부서 이름 끝(`팀` · `부` …)은 뺀다.
     static func isHangulName(_ text: String) -> Bool {
         let tokens = text.split(separator: " ")
-        guard tokens.count == 1 || tokens.allSatisfy({ $0.count == 1 }) else { return false }
+        guard tokens.count == 1 || tokens.allSatisfy({ $0.unicodeScalars.count == 1 }) else { return false }
         let joined = tokens.joined()
-        guard (2...4).contains(joined.count) else { return false }
-        guard joined.unicodeScalars.allSatisfy({ (0xAC00...0xD7A3).contains($0.value) }) else { return false }
+        guard (2...4).contains(joined.unicodeScalars.count) else { return false }
+        guard isSyllables(joined) else { return false }
         return !departmentSuffixes.contains { joined.hasSuffix($0) }
     }
 
+    /// 이름으로 볼 수 있는 한글 낱말 — 직무 · 지역 · `…대학` 은 아니다 (ⓘ ⓒ ⓧ).
+    static func isNameWord(_ joined: String) -> Bool {
+        isHangulName(joined) && !isRoleToken(joined) && !isRegion(joined) && !org2Suffixes.contains { joined.hasSuffix($0) }
+    }
+
+    static func hasSurname(_ name: String) -> Bool {
+        if surnames2.contains(prefix(name, 2)) { return true }
+        guard let first = name.unicodeScalars.first else { return false }
+        return surnames.contains(first)
+    }
+
+    static func isAllCaps(_ text: String) -> Bool {
+        let letters = text.unicodeScalars.filter { (0x41...0x5A).contains($0.value) || (0x61...0x7A).contains($0.value) }
+        return letters.count >= 2 && letters.allSatisfy { (0x41...0x5A).contains($0.value) }
+    }
+
+    // MARK: - 연락 줄 손질
+
     /// `E.haneul@example.com` → `E. haneul@example.com` (이슈 118).
     static func separatingEmailLabel(_ text: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: emailLabelPattern) else { return text }
+        replacing(emailLabelPattern, in: text, with: "$1$2 ")
+    }
+
+    /// 메일 이름표 떼기 · `@` 둘레 잡음 · 국가번호 꼴 (이슈 118 · 130).
+    static func tidyContact(_ text: String) -> String {
+        var result = separatingEmailLabel(text)
+        result = replacing(atNoisePattern, in: result, with: "@")
+        result = replacing(parenCountryPattern, in: result, with: "0$1")
+        return replacing(zeroCountryPattern, in: result, with: "0")
+    }
+
+    static func siteDomain(_ url: String) -> String {
+        let bare = replacing(siteSchemePattern, in: url.lowercased(), with: "")
+        let host = bare.split(separator: "/", omittingEmptySubsequences: false).first.map(String.init) ?? bare
+        var trimmed = host
+        while trimmed.hasSuffix(".") { trimmed.removeLast() }
+        return trimmed
+    }
+
+    /// 메일 도메인 오독 바로잡기 (ⓤ) — 같은 명함 누리집과 두 글자 안, 흔한 메일과 한 글자 안.
+    static func correctedEmail(_ email: String, sites: [String]) -> String {
+        guard let at = email.lastIndex(of: "@") else { return email }
+        let local = email[..<at]
+        let domain = email[email.index(after: at)...].lowercased()
+        if sites.contains(domain) || knownMailDomains.contains(domain) { return email }
+        var best: (distance: Int, domain: String)?
+        for (limit, pool) in [(2, sites), (1, knownMailDomains)] {
+            for candidate in pool {
+                let distance = levenshtein(domain, candidate)
+                if distance > 0, distance <= limit, best == nil || distance < best!.distance {
+                    best = (distance, candidate)
+                }
+            }
+        }
+        guard let best else { return email }
+        return String(local) + "@" + best.domain
+    }
+
+    static func levenshtein(_ a: String, _ b: String) -> Int {
+        let a = Array(a.unicodeScalars)
+        let b = Array(b.unicodeScalars)
+        var previous = Array(0...b.count)
+        for (i, ca) in a.enumerated() {
+            var current = [i + 1]
+            for (j, cb) in b.enumerated() {
+                current.append(Swift.min(previous[j + 1] + 1, current[j] + 1, previous[j] + (ca == cb ? 0 : 1)))
+            }
+            previous = current
+        }
+        return previous[b.count]
+    }
+
+    static func replacing(_ pattern: String, in text: String, with template: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
         let range = NSRange(text.startIndex..., in: text)
-        return regex.stringByReplacingMatches(in: text, range: range, withTemplate: "$1$2 ")
+        return regex.stringByReplacingMatches(in: text, range: range, withTemplate: template)
     }
 
     static func matches(_ pattern: String, in text: String) -> [String] {
