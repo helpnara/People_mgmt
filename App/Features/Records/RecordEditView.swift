@@ -33,6 +33,8 @@ struct RecordEditView: View {
     @FocusState private var titleFocused: Bool
     /// 최근 함께한 사람 (빌드 16) — 최근 기록부터 처음 보이는 사람 8명. 사람 수가 바뀔 때 한 번 센다.
     @State private var recentPeople: [Person] = []
+    /// 함께한 사람 칩을 눌러 뺀 사람 — 최근 뺀 것부터 (이슈 128).
+    @State private var removedParticipants: [Person] = []
     /// CI 스크린샷 — 함께한 사람 고르기를 바로 연다 (`-pickParticipants` · 이슈 49).
     @State private var pickingParticipants = LaunchArguments.current.pickParticipants
     /// 지난 기록의 장소 — 눌러야 들어간다 (빌드 16). 저절로 채우면 틀린 장소가 저장되기 쉽다.
@@ -353,6 +355,8 @@ struct RecordEditView: View {
         }
     }
 
+    private static let participantSectionID = "participants"
+
     private var participantSection: some View {
         Section("함께한 사람") {
             NavigationLink {
@@ -360,10 +364,34 @@ struct RecordEditView: View {
             } label: {
                 LabeledContent("함께한 사람", value: participantSummary)
             }
+            // 태그 칸처럼 줄에 표지를 단다 — `scrollTo` 는 양식의 줄을 찾는다.
+            .id(Self.participantSectionID)
             if !draft.participants.isEmpty {
-                WrapLayout(spacing: 8) {
-                    ForEach(draft.participants) { person in
-                        Chip(text: person.name, selected: person === anchor)
+                // 칩을 한 번 누르면 뺀다 (이슈 128 · 2026-11-26 사용자 — 고르기 화면에 들어가 체크를 풀기가 번거로웠다).
+                // 새 기록을 연 사람은 뺄 수 없다(고르기 화면과 같은 규칙). 뺀 사람은 아래 `+ 이름` 칩으로 바로 되돌린다.
+                VStack(alignment: .leading, spacing: 6) {
+                    if draft.participants.contains(where: { $0 !== anchor }) {
+                        Text("누르면 뺍니다")
+                            .font(.scaled(12))
+                            .foregroundStyle(Color.muted)
+                    }
+                    WrapLayout(spacing: 8) {
+                        ForEach(draft.participants) { person in
+                            if person === anchor {
+                                Chip(text: person.name, selected: true)
+                                    .tapTarget()
+                                    .accessibilityLabel("\(person.name) · 기록을 연 사람")
+                            } else {
+                                Button {
+                                    removeParticipant(person)
+                                } label: {
+                                    Chip(text: person.name, showsRemove: true)
+                                        .tapTarget()
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("\(person.name) 빼기")
+                            }
+                        }
                     }
                 }
             }
@@ -505,6 +533,12 @@ struct RecordEditView: View {
     /// CI 스크린샷 (`-tagInput ㅁㅌ` · 빌드 27 이슈 34) — 태그 칸에 글자를 넣고 그 자리까지 내려 자동완성 칩을 찍는다.
     /// 빌드 27 은 칩 글자가 빠진 채 나갔다 — 자동완성이 뜬 화면이 스크린샷에 없었다.
     private func showTagInputForScreenshot(_ proxy: ScrollViewProxy) async {
+        // CI 스크린샷 55 (`-scrollToParticipants` · 이슈 128) — 함께한 사람 칩까지 내린다.
+        if LaunchArguments.current.scrollToParticipants {
+            try? await Task.sleep(for: .milliseconds(600))
+            proxy.scrollTo(Self.participantSectionID, anchor: .center)
+            return
+        }
         guard let input = LaunchArguments.current.tagInput else { return }
         try? await Task.sleep(for: .milliseconds(600))
         proxy.scrollTo(Self.tagSectionID, anchor: .center)
@@ -512,10 +546,20 @@ struct RecordEditView: View {
         pendingTag = input
     }
 
+    /// 함께한 사람 칩을 눌러 뺀다 (이슈 128). 뺀 사람은 `+ 이름` 칩 맨 앞에 남는다 — 이 화면을 닫으면 잊는다.
+    private func removeParticipant(_ person: Person) {
+        guard person !== anchor else { return }
+        draft.participants.removeAll { $0 === person }
+        removedParticipants.removeAll { $0 === person }
+        removedParticipants.insert(person, at: 0)
+    }
+
     /// 최근 함께한 사람 중 아직 고르지 않은 사람 — 누르면 함께한 사람에 들어간다 (빌드 16 · 조사 보고서 지금 7).
     @ViewBuilder
     private var recentChips: some View {
-        let shown = recentPeople.filter { person in !draft.participants.contains { $0 === person } }
+        // 방금 뺀 사람이 맨 앞 — 잘못 눌렀으면 한 번에 되돌린다 (이슈 128).
+        let pool = removedParticipants + recentPeople.filter { person in !removedParticipants.contains { $0 === person } }
+        let shown = pool.filter { person in !person.isGone && !draft.participants.contains { $0 === person } }
         if !shown.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("최근 함께한 사람 — 누르면 넣습니다")

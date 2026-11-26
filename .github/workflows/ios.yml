@@ -427,6 +427,8 @@ jobs:
           # **기록 상세 · 기록 추가** (3단계). 김하늘의 가장 최근 기록(분기 회의 · 정유진과 공동)을 연다.
           shoot 09-record-detail.png -seedSampleData -openPerson 김하늘 -openRecord
           shoot 10-add-record.png -seedSampleData -openPerson 김하늘 -addRecord
+          # **기록 수정의 함께한 사람 칩** (이슈 128) — 분기 회의(김하늘 · 정유진)를 고치는 화면. 칩마다 빼기 표시 · 위에 `누르면 뺍니다`.
+          shoot 55-record-edit-participants.png -seedSampleData -openPerson 김하늘 -openRecord -editRecord -scrollToParticipants
           # **명함** (FR-050). 김하늘의 견본 명함이 수정 시트에 보이고, 글자를 읽어 제안 화면을 띄운다.
           # 시뮬레이터에는 카메라가 없어 `명함 촬영` 단추는 안 보이는 것이 맞다.
           shoot 11-edit-card.png -seedSampleData -openPerson 김하늘 -editPerson
