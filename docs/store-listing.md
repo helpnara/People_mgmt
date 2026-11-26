@@ -17,6 +17,45 @@
 | 마케팅 URL | | (비워 둠) |
 | 개인정보 처리방침 URL | | `https://helpnara.github.io/People_mgmt/privacy/` |
 
+## 1.1.16 제출 시트 (2026-11-26 · 빌드 83) — 명함 읽기 규칙 다시 짜기 · 사진첩 명함 잘림 · 명함 읽기 시험 · 함께한 사람 칩 빼기 · **제출 준비 2026-11-26(사용자 — 세로형 명함은 다음 판)**
+
+1.1.15 가 출시된 뒤의 **새 버전**이다. 빌드 83 의 실제 변경만(이슈 127 ~ 131 · 빌드 82 0~13 · 빌드 83 0~6 확인 완료 2026-11-26 사용자 · 실제 명함 13장 ① 48 → 90/91).
+**스키마는 13판 그대로 — CloudKit 콘솔 할 일 없음.** 개인정보 라벨은 그대로(명함 읽기 시험도 기기 안에서만 · 저장 안 함 · 시스템 사진 고르기 창이라 사진 보관함 권한을 묻지 않음). 빌드 81(판 번호 확인용) · 82 는 내지 않는다.
+
+### 콘솔에서 (App Store Connect → 앱 → 느린 인연)
+
+1. 왼쪽 **iOS 앱** 옆 **+**(버전 또는 플랫폼 추가) → 버전 `1.1.16` → **생성**.
+2. **빌드** → **빌드 추가** → `1.1.16 (83)`. 81 · 82 가 아니라 **83** 이다. 암호화 질문은 나오지 않는다.
+3. **이 버전의 새로운 기능** → 아래 글 (407자 · 한도 4,000자).
+4. **설명**은 1.1.15 그대로(3117자) — 명함 줄(테두리를 찾아 펴고 기기 안에서 글자를 읽어 제안)이 그대로 맞다.
+5. **앱 심사 정보 → 메모** 끝의 `New in 1.1.15` 문단 뒤에 아래 `New in 1.1.16` 문단을 **더한다**.
+6. 스크린샷 · 부제 · 키워드 · 프로모션 텍스트 · 개인정보 라벨(데이터 수집 안 함)은 그대로.
+7. **이 버전을 수동으로 출시** → **저장** → **심사에 추가** → **제출**.
+
+### 이 버전의 새로운 기능 (407자)
+
+```
+명함 읽기를 크게 다듬고, 기록을 더 빨리 고칠 수 있게 했습니다.
+
+- 명함을 더 잘 읽습니다: 글자 사이를 띄운 이름, 한글과 영문 이름이 나란히 있는 명함, 연구원 · 대학원 · 조합 같은 기관, 부서와 직책이 여러 줄인 명함에서 이름 · 소속 · 직무를 더 바르게 고릅니다. 소속은 기관과 부서를 함께 적고, 국가번호가 붙은 번호와 메일 주소도 더 정확히 읽습니다.
+- 사진첩에서 고른 명함이 명함 안의 얼굴 사진이나 로고 칸만 남게 잘리던 문제를 고쳤습니다.
+- 명함 읽기 시험: 설정 → 실험에서 명함 사진 여러 장을 골라 앱이 칸마다 얼마나 맞게 읽는지 재 볼 수 있습니다. 아무것도 저장하지 않습니다.
+- 기록을 고칠 때 함께한 사람 칩을 한 번 누르면 뺄 수 있습니다. 잘못 뺐으면 바로 아래에서 다시 넣습니다.
+```
+
+### 심사 메모에 더할 문단 (영문 · 671자 · `New in 1.1.15` 문단 뒤에)
+
+```
+New in 1.1.16. The on-device business card reading rules were rewritten after testing
+real cards (letter-spaced names, Korean plus English names, institutes and associations,
+several title lines, phone and email clean-up), and a card picked from the photo library
+is no longer cropped to a portrait or logo box printed inside the card. Settings > 실험
+(Experiments) > 명함 읽기 시험 (card reading test) reads chosen card photos on device and
+shows how each field was read; it saves nothing and uses the system photo picker, so no
+photo library permission is asked. In the record editor, tapping a participant chip
+removes that person. No data model, permission or network change.
+```
+
 ## 1.1.15 제출 시트 (2026-11-22 · 빌드 80) — 관계도 겹침 줄이기 · 기본 칩 단골 · 생활 · 선배 · 소개 맨 앞 · 숨긴 선택지 지우기 · **제출 준비 2026-11-22(사용자)** · **콘솔에 버전 · 문안 저장만 2026-11-22(사용자 — 제출은 main 병합 뒤)** · `main` 병합 `57e7f83` · **제출 준비 끝 2026-11-22** · **2026-11-22 심사 제출 완료(사용자)** · **2026-11-23 승인 · 출시(사용자)**
 
 1.1.14 가 출시된 뒤의 **새 버전**이다. 빌드 80 의 실제 변경만(이슈 121 ~ 124 · 빌드 79 0~8 · 빌드 80 0~3 확인 완료 2026-11-22 사용자).
