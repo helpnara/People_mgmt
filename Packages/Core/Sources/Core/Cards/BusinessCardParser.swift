@@ -49,6 +49,9 @@ public enum BusinessCardParser {
         "원장", "매니저", "디자이너", "개발자", "엔지니어", "컨설턴트",
         // 이슈 130: 단장 · 소장 · 국장 · 처장 · 학위 · 영문 직함 · 흔한 오독 `팀당`
         "단장", "소장", "국장", "처장", "박사", "팀당",
+        "편집장", "점장", "공장장", "위원장", "의장", "관장", "학장", "총장",
+        // 이슈 133 — 공무원 직급
+        "사무관", "서기관", "주무관", "이사관", "행정관", "연구관", "연구사", "지도관", "지도사", "심사관", "조사관", "감독관",
         "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
         "consultant", "president", "founder", "professor", "lead",
         "executive", "officer", "head", "vp", "architect", "specialist", "phd",
@@ -65,11 +68,20 @@ public enum BusinessCardParser {
     /// 흔한 성 (두 글자 성 먼저) — 글자만 큰 표어보다 성으로 시작하는 이름을 먼저 (ⓧ).
     static let surnames2 = ["남궁", "황보", "제갈", "선우", "독고", "사공", "서문"]
     static let surnames = Set("김이박최정강조윤장임한오서신권황안송전홍유고문양손배백허남심노하곽성차주우구민류나진지엄채원천방공현함변염여추도소석선설마길연위표명기반라왕금옥육인맹제모탁국어은편용예경봉사부가복태목형피두감".unicodeScalars)
+    /// 이슈 133 — 영문 이름 후보에서 뺄 기관 낱말 · 영문 부서 끝 · 이름 앞 칭호.
+    static let latinOrgWords: Set<String> = ["centre", "center", "institute", "technology", "technologies", "university", "college",
+                                             "school", "division", "department", "agency", "foundation", "association",
+                                             "laboratory", "corporation"]
+    static let latinDeptWords: Set<String> = ["division", "department"]
+    static let honorificPattern = #"^(?:[Dd][Rr]|[Pp][Rr][Oo][Ff]|[Mm][Rr][Ss]?|[Mm][Ss])\.?$"#
+    static let latinWordPattern = #"^[A-Za-z][A-Za-z'-]*$"#
     static let knownMailDomains = ["gmail.com", "naver.com", "daum.net", "hanmail.net", "kakao.com", "nate.com",
                                    "hotmail.com", "outlook.com", "icloud.com"]
 
     static let emailPattern = #"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#
-    static let phonePattern = #"(?:\+82[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}"#
+    /// 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
+    static let phonePattern = #"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)"#
+    static let logoWordPattern = #"^[A-Za-z]{2,8}$"#
     static let latinNamePattern = #"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$"#
     /// 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
     /// 대문자 E 하나 · Email · E-mail · Mail 만 이름표로 본다 — 소문자 `e.kim@…` 은 메일 주소 그대로 둔다.
@@ -185,6 +197,13 @@ public enum BusinessCardParser {
                 continue
             }
 
+            // 5. 칭호로 시작하는 영문 이름 (ⓨ)
+            if let honored = honorificName(text) {
+                names.append(Candidate(rank: 0, height: height, order: order, text: honored))
+                kinds.append("name")
+                continue
+            }
+
             // 5. 한글 이름 + 영문 이름 (ⓞ)
             var lead: [String] = []
             for token in tokens {
@@ -205,6 +224,17 @@ public enum BusinessCardParser {
                 continue
             }
 
+            // 7. 영문 부서 — `Division` · `Department` 한 낱말 줄은 윗줄에 잇고, 그 낱말로 끝나는 줄은 그대로 (ⓩ)
+            if let lastToken = tokens.last, latinDeptWords.contains(latinLetters(lastToken)) {
+                if tokens.count == 1, order > 0, kinds[order - 1] == "other" {
+                    depts.append(texts[order - 1].text + " " + text)
+                } else {
+                    depts.append(text)
+                }
+                kinds.append("dept")
+                continue
+            }
+
             // 7. 부서만 있는 줄
             if let last = pieces.last, pieces.allSatisfy(isDeptToken) {
                 depts.append(last)
@@ -214,13 +244,16 @@ public enum BusinessCardParser {
 
             // 8. 영문 — 모두 대문자면 기관 후보, 아니면 영문 이름 후보 (ⓝ)
             if isAllCaps(text) {
-                if tokens.count <= 3, !text.unicodeScalars.contains(where: { (0x30...0x39).contains($0.value) }) {
+                // 한글 이름 바로 다음의 대문자 영문 줄은 그 이름의 로마자 — 기관 후보가 아니다 (ⓔⓔ)
+                let afterName = order > 0 && kinds[order - 1] == "name"
+                    && isSyllables(texts[order - 1].text.replacingOccurrences(of: " ", with: ""))
+                if !afterName, tokens.count <= 3, !text.unicodeScalars.contains(where: { (0x30...0x39).contains($0.value) }) {
                     orgs.append(Candidate(rank: 3, height: 0, order: order, text: text))
                 }
                 kinds.append("other")
                 continue
             }
-            if !matches(latinNamePattern, in: text).isEmpty {
+            if !matches(latinNamePattern, in: text).isEmpty, !hasLatinOrgWord(text) {
                 names.append(Candidate(rank: 3, height: height, order: order, text: text))
                 kinds.append("name")
                 continue
@@ -228,16 +261,42 @@ public enum BusinessCardParser {
             kinds.append("other")
         }
 
-        // 주소 줄 바로 위의 한글 낱말 하나 — `주식회사` 없는 회사 이름 (ⓔ).
-        // 이름 모양(성으로 시작하는 2~3자 · 두 글자 성 4자)이면 넘기지 않는다 — 이름이 주소 바로 위에 있는 명함이 흔하다.
-        for index in texts.indices.dropLast() {
+        /// 한글로만 된 한두 낱말(3~12자) · 이름 모양(성으로 시작하는 2~3자 · 두 글자 성 4자)이 아님.
+        func companyLike(_ index: Int) -> Bool {
             let text = texts[index].text
-            let length = text.unicodeScalars.count
-            let looksName = hasSurname(text) && (length <= 3 || surnames2.contains(prefix(text, 2)))
-            if kinds[index] == "other" || (kinds[index] == "name" && !looksName),
-               !text.contains(" "), isSyllables(text), (3...12).contains(length), isAddressLine(texts[index + 1].text) {
-                orgs.append(Candidate(rank: 2, height: 0, order: index, text: text))
-                names.removeAll { $0.order == index }
+            let joined = text.replacingOccurrences(of: " ", with: "")
+            let length = joined.unicodeScalars.count
+            let looksName = hasSurname(joined) && (length <= 3 || surnames2.contains(prefix(joined, 2)))
+            return (kinds[index] == "other" || (kinds[index] == "name" && !looksName))
+                && text.split(separator: " ").count <= 2 && isSyllables(joined) && (3...12).contains(length)
+        }
+        // 주소 줄 바로 위의 회사 이름 — `주식회사` 없는 회사 이름 (ⓔ · 이슈 133 두 낱말).
+        // 이름 모양이면 넘기지 않는다 — 이름이 주소 바로 위에 있는 명함이 흔하다.
+        for index in texts.indices.dropLast() where companyLike(index) && isAddressLine(texts[index + 1].text) {
+            orgs.append(Candidate(rank: 2, height: 0, order: index, text: texts[index].text))
+            names.removeAll { $0.order == index }
+        }
+        // 고른 이름 바로 위의 한글 낱말 — `청년농부` · `한빛엔지니어링` 꼴 (이슈 133 ⓑⓑ · 사용자: 소속).
+        // 부서 모양(`…부`)이어도 기관 후보가 하나도 없으면 소속으로 — `청년농부` 가 `영업부` 처럼 잡혔다.
+        if let best = names.min(by: { ($0.rank, -$0.height, $0.order) < ($1.rank, -$1.height, $1.order) }), best.order > 0 {
+            let above = best.order - 1
+            let aboveText = texts[above].text
+            let deptAbove = kinds[above] == "dept" && orgs.isEmpty && !aboveText.contains(" ") && isSyllables(aboveText)
+            if companyLike(above) || deptAbove, !orgs.contains(where: { $0.order == above }) {
+                orgs.append(Candidate(rank: 2, height: 0, order: above, text: aboveText))
+                names.removeAll { $0.order == above }
+            }
+        }
+
+        // 로고 한 낱말 — 기관 후보가 하나도 없고 명함에서 가장 큰 줄이 영문 한 낱말(2~8자)이면 소속으로.
+        // 인식이 대소문자를 섞어 읽으면(`aWS` 꼴) 대문자로 (이슈 137 · ⓠ · 2026-11-26 사용자).
+        if orgs.isEmpty, !texts.isEmpty {
+            var top = 0
+            for index in texts.indices where texts[index].height > texts[top].height { top = index }
+            let word = texts[top].text
+            if kinds[top] == "other", !matches(logoWordPattern, in: word).isEmpty {
+                let hasUpper = word.unicodeScalars.contains { (0x41...0x5A).contains($0.value) }
+                orgs.append(Candidate(rank: 3, height: 0, order: top, text: hasUpper ? word.uppercased() : word))
             }
         }
 
@@ -293,6 +352,15 @@ public enum BusinessCardParser {
             if token.unicodeScalars.count > 2, org2Suffixes.contains(where: { token.hasSuffix($0) }) { return true }
             if token.hasSuffix("연구원"), token.unicodeScalars.count > 5 { return true }
         }
+        if tokens.count == 1 {
+            let token = tokens[0]
+            let length = token.unicodeScalars.count
+            // 정부 부처 끝 — `…청`(3자 이상) · `…처`(5자 이상) · `…위원회` (이슈 133 ⓒⓒ)
+            if isSyllables(token),
+               (length >= 3 && token.hasSuffix("청")) || (length >= 5 && token.hasSuffix("처")) || token.hasSuffix("위원회") {
+                return true
+            }
+        }
         return tokens.count == 1 && isRegion(tokens[0])
     }
 
@@ -345,9 +413,18 @@ public enum BusinessCardParser {
         return 1
     }
 
-    /// 흔한 오독 바로잡기 — `팀당` → `팀장` (ⓜ).
+    /// 직무 줄 다듬기 — 맨 앞 `|` 조각이 영문 이름 모양이면 뗀다(`Seoyun Han | CEO | Ph.D.` → `CEO | Ph.D.` · 이슈 136),
+    /// 흔한 오독 `팀당` → `팀장`(ⓜ). 파이썬 `fixed_role` 과 같다.
     static func fixedRole(_ text: String) -> String {
-        text.replacingOccurrences(of: "팀당", with: "팀장")
+        var result = text
+        if let bar = text.firstIndex(of: "|") {
+            let head = text[..<bar].trimmingCharacters(in: CharacterSet(charactersIn: " "))
+            let rest = text[text.index(after: bar)...].trimmingCharacters(in: CharacterSet(charactersIn: " "))
+            if !rest.isEmpty, !matches(latinNamePattern, in: head).isEmpty, !rolePieces(head).contains(where: isRoleToken) {
+                result = rest
+            }
+        }
+        return result.replacingOccurrences(of: "팀당", with: "팀장")
     }
 
     /// 한글 2~4음절 — 한 낱말이거나, 한 글자씩 띄어 쓴 것(`김 하 늘`). 부서 이름 끝(`팀` · `부` …)은 뺀다.
@@ -369,6 +446,19 @@ public enum BusinessCardParser {
         if surnames2.contains(prefix(name, 2)) { return true }
         guard let first = name.unicodeScalars.first else { return false }
         return surnames.contains(first)
+    }
+
+    /// `Dr lee Minjun` → `Lee Minjun` — 칭호 뒤 영문 낱말 1~3 개(인식이 소문자로 읽어도). 아니면 nil (이슈 133 ⓨ).
+    static func honorificName(_ text: String) -> String? {
+        let tokens = text.split(separator: " ").map(String.init)
+        guard tokens.count >= 2, !matches(honorificPattern, in: tokens[0]).isEmpty else { return nil }
+        let rest = tokens.dropFirst()
+        guard rest.count <= 3, rest.allSatisfy({ !matches(latinWordPattern, in: $0).isEmpty }) else { return nil }
+        return rest.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")
+    }
+
+    static func hasLatinOrgWord(_ text: String) -> Bool {
+        text.split(separator: " ").contains { latinOrgWords.contains(latinLetters(String($0))) }
     }
 
     static func isAllCaps(_ text: String) -> Bool {

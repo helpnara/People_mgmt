@@ -891,7 +891,7 @@
           "선임연구원"
         ],
         "name": "한지우",
-        "organization": null,
+        "organization": "개발팀",
         "phones": [],
         "role": "선임연구원"
       },
@@ -1470,7 +1470,7 @@
           "seoyun@hanbit.com"
         ],
         "lines": [
-          "hbt",
+          "hBT",
           "한서윤 SeoYun Han",
           "ABC Partner Account Executive / 가나차그룹 파트너 영업대표",
           "서울특별시 한빛구 바다로 231 (물빛동, 한빛필드) East 건물 12층",
@@ -1479,7 +1479,7 @@
           "https://hanbit.com/ko/auto/"
         ],
         "name": "한서윤",
-        "organization": null,
+        "organization": "HBT",
         "phones": [
           "010 5555 0101"
         ],
@@ -1487,7 +1487,7 @@
       },
       "lines": [
         [
-          "hbt",
+          "hBT",
           0.137
         ],
         [
@@ -1544,7 +1544,7 @@
           "+82 2 5550100",
           "+82 10 5555 0101"
         ],
-        "role": "Seoyun Han | CEO | Ph.D."
+        "role": "CEO | Ph.D."
       },
       "lines": [
         [
@@ -2078,6 +2078,639 @@
         ]
       ],
       "name": "기관 + 직무 한 줄 · 주소가 붙은 회사 (이슈 130)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "seoyeon@example.com",
+          "fax": "",
+          "mobile": "010-5555-0101",
+          "office": "",
+          "other": ""
+        },
+        "emails": [
+          "seoyeon@example.com"
+        ],
+        "lines": [
+          "솔빛출판",
+          "한서연",
+          "편집장",
+          "M. 010-5555-0101",
+          "E. seoyeon@example.com"
+        ],
+        "name": "한서연",
+        "organization": "솔빛출판",
+        "phones": [
+          "010-5555-0101"
+        ],
+        "role": "편집장"
+      },
+      "lines": [
+        [
+          "솔빛출판",
+          0.067
+        ],
+        [
+          "한서연",
+          0.147
+        ],
+        [
+          "편집장",
+          0.067
+        ],
+        [
+          "M. 010-5555-0101",
+          0.06
+        ],
+        [
+          "E. seoyeon@example.com",
+          0.06
+        ]
+      ],
+      "name": "견본 명함 — …장 직함 (이슈 134)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "lee_minjun@hrtc.example.sg",
+          "fax": "",
+          "mobile": "+65 9555 0101",
+          "office": "",
+          "other": ""
+        },
+        "emails": [
+          "lee_minjun@hrtc.example.sg"
+        ],
+        "lines": [
+          "Advanced",
+          "Hanbit Remaking and",
+          "Technology Centre",
+          "HRTC",
+          "Dr lee Minjun",
+          "Senior Director",
+          "Smart Systems & Control (SSC)",
+          "Division",
+          "M +65 9555 0101",
+          "E lee_minjun@hrtc.example.sg",
+          "BUILDING TOMORROW, TOGETHER FOR ALL"
+        ],
+        "name": "Lee Minjun",
+        "organization": "HRTC Smart Systems & Control (SSC) Division",
+        "phones": [
+          "+65 9555 0101"
+        ],
+        "role": "Senior Director"
+      },
+      "lines": [
+        [
+          "Advanced",
+          0.0207
+        ],
+        [
+          "Hanbit Remaking and",
+          0.022
+        ],
+        [
+          "Technology Centre",
+          0.0234
+        ],
+        [
+          "HRTC",
+          0.0277
+        ],
+        [
+          "Dr lee Minjun",
+          0.0507
+        ],
+        [
+          "Senior Director",
+          0.026
+        ],
+        [
+          "Smart Systems & Control (SSC)",
+          0.0342
+        ],
+        [
+          "Division",
+          0.0223
+        ],
+        [
+          "M +65 9555 0101",
+          0.0322
+        ],
+        [
+          "E lee_minjun@hrtc.example.sg",
+          0.0448
+        ],
+        [
+          "BUILDING TOMORROW, TOGETHER FOR ALL",
+          0.0434
+        ]
+      ],
+      "name": "세로 명함 V1 영문 · Dr (이슈 133)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "",
+          "fax": "",
+          "mobile": "010-5555-0101",
+          "office": "",
+          "other": ""
+        },
+        "emails": [],
+        "lines": [
+          "보리차, 국화꽃차",
+          "감자,고구마,당근,콩",
+          "청년농부",
+          "한 서 윤",
+          "T010-5555-0101",
+          "충남 한빛시 바다읍 한빛리 101-1",
+          "352-5555-0199-93",
+          "농협",
+          "예금주. 한서윤"
+        ],
+        "name": "한서윤",
+        "organization": "청년농부",
+        "phones": [
+          "010-5555-0101"
+        ],
+        "role": null
+      },
+      "lines": [
+        [
+          "보리차, 국화꽃차",
+          0.0654
+        ],
+        [
+          "감자,고구마,당근,콩",
+          0.0671
+        ],
+        [
+          "청년농부",
+          0.0627
+        ],
+        [
+          "한 서 윤",
+          0.0828
+        ],
+        [
+          "T010-5555-0101",
+          0.0522
+        ],
+        [
+          "충남 한빛시 바다읍 한빛리 101-1",
+          0.0413
+        ],
+        [
+          "352-5555-0199-93",
+          0.0349
+        ],
+        [
+          "농협",
+          0.0286
+        ],
+        [
+          "예금주. 한서윤",
+          0.0446
+        ]
+      ],
+      "name": "세로 명함 V2 농부 · 계좌 (이슈 133)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "ts@hantech.co.kr",
+          "fax": "041-555-0199",
+          "mobile": "010-5555-0101",
+          "office": "041-555-0100",
+          "other": "032-555-0299 · 032-555-0200"
+        },
+        "emails": [
+          "ts@hantech.co.kr"
+        ],
+        "lines": [
+          "HANTECH",
+          "HANTECH",
+          "(주) 한빛테크",
+          "기술지원팀",
+          "차장",
+          "한 서 윤",
+          "M 010-5555-0101",
+          "E ts@hantech.co.kr",
+          "본사",
+          "충남 한빛시 바다읍 바다로 614-6, 한빛빌딩 1층",
+          "F 041-555-0199",
+          "T 041-555-0100",
+          "인천지사",
+          "인천광역시 바다구 바다로 37번길 30, 한빛유통센터 3동 101호",
+          "F 032-555-0299",
+          "T 032-555-0200"
+        ],
+        "name": "한서윤",
+        "organization": "(주) 한빛테크 기술지원팀",
+        "phones": [
+          "010-5555-0101",
+          "041-555-0100",
+          "032-555-0200"
+        ],
+        "role": "차장"
+      },
+      "lines": [
+        [
+          "HANTECH",
+          0.4892
+        ],
+        [
+          "HANTECH",
+          0.0586
+        ],
+        [
+          "(주) 한빛테크",
+          0.0302
+        ],
+        [
+          "기술지원팀",
+          0.027
+        ],
+        [
+          "차장",
+          0.027
+        ],
+        [
+          "한 서 윤",
+          0.0444
+        ],
+        [
+          "M 010-5555-0101",
+          0.0238
+        ],
+        [
+          "E ts@hantech.co.kr",
+          0.0286
+        ],
+        [
+          "본사",
+          0.0286
+        ],
+        [
+          "충남 한빛시 바다읍 바다로 614-6, 한빛빌딩 1층",
+          0.0333
+        ],
+        [
+          "F 041-555-0199",
+          0.0238
+        ],
+        [
+          "T 041-555-0100",
+          0.0238
+        ],
+        [
+          "인천지사",
+          0.0295
+        ],
+        [
+          "인천광역시 바다구 바다로 37번길 30, 한빛유통센터 3동 101호",
+          0.0359
+        ],
+        [
+          "F 032-555-0299",
+          0.0238
+        ],
+        [
+          "T 032-555-0200",
+          0.0238
+        ]
+      ],
+      "name": "세로 명함 V3 본사 · 지사 (이슈 133)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "seoyun01@korea.kr",
+          "fax": "",
+          "mobile": "010-5555-0101",
+          "office": "043-555-0100",
+          "other": ""
+        },
+        "emails": [
+          "seoyun01@korea.kr"
+        ],
+        "lines": [
+          "모두의 안전이 우선입니다",
+          "SAFETY COMES FIRST FOR ALL",
+          "한 서 윤",
+          "디지털안전기획팀",
+          "사무관",
+          "T. 043-555-0100",
+          "M. 010-5555-0101",
+          "E. seoyun01@korea.kr",
+          "(우 12345) 충북 한빛시 바다구 바다읍",
+          "바다생명2로 1 한빛행정타운",
+          "새빛의약품안전처"
+        ],
+        "name": "한서윤",
+        "organization": "새빛의약품안전처 디지털안전기획팀",
+        "phones": [
+          "043-555-0100",
+          "010-5555-0101"
+        ],
+        "role": "사무관"
+      },
+      "lines": [
+        [
+          "모두의 안전이 우선입니다",
+          0.0465
+        ],
+        [
+          "SAFETY COMES FIRST FOR ALL",
+          0.0276
+        ],
+        [
+          "한 서 윤",
+          0.064
+        ],
+        [
+          "디지털안전기획팀",
+          0.0294
+        ],
+        [
+          "사무관",
+          0.0265
+        ],
+        [
+          "T. 043-555-0100",
+          0.0338
+        ],
+        [
+          "M. 010-5555-0101",
+          0.0336
+        ],
+        [
+          "E. seoyun01@korea.kr",
+          0.0308
+        ],
+        [
+          "(우 12345) 충북 한빛시 바다구 바다읍",
+          0.0294
+        ],
+        [
+          "바다생명2로 1 한빛행정타운",
+          0.0294
+        ],
+        [
+          "새빛의약품안전처",
+          0.0307
+        ]
+      ],
+      "name": "세로 명함 V4 정부 부처 (이슈 133)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "seoyun.han@hanbitforce.com",
+          "fax": "",
+          "mobile": "+82 10 5555 0101",
+          "office": "",
+          "other": ""
+        },
+        "emails": [
+          "seoyun.han@hanbitforce.com"
+        ],
+        "lines": [
+          "hanbitforce",
+          "한 서 윤",
+          "영업대표 / Industry Team",
+          "seoyun.han@hanbitforce.com",
+          "M +82 10 5555 0101",
+          "한빛포스 코리아",
+          "서울 바다구 바다대로 108.",
+          "한빛타워2 28층 한빛포스",
+          "우) 12345"
+        ],
+        "name": "한서윤",
+        "organization": "한빛포스 코리아",
+        "phones": [
+          "+82 10 5555 0101"
+        ],
+        "role": "영업대표 / Industry Team"
+      },
+      "lines": [
+        [
+          "hanbitforce",
+          0.0425
+        ],
+        [
+          "한 서 윤",
+          0.0304
+        ],
+        [
+          "영업대표 / Industry Team",
+          0.0254
+        ],
+        [
+          "seoyun.han@hanbitforce.com",
+          0.0254
+        ],
+        [
+          "M +82 10 5555 0101",
+          0.0293
+        ],
+        [
+          "한빛포스 코리아",
+          0.027
+        ],
+        [
+          "서울 바다구 바다대로 108.",
+          0.0389
+        ],
+        [
+          "한빛타워2 28층 한빛포스",
+          0.0286
+        ],
+        [
+          "우) 12345",
+          0.028
+        ]
+      ],
+      "name": "세로 명함 V5 두 낱말 회사 (이슈 133)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "seoyun.han@hbe.co.kr",
+          "fax": "",
+          "mobile": "+82 1055550101",
+          "office": "+8225550100",
+          "other": "www.hbe.co.kr"
+        },
+        "emails": [
+          "seoyun.han@hbe.co.kr"
+        ],
+        "lines": [
+          "한빛엔지니어링",
+          "한서윤",
+          "HAN SEO YUN",
+          "매니저",
+          "스마트ICT팀",
+          "미래기술사업부",
+          "서울시 바다구 바다로 75 한빛빌딩 별관",
+          "75, Bada-ro, Bada-gu,",
+          "Seoul, Republic of Korea",
+          "E seoyun.han@hbe.co.kr",
+          "T +8225550100",
+          "M +82 1055550101",
+          "www.hbe.co.kr",
+          "HANBIT",
+          "MOBILITY GROUP"
+        ],
+        "name": "한서윤",
+        "organization": "한빛엔지니어링 스마트ICT팀",
+        "phones": [
+          "+8225550100",
+          "+82 1055550101"
+        ],
+        "role": "매니저"
+      },
+      "lines": [
+        [
+          "한빛엔지니어링",
+          0.0465
+        ],
+        [
+          "한서윤",
+          0.0524
+        ],
+        [
+          "HAN SEO YUN",
+          0.0371
+        ],
+        [
+          "매니저",
+          0.0333
+        ],
+        [
+          "스마트ICT팀",
+          0.0307
+        ],
+        [
+          "미래기술사업부",
+          0.0332
+        ],
+        [
+          "서울시 바다구 바다로 75 한빛빌딩 별관",
+          0.0387
+        ],
+        [
+          "75, Bada-ro, Bada-gu,",
+          0.0421
+        ],
+        [
+          "Seoul, Republic of Korea",
+          0.0349
+        ],
+        [
+          "E seoyun.han@hbe.co.kr",
+          0.0333
+        ],
+        [
+          "T +8225550100",
+          0.0355
+        ],
+        [
+          "M +82 1055550101",
+          0.0334
+        ],
+        [
+          "www.hbe.co.kr",
+          0.0329
+        ],
+        [
+          "HANBIT",
+          0.0387
+        ],
+        [
+          "MOBILITY GROUP",
+          0.0218
+        ]
+      ],
+      "name": "세로 명함 V6 로마자 이름 (이슈 133)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "sejin.oh@hbe.co.kr",
+          "fax": "",
+          "mobile": "+82 105555 0101",
+          "office": "+82255500100",
+          "other": "www.hbe.co.kr"
+        },
+        "emails": [
+          "sejin.oh@hbe.co.kr"
+        ],
+        "lines": [
+          "한빛엔지니어링",
+          "오세진",
+          "OH SEJIN",
+          "매니저",
+          "스마트ICT팀",
+          "서울시 바다구 바다로 75 한빛빌딩 별관",
+          "E sejin.oh@hbe.co.kr",
+          "T +82255500100",
+          "M+82 105555 0101",
+          "www.hbe.co.kr"
+        ],
+        "name": "오세진",
+        "organization": "한빛엔지니어링 스마트ICT팀",
+        "phones": [
+          "+82255500100",
+          "+82 105555 0101"
+        ],
+        "role": "매니저"
+      },
+      "lines": [
+        [
+          "한빛엔지니어링",
+          0.0413
+        ],
+        [
+          "오세진",
+          0.0449
+        ],
+        [
+          "OH SEJIN",
+          0.0337
+        ],
+        [
+          "매니저",
+          0.0302
+        ],
+        [
+          "스마트ICT팀",
+          0.0294
+        ],
+        [
+          "서울시 바다구 바다로 75 한빛빌딩 별관",
+          0.0286
+        ],
+        [
+          "E sejin.oh@hbe.co.kr",
+          0.0302
+        ],
+        [
+          "T +82255500100",
+          0.0222
+        ],
+        [
+          "M+82 105555 0101",
+          0.0238
+        ],
+        [
+          "www.hbe.co.kr",
+          0.027
+        ]
+      ],
+      "name": "세로 명함 V7 두 낱말 로마자 (이슈 133)"
     }
   ],
   "choiceEditing": [
@@ -3623,6 +4256,46 @@
         "other": "https://hanbit.com/a"
       },
       "text": "https://hanbit.com/a 02-555-0100"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": "352-5555-0199-93"
+      },
+      "text": "352-5555-0199-93"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "+65 9555 0101",
+        "office": "",
+        "other": ""
+      },
+      "text": "M +65 9555 0101"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "041-555-0100",
+        "other": "계좌 123-4567-8901-23"
+      },
+      "text": "T 041-555-0100 · 계좌 123-4567-8901-23"
+    },
+    {
+      "expected": {
+        "email": "",
+        "fax": "",
+        "mobile": "",
+        "office": "",
+        "other": "Tel +1 415 555 0100"
+      },
+      "text": "Tel +1 415 555 0100"
     }
   ],
   "dayNoon": [
