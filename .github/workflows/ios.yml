@@ -242,6 +242,7 @@ jobs:
           .ci-venv/bin/pip install --quiet --disable-pip-version-check pillow
 
       - name: 시뮬레이터 스크린샷
+        id: shots
         # 멈춘 단계가 일을 6시간 붙잡지 않게 (2026-11-19 · CI 176 다시 돌림에서 스토어 이미지 단계가 3시간 넘게 멈췄다).
         timeout-minutes: 120
         # 실행 글 안에 식(${{ }})을 두지 않는다 — 식이 하나라도 있으면 GitHub 가 글 전체를 식 하나로 읽고, 식은 21,000자가 한도다.
@@ -759,6 +760,9 @@ jobs:
           if-no-files-found: warn
 
       - name: 스크린샷을 브랜치에 커밋
+        # 스크린샷 단계가 성공했으면 뒤의 화면 이동 시험이 실패해도 올린다 — 시험 하나 때문에 원격 세션의 눈이 가려졌다
+        # (CI 184 · 188 · 192 · 이슈 132). 일의 실패는 그대로 남는다.
+        if: ${{ !cancelled() && steps.shots.outcome == 'success' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
