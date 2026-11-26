@@ -50,6 +50,8 @@ public enum BusinessCardParser {
         // 이슈 130: 단장 · 소장 · 국장 · 처장 · 학위 · 영문 직함 · 흔한 오독 `팀당`
         "단장", "소장", "국장", "처장", "박사", "팀당",
         "편집장", "점장", "공장장", "위원장", "의장", "관장", "학장", "총장",
+        // 이슈 141 — 강사 · 의료 · 전문직
+        "강사", "전임의", "전공의", "간호사", "약사", "의사", "변호사", "변리사", "회계사", "세무사", "노무사",
         // 이슈 133 — 공무원 직급
         "사무관", "서기관", "주무관", "이사관", "행정관", "연구관", "연구사", "지도관", "지도사", "심사관", "조사관", "감독관",
         "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
@@ -108,11 +110,12 @@ public enum BusinessCardParser {
 
     public static func parse(_ raw: [CardLine]) -> CardSuggestion {
         var suggestion = CardSuggestion(name: nil, organization: nil, role: nil, phones: [], emails: [], lines: [])
-        let texts: [(text: String, height: Double)] = raw.compactMap { line -> (text: String, height: Double)? in
+        let cleaned: [(text: String, height: Double)] = raw.compactMap { line -> (text: String, height: Double)? in
             let text = TextNormalization.collapsedSpaces(TextNormalization.normalized(line.text))
             if text.isEmpty { return nil }
             return (text: text, height: line.height)
         }
+        let texts = mergedLoneLabels(cleaned)
         let sites = texts.flatMap { matches(urlPattern, in: $0.text).map(siteDomain) }
         var contactLines: [String] = []
         var names: [Candidate] = []
@@ -334,6 +337,46 @@ public enum BusinessCardParser {
         }
         suggestion.contact = ContactSorter.split(contactLines.joined(separator: "\n"))
         return suggestion
+    }
+
+    // MARK: - 떨어진 이름표 (이슈 141)
+
+    /// 번호 없이 이름표만 있는 줄(`FAX` · `팩스` · `Mobile`).
+    static func isLonePhoneLabel(_ text: String) -> Bool {
+        if text.contains(" ") || text.count > 12 || text.contains("@") { return false }
+        if text.unicodeScalars.contains(where: { (0x30...0x39).contains($0.value) }) { return false }
+        switch ContactSorter.labelKind(ContactSorter.labelKey(text)) {
+        case .kind(.fax), .kind(.mobile), .kind(.office), .phone: return true
+        default: return false
+        }
+    }
+
+    static func isBarePhone(_ text: String) -> Bool {
+        matches(phonePattern, in: text) == [text]
+    }
+
+    /// 인식이 이름표와 번호를 다른 줄로 떼어 읽은 것(`02-555-0199` / `FAX`)을 한 줄로 — 이름표 줄 바로 앞이 이름표 없는
+    /// 번호 줄이면 그 줄에, 아니면 바로 뒤의 번호 줄에 붙인다. 파이썬 `merged_lone_labels` 와 같다.
+    static func mergedLoneLabels(_ texts: [(text: String, height: Double)]) -> [(text: String, height: Double)] {
+        var out = texts
+        var index = 0
+        while index < out.count {
+            let text = out[index].text
+            if isLonePhoneLabel(text) {
+                if index > 0, isBarePhone(out[index - 1].text) {
+                    out[index - 1] = (text: text + " " + out[index - 1].text, height: out[index - 1].height)
+                    out.remove(at: index)
+                    continue
+                }
+                if index + 1 < out.count, isBarePhone(out[index + 1].text) {
+                    out[index + 1] = (text: text + " " + out[index + 1].text, height: out[index + 1].height)
+                    out.remove(at: index)
+                    continue
+                }
+            }
+            index += 1
+        }
+        return out
     }
 
     // MARK: - 판정

@@ -1858,6 +1858,8 @@ ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전
                  "단장", "소장", "국장", "처장", "박사", "팀당",
                  "편집장", "점장", "공장장", "위원장", "의장", "관장", "학장", "총장",
                  # 이슈 133 — 공무원 직급
+                 # 이슈 141 — 강사 · 의료 · 전문직
+                 "강사", "전임의", "전공의", "간호사", "약사", "의사", "변호사", "변리사", "회계사", "세무사", "노무사",
                  "사무관", "서기관", "주무관", "이사관", "행정관", "연구관", "연구사", "지도관", "지도사", "심사관", "조사관", "감독관",
                  "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
                  "consultant", "president", "founder", "professor", "lead",
@@ -2146,6 +2148,39 @@ def names_from(order: int, names: list) -> bool:
     return any(n[2] == order for n in names)
 
 
+def is_lone_phone_label(text: str) -> bool:
+    """번호 없이 이름표만 있는 줄(`FAX` · `팩스` · `Mobile`) — 이슈 141."""
+    if " " in text or len(text) > 12 or any("0" <= ch <= "9" for ch in text) or "@" in text:
+        return False
+    kind = label_kind(label_key(text))
+    return kind in (("kind", "fax"), ("kind", "mobile"), ("kind", "office"), ("phone",))
+
+
+def is_bare_phone(text: str) -> bool:
+    found = PHONE_RE.findall(text)
+    return len(found) == 1 and found[0] == text
+
+
+def merged_lone_labels(texts: list) -> list:
+    """인식이 이름표와 번호를 다른 줄로 떼어 읽은 것(`02-555-0199` / `FAX`)을 한 줄로 — 이름표 줄 바로 앞이 이름표 없는
+    번호 줄이면 그 줄에, 아니면 바로 뒤의 번호 줄에 붙인다 (이슈 141)."""
+    out = list(texts)
+    i = 0
+    while i < len(out):
+        text = out[i][0]
+        if is_lone_phone_label(text):
+            if i > 0 and is_bare_phone(out[i - 1][0]):
+                out[i - 1] = (f"{text} {out[i - 1][0]}", out[i - 1][1])
+                del out[i]
+                continue
+            if i + 1 < len(out) and is_bare_phone(out[i + 1][0]):
+                out[i + 1] = (f"{text} {out[i + 1][0]}", out[i + 1][1])
+                del out[i]
+                continue
+        i += 1
+    return out
+
+
 def parse_card(lines: list[list]) -> dict:
     """명함 줄 → 칸. 이슈 130 (2026-11-26 · 실제 명함 13장) 에서 다시 짰다 — Swift `BusinessCardParser` 와 같은 규칙.
 
@@ -2161,6 +2196,7 @@ def parse_card(lines: list[list]) -> dict:
         text = collapsed_spaces(normalized(raw))
         if text:
             texts.append((text, height))
+    texts = merged_lone_labels(texts)
     sites = [site_domain(m.group(0)) for t, _ in texts for m in URL_RE.finditer(t)]
     contact_lines = []
     names = []   # (순위, -높이, 차례, 이름)
