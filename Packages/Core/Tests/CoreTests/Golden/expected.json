@@ -2078,6 +2078,56 @@
         ]
       ],
       "name": "기관 + 직무 한 줄 · 주소가 붙은 회사 (이슈 130)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "seoyeon@example.com",
+          "fax": "",
+          "mobile": "010-5555-0101",
+          "office": "",
+          "other": ""
+        },
+        "emails": [
+          "seoyeon@example.com"
+        ],
+        "lines": [
+          "솔빛출판",
+          "한서연",
+          "편집장",
+          "M. 010-5555-0101",
+          "E. seoyeon@example.com"
+        ],
+        "name": "한서연",
+        "organization": null,
+        "phones": [
+          "010-5555-0101"
+        ],
+        "role": "편집장"
+      },
+      "lines": [
+        [
+          "솔빛출판",
+          0.067
+        ],
+        [
+          "한서연",
+          0.147
+        ],
+        [
+          "편집장",
+          0.067
+        ],
+        [
+          "M. 010-5555-0101",
+          0.06
+        ],
+        [
+          "E. seoyeon@example.com",
+          0.06
+        ]
+      ],
+      "name": "견본 명함 — …장 직함 (이슈 134)"
     }
   ],
   "choiceEditing": [

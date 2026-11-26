@@ -49,6 +49,7 @@ public enum BusinessCardParser {
         "원장", "매니저", "디자이너", "개발자", "엔지니어", "컨설턴트",
         // 이슈 130: 단장 · 소장 · 국장 · 처장 · 학위 · 영문 직함 · 흔한 오독 `팀당`
         "단장", "소장", "국장", "처장", "박사", "팀당",
+        "편집장", "점장", "공장장", "위원장", "의장", "관장", "학장", "총장",
         "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
         "consultant", "president", "founder", "professor", "lead",
         "executive", "officer", "head", "vp", "architect", "specialist", "phd",

@@ -420,8 +420,8 @@ jobs:
           # **1.1.13 (스키마 13판 · 이슈 117)** — 안 만난 약속으로 남긴 기록의 상세(띠 · 만난 기록으로 되돌리기).
           shoot 53-not-met.png -seedSampleData -seedPlannedSample -openPerson 김하늘 -openRecordTitle "북카페 약속"
           # **명함 읽기 시험** (이슈 127 · D-84) — 설정 → 실험. 견본 명함 셋을 세 방식으로 읽고 그린 값으로 채점한 칸별 인식률 표.
-          # 명함마다 세 번 읽어(1~3초씩) 오래 기다린다.
-          SHOOT_WAIT=25 shoot 54-card-test.png -seedSampleData -openSettings -openCardTest
+          # 명함마다 네댓 번 읽어(CI 에서 장당 2초 남짓 · CI 193 은 25초에 2/3 까지) 오래 기다린다.
+          SHOOT_WAIT=45 shoot 54-card-test.png -seedSampleData -openSettings -openCardTest
           shoot 38-detail-reordered.png -seedSampleData -openPerson 김하늘 -detail.layout "timeline,-review,firstEncounter"
           # 함께한 사람 고르기의 검색 (이슈 49) — 검색 칸이 늘 보이고, 초성 ㅈㅇ 으로 거른 결과.
           shoot 39-participant-search.png -seedSampleData -openPerson 김하늘 -addRecord -pickParticipants -pickerSearch ㅈㅇ

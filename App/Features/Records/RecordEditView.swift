@@ -535,8 +535,11 @@ struct RecordEditView: View {
     private func showTagInputForScreenshot(_ proxy: ScrollViewProxy) async {
         // CI 스크린샷 55 (`-scrollToParticipants` · 이슈 128) — 함께한 사람 칩까지 내린다.
         if LaunchArguments.current.scrollToParticipants {
-            try? await Task.sleep(for: .milliseconds(600))
-            proxy.scrollTo(Self.participantSectionID, anchor: .center)
+            // 시트가 다 올라오기 전에 내리면 듣지 않는다(CI 192 · 193 스크린샷 55 가 맨 위) — 세 번 나눠 내린다.
+            for _ in 0..<3 {
+                try? await Task.sleep(for: .milliseconds(800))
+                proxy.scrollTo(Self.participantSectionID, anchor: .top)
+            }
             return
         }
         guard let input = LaunchArguments.current.tagInput else { return }
