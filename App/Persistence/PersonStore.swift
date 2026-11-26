@@ -83,9 +83,9 @@ struct PersonDraft: Equatable {
 
     /// 다섯 칸을 한꺼번에 — 명함 · 연락처에서 가져온 값을 넣을 때. 빈 칸은 덮지 않는다.
     mutating func fill(_ fields: ContactFields) {
-        if !fields.mobile.isEmpty { mobilePhone = String(fields.mobile.prefix(Limits.phone)) }
-        if !fields.office.isEmpty { officePhone = String(fields.office.prefix(Limits.phone)) }
-        if !fields.fax.isEmpty { faxNumber = String(fields.fax.prefix(Limits.phone)) }
+        if !fields.mobile.isEmpty { mobilePhone = String(PhoneFormat.normalized(fields.mobile).prefix(Limits.phone)) }
+        if !fields.office.isEmpty { officePhone = String(PhoneFormat.normalized(fields.office).prefix(Limits.phone)) }
+        if !fields.fax.isEmpty { faxNumber = String(PhoneFormat.normalized(fields.fax).prefix(Limits.phone)) }
         if !fields.email.isEmpty { email = String(fields.email.prefix(Limits.email)) }
         if !fields.other.isEmpty { contactNote = String(fields.other.prefix(Limits.contactNote)) }
     }
@@ -272,9 +272,10 @@ struct PersonStore {
         person.firstNote = clipped(draft.firstNote, Limits.firstNote)
         person.keyNote = clipped(draft.keyNote, Limits.keyNote)
         person.contactNote = clipped(draft.contactNote, Limits.contactNote)
-        person.mobilePhone = clipped(draft.mobilePhone, Limits.phone)
-        person.officePhone = clipped(draft.officePhone, Limits.phone)
-        person.faxNumber = clipped(draft.faxNumber, Limits.phone)
+        // 전화번호는 한 모양으로 저장한다 — `010-5555-0101` · `02-555-0100` (이슈 139). 모르는 꼴은 그대로.
+        person.mobilePhone = clipped(PhoneFormat.normalized(draft.mobilePhone), Limits.phone)
+        person.officePhone = clipped(PhoneFormat.normalized(draft.officePhone), Limits.phone)
+        person.faxNumber = clipped(PhoneFormat.normalized(draft.faxNumber), Limits.phone)
         person.email = clipped(draft.email, Limits.email)
         person.tags = TagNormalizer.normalizeList(draft.tags)
         // 같은 사진이면 다시 쓰지 않는다 — 바깥 파일을 매번 새로 쓰지 않게.

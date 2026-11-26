@@ -90,6 +90,8 @@ public enum BusinessCardParser {
     static let atNoisePattern = #"(?<=[A-Za-z0-9._%+-])[ (]{1,2}@[ )]{0,2}(?=[A-Za-z0-9])|(?<=[A-Za-z0-9._%+-])@[ )]{1,2}(?=[A-Za-z0-9])"#
     static let parenCountryPattern = #"\(\+82[ .-]*0?(\d{1,2})\)"#
     static let zeroCountryPattern = #"\+82[ .-]*\(0\)[ .-]*"#
+    /// 점 + 빈칸으로 끊은 번호(`+82. 2. 555. 0100`) — 빈칸 하나로 (이슈 138).
+    static let dotGapPattern = #"(?<=\d)\. (?=\d)"#
     static let urlPattern = #"(?:https?://|www\.)[^ ]+"#
     static let zipPattern = #"^\(?\d{5}\)?$"#
     static let siteSchemePattern = #"^(?:https?://)?(?:www\.)?"#
@@ -226,6 +228,19 @@ public enum BusinessCardParser {
 
             // 7. 영문 부서 — `Division` · `Department` 한 낱말 줄은 윗줄에 잇고, 그 낱말로 끝나는 줄은 그대로 (ⓩ)
             if let lastToken = tokens.last, latinDeptWords.contains(latinLetters(lastToken)) {
+                // `직무 / 부서` 한 줄 — 왼쪽은 직무, 오른쪽만 부서 (이슈 138)
+                if let bar = text.firstIndex(of: "/") {
+                    let space = CharacterSet(charactersIn: " ")
+                    let left = text[..<bar].trimmingCharacters(in: space)
+                    let right = text[text.index(after: bar)...].trimmingCharacters(in: space)
+                    let leftHasDept = left.split(separator: " ").contains { latinDeptWords.contains(latinLetters(String($0))) }
+                    if !left.isEmpty, !right.isEmpty, !leftHasDept {
+                        roles.append(Candidate(rank: 1, height: 0, order: order, text: fixedRole(left)))
+                        depts.append(right)
+                        kinds.append("role")
+                        continue
+                    }
+                }
                 if tokens.count == 1, order > 0, kinds[order - 1] == "other" {
                     depts.append(texts[order - 1].text + " " + text)
                 } else {
@@ -478,7 +493,8 @@ public enum BusinessCardParser {
         var result = separatingEmailLabel(text)
         result = replacing(atNoisePattern, in: result, with: "@")
         result = replacing(parenCountryPattern, in: result, with: "0$1")
-        return replacing(zeroCountryPattern, in: result, with: "0")
+        result = replacing(zeroCountryPattern, in: result, with: "0")
+        return replacing(dotGapPattern, in: result, with: " ")
     }
 
     static func siteDomain(_ url: String) -> String {

@@ -1893,6 +1893,7 @@ EMAIL_LABEL_RE = re.compile(r"(?<![A-Za-z0-9._%+-])(E|EMAIL|Email|E-mail|E-Mail|
 AT_NOISE_RE = re.compile(r"(?<=[A-Za-z0-9._%+-])[ (]{1,2}@[ )]{0,2}(?=[A-Za-z0-9])|(?<=[A-Za-z0-9._%+-])@[ )]{1,2}(?=[A-Za-z0-9])")
 PAREN_COUNTRY_RE = re.compile(r"\(\+82[ .-]*0?(\d{1,2})\)")
 ZERO_COUNTRY_RE = re.compile(r"\+82[ .-]*\(0\)[ .-]*")
+DOT_GAP_RE = re.compile(r"(?<=\d)\. (?=\d)")
 ROLE_SPLIT_RE = re.compile(r"[ /|,·]+")
 ZIP_RE = re.compile(r"^\(?\d{5}\)?$")
 
@@ -1901,12 +1902,69 @@ def separating_email_label(text: str) -> str:
     return EMAIL_LABEL_RE.sub(r"\1\2 ", text)
 
 
+PHONE_ALLOWED = set("0123456789+ -.()")
+PHONE_SEP_RE = re.compile(r"[\s.()-]+")
+
+
+def domestic_phone(d: str):
+    """국내 번호 숫자 → 붙임표 모양. 모르는 길이면 None."""
+    n = len(d)
+    if d.startswith("02"):
+        return {9: (2, 3, 4), 10: (2, 4, 4)}.get(n)
+    if d.startswith("050"):
+        return {11: (4, 3, 4), 12: (4, 4, 4)}.get(n)
+    if d.startswith("0"):
+        return {10: (3, 3, 4), 11: (3, 4, 4)}.get(n)
+    if d[:2] in ("15", "16", "18"):
+        return {8: (4, 4)}.get(n)
+    return None
+
+
+def phone_format(text: str) -> str:
+    """전화번호 한 모양으로 (이슈 139 · 2026-11-27 사용자 — 보여 주기 + 새로 저장 · +82 는 국내 모양).
+    국내: `010-5555-0101` · `02-555-0100` · `031-555-0100` · `1588-0000`. `+82` 는 국내 모양으로(`(0)` 도).
+    다른 나라: `+65 9555 0101` 처럼 국가번호 + 빈칸. 숫자 · `+` · 빈칸 · `-` · `.` · 괄호 말고 다른 글자가 있거나
+    (내선 · `~3` · 글) 길이를 모르면 손대지 않는다(앞뒤 빈칸만 뗌)."""
+    trimmed = text.strip(" ")
+    if not trimmed or any(ch not in PHONE_ALLOWED for ch in trimmed):
+        return trimmed
+    digits = "".join(ch for ch in trimmed if "0" <= ch <= "9")
+    head = trimmed.lstrip("(")
+    if head.startswith("+"):
+        if digits.startswith("82"):
+            rest = digits[2:]
+            if not rest.startswith("0"):
+                rest = "0" + rest
+            shape = domestic_phone(rest)
+            if shape is None:
+                return trimmed
+            digits = rest
+        else:
+            if "+" in head[1:]:
+                return trimmed
+            return "+" + PHONE_SEP_RE.sub(" ", head[1:]).strip(" ")
+    else:
+        if "+" in trimmed:
+            return trimmed
+        shape = domestic_phone(digits)
+        if shape is None:
+            return trimmed
+    parts = []
+    at = 0
+    for size in shape:
+        parts.append(digits[at:at + size])
+        at += size
+    return "-".join(parts)
+
+
 def tidy_contact(text: str) -> str:
     """연락 줄 손질 — 메일 이름표 떼기 · `@` 둘레 잡음 · 국가번호 꼴 (이슈 118 · 130)."""
     text = separating_email_label(text)
     text = AT_NOISE_RE.sub("@", text)
     text = PAREN_COUNTRY_RE.sub(r"0\1", text)
-    return ZERO_COUNTRY_RE.sub("0", text)
+    text = ZERO_COUNTRY_RE.sub("0", text)
+    # 점 + 빈칸으로 끊은 번호(`+82. 2. 555. 0100`) — 빈칸 하나로 (이슈 138)
+    return DOT_GAP_RE.sub(" ", text)
 
 
 def latin_letters(token: str) -> str:
@@ -2195,6 +2253,14 @@ def parse_card(lines: list[list]) -> dict:
             continue
         # ⑦ 영문 부서 — `Division` · `Department` 한 낱말 줄은 윗줄에 잇고, 그 낱말로 끝나는 줄은 그대로 (ⓩ)
         if latin_letters(tokens[-1]) in LATIN_DEPT_WORDS:
+            # `직무 / 부서` 한 줄 — 왼쪽은 직무, 오른쪽만 부서 (이슈 138)
+            left, bar, right = text.partition("/")
+            left, right = left.strip(" "), right.strip(" ")
+            if bar and left and right and not any(latin_letters(t) in LATIN_DEPT_WORDS for t in left.split(" ")):
+                roles.append((1, order, fixed_role(left)))
+                depts.append(right)
+                kinds.append("role")
+                continue
             if len(tokens) == 1 and order > 0 and kinds[order - 1] == "other":
                 depts.append(f"{texts[order - 1][0]} {text}")
             else:
@@ -2799,6 +2865,7 @@ def build() -> dict:
     out["cardParse"] = [{"name": c["name"], "lines": c["lines"], "expected": parse_card(c["lines"])}
                         for c in cases["cardParse"]]
     out["cardMask"] = [{"text": t, "expected": card_mask(t)} for t in cases["cardMask"]]
+    out["phoneFormat"] = [{"text": t, "expected": phone_format(t)} for t in cases["phoneFormat"]]
     out["recencySort"] = [{"name": c["name"], "people": c["people"], "expected": sort_recency(c["people"])}
                           for c in cases["recencySort"]]
     out["recentCompanions"] = [{"name": c["name"], "records": c["records"], "excluding": c.get("excluding", []),

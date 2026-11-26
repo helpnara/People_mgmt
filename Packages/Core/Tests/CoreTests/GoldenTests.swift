@@ -291,6 +291,7 @@ final class GoldenTests: XCTestCase {
         let importMatch: [VMatchCase]
         let cardParse: [CardCase]
         let cardMask: [CardMaskCase]
+        let phoneFormat: [CardMaskCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
         let recordSave: [RecordSaveCase]
@@ -408,6 +409,13 @@ final class GoldenTests: XCTestCase {
     func testCardMask() throws {
         for c in try Self.loadGolden().cardMask {
             XCTAssertEqual(CardMasking.mask(c.text), c.expected, "가림 — \(c.text)")
+        }
+    }
+
+    /// 전화번호 한 모양 (이슈 139) — 파이썬 `phone_format` 과 같게.
+    func testPhoneFormat() throws {
+        for c in try Self.loadGolden().phoneFormat {
+            XCTAssertEqual(PhoneFormat.normalized(c.text), c.expected, "번호 — \(c.text)")
         }
     }
 

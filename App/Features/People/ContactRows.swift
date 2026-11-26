@@ -1,3 +1,4 @@
+import Core
 import SwiftUI
 import UIKit
 
@@ -35,9 +36,10 @@ struct ContactRows: View {
             guard let value, !value.isEmpty else { return }
             result.append(Item(label: label, value: value, symbol: symbol, url: url(value)))
         }
-        add("휴대전화", person.mobilePhone, "iphone", ContactLinks.telephone)
-        add("사무실", person.officePhone, "phone", ContactLinks.telephone)
-        add("팩스", person.faxNumber, "printer", { _ in nil })
+        // 전화번호는 한 모양으로 보인다 — 예전에 적힌 그대로 저장된 번호도 (이슈 139).
+        add("휴대전화", person.mobilePhone.map { PhoneFormat.normalized($0) }, "iphone", ContactLinks.telephone)
+        add("사무실", person.officePhone.map { PhoneFormat.normalized($0) }, "phone", ContactLinks.telephone)
+        add("팩스", person.faxNumber.map { PhoneFormat.normalized($0) }, "printer", { _ in nil })
         add("이메일", person.email, "envelope", ContactLinks.mail)
         add("기타", person.contactNote, "text.alignleft", { _ in nil })
         return result

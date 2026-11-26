@@ -14,10 +14,17 @@ enum PersonExporter {
 
     /// 화면에 보이는 글(날짜 정밀도 · 기기 형식)로 값을 만든다.
     static func value(of person: Person, now: Date = Date()) -> PersonExport.Person {
-        let contacts: [PersonExport.Contact] = [
-            ("휴대전화", person.mobilePhone), ("사무실", person.officePhone), ("팩스", person.faxNumber),
+        // 전화번호는 상세 화면과 같은 한 모양으로 (이슈 139).
+        let mobile: String? = person.mobilePhone.map { PhoneFormat.normalized($0) }
+        let office: String? = person.officePhone.map { PhoneFormat.normalized($0) }
+        let fax: String? = person.faxNumber.map { PhoneFormat.normalized($0) }
+        let rows: [(String, String?)] = [
+            ("휴대전화", mobile), ("사무실", office), ("팩스", fax),
             ("이메일", person.email), ("기타", person.contactNote),
-        ].compactMap { label, value in value.map { PersonExport.Contact(label: label, value: $0) } }
+        ]
+        let contacts: [PersonExport.Contact] = rows.compactMap { label, value in
+            value.map { PersonExport.Contact(label: label, value: $0) }
+        }
         let birthday: String? = {
             guard let month = person.birthMonth, let day = person.birthDay else { return nil }
             return BirthdayRule.text(month: month, day: day, year: person.birthYear)
