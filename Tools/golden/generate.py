@@ -1948,6 +1948,95 @@ def parse_card(lines: list[list]) -> dict:
     return out
 
 
+# ── 명함 읽기 시험의 가린 복사 (CardMasking · 이슈 127) ────────────────────────
+# 숫자 → # · 영문 → x/X · 한글 → ○ · 한자 · 가나 → ◇. 읽기 규칙이 보는 낱말(직무 · 회사 · 연락 이름표 · 부서 끝)과
+# 번호 앞자리(0 으로 시작하는 세 자리 이하 · +82)는 남긴다.
+
+CARD_MASK_HANGUL_KEEP = [
+    "대표이사", "주식회사", "유한회사", "휴대전화", "엔지니어", "컨설턴트", "디자이너", "홈페이지",
+    "부사장", "본부장", "센터장", "연구원", "매니저", "개발자", "대학교", "연구소", "휴대폰", "핸드폰", "모바일", "이메일", "사무실",
+    "대표", "회장", "사장", "전무", "상무", "이사", "실장", "부장", "차장", "과장", "팀장", "대리", "주임", "사원", "책임", "선임",
+    "수석", "교수", "원장", "재단", "협회", "병원", "은행", "그룹", "휴대", "전화", "팩스", "메일", "직통", "직장", "회사", "주소",
+]
+CARD_MASK_LATIN_KEEP = {
+    "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer", "consultant", "president",
+    "founder", "professor", "lead",
+    "inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab",
+    "m", "t", "f", "e", "o", "p", "h", "hp", "tel", "phone", "mobile", "cell", "fax", "email", "mail", "office", "direct",
+    "main", "dir", "www", "http", "https",
+    "com", "net", "org", "kr", "io", "gmail", "naver", "daum", "hanmail", "kakao", "nate",
+}
+
+
+def _is_syllable(o):
+    return 0xAC00 <= o <= 0xD7A3
+
+
+def _is_latin(o):
+    return 0x41 <= o <= 0x5A or 0x61 <= o <= 0x7A
+
+
+def _mask_hangul(run: str) -> str:
+    keep = [False] * len(run)
+    for kw in CARD_MASK_HANGUL_KEEP:
+        start = 0
+        while start + len(kw) <= len(run):
+            found = run.find(kw, start)
+            if found < 0:
+                break
+            if any(keep[found:found + len(kw)]):
+                start = found + 1
+            else:
+                for i in range(found, found + len(kw)):
+                    keep[i] = True
+                start = found + len(kw)
+    for suffix in DEPARTMENT_SUFFIXES:
+        if len(run) > len(suffix) and run.endswith(suffix):
+            for i in range(len(run) - len(suffix), len(run)):
+                keep[i] = True
+    return "".join(ch if keep[i] else "○" for i, ch in enumerate(run))
+
+
+def card_mask(text: str) -> str:
+    out = []
+    i = 0
+    n = len(text)
+    while i < n:
+        o = ord(text[i])
+        if _is_syllable(o):
+            j = i
+            while j < n and _is_syllable(ord(text[j])):
+                j += 1
+            out.append(_mask_hangul(text[i:j]))
+            i = j
+        elif _is_latin(o):
+            j = i
+            while j < n and _is_latin(ord(text[j])):
+                j += 1
+            run = text[i:j]
+            out.append(run if run.lower() in CARD_MASK_LATIN_KEEP else "".join("X" if "A" <= c <= "Z" else "x" for c in run))
+            i = j
+        elif 0x30 <= o <= 0x39:
+            j = i
+            while j < n and 0x30 <= ord(text[j]) <= 0x39:
+                j += 1
+            run = text[i:j]
+            # 번호의 앞자리(010 · 02 · 031 · +82)는 남긴다 — 휴대전화 · 사무실을 가르는 모양.
+            keep = (run[0] == "0" and len(run) <= 3) or (run == "82" and i > 0 and text[i - 1] == "+")
+            out.append(run if keep else "#" * len(run))
+            i = j
+        elif 0x3131 <= o <= 0x318E or 0x1100 <= o <= 0x11FF:
+            out.append("○")
+            i += 1
+        elif 0x4E00 <= o <= 0x9FFF or 0x3400 <= o <= 0x4DBF or 0x3040 <= o <= 0x30FF:
+            out.append("◇")
+            i += 1
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
+
+
 # ── 검증 (Validation) ────────────────────────────────────────────────────────
 
 def name_problem(name: str):
@@ -2394,6 +2483,7 @@ def build() -> dict:
                                  for c in cases["contactFromContact"]]
     out["cardParse"] = [{"name": c["name"], "lines": c["lines"], "expected": parse_card(c["lines"])}
                         for c in cases["cardParse"]]
+    out["cardMask"] = [{"text": t, "expected": card_mask(t)} for t in cases["cardMask"]]
     out["recencySort"] = [{"name": c["name"], "people": c["people"], "expected": sort_recency(c["people"])}
                           for c in cases["recencySort"]]
     out["recentCompanions"] = [{"name": c["name"], "records": c["records"], "excluding": c.get("excluding", []),

@@ -11,3 +11,4 @@
 37-detail-layout.png  02-people.png 24-settings.png
 40-wipe-confirm.png   02-people.png
 46-choices.png        02-people.png 24-settings.png
+54-card-test.png      02-people.png 24-settings.png

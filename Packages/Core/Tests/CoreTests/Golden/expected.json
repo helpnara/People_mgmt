@@ -468,6 +468,112 @@
       "year": 1990
     }
   ],
+  "cardMask": [
+    {
+      "expected": "○○○○○ 주식회사",
+      "text": "청림소프트 주식회사"
+    },
+    {
+      "expected": "○○○",
+      "text": "김하늘"
+    },
+    {
+      "expected": "○ ○ ○",
+      "text": "김 하 늘"
+    },
+    {
+      "expected": "○○팀 팀장",
+      "text": "개발팀 팀장"
+    },
+    {
+      "expected": "○○○○○본부 수석 매니저",
+      "text": "서비스기획본부 수석 매니저"
+    },
+    {
+      "expected": "대표이사 ○○○",
+      "text": "대표이사 박서연"
+    },
+    {
+      "expected": "M. 010-####-####",
+      "text": "M. 010-5555-0101"
+    },
+    {
+      "expected": "T 02-###-#### · F 02-###-####",
+      "text": "T 02-555-0100 · F 02-555-0199"
+    },
+    {
+      "expected": "E.xxxxxxx@xxxxxxx.com",
+      "text": "E.seoyeon@example.com"
+    },
+    {
+      "expected": "xxxxxx.xxx@gmail.com",
+      "text": "haneul.kim@gmail.com"
+    },
+    {
+      "expected": "Xxxxxx Xxx",
+      "text": "Haneul Kim"
+    },
+    {
+      "expected": "Xxxxxx Xxxxxxx Manager",
+      "text": "Senior Product Manager"
+    },
+    {
+      "expected": "Xxxxxxxxx Xxxx Co., Ltd.",
+      "text": "Cheongrim Soft Co., Ltd."
+    },
+    {
+      "expected": "www.xxxxxxxxx.co.kr",
+      "text": "www.cheongrim.co.kr"
+    },
+    {
+      "expected": "○○○○○ ○○○ ○○○○ ###, #○",
+      "text": "서울특별시 강남구 테헤란로 123, 4층"
+    },
+    {
+      "expected": "휴대폰 010.####.####",
+      "text": "휴대폰 010.5555.0103"
+    },
+    {
+      "expected": "Tel +82-#-###-####",
+      "text": "Tel +82-2-555-0100"
+    },
+    {
+      "expected": "◇○○ / ◇◇◇",
+      "text": "金하늘 / 金夏訥"
+    },
+    {
+      "expected": "이사○",
+      "text": "이사랑"
+    },
+    {
+      "expected": "○○ ○○",
+      "text": "ㅋㅋ 오타"
+    },
+    {
+      "expected": "",
+      "text": ""
+    },
+    {
+      "expected": "  ",
+      "text": "  "
+    },
+    {
+      "expected": "Ⅱ○ · #xx Xx.",
+      "text": "Ⅱ팀 · 3rd Fl."
+    },
+    {
+      "expected": "https://xxxxxxx.io/xxxx",
+      "text": "https://example.io/card"
+    },
+    {
+      "expected": "02)###-#### / 031-###-#### / ####-####",
+      "text": "02)555-0100 / 031-555-0100 / 1588-0000"
+    },
+    {
+      "expected": "####-#### ○○ #####",
+      "text": "0101-2345 우편 06123"
+    }
+  ],
   "cardParse": [
     {
       "expected": {

@@ -98,7 +98,7 @@
 ```
 docs/            설계 문서. 코드보다 이게 먼저다 (requirements-v0.5 · roadmap · 08-feedback · 06-ci · acceptance-checklist · store-listing · privacy · adr/)
 reports/         조사 보고서 (인맥 분석 기법과 앱 벤치마킹)
-Tools/           여기서 돌릴 수 있는 도구 — golden(정답표) · privacy(명세 검사) · cloudkit(스키마 파일 · 적용 스크립트) · ci(화소 검사 · 찍을 화면 목록) · site(처리방침) · contrast.py(색 대비) · make-icon.py(아이콘: Tools/icon-source.png 가 원본)
+Tools/           여기서 돌릴 수 있는 도구 — golden(정답표) · card-reading(명함 읽기 시험의 복사 글 다시 읽기 · 이슈 127) · privacy(명세 검사) · cloudkit(스키마 파일 · 적용 스크립트) · ci(화소 검사 · 찍을 화면 목록) · site(처리방침) · contrast.py(색 대비) · make-icon.py(아이콘: Tools/icon-source.png 가 원본)
 Packages/Core/   순수 Swift. Foundation 만 → 리눅스에서 테스트된다
 App/             앱 타깃 (SwiftUI + SwiftData). macOS 에서만 빌드된다
 AppTests/        인메모리 저장소로 저장 규칙을 시험한다

@@ -57,6 +57,7 @@ struct SettingsView: View {
     @State private var openTagsOnLaunch = false
     @State private var openDetailLayoutOnLaunch = false
     @State private var openChoicesOnLaunch = false
+    @State private var openCardTestOnLaunch = false
     /// 위 셋을 한 번만 — 돌아와서 설정이 다시 나타날 때 또 밀지 않게.
     @State private var openedOnLaunch = false
     private let syncMonitor = CloudSyncMonitor.shared
@@ -258,6 +259,19 @@ struct SettingsView: View {
                 wipeSection
             }
 
+            // **실험** (이슈 127 · D-84) — 명함 읽기 시험. 아무것도 저장하지 않는다(느린 부자의 캡처 읽기 시험과 같은 자리).
+            Section {
+                NavigationLink {
+                    CardReadingTestView()
+                } label: {
+                    Label("명함 읽기 시험", systemImage: "text.viewfinder")
+                }
+            } header: {
+                Text("실험")
+            } footer: {
+                Text("명함 사진을 이 기기 안에서 읽어 보기만 합니다. 저장하지 않습니다.")
+            }
+
             Section {
                 LabeledContent("버전", value: Self.version)
             } header: {
@@ -280,16 +294,21 @@ struct SettingsView: View {
         .navigationDestination(isPresented: $openChoicesOnLaunch) {
             ChoiceEditorView(kind: .relationshipType)
         }
+        .navigationDestination(isPresented: $openCardTestOnLaunch) {
+            CardReadingTestView()
+        }
         .task {
             // CI 스크린샷 — 설정이 자리 잡은 뒤에 한 칸 더 (이슈 125).
             let arguments = LaunchArguments.current
-            guard !openedOnLaunch, arguments.openTags || arguments.openDetailLayout || arguments.openChoices else { return }
+            guard !openedOnLaunch,
+                  arguments.openTags || arguments.openDetailLayout || arguments.openChoices || arguments.openCardTest else { return }
             openedOnLaunch = true
             // 미는 움직임(0.35초 안팎)이 끝날 만큼만 — 길면 느린 러너에서 7초 안에 못 연다(CI 186 의 32-tags).
             try? await Task.sleep(for: .milliseconds(500))
             openTagsOnLaunch = arguments.openTags
             openDetailLayoutOnLaunch = arguments.openDetailLayout
             openChoicesOnLaunch = arguments.openChoices
+            openCardTestOnLaunch = arguments.openCardTest
         }
         .task {
             // CI 스크린샷 — 모든 자료 지우기의 첫 확인 창 (`-confirmWipe`).

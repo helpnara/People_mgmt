@@ -155,6 +155,7 @@ final class GoldenTests: XCTestCase {
             }
         }
         struct CardCase: Decodable { let name: String; let lines: [CardLineRaw]; let expected: CardExpected }
+        struct CardMaskCase: Decodable { let text: String; let expected: String }
         struct RecencyPerson: Decodable { let name: String; let createdAt: Double; let lastRecordAt: Double? }
         struct RecencyCase: Decodable { let name: String; let people: [RecencyPerson]; let expected: [String] }
         struct TimelineRecord: Decodable { let id: String; let occurredAt: Double; let createdAt: Double; let minute: Int? }
@@ -289,6 +290,7 @@ final class GoldenTests: XCTestCase {
         let vcardParse: [VParseCase]
         let importMatch: [VMatchCase]
         let cardParse: [CardCase]
+        let cardMask: [CardMaskCase]
         let timelineSort: [TimelineCase]
         let validation: [ValidationCase]
         let recordSave: [RecordSaveCase]
@@ -399,6 +401,13 @@ final class GoldenTests: XCTestCase {
             XCTAssertEqual(got.emails, c.expected.emails, "\(c.name) — 메일")
             XCTAssertEqual(got.lines, c.expected.lines, "\(c.name) — 줄")
             XCTAssertEqual(got.contact, c.expected.contact.fields, "\(c.name) — 연락 수단 칸")
+        }
+    }
+
+    /// 명함 읽기 시험의 가린 복사 (이슈 127) — 파이썬 `card_mask` 와 글자 하나 다르지 않게.
+    func testCardMask() throws {
+        for c in try Self.loadGolden().cardMask {
+            XCTAssertEqual(CardMasking.mask(c.text), c.expected, "가림 — \(c.text)")
         }
     }
 
