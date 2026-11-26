@@ -400,9 +400,18 @@ public enum BusinessCardParser {
         return 1
     }
 
-    /// 흔한 오독 바로잡기 — `팀당` → `팀장` (ⓜ).
+    /// 직무 줄 다듬기 — 맨 앞 `|` 조각이 영문 이름 모양이면 뗀다(`Seoyun Han | CEO | Ph.D.` → `CEO | Ph.D.` · 이슈 136),
+    /// 흔한 오독 `팀당` → `팀장`(ⓜ). 파이썬 `fixed_role` 과 같다.
     static func fixedRole(_ text: String) -> String {
-        text.replacingOccurrences(of: "팀당", with: "팀장")
+        var result = text
+        if let bar = text.firstIndex(of: "|") {
+            let head = text[..<bar].trimmingCharacters(in: CharacterSet(charactersIn: " "))
+            let rest = text[text.index(after: bar)...].trimmingCharacters(in: CharacterSet(charactersIn: " "))
+            if !rest.isEmpty, !matches(latinNamePattern, in: head).isEmpty, !rolePieces(head).contains(where: isRoleToken) {
+                result = rest
+            }
+        }
+        return result.replacingOccurrences(of: "팀당", with: "팀장")
     }
 
     /// 한글 2~4음절 — 한 낱말이거나, 한 글자씩 띄어 쓴 것(`김 하 늘`). 부서 이름 끝(`팀` · `부` …)은 뺀다.

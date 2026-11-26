@@ -1956,6 +1956,16 @@ def is_role_token(token: str) -> bool:
     return False
 
 
+def fixed_role(text: str) -> str:
+    """직무 줄 다듬기 — 맨 앞 `|` 조각이 영문 이름 모양이면 뗀다(`Seoyun Han | CEO | Ph.D.` → `CEO | Ph.D.` · 이슈 136),
+    흔한 오독 `팀당` → `팀장`(ⓜ)."""
+    head, bar, rest = text.partition("|")
+    head = head.strip(" ")
+    if bar and rest.strip(" ") and LATIN_NAME_RE.search(head) and not any(is_role_token(p) for p in role_pieces(head)):
+        text = rest.strip(" ")
+    return text.replace("팀당", "팀장")
+
+
 def role_pieces(text: str) -> list[str]:
     return [p for p in ROLE_SPLIT_RE.split(text) if p]
 
@@ -2138,11 +2148,11 @@ def parse_card(lines: list[list]) -> dict:
             if org_at is not None and org_at < first and not names_from(order, names):
                 orgs.append((0, order, " ".join(tokens[:org_at + 1])))
                 role_text = " ".join(tokens[org_at + 1:])
-                roles.append((role_rank(role_text), order, role_text.replace("팀당", "팀장")))
+                roles.append((role_rank(role_text), order, fixed_role(role_text)))
                 kinds.append("role")
                 continue
             if is_role_token(pieces[-1]) or not (is_org(text) or is_org2(text)):
-                roles.append((role_rank(role_text), order, role_text.replace("팀당", "팀장")))
+                roles.append((role_rank(role_text), order, fixed_role(role_text)))
                 kinds.append("role")
                 continue
         # ③ 첫째 순위 기관 — 같은 줄에 주소가 이어지면 앞에서 자른다 (ⓛ)
