@@ -1857,6 +1857,8 @@ ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전
                  # 이슈 130 (명함 13장 · 2026-11-26): 단장 · 소장 · 국장 · 처장 · 학위 · 영문 직함 · 흔한 오독 `팀당`
                  "단장", "소장", "국장", "처장", "박사", "팀당",
                  "편집장", "점장", "공장장", "위원장", "의장", "관장", "학장", "총장",
+                 # 이슈 133 — 공무원 직급
+                 "사무관", "서기관", "주무관", "이사관", "행정관", "연구관", "연구사", "지도관", "지도사", "심사관", "조사관", "감독관",
                  "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
                  "consultant", "president", "founder", "professor", "lead",
                  "executive", "officer", "head", "vp", "architect", "specialist", "phd"]
@@ -1871,10 +1873,17 @@ ADDRESS_SUFFIXES = ["특별자치도", "특별시", "광역시", "도", "시", "
 # 흔한 성 (두 글자 성 먼저) — 글자만 큰 표어(`품격있는`)보다 성으로 시작하는 이름을 먼저 (이슈 130 ⓧ).
 SURNAMES2 = ["남궁", "황보", "제갈", "선우", "독고", "사공", "서문"]
 SURNAMES = set("김이박최정강조윤장임한오서신권황안송전홍유고문양손배백허남심노하곽성차주우구민류나진지엄채원천방공현함변염여추도소석선설마길연위표명기반라왕금옥육인맹제모탁국어은편용예경봉사부가복태목형피두감")
+# 이슈 133 — 영문 이름 후보에서 뺄 기관 낱말 · 영문 부서 끝 · 이름 앞 칭호
+LATIN_ORG_WORDS = {"centre", "center", "institute", "technology", "technologies", "university", "college", "school",
+                   "division", "department", "agency", "foundation", "association", "laboratory", "corporation"}
+LATIN_DEPT_WORDS = {"division", "department"}
+HONORIFIC_RE = re.compile(r"^(?:[Dd][Rr]|[Pp][Rr][Oo][Ff]|[Mm][Rr][Ss]?|[Mm][Ss])\.?$")
+LATIN_WORD_RE = re.compile(r"^[A-Za-z][A-Za-z'-]*$")
 KNOWN_MAIL_DOMAINS = ["gmail.com", "naver.com", "daum.net", "hanmail.net", "kakao.com", "nate.com",
                       "hotmail.com", "outlook.com", "icloud.com"]
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-PHONE_RE = re.compile(r"(?:\+82[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}")
+# 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
+PHONE_RE = re.compile(r"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)")
 LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
 # 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
 # 대문자 E 하나 · Email · E-mail · Mail 만 이름표로 본다 — 소문자 `e.kim@…` 은 메일 주소 그대로 둔다.
@@ -1924,6 +1933,11 @@ def is_org2(text: str) -> bool:
         if len(t) > 2 and any(t.endswith(sfx) for sfx in ORG2_SUFFIXES):
             return True
         if t.endswith("연구원") and len(t) > 5:
+            return True
+    if len(tokens) == 1:
+        t = tokens[0]
+        # 정부 부처 끝 — `…청`(3자 이상) · `…처`(5자 이상) · `…위원회` (이슈 133 ⓒⓒ)
+        if is_syllables(t) and (len(t) >= 3 and t.endswith("청") or len(t) >= 5 and t.endswith("처") or t.endswith("위원회")):
             return True
     return len(tokens) == 1 and is_region(tokens[0])
 
@@ -1989,6 +2003,21 @@ def is_name_word(joined: str) -> bool:
 
 def has_surname(name: str) -> bool:
     return name[:2] in SURNAMES2 or name[:1] in SURNAMES
+
+
+def honorific_name(text: str):
+    """`Dr lee Minjun` → `Lee Minjun` — 칭호 뒤 영문 낱말 1~3 개 (인식이 소문자로 읽어도). 아니면 None (이슈 133 ⓨ)."""
+    tokens = text.split(" ")
+    if len(tokens) < 2 or not HONORIFIC_RE.match(tokens[0]):
+        return None
+    rest = tokens[1:]
+    if len(rest) > 3 or not all(LATIN_WORD_RE.match(t) for t in rest):
+        return None
+    return " ".join(t[:1].upper() + t[1:] for t in rest)
+
+
+def has_latin_org_word(text: str) -> bool:
+    return any(latin_letters(t) in LATIN_ORG_WORDS for t in text.split(" "))
 
 
 def is_all_caps(text: str) -> bool:
@@ -2130,6 +2159,12 @@ def parse_card(lines: list[list]) -> dict:
             orgs.append((1, order, text))
             kinds.append("org")
             continue
+        # ⑤ 칭호로 시작하는 영문 이름 (ⓨ)
+        honored = honorific_name(text)
+        if honored:
+            names.append((0, -height, order, honored))
+            kinds.append("name")
+            continue
         # ⑤ 한글 이름 + 영문 이름 (ⓞ)
         lead = []
         for t in tokens:
@@ -2147,6 +2182,14 @@ def parse_card(lines: list[list]) -> dict:
             names.append((1 if has_surname(joined) else 2, -height, order, joined))
             kinds.append("name")
             continue
+        # ⑦ 영문 부서 — `Division` · `Department` 한 낱말 줄은 윗줄에 잇고, 그 낱말로 끝나는 줄은 그대로 (ⓩ)
+        if latin_letters(tokens[-1]) in LATIN_DEPT_WORDS:
+            if len(tokens) == 1 and order > 0 and kinds[order - 1] == "other":
+                depts.append(f"{texts[order - 1][0]} {text}")
+            else:
+                depts.append(text)
+            kinds.append("dept")
+            continue
         # ⑦ 부서만 있는 줄
         if pieces and all(is_dept_token(p) for p in pieces):
             depts.append(pieces[-1])
@@ -2154,23 +2197,38 @@ def parse_card(lines: list[list]) -> dict:
             continue
         # ⑧ 영문 — 모두 대문자면 기관 후보, 아니면 영문 이름 후보 (ⓝ)
         if is_all_caps(text):
-            if len(tokens) <= 3 and not any("0" <= ch <= "9" for ch in text):
+            # 한글 이름 바로 다음의 대문자 영문 줄은 그 이름의 로마자 — 기관 후보가 아니다 (ⓔⓔ)
+            after_name = order > 0 and kinds[order - 1] == "name" and is_syllables(texts[order - 1][0].replace(" ", ""))
+            if not after_name and len(tokens) <= 3 and not any("0" <= ch <= "9" for ch in text):
                 orgs.append((3, order, text))
             kinds.append("other")
             continue
-        if LATIN_NAME_RE.search(text):
+        if LATIN_NAME_RE.search(text) and not has_latin_org_word(text):
             names.append((3, -height, order, text))
             kinds.append("name")
             continue
         kinds.append(kind)
     # 주소 줄 바로 위의 한글 낱말 하나 — `주식회사` 없는 회사 이름 (ⓔ)
+    def company_like(i: int) -> bool:
+        """한글로만 된 한두 낱말(3~12자) · 이름 모양(성으로 시작하는 2~3자 · 두 글자 성 4자)이 아님."""
+        text = texts[i][0]
+        joined = text.replace(" ", "")
+        looks_name = has_surname(joined) and (len(joined) <= 3 or joined[:2] in SURNAMES2)
+        return (kinds[i] == "other" or kinds[i] == "name" and not looks_name) and len(text.split(" ")) <= 2 \
+            and is_syllables(joined) and 3 <= len(joined) <= 12
     for i, (text, _) in enumerate(texts[:-1]):
-        # 이름 모양(성으로 시작하는 2~3자 · 두 글자 성 4자)이면 회사로 넘기지 않는다 — 이름이 주소 바로 위에 있는 명함이 흔하다
-        looks_name = has_surname(text) and (len(text) <= 3 or text[:2] in SURNAMES2)
-        if (kinds[i] == "other" or kinds[i] == "name" and not looks_name) and " " not in text \
-                and is_syllables(text) and 3 <= len(text) <= 12 and is_address_line(texts[i + 1][0]):
+        # 이름 모양이면 회사로 넘기지 않는다 — 이름이 주소 바로 위에 있는 명함이 흔하다 (ⓔ · 이슈 133 두 낱말)
+        if company_like(i) and is_address_line(texts[i + 1][0]):
             orgs.append((2, i, text))
             names = [n for n in names if n[2] != i]
+    # 고른 이름 바로 위의 한글 낱말 — `청년농부` · `한빛엔지니어링` 꼴 (이슈 133 ⓑⓑ · 사용자: 소속)
+    if names:
+        above = min(names)[2] - 1
+        # 부서 모양(`…부`)이어도 기관 후보가 하나도 없으면 소속으로 — `청년농부` 가 `영업부` 처럼 잡혔다
+        dept_above = kinds[above] == "dept" and not orgs and " " not in texts[above][0] and is_syllables(texts[above][0])
+        if above >= 0 and (company_like(above) or dept_above) and not any(o[1] == above for o in orgs):
+            orgs.append((2, above, texts[above][0]))
+            names = [n for n in names if n[2] != above]
     if names:
         out["name"] = min(names)[3]
     if roles:
