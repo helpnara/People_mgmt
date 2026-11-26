@@ -122,6 +122,16 @@ public enum ContactSorter {
     }
 
     static func sort(_ token: String, into fields: inout ContactFields) {
+        // 누리집 주소 — 한 조각에 번호와 함께 있으면 먼저 떼어 기타로 (이슈 130 ⓕ · 명함 2).
+        var token = token
+        let urls = BusinessCardParser.matches(BusinessCardParser.urlPattern, in: token)
+        if !urls.isEmpty {
+            let rest = TextNormalization.collapsedSpaces(BusinessCardParser.replacing(BusinessCardParser.urlPattern, in: token, with: " "))
+            if !rest.isEmpty {
+                for url in urls { fields.place(url, as: .other) }
+                token = rest
+            }
+        }
         let found = findings(in: token)
         guard !found.isEmpty else {
             fields.place(token, as: .other)
@@ -194,7 +204,7 @@ public enum ContactSorter {
         func has(_ parts: [String]) -> Bool { parts.contains { key.contains($0) } }
         if key == "f" || has(["fax", "팩스"]) { return .kind(.fax) }
         if ["e", "email", "mail"].contains(key) || has(["메일"]) { return .kind(.email) }
-        if ["m", "hp", "handphone"].contains(key) || has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]) {
+        if ["m", "c", "hp", "handphone"].contains(key) || has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]) {
             return .kind(.mobile)
         }
         if ["o", "main", "dir"].contains(key) || has(["office", "work", "company", "direct", "회사", "사무실", "직장", "대표", "직통"]) {

@@ -75,6 +75,8 @@ struct CardReadingTestView: View {
         let id = UUID()
         let number: Int
         let foundEdges: Bool
+        /// 테두리를 찾았지만 편 것이 글자를 덜 읽어 원본을 골랐다 (이슈 131).
+        let keptOriginal: Bool
         let readings: [Mode: Reading]
     }
 
@@ -251,7 +253,7 @@ struct CardReadingTestView: View {
                       systemImage: copiedCard == card.id ? "checkmark" : "doc.on.doc")
             }
         } header: {
-            Text("\(card.number)번째 명함 · " + (card.foundEdges ? "테두리 찾음" : "테두리 못 찾음"))
+            Text("\(card.number)번째 명함 · " + Self.edgeText(card))
         } footer: {
             Text(Mode.allCases.compactMap { mode in card.readings[mode].map { "\(mode.mark) \($0.milliseconds)ms" } }
                 .joined(separator: " · "))
@@ -327,6 +329,12 @@ struct CardReadingTestView: View {
         var options = order.compactMap { $0 }.map { Option(value: $0, modes: modes[$0] ?? []) }
         if !empty.isEmpty { options.append(Option(value: nil, modes: empty)) }
         return options
+    }
+
+    /// 테두리를 찾았는지 · 찾았지만 원본을 골랐는지 (이슈 131 — ① 앱과 같은 길이 고른 그림).
+    static func edgeText(_ card: CardResult) -> String {
+        if !card.foundEdges { return "테두리 못 찾음" }
+        return card.keptOriginal ? "테두리 찾음 · 원본 씀" : "테두리 찾음"
     }
 
     static func verdict(for option: Option) -> Verdict {
@@ -406,7 +414,7 @@ struct CardReadingTestView: View {
             readings[.original] = await reading(original, correction: false)
         }
         guard !readings.isEmpty else { return nil }
-        return CardResult(number: number, foundEdges: straight.foundEdges, readings: readings)
+        return CardResult(number: number, foundEdges: straight.foundEdges, keptOriginal: straight.keptOriginal, readings: readings)
     }
 
     static func reading(_ data: Data, correction: Bool) async -> Reading {
@@ -465,7 +473,7 @@ struct CardReadingTestView: View {
     static func copyText(_ card: CardResult, verdicts: [Field: Verdict], masked: Bool) -> String {
         func hide(_ text: String) -> String { masked ? CardMasking.mask(text) : text }
         var out = ["# 명함 읽기 시험 — \(card.number)번째 명함\(masked ? " · 가림" : "")",
-                   "# 테두리: \(card.foundEdges ? "찾음" : "못 찾음") · "
+                   "# \(edgeText(card)) · "
                     + Mode.allCases.compactMap { mode in card.readings[mode].map { "\(mode.mark) \($0.milliseconds)ms" } }
                     .joined(separator: " · ")]
         for field in Field.allCases {

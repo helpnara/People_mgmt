@@ -22,8 +22,13 @@ enum CardImaging {
     static let workingLongSide: CGFloat = 3_200
 
     /// 사진첩 사진 → 테두리를 찾아 편 명함 JPEG.
+    ///
+    /// **편 것이 원본보다 글자가 눈에 띄게 적으면 원본을 쓴다 (이슈 131 · 2026-11-26 명함 읽기 시험 · 13장 가운데 4장).**
+    /// 명함이 사진을 꽉 채우면 바깥 테두리가 없어, 테두리 찾기가 명함 **안의** 얼굴 사진 · 로고 네모 · 색 띠를 명함으로 잡았다 —
+    /// 그 칸만 펴서 글자를 하나도 못 읽고, 저장되는 명함 그림도 그 칸만 남았다. 넓이로 거르면 책상 위에 작게 찍은 명함(정상)까지
+    /// 걸러져서, 테두리를 찾았을 때만 두 그림을 다 읽어 견준다(한 장에 0.1~0.2초 더).
     static func straightenedCard(from data: Data) async -> Data? {
-        await Task.detached(priority: .userInitiated) { straighten(data) }.value
+        await Task.detached(priority: .userInitiated) { bestCard(data).card }.value
     }
 
     /// 이미 편 사진(문서 카메라) → 줄인 JPEG.
@@ -38,9 +43,9 @@ enum CardImaging {
         await Task.detached(priority: .userInitiated) { recognize(data) }.value
     }
 
-    /// **명함 읽기 시험**(이슈 127)만 쓴다 — 편 사진과 함께 테두리를 찾았는지도 알려 준다. 앱의 길은 `straightenedCard` 그대로.
-    static func straightenedCardReport(from data: Data) async -> (card: Data?, foundEdges: Bool) {
-        await Task.detached(priority: .userInitiated) { straightenReport(data) }.value
+    /// **명함 읽기 시험**(이슈 127)만 쓴다 — `straightenedCard` 와 같은 그림에 더해, 테두리를 찾았는지 · 원본을 골랐는지도 알려 준다.
+    static func straightenedCardReport(from data: Data) async -> (card: Data?, foundEdges: Bool, keptOriginal: Bool) {
+        await Task.detached(priority: .userInitiated) { bestCard(data) }.value
     }
 
     /// **명함 읽기 시험**(이슈 127)만 쓴다 — 고쳐 읽기(언어 보정)를 켜고 읽어 견준다. 앱은 끈 채로 읽는다.
@@ -50,8 +55,24 @@ enum CardImaging {
 
     // MARK: - 안쪽 (어느 스레드에서든)
 
-    private static func straighten(_ data: Data) -> Data? {
-        straightenReport(data).card
+    /// 편 것과 원본(줄이기만 한 것) 가운데 글자를 더 읽는 쪽 — 편 것이 원본의 80% 에 못 미치면 원본 (이슈 131).
+    private static func bestCard(_ data: Data) -> (card: Data?, foundEdges: Bool, keptOriginal: Bool) {
+        let report = straightenReport(data)
+        guard report.foundEdges, let straight = report.card,
+              let original = thumbnail(data, maxPixel: maxLongSide).flatMap({ jpeg(UIImage(cgImage: $0)) }) else {
+            return (report.card, report.foundEdges, false)
+        }
+        let straightAmount = textAmount(recognize(straight))
+        let originalAmount = textAmount(recognize(original))
+        if straightAmount * 10 < originalAmount * 8 {
+            return (original, true, true)
+        }
+        return (straight, true, false)
+    }
+
+    /// 읽은 글자 수 — 빈칸은 세지 않는다.
+    static func textAmount(_ lines: [CardLine]) -> Int {
+        lines.reduce(0) { $0 + $1.text.filter { !$0.isWhitespace }.count }
     }
 
     private static func straightenReport(_ data: Data) -> (card: Data?, foundEdges: Bool) {
