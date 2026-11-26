@@ -165,7 +165,7 @@ struct CardReadingTestView: View {
                     .foregroundStyle(Color.danger)
             }
         } footer: {
-            Text("한 번에 20장까지 고를 수 있습니다. 명함 한 장에 몇 초 걸립니다.")
+            Text("한 번에 20장까지 고를 수 있습니다. 새로 고르면 지난 결과는 지워집니다.")
         }
     }
 
@@ -379,10 +379,14 @@ struct CardReadingTestView: View {
 
     private func read(_ items: [PhotosPickerItem]) async {
         isReading = true
+        // 새로 고르면 지난 결과를 먼저 비운다 — 인식률 표가 이번에 고른 명함만 센다 (이슈 135 · 2026-11-26 사용자).
+        cards = []
+        verdicts = [:]
+        copiedCard = nil
         failures = []
         done = 0
         total = items.count
-        let start = (cards.map(\.number).max() ?? 0) + 1
+        let start = 1
         for (offset, item) in items.enumerated() {
             guard let data = try? await item.loadTransferable(type: Data.self) else {
                 failures.append("\(start + offset)번째 사진을 열지 못했습니다.")
