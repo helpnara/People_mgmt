@@ -81,6 +81,7 @@ public enum BusinessCardParser {
     static let emailPattern = #"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#
     /// 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
     static let phonePattern = #"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)"#
+    static let logoWordPattern = #"^[A-Za-z]{2,8}$"#
     static let latinNamePattern = #"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$"#
     /// 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
     /// 대문자 E 하나 · Email · E-mail · Mail 만 이름표로 본다 — 소문자 `e.kim@…` 은 메일 주소 그대로 둔다.
@@ -284,6 +285,18 @@ public enum BusinessCardParser {
             if companyLike(above) || deptAbove, !orgs.contains(where: { $0.order == above }) {
                 orgs.append(Candidate(rank: 2, height: 0, order: above, text: aboveText))
                 names.removeAll { $0.order == above }
+            }
+        }
+
+        // 로고 한 낱말 — 기관 후보가 하나도 없고 명함에서 가장 큰 줄이 영문 한 낱말(2~8자)이면 소속으로.
+        // 인식이 대소문자를 섞어 읽으면(`aWS` 꼴) 대문자로 (이슈 137 · ⓠ · 2026-11-26 사용자).
+        if orgs.isEmpty, !texts.isEmpty {
+            var top = 0
+            for index in texts.indices where texts[index].height > texts[top].height { top = index }
+            let word = texts[top].text
+            if kinds[top] == "other", !matches(logoWordPattern, in: word).isEmpty {
+                let hasUpper = word.unicodeScalars.contains { (0x41...0x5A).contains($0.value) }
+                orgs.append(Candidate(rank: 3, height: 0, order: top, text: hasUpper ? word.uppercased() : word))
             }
         }
 

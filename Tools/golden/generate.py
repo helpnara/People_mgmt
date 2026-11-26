@@ -1884,6 +1884,7 @@ KNOWN_MAIL_DOMAINS = ["gmail.com", "naver.com", "daum.net", "hanmail.net", "kaka
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
 PHONE_RE = re.compile(r"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)")
+LOGO_WORD_RE = re.compile(r"^[A-Za-z]{2,8}$")
 LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
 # 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
 # 대문자 E 하나 · Email · E-mail · Mail 만 이름표로 본다 — 소문자 `e.kim@…` 은 메일 주소 그대로 둔다.
@@ -2239,6 +2240,16 @@ def parse_card(lines: list[list]) -> dict:
         if above >= 0 and (company_like(above) or dept_above) and not any(o[1] == above for o in orgs):
             orgs.append((2, above, texts[above][0]))
             names = [n for n in names if n[2] != above]
+    # 로고 한 낱말 — 기관 후보가 하나도 없고 명함에서 가장 큰 줄이 영문 한 낱말(2~8자)이면 소속으로.
+    # 인식이 대소문자를 섞어 읽으면(`aWS` 꼴) 대문자로 (이슈 137 · ⓠ · 2026-11-26 사용자)
+    if not orgs and texts:
+        top = 0
+        for i, (_, h) in enumerate(texts):
+            if h > texts[top][1]:
+                top = i
+        word = texts[top][0]
+        if kinds[top] == "other" and LOGO_WORD_RE.search(word):
+            orgs.append((3, top, word.upper() if any("A" <= c <= "Z" for c in word) else word))
     if names:
         out["name"] = min(names)[3]
     if roles:
