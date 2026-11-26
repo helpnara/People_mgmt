@@ -1884,6 +1884,7 @@ KNOWN_MAIL_DOMAINS = ["gmail.com", "naver.com", "daum.net", "hanmail.net", "kaka
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
 PHONE_RE = re.compile(r"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)")
+CAP_WORD_RE = re.compile(r"^[A-Z][a-z][A-Za-z'-]*$")
 LOGO_WORD_RE = re.compile(r"^[A-Za-z]{2,8}$")
 LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
 # 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
@@ -2006,6 +2007,9 @@ def is_role_token(token: str) -> bool:
     for k in ROLE_KEYWORDS:
         if k[0].isascii():
             if latin == k:
+                return True
+            # 인식이 한 글자 틀리거나 빠뜨린 긴 영문 직무 낱말(`Presiden`) — 일곱 자 넘는 낱말만 (이슈 140)
+            if len(k) >= 7 and len(latin) >= 6 and levenshtein(latin, k) <= 1:
                 return True
         elif token.endswith(k):
             # `…연구원` 은 그 낱말 하나이거나 `수석` · `책임` 따위 두 글자 뒤일 때만 직무 — 더 길면 기관 (ⓗ)
@@ -2196,6 +2200,13 @@ def parse_card(lines: list[list]) -> dict:
                 if not is_syllables(t):
                     break
                 lead.append(t)
+            # 영문 이름 + 직무 한 줄(`Seoyun Han Vice President`) — 맨 앞 두 낱말이 이름 모양이면 이름 후보(영문 순위)로,
+            # 나머지는 직무로 (이슈 140)
+            if not lead and first >= 2 and CAP_WORD_RE.search(tokens[0]) and CAP_WORD_RE.search(tokens[1]) \
+                    and not is_role_token(tokens[0]) and not is_role_token(tokens[1]) \
+                    and not has_latin_org_word(f"{tokens[0]} {tokens[1]}"):
+                names.append((3, -height, order, f"{tokens[0]} {tokens[1]}"))
+                role_text = " ".join(tokens[2:]).lstrip("|/,· ")
             after = tokens[len(lead)]
             if lead and (len(lead) == first or after[:1].isascii() and after[:1].isalpha()) \
                     and is_name_word("".join(lead)):

@@ -1591,6 +1591,96 @@
     {
       "expected": {
         "contact": {
+          "email": "seoyun@hanbit.co.kr",
+          "fax": "+82 2 555.0199",
+          "mobile": "+82 10 5555 0101",
+          "office": "+82 2 555 0100",
+          "other": ""
+        },
+        "emails": [
+          "seoyun@hanbit.co.kr"
+        ],
+        "lines": [
+          "Hanbit",
+          "Seoyun Han tice Presiden",
+          "(주)한빛",
+          "Tel +82. 2. 555. 0100 Fax +82. 2. 555.0199",
+          "Mobile +82. 10. 5555. 0101 E-mail seoyun@hanbit.co.kr"
+        ],
+        "name": "Seoyun Han",
+        "organization": "(주)한빛",
+        "phones": [
+          "+82 2 555 0100",
+          "+82 2 555.0199",
+          "+82 10 5555 0101"
+        ],
+        "role": "tice Presiden"
+      },
+      "lines": [
+        [
+          "Hanbit",
+          0.124
+        ],
+        [
+          "Seoyun Han tice Presiden",
+          0.1012
+        ],
+        [
+          "(주)한빛",
+          0.0589
+        ],
+        [
+          "Tel +82. 2. 555. 0100 Fax +82. 2. 555.0199",
+          0.0475
+        ],
+        [
+          "Mobile +82. 10. 5555. 0101 E-mail seoyun@hanbit.co.kr",
+          0.0549
+        ]
+      ],
+      "name": "영문 이름 + 직무 한 줄 · 직무 낱말 오독 (이슈 140)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "",
+          "fax": "",
+          "mobile": "+65 9555 0101",
+          "office": "",
+          "other": ""
+        },
+        "emails": [],
+        "lines": [
+          "Seoyun Han Vice President",
+          "Hanbit Labs",
+          "M +65 9555 0101"
+        ],
+        "name": "Seoyun Han",
+        "organization": "Hanbit Labs",
+        "phones": [
+          "+65 9555 0101"
+        ],
+        "role": "Vice President"
+      },
+      "lines": [
+        [
+          "Seoyun Han Vice President",
+          0.1
+        ],
+        [
+          "Hanbit Labs",
+          0.05
+        ],
+        [
+          "M +65 9555 0101",
+          0.04
+        ]
+      ],
+      "name": "영문 이름 + 직무 한 줄 (이슈 140)"
+    },
+    {
+      "expected": {
+        "contact": {
           "email": "seoyun@hanbit.com",
           "fax": "",
           "mobile": "+82 10 5555 0101",

@@ -81,6 +81,7 @@ public enum BusinessCardParser {
     static let emailPattern = #"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#
     /// 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
     static let phonePattern = #"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)"#
+    static let capWordPattern = #"^[A-Z][a-z][A-Za-z'-]*$"#
     static let logoWordPattern = #"^[A-Za-z]{2,8}$"#
     static let latinNamePattern = #"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$"#
     /// 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
@@ -158,6 +159,15 @@ public enum BusinessCardParser {
                 for token in tokens[..<first] {
                     guard isSyllables(token) else { break }
                     lead.append(token)
+                }
+                // 영문 이름 + 직무 한 줄(`Seoyun Han Vice President`) — 맨 앞 두 낱말이 이름 모양이면 이름 후보(영문 순위)로,
+                // 나머지는 직무로 (이슈 140)
+                if lead.isEmpty, first >= 2,
+                   !matches(capWordPattern, in: tokens[0]).isEmpty, !matches(capWordPattern, in: tokens[1]).isEmpty,
+                   !isRoleToken(tokens[0]), !isRoleToken(tokens[1]), !hasLatinOrgWord(tokens[0] + " " + tokens[1]) {
+                    names.append(Candidate(rank: 3, height: height, order: order, text: tokens[0] + " " + tokens[1]))
+                    let rest = tokens[2...].joined(separator: " ")
+                    roleText = String(rest.drop { "|/,· ".contains($0) })
                 }
                 let after = tokens[lead.count]
                 if !lead.isEmpty, lead.count == first || startsWithLatinLetter(after), isNameWord(lead.joined()) {
@@ -384,6 +394,8 @@ public enum BusinessCardParser {
         for keyword in roleKeywords {
             if keyword.unicodeScalars.first.map({ $0.isASCII }) == true {
                 if latin == keyword { return true }
+                // 인식이 한 글자 틀리거나 빠뜨린 긴 영문 직무 낱말(`Presiden`) — 일곱 자 넘는 낱말만 (이슈 140)
+                if keyword.count >= 7, latin.count >= 6, levenshtein(latin, keyword) <= 1 { return true }
             } else if token.hasSuffix(keyword) {
                 // `…연구원` 은 그 낱말 하나이거나 `수석` · `책임` 따위 두 글자 뒤일 때만 직무 — 더 길면 기관 (ⓗ)
                 if keyword == "연구원", token.unicodeScalars.count > 5 { continue }
