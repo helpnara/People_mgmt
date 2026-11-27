@@ -149,6 +149,7 @@
 | TestFlight 아카이브가 `... .share" doesn't include signing certificate "Apple Development: Created via API"` 로 실패 | 애플 쪽 시차 — 같은 실행을 **한 번** 다시 돌린다(빌드 78 이 두 번째에 통과) |
 | TestFlight 아카이브가 `The Internet connection appears to be offline` → `No profiles for ...` 로 실패 | 러너 연결 끊김 — 한 번 다시 돌린다(빌드 79) |
 | 실패 로그 맨 아래 안내 세 줄(인증서 꽉 참 · 기기 없음 · App ID 없음) | 실패하면 **늘** 찍히는 일반 안내다. 위쪽의 실제 `error:` 줄을 찾는다 |
+| **2026-11-27 기록 다시 쓰기** — `claude/slow-connection` · `main` 의 커밋 번호가 모두 바뀜 | 명함 읽기 시험의 실제 명함 글이 정답표 · 기록에 섞여 public 저장소에 올라가 있어, 사용자 허락(*기록까지 지우기*)으로 두 브랜치 전체를 지어낸 글로 바꿔 강제 푸시했다(`git filter-repo --replace-text`). 그 전에 받아 둔 사본 · 다른 세션은 `git fetch` 뒤 `git reset --hard origin/<브랜치>` 로 맞춘다 — 옛 사본에서 푸시하면 지운 글이 되살아난다. 다른 브랜치(`master` · `pending/…` · `…-build7` · `…xcode-27-trial`)는 그 글이 없어 그대로. 문서의 옛 커밋 번호(`32715e2` 등)는 옛 기록 기준이다 |
 | 스크린샷을 찍는 CI 가 도는 중에 코드를 푸시하면 그 실행이 취소된다(`cancel-in-progress`) | 푸시를 모은다. 급하면 수정 커밋을 CI 가 돌지 않는 임시 브랜치(예: `pending/…`)에 올리고 그 브랜치에서 `testflight.yml` 을 돌린 뒤, 나중에 작업 브랜치로 가져온다(빌드 80 이 이렇게 나갔다) |
 | `ios.yml` 실행이 일 없이 바로 실패하고 이름이 파일 경로(`.github/workflows/ios.yml`)로 뜬다 | 워크플로 파일을 GitHub 가 못 읽은 것. 스크린샷 단계처럼 긴 `run:` 안에 `${{ }}` 가 있으면 글 전체가 식이 되어 21,000자 한도에 걸린다 — 값은 `env:` 로 넘긴다(CI 187 · 2026-11-25) |
 | 문서만 고친 푸시 | `ios.yml` 이 건너뛴다(`paths-ignore`) — 마음 놓고 올려도 된다 |
