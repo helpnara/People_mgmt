@@ -213,7 +213,7 @@ public enum ContactSorter {
         func has(_ parts: [String]) -> Bool { parts.contains { key.contains($0) } }
         if key == "f" || has(["fax", "팩스"]) { return .kind(.fax) }
         if ["e", "email", "mail"].contains(key) || has(["메일"]) { return .kind(.email) }
-        if ["m", "c", "hp", "handphone"].contains(key) || has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]) {
+        if ["m", "c", "hp", "mp", "handphone"].contains(key) || has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]) {
             return .kind(.mobile)
         }
         if ["o", "main", "dir"].contains(key) || has(["office", "work", "company", "direct", "회사", "사무실", "직장", "대표", "직통"]) {

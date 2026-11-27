@@ -1754,7 +1754,7 @@ def label_kind(key: str):
         return ("kind", "fax")
     if key in ("e", "email", "mail") or has(["메일"]):
         return ("kind", "email")
-    if key in ("m", "c", "hp", "handphone") or has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]):
+    if key in ("m", "c", "hp", "mp", "handphone") or has(["mobile", "iphone", "cell", "휴대", "핸드폰", "모바일"]):
         return ("kind", "mobile")
     if key in ("o", "main", "dir") or has(["office", "work", "company", "direct", "회사", "사무실", "직장", "대표", "직통"]):
         return ("kind", "office")
@@ -2317,8 +2317,9 @@ def parse_card(lines: list[list]) -> dict:
                 roles.append((role_rank(role_text), order, fixed_role(role_text)))
                 kinds.append("role")
                 continue
-        # ③ 첫째 순위 기관 — 같은 줄에 주소가 이어지면 앞에서 자른다 (ⓛ)
-        if is_org(text):
+        # ③ 첫째 순위 기관 — 같은 줄에 주소가 이어지면 앞에서 자른다 (ⓛ). 기관 낱말이 주소 낱말 안에만 있으면
+        # (`…연구소로 150` 같은 도로 이름) 기관이 아니다 (이슈 147)
+        if is_org(" ".join(t for t in tokens if not is_address_token(t))):
             cut = next((i for i, t in enumerate(tokens) if i > 0 and is_address_token(t)), None)
             org = text
             if cut is not None and is_org(" ".join(tokens[:cut])):

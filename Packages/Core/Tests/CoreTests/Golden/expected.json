@@ -2210,6 +2210,82 @@
         "contact": {
           "email": "seoyun@hanbit.com",
           "fax": "",
+          "mobile": "010-5555-0101",
+          "office": "031-555-0100",
+          "other": "www.hanbitmobility.com"
+        },
+        "emails": [
+          "seoyun@hanbit.com"
+        ],
+        "lines": [
+          "HANBIT",
+          "MOBILITY GROUP",
+          "한서윤",
+          "R&D협력팀",
+          "연구원",
+          "모빌리티부문",
+          "R&D본부",
+          "12345 경기도 한빛시 바다읍 한빛연구소로 150",
+          "TEL : 031-555-0100 M.P : 010-5555-0101",
+          "email : seoyun@hanbit.com www.hanbitmobility.com"
+        ],
+        "name": "한서윤",
+        "organization": "HANBIT R&D협력팀",
+        "phones": [
+          "031-555-0100",
+          "010-5555-0101"
+        ],
+        "role": "연구원"
+      },
+      "lines": [
+        [
+          "HANBIT",
+          0.0938
+        ],
+        [
+          "MOBILITY GROUP",
+          0.0469
+        ],
+        [
+          "한서윤",
+          0.085
+        ],
+        [
+          "R&D협력팀",
+          0.0553
+        ],
+        [
+          "연구원",
+          0.0528
+        ],
+        [
+          "모빌리티부문",
+          0.0567
+        ],
+        [
+          "R&D본부",
+          0.0737
+        ],
+        [
+          "12345 경기도 한빛시 바다읍 한빛연구소로 150",
+          0.0557
+        ],
+        [
+          "TEL : 031-555-0100 M.P : 010-5555-0101",
+          0.0528
+        ],
+        [
+          "email : seoyun@hanbit.com www.hanbitmobility.com",
+          0.0654
+        ]
+      ],
+      "name": "도로 이름 속 기관 낱말 · M.P 이름표 (이슈 147)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "seoyun@hanbit.com",
+          "fax": "",
           "mobile": "+82 10 5555 0101",
           "office": "+82 2 5550100",
           "other": "www.hanbit.ai"

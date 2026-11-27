@@ -223,8 +223,9 @@ public enum BusinessCardParser {
                 }
             }
 
-            // 3. 첫째 순위 기관 — 같은 줄에 주소가 이어지면 앞에서 자른다 (ⓛ)
-            if isOrganization(text) {
+            // 3. 첫째 순위 기관 — 같은 줄에 주소가 이어지면 앞에서 자른다 (ⓛ). 기관 낱말이 주소 낱말 안에만 있으면
+            // (`…연구소로 150` 같은 도로 이름) 기관이 아니다 (이슈 147).
+            if isOrganization(tokens.filter { !isAddressToken($0) }.joined(separator: " ")) {
                 var org = text
                 if let cut = tokens.indices.first(where: { $0 > 0 && isAddressToken(tokens[$0]) }) {
                     let head = tokens[..<cut].joined(separator: " ")
