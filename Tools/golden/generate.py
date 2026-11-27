@@ -2407,6 +2407,15 @@ def parse_card(lines: list[list]) -> dict:
             kinds.append("name")
             continue
         kinds.append(kind)
+    # 직무 줄 바로 위의 영문 두세 낱말(모두 대문자여도) — 이름. 손글씨 메모를 인식이 한글로 읽은 것보다 먼저 (이슈 148)
+    for i in range(len(texts) - 1):
+        line = texts[i][0]
+        toks = line.split(" ")
+        if kinds[i] == "other" and kinds[i + 1] == "role" and 2 <= len(toks) <= 3 \
+                and all(LATIN_NAME_TOKEN_RE.search(t) and "A" <= t[0] <= "Z" for t in toks) and not has_latin_org_word(line):
+            names.append((1, -texts[i][1], i, line))
+            orgs = [o for o in orgs if o[1] != i]
+            kinds[i] = "name"
     # 주소 줄 바로 위의 한글 낱말 하나 — `주식회사` 없는 회사 이름 (ⓔ)
     def company_like(i: int) -> bool:
         """한글로만 된 한두 낱말(3~12자) · 이름 모양(성으로 시작하는 2~3자 · 두 글자 성 4자)이 아님."""

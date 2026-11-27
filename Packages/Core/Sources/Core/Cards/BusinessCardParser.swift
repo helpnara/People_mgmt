@@ -347,6 +347,19 @@ public enum BusinessCardParser {
             kinds.append("other")
         }
 
+        // 직무 줄 바로 위의 영문 두세 낱말(모두 대문자여도) — 이름. 손글씨 메모를 인식이 한글로 읽은 것보다 먼저 (이슈 148).
+        for index in texts.indices.dropLast() {
+            let line = texts[index].text
+            let toks = line.split(separator: " ").map(String.init)
+            guard kinds[index] == "other", kinds[index + 1] == "role", (2...3).contains(toks.count),
+                  toks.allSatisfy({ !matches(latinNameTokenPattern, in: $0).isEmpty
+                      && ($0.unicodeScalars.first.map { (0x41...0x5A).contains($0.value) } ?? false) }),
+                  !hasLatinOrgWord(line) else { continue }
+            names.append(Candidate(rank: 1, height: texts[index].height, order: index, text: line))
+            orgs.removeAll { $0.order == index }
+            kinds[index] = "name"
+        }
+
         /// 한글로만 된 한두 낱말(3~12자) · 이름 모양(성으로 시작하는 2~3자 · 두 글자 성 4자)이 아님.
         func companyLike(_ index: Int) -> Bool {
             let text = texts[index].text
