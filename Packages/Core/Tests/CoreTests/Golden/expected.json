@@ -2464,6 +2464,82 @@
     {
       "expected": {
         "contact": {
+          "email": "hanbitcode@naver.com",
+          "fax": "0504-555-0199",
+          "mobile": "010-5555-0101",
+          "office": "1555-0100",
+          "other": ""
+        },
+        "emails": [
+          "hanbitcode@naver.com"
+        ],
+        "lines": [
+          "한빛코드",
+          "한서윤",
+          "대표 / CEO",
+          "HANBITCODE",
+          "서울시 한빛구 바다로75길 15 501호",
+          "DESIGN STUDIO BY HAN SEOYUN",
+          "T: 1555-0100",
+          "H: 010-5555-0101",
+          "F : 0504-555-0199",
+          "E : hanbitcode@naver.com"
+        ],
+        "name": "한서윤",
+        "organization": "한빛코드",
+        "phones": [
+          "1555-0100",
+          "010-5555-0101"
+        ],
+        "role": "대표 / CEO"
+      },
+      "lines": [
+        [
+          "한빛코드",
+          0.0571
+        ],
+        [
+          "한서윤",
+          0.1114
+        ],
+        [
+          "대표 / CEO",
+          0.0429
+        ],
+        [
+          "HANBITCODE",
+          0.0829
+        ],
+        [
+          "서울시 한빛구 바다로75길 15 501호",
+          0.0543
+        ],
+        [
+          "DESIGN STUDIO BY HAN SEOYUN",
+          0.0257
+        ],
+        [
+          "T: 1555-0100",
+          0.0429
+        ],
+        [
+          "H: 010-5555-0101",
+          0.0486
+        ],
+        [
+          "F : 0504-555-0199",
+          0.0522
+        ],
+        [
+          "E : hanbitcode@naver.com",
+          0.0669
+        ]
+      ],
+      "name": "H 이름표 · 0504 팩스 (이슈 150)"
+    },
+    {
+      "expected": {
+        "contact": {
           "email": "seoyun@hanbit.com",
           "fax": "",
           "mobile": "+82 10 5555 0101",

@@ -86,7 +86,7 @@ public enum BusinessCardParser {
 
     static let emailPattern = #"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#
     /// 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
-    static let phonePattern = #"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)"#
+    static let phonePattern = #"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?(?:0\d{1,3}|\d{1,2})\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)"#
     static let capWordPattern = #"^[A-Z][a-z][A-Za-z'-]*$"#
     static let latinTeamWords: Set<String> = ["team", "division", "department", "dept", "office", "group", "lab", "center", "centre"]
     static let latinOrg2Words: Set<String> = ["group", "institute"]
