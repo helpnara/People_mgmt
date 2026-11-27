@@ -3166,6 +3166,39 @@
       ]
     },
     {
+      "name": "이름 | 직무 한 줄 · 한글 회사 + 괄호 영문 (이슈 152)",
+      "lines": [
+        [
+          "한서윤 | 대표 (CEO)",
+          0.0739
+        ],
+        [
+          "한빛심테크놀로지 (HanbitSim Technology)",
+          0.0752
+        ],
+        [
+          "Tel: 010-5555-0101",
+          0.0623
+        ],
+        [
+          "Email: hanbitsim001@gmai.com",
+          0.0844
+        ],
+        [
+          "Web: www.hanbitsim-tech.com / www.hanbit-x.com / factory-",
+          0.0817
+        ],
+        [
+          "twin.co.kr",
+          0.0685
+        ],
+        [
+          "Address: 인천광역시. 바다구 한빛로 229, 5층 (물빛동)",
+          0.1028
+        ]
+      ]
+    },
+    {
       "name": "명함 시험 7 C 이름표 (이슈 130)",
       "lines": [
         [

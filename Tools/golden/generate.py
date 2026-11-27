@@ -1899,6 +1899,8 @@ KNOWN_MAIL_DOMAINS = ["gmail.com", "naver.com", "daum.net", "hanmail.net", "kaka
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
 PHONE_RE = re.compile(r"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?(?:0\d{1,3}|\d{1,2})\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)")
+HANGUL_PAREN_LATIN_RE = re.compile(r"^([가-힣]+(?: [가-힣]+)?) \(([A-Za-z][A-Za-z .&-]*)\)$")
+SEP_TOKENS = {"|", "/", "·", ",", "-", "•"}
 CAP_WORD_RE = re.compile(r"^[A-Z][a-z][A-Za-z'-]*$")
 LATIN_TEAM_WORDS = {"team", "division", "department", "dept", "office", "group", "lab", "center", "centre"}
 LATIN_ORG2_WORDS = {"group", "institute"}
@@ -2301,10 +2303,12 @@ def parse_card(lines: list[list]) -> dict:
                 names.append((3, -height, order, f"{tokens[0]} {tokens[1]}"))
                 role_text = " ".join(tokens[2:]).lstrip("|/,· ")
             after = tokens[len(lead)]
-            if lead and (len(lead) == first or after[:1].isascii() and after[:1].isalpha()) \
+            # 이름과 직무 사이에 구분 기호 낱말만 있으면(`한서윤 | 대표`) 바로 붙은 것과 같다 (이슈 152)
+            reach = len(lead) == first or bool(lead) and all(t in SEP_TOKENS for t in tokens[len(lead):first])
+            if lead and (reach or after[:1].isascii() and after[:1].isalpha()) \
                     and is_name_word("".join(lead)):
                 names.append((0, -height, order, "".join(lead)))
-                if len(lead) == first:
+                if reach:
                     role_text = " ".join(tokens[first:])
             # 기관 낱말이 모든 직무 낱말보다 앞이면 그 줄을 나눈다 — `한빛대학교 연구원` → 소속 · 직무
             org_at = next((i for i, t in enumerate(tokens) if is_org(t)), None)
@@ -2355,6 +2359,12 @@ def parse_card(lines: list[list]) -> dict:
         if lead and rest and rest[0][:1].isascii() and rest[0][:1].isalpha() and is_name_word("".join(lead)):
             names.append((0, -height, order, "".join(lead)))
             kinds.append("name")
+            continue
+        # ④ 한글 회사 이름 + 괄호 속 영문 이름에 기관 낱말(`한빛심테크놀로지 (HanbitSim Technology)`) — 둘째 순위 기관 (이슈 152)
+        m = HANGUL_PAREN_LATIN_RE.search(text)
+        if m and has_latin_org_word(m.group(2)):
+            orgs.append((1, order, text))
+            kinds.append("org")
             continue
         # ⑥ `|` 로 나뉜 줄의 한 조각이 성으로 시작하는 한글 이름(`… | 한서 윤`) — 인식이 직책 글과 이름을 한 줄로 (이슈 151)
         if " | " in text:

@@ -87,6 +87,8 @@ public enum BusinessCardParser {
     static let emailPattern = #"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#
     /// 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
     static let phonePattern = #"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?(?:0\d{1,3}|\d{1,2})\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)"#
+    static let hangulParenLatinPattern = #"^([가-힣]+(?: [가-힣]+)?) \(([A-Za-z][A-Za-z .&-]*)\)$"#
+    static let separatorTokens: Set<String> = ["|", "/", "·", ",", "-", "•"]
     static let capWordPattern = #"^[A-Z][a-z][A-Za-z'-]*$"#
     static let latinTeamWords: Set<String> = ["team", "division", "department", "dept", "office", "group", "lab", "center", "centre"]
     static let latinOrg2Words: Set<String> = ["group", "institute"]
@@ -197,9 +199,12 @@ public enum BusinessCardParser {
                     roleText = String(rest.drop { "|/,· ".contains($0) })
                 }
                 let after = tokens[lead.count]
-                if !lead.isEmpty, lead.count == first || startsWithLatinLetter(after), isNameWord(lead.joined()) {
+                // 이름과 직무 사이에 구분 기호 낱말만 있으면(`한서윤 | 대표`) 바로 붙은 것과 같다 (이슈 152)
+                let reach = lead.count == first
+                    || (!lead.isEmpty && tokens[lead.count..<first].allSatisfy { separatorTokens.contains($0) })
+                if !lead.isEmpty, reach || startsWithLatinLetter(after), isNameWord(lead.joined()) {
                     names.append(Candidate(rank: 0, height: height, order: order, text: lead.joined()))
-                    if lead.count == first { roleText = tokens[first...].joined(separator: " ") }
+                    if reach { roleText = tokens[first...].joined(separator: " ") }
                 }
                 // 기관 낱말이 모든 직무 낱말보다 앞이면 그 줄을 나눈다 — `한빛대학교 연구원` → 소속 · 직무
                 if let orgAt = tokens.firstIndex(where: isOrganization), orgAt < first,
@@ -264,6 +269,13 @@ public enum BusinessCardParser {
             if !lead.isEmpty, lead.count < tokens.count, startsWithLatinLetter(tokens[lead.count]), isNameWord(lead.joined()) {
                 names.append(Candidate(rank: 0, height: height, order: order, text: lead.joined()))
                 kinds.append("name")
+                continue
+            }
+
+            // 4. 한글 회사 이름 + 괄호 속 영문 이름에 기관 낱말(`한빛심테크놀로지 (HanbitSim Technology)`) — 둘째 순위 기관 (이슈 152)
+            if let inner = captureGroups(hangulParenLatinPattern, in: text)?.last, hasLatinOrgWord(inner) {
+                orgs.append(Candidate(rank: 1, height: 0, order: order, text: text))
+                kinds.append("org")
                 continue
             }
 
@@ -740,6 +752,16 @@ public enum BusinessCardParser {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
         let range = NSRange(text.startIndex..., in: text)
         return regex.stringByReplacingMatches(in: text, range: range, withTemplate: template)
+    }
+
+    /// 첫 맞춤의 묶음들(`(…)`) — 맞지 않으면 nil.
+    static func captureGroups(_ pattern: String, in text: String) -> [String]? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let match = regex.firstMatch(in: text, range: range) else { return nil }
+        return (1..<match.numberOfRanges).compactMap { index in
+            Range(match.range(at: index), in: text).map { String(text[$0]) }
+        }
     }
 
     static func matches(_ pattern: String, in text: String) -> [String] {
