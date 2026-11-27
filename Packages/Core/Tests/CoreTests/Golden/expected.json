@@ -1776,6 +1776,72 @@
     {
       "expected": {
         "contact": {
+          "email": "seoyun.han@shop.hanbit.com",
+          "fax": "",
+          "mobile": "+8210 5555 0101",
+          "office": "+827055550100",
+          "other": ""
+        },
+        "emails": [
+          "seoyun.han@shop.hanbit.com"
+        ],
+        "lines": [
+          "HANBIT",
+          "한서윤",
+          "시니어 세일즈 어드바이저",
+          "한빛 매장 바다점",
+          "12345 경기도 한빛시 바다구 바다역로140번길 20 1F",
+          "[r] +827055550100 [M] +8210 5555 0101",
+          "seoyun.han@shop.hanbit:com",
+          "hanbitgroup.com"
+        ],
+        "name": "한서윤",
+        "organization": "HANBIT",
+        "phones": [
+          "+827055550100",
+          "+8210 5555 0101"
+        ],
+        "role": "시니어 세일즈 어드바이저"
+      },
+      "lines": [
+        [
+          "HANBIT",
+          0.098
+        ],
+        [
+          "한서윤",
+          0.0504
+        ],
+        [
+          "시니어 세일즈 어드바이저",
+          0.0566
+        ],
+        [
+          "한빛 매장 바다점",
+          0.0588
+        ],
+        [
+          "12345 경기도 한빛시 바다구 바다역로140번길 20 1F",
+          0.0617
+        ],
+        [
+          "[r] +827055550100 [M] +8210 5555 0101",
+          0.0655
+        ],
+        [
+          "seoyun.han@shop.hanbit:com",
+          0.056
+        ],
+        [
+          "hanbitgroup.com",
+          0.0683
+        ]
+      ],
+      "name": "괄호 이름표 오독 · 메일 쌍점 · 외래어 직함 (이슈 142)"
+    },
+    {
+      "expected": {
+        "contact": {
           "email": "seoyun@hanbit.com",
           "fax": "",
           "mobile": "+82 10 5555 0101",

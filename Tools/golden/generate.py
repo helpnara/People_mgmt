@@ -1803,6 +1803,9 @@ def contact_resolve(label: str, value: str, is_email: bool):
         return "email" if k in (("none",), ("kind", "email")) else None
     if k[0] in ("none", "phone"):
         return "mobile" if is_mobile(value) else "office"
+    # 한 글자짜리 모르는 이름표는 인식이 `T` · `M` 을 잘못 읽은 것으로 본다(`[r]` · 이슈 142) — 번호 모양으로 가른다
+    if k[0] == "unknown" and len(label) == 1:
+        return "mobile" if is_mobile(value) else "office"
     if k == ("kind", "email") or k[0] == "unknown":
         return None
     return k[1]
@@ -1860,10 +1863,13 @@ ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전
                  # 이슈 133 — 공무원 직급
                  # 이슈 141 — 강사 · 의료 · 전문직
                  "강사", "전임의", "전공의", "간호사", "약사", "의사", "변호사", "변리사", "회계사", "세무사", "노무사",
+                 # 이슈 142 — 외래어 직함
+                 "어드바이저", "코디네이터", "스페셜리스트", "디렉터", "애널리스트", "큐레이터", "트레이너", "에디터",
                  "사무관", "서기관", "주무관", "이사관", "행정관", "연구관", "연구사", "지도관", "지도사", "심사관", "조사관", "감독관",
                  "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
                  "consultant", "president", "founder", "professor", "lead",
-                 "executive", "officer", "head", "vp", "architect", "specialist", "phd"]
+                 "executive", "officer", "head", "vp", "architect", "specialist", "phd",
+                 "advisor", "adviser", "coordinator", "analyst"]
 KOREAN_ORG = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
 LATIN_ORG = {"inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"}
 DEPARTMENT_SUFFIXES = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]
@@ -1896,6 +1902,7 @@ EMAIL_LABEL_RE = re.compile(r"(?<![A-Za-z0-9._%+-])(E|EMAIL|Email|E-mail|E-Mail|
 AT_NOISE_RE = re.compile(r"(?<=[A-Za-z0-9._%+-])[ (]{1,2}@[ )]{0,2}(?=[A-Za-z0-9])|(?<=[A-Za-z0-9._%+-])@[ )]{1,2}(?=[A-Za-z0-9])")
 PAREN_COUNTRY_RE = re.compile(r"\(\+82[ .-]*0?(\d{1,2})\)")
 ZERO_COUNTRY_RE = re.compile(r"\+82[ .-]*\(0\)[ .-]*")
+EMAIL_COLON_RE = re.compile(r"(@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*):(?=[A-Za-z]{2,})")
 DOT_GAP_RE = re.compile(r"(?<=\d)\. (?=\d)")
 ROLE_SPLIT_RE = re.compile(r"[ /|,·]+")
 ZIP_RE = re.compile(r"^\(?\d{5}\)?$")
@@ -1967,7 +1974,9 @@ def tidy_contact(text: str) -> str:
     text = PAREN_COUNTRY_RE.sub(r"0\1", text)
     text = ZERO_COUNTRY_RE.sub("0", text)
     # 점 + 빈칸으로 끊은 번호(`+82. 2. 555. 0100`) — 빈칸 하나로 (이슈 138)
-    return DOT_GAP_RE.sub(" ", text)
+    text = DOT_GAP_RE.sub(" ", text)
+    # 메일 도메인의 점을 쌍점으로 읽은 것(`…@shop.hanbit:com`) — 점으로 (이슈 142)
+    return EMAIL_COLON_RE.sub(r"\1.", text)
 
 
 def latin_letters(token: str) -> str:

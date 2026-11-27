@@ -52,11 +52,14 @@ public enum BusinessCardParser {
         "편집장", "점장", "공장장", "위원장", "의장", "관장", "학장", "총장",
         // 이슈 141 — 강사 · 의료 · 전문직
         "강사", "전임의", "전공의", "간호사", "약사", "의사", "변호사", "변리사", "회계사", "세무사", "노무사",
+        // 이슈 142 — 외래어 직함
+        "어드바이저", "코디네이터", "스페셜리스트", "디렉터", "애널리스트", "큐레이터", "트레이너", "에디터",
         // 이슈 133 — 공무원 직급
         "사무관", "서기관", "주무관", "이사관", "행정관", "연구관", "연구사", "지도관", "지도사", "심사관", "조사관", "감독관",
         "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
         "consultant", "president", "founder", "professor", "lead",
         "executive", "officer", "head", "vp", "architect", "specialist", "phd",
+        "advisor", "adviser", "coordinator", "analyst",
     ]
     static let koreanOrgKeywords = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
     static let latinOrgKeywords: Set<String> = ["inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"]
@@ -94,6 +97,8 @@ public enum BusinessCardParser {
     static let parenCountryPattern = #"\(\+82[ .-]*0?(\d{1,2})\)"#
     static let zeroCountryPattern = #"\+82[ .-]*\(0\)[ .-]*"#
     /// 점 + 빈칸으로 끊은 번호(`+82. 2. 555. 0100`) — 빈칸 하나로 (이슈 138).
+    /// 메일 도메인의 점을 쌍점으로 읽은 것(`…@shop.hanbit:com`) — 점으로 (이슈 142).
+    static let emailColonPattern = #"(@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*):(?=[A-Za-z]{2,})"#
     static let dotGapPattern = #"(?<=\d)\. (?=\d)"#
     static let urlPattern = #"(?:https?://|www\.)[^ ]+"#
     static let zipPattern = #"^\(?\d{5}\)?$"#
@@ -549,7 +554,8 @@ public enum BusinessCardParser {
         result = replacing(atNoisePattern, in: result, with: "@")
         result = replacing(parenCountryPattern, in: result, with: "0$1")
         result = replacing(zeroCountryPattern, in: result, with: "0")
-        return replacing(dotGapPattern, in: result, with: " ")
+        result = replacing(dotGapPattern, in: result, with: " ")
+        return replacing(emailColonPattern, in: result, with: "$1.")
     }
 
     static func siteDomain(_ url: String) -> String {

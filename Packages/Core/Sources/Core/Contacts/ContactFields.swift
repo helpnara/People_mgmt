@@ -175,6 +175,8 @@ public enum ContactSorter {
             default: return nil
             }
         }
+        // 한 글자짜리 모르는 이름표는 인식이 `T` · `M` 을 잘못 읽은 것으로 본다(`[r]` · 이슈 142) — 번호 모양으로 가른다.
+        if kind == .unknown, label.count == 1 { return isMobile(value) ? .mobile : .office }
         switch kind {
         case .none, .phone: return isMobile(value) ? .mobile : .office
         case .kind(.email), .unknown: return nil
