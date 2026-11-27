@@ -1813,12 +1813,18 @@ def contact_resolve(label: str, value: str, is_email: bool):
 
 # 누리집 주소 — 한 조각에 번호와 함께 있으면 먼저 떼어 기타로 (이슈 130 ⓕ · 명함 2).
 URL_RE = re.compile(r"(?:https?://|www\.)[^ ]+")
+URL_LABELS = {"url", "web", "website", "homepage", "w", "홈페이지", "누리집"}
 
 
 def contact_sort(token: str, f: dict) -> None:
     urls = [m.group(0) for m in URL_RE.finditer(token)]
     if urls:
         rest = collapsed_spaces(URL_RE.sub(" ", token))
+        # 남은 것이 누리집 이름표뿐이면(`URL :` · `Web`) 버린다 (이슈 144)
+        if label_key(rest) in URL_LABELS and not any("0" <= ch <= "9" for ch in rest):
+            for url in urls:
+                contact_place(f, url, "other")
+            return
         if rest:
             for url in urls:
                 contact_place(f, url, "other")
@@ -1869,7 +1875,8 @@ ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전
                  "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
                  "consultant", "president", "founder", "professor", "lead",
                  "executive", "officer", "head", "vp", "architect", "specialist", "phd",
-                 "advisor", "adviser", "coordinator", "analyst", "bd"]
+                 "advisor", "adviser", "coordinator", "analyst", "bd",
+                 "researcher", "scientist"]
 KOREAN_ORG = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
 LATIN_ORG = {"inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"}
 DEPARTMENT_SUFFIXES = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]

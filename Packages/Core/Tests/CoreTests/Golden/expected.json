@@ -1902,6 +1902,91 @@
     {
       "expected": {
         "contact": {
+          "email": "seoyun0101@hbt-g.com",
+          "fax": "",
+          "mobile": "",
+          "office": "+81-70-5555-0100",
+          "other": "www.hbt.co.jp/en/"
+        },
+        "emails": [
+          "seoyun0101@hbt-g.com"
+        ],
+        "lines": [
+          "HBT",
+          "Seoyun Han",
+          "Make it better",
+          "Researcher",
+          "Systems Engineering Dept.",
+          "Advanced Technology Center",
+          "Research and Development Division",
+          "I HBT Corporation",
+          "1,Bada-cho, Hanbit-ku, Hanbit 123-4567 Japan",
+          "TEL +81-70-5555-0100",
+          "E-mail : seoyun0101@hbt-g.com",
+          "URL : www.hbt.co.jp/en/"
+        ],
+        "name": "Seoyun Han",
+        "organization": "HBT Research and Development Division",
+        "phones": [
+          "+81-70-5555-0100"
+        ],
+        "role": "Researcher"
+      },
+      "lines": [
+        [
+          "HBT",
+          0.1008
+        ],
+        [
+          "Seoyun Han",
+          0.0969
+        ],
+        [
+          "Make it better",
+          0.0471
+        ],
+        [
+          "Researcher",
+          0.0434
+        ],
+        [
+          "Systems Engineering Dept.",
+          0.0504
+        ],
+        [
+          "Advanced Technology Center",
+          0.0463
+        ],
+        [
+          "Research and Development Division",
+          0.049
+        ],
+        [
+          "I HBT Corporation",
+          0.081
+        ],
+        [
+          "1,Bada-cho, Hanbit-ku, Hanbit 123-4567 Japan",
+          0.0537
+        ],
+        [
+          "TEL +81-70-5555-0100",
+          0.0381
+        ],
+        [
+          "E-mail : seoyun0101@hbt-g.com",
+          0.0494
+        ],
+        [
+          "URL : www.hbt.co.jp/en/",
+          0.0463
+        ]
+      ],
+      "name": "영문 Researcher 직함 (이슈 144)"
+    },
+    {
+      "expected": {
+        "contact": {
           "email": "seoyun@hanbit.com",
           "fax": "",
           "mobile": "+82 10 5555 0101",

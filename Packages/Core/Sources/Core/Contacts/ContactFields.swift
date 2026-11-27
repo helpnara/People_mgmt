@@ -121,12 +121,19 @@ public enum ContactSorter {
         let isEmail: Bool
     }
 
+    static let urlLabels: Set<String> = ["url", "web", "website", "homepage", "w", "홈페이지", "누리집"]
+
     static func sort(_ token: String, into fields: inout ContactFields) {
         // 누리집 주소 — 한 조각에 번호와 함께 있으면 먼저 떼어 기타로 (이슈 130 ⓕ · 명함 2).
         var token = token
         let urls = BusinessCardParser.matches(BusinessCardParser.urlPattern, in: token)
         if !urls.isEmpty {
             let rest = TextNormalization.collapsedSpaces(BusinessCardParser.replacing(BusinessCardParser.urlPattern, in: token, with: " "))
+            // 남은 것이 누리집 이름표뿐이면(`URL :` · `Web`) 버린다 (이슈 144).
+            if urlLabels.contains(labelKey(rest)), !rest.unicodeScalars.contains(where: { (0x30...0x39).contains($0.value) }) {
+                for url in urls { fields.place(url, as: .other) }
+                return
+            }
             if !rest.isEmpty {
                 for url in urls { fields.place(url, as: .other) }
                 token = rest

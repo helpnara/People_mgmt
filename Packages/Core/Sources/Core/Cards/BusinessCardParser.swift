@@ -60,6 +60,7 @@ public enum BusinessCardParser {
         "consultant", "president", "founder", "professor", "lead",
         "executive", "officer", "head", "vp", "architect", "specialist", "phd",
         "advisor", "adviser", "coordinator", "analyst", "bd",
+        "researcher", "scientist",
     ]
     static let koreanOrgKeywords = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
     static let latinOrgKeywords: Set<String> = ["inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"]
