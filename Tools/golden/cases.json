@@ -2859,6 +2859,51 @@
       ]
     },
     {
+      "name": "대문자 영문 이름 · Head of 팀 · 영문 Group 기관 (이슈 146)",
+      "lines": [
+        [
+          "HBTNOAI",
+          0.0669
+        ],
+        [
+          "S.YUN HAN",
+          0.0669
+        ],
+        [
+          "Head of Partner Relations Team",
+          0.0538
+        ],
+        [
+          "MOBILITY GROUP",
+          0.0378
+        ],
+        [
+          "Hanbit Mobility Group Open Lab",
+          0.0693
+        ],
+        [
+          "Singapore",
+          0.0618
+        ],
+        [
+          "2 Bada Link, Singapore 123456",
+          0.0643
+        ],
+        [
+          "M +65 9555 0101",
+          0.0436
+        ],
+        [
+          "www.hanbit.com/sg",
+          0.0523
+        ],
+        [
+          "syhan@hanbit.com",
+          0.0566
+        ]
+      ]
+    },
+    {
       "name": "명함 시험 7 C 이름표 (이슈 130)",
       "lines": [
         [

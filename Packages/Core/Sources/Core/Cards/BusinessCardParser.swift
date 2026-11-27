@@ -88,6 +88,9 @@ public enum BusinessCardParser {
     /// 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
     static let phonePattern = #"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)"#
     static let capWordPattern = #"^[A-Z][a-z][A-Za-z'-]*$"#
+    static let latinTeamWords: Set<String> = ["team", "division", "department", "dept", "office", "group", "lab", "center", "centre"]
+    static let latinOrg2Words: Set<String> = ["group", "institute"]
+    static let latinNameTokenPattern = #"^[A-Za-z][A-Za-z.'-]*$"#
     static let misreadLogoPattern = #"^[A-Z50]{2,8}$"#
     static let emailLocalPattern = #"^[A-Za-z0-9._-]+$"#
     static let atNoises = ["(a)", "a)", "(a", "@)", "a"]
@@ -133,6 +136,12 @@ public enum BusinessCardParser {
         var orgs: [Candidate] = []
         var depts: [String] = []
         var kinds: [String] = []
+        var ofDepts: [Int: String] = [:]  // 차례 → `Head of … Team` 의 팀 (그 줄이 직무로 뽑힐 때만 소속에 붙인다)
+        let emailLocals: [String] = texts.flatMap { entry in
+            matches(emailPattern, in: tidyContact(entry.text)).map { email in
+                String(email.split(separator: "@", omittingEmptySubsequences: false).first ?? "").lowercased()
+            }
+        }
 
         for (order, entry) in texts.enumerated() {
             let text = entry.text
@@ -197,6 +206,17 @@ public enum BusinessCardParser {
                     continue
                 }
                 if let last = pieces.last, isRoleToken(last) || !(isOrganization(text) || isOrganization2(text)) {
+                    // `Head of Partner Relations Team` — `of` 오른쪽이 팀 · 부서면 왼쪽은 직무, 오른쪽은 부서 (이슈 146 · 사용자)
+                    if let of = roleText.range(of: " of ") {
+                        let left = String(roleText[..<of.lowerBound])
+                        let right = String(roleText[of.upperBound...])
+                        let lastWord = right.split(separator: " ").last.map(String.init) ?? right
+                        if !left.isEmpty, !right.isEmpty, latinTeamWords.contains(latinLetters(lastWord)),
+                           rolePieces(left).contains(where: isRoleToken) {
+                            roleText = left
+                            ofDepts[order] = right
+                        }
+                    }
                     roles.append(Candidate(rank: roleRank(roleText), height: 0, order: order, text: fixedRole(roleText)))
                     kinds.append("role")
                     continue
@@ -280,6 +300,23 @@ public enum BusinessCardParser {
                 continue
             }
 
+            // 8. 메일 아이디에 성이 든 영문 이름(`S.YUN HAN` ↔ `syhan@…`) — 모두 대문자여도 이름 (이슈 146)
+            if (2...3).contains(tokens.count), tokens.allSatisfy({ !matches(latinNameTokenPattern, in: $0).isEmpty }),
+               let lastToken = tokens.last, latinLetters(lastToken).count >= 3,
+               emailLocals.contains(where: { $0.contains(latinLetters(lastToken)) }), !hasLatinOrgWord(text) {
+                names.append(Candidate(rank: 1, height: height, order: order, text: text))
+                kinds.append("name")
+                continue
+            }
+            // 8. 영문 기관 이름 — 낱말마다 대문자로 시작하는 세 낱말 넘는 줄에 `Group` · `Institute` (이슈 146)
+            if tokens.count >= 3,
+               tokens.allSatisfy({ $0.unicodeScalars.first.map { (0x41...0x5A).contains($0.value) } ?? false }),
+               !text.unicodeScalars.contains(where: { (0x30...0x39).contains($0.value) }),
+               tokens.contains(where: { latinOrg2Words.contains(latinLetters($0)) }) {
+                orgs.append(Candidate(rank: 1, height: 0, order: order, text: text))
+                kinds.append("org")
+                continue
+            }
             // 8. 로고 약칭의 `S` · `O` 를 숫자로 읽은 것(`5L`) — 대문자와 `5` · `0` 만인 한 낱말은 글자로 바꿔 기관 후보 (이슈 145)
             if !matches(misreadLogoPattern, in: text).isEmpty,
                text.unicodeScalars.contains(where: { (0x41...0x5A).contains($0.value) }),
@@ -350,7 +387,9 @@ public enum BusinessCardParser {
 
         // 이름: 순위 → 글자 큰 것 → 먼저 나온 줄. 직무 · 소속: 순위 → 먼저 나온 줄.
         suggestion.name = names.min { ($0.rank, -$0.height, $0.order) < ($1.rank, -$1.height, $1.order) }?.text
-        suggestion.role = roles.min { ($0.rank, $0.order) < ($1.rank, $1.order) }?.text
+        let bestRole = roles.min { ($0.rank, $0.order) < ($1.rank, $1.order) }
+        suggestion.role = bestRole?.text
+        if depts.isEmpty, let bestRole, let team = ofDepts[bestRole.order] { depts.append(team) }
         if var org = orgs.min(by: { ($0.rank, $0.order) < ($1.rank, $1.order) })?.text {
             if let dept = depts.first, !org.contains(dept) { org += " " + dept }
             suggestion.organization = org

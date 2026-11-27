@@ -1900,6 +1900,9 @@ EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
 PHONE_RE = re.compile(r"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)")
 CAP_WORD_RE = re.compile(r"^[A-Z][a-z][A-Za-z'-]*$")
+LATIN_TEAM_WORDS = {"team", "division", "department", "dept", "office", "group", "lab", "center", "centre"}
+LATIN_ORG2_WORDS = {"group", "institute"}
+LATIN_NAME_TOKEN_RE = re.compile(r"^[A-Za-z][A-Za-z.'-]*$")
 MISREAD_LOGO_RE = re.compile(r"^[A-Z50]{2,8}$")
 LOGO_WORD_RE = re.compile(r"^[A-Za-z]{2,8}$")
 LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
@@ -2243,6 +2246,8 @@ def parse_card(lines: list[list]) -> dict:
             texts.append((text, height))
     texts = merged_lone_labels(texts)
     sites = [site_domain(m.group(0)) for t, _ in texts for m in URL_RE.finditer(t)]
+    of_depts = {}  # 차례 → `Head of … Team` 의 팀 (그 줄이 직무로 뽑힐 때만 소속에 붙인다)
+    locals_ = [e.split("@")[0].lower() for t, _ in texts for e in EMAIL_RE.findall(tidy_contact(t))]
     contact_lines = []
     names = []   # (순위, -높이, 차례, 이름)
     roles = []   # (순위, 차례, 글)
@@ -2303,6 +2308,12 @@ def parse_card(lines: list[list]) -> dict:
                 kinds.append("role")
                 continue
             if is_role_token(pieces[-1]) or not (is_org(text) or is_org2(text)):
+                # `Head of Partner Relations Team` — `of` 오른쪽이 팀 · 부서면 왼쪽은 직무, 오른쪽은 부서 (이슈 146 · 사용자)
+                left, of, right = role_text.partition(" of ")
+                if of and left and right and latin_letters(right.split(" ")[-1]) in LATIN_TEAM_WORDS \
+                        and any(is_role_token(p) for p in role_pieces(left)):
+                    role_text = left
+                    of_depts[order] = right
                 roles.append((role_rank(role_text), order, fixed_role(role_text)))
                 kinds.append("role")
                 continue
@@ -2364,6 +2375,19 @@ def parse_card(lines: list[list]) -> dict:
             depts.append(pieces[-1])
             kinds.append("dept")
             continue
+        # ⑧ 메일 아이디에 성이 든 영문 이름(`S.YUN HAN` ↔ `syhan@…`) — 모두 대문자여도 이름 (이슈 146)
+        if 2 <= len(tokens) <= 3 and all(LATIN_NAME_TOKEN_RE.search(t) for t in tokens) \
+                and len(latin_letters(tokens[-1])) >= 3 and any(latin_letters(tokens[-1]) in local for local in locals_) \
+                and not has_latin_org_word(text):
+            names.append((1, -height, order, text))
+            kinds.append("name")
+            continue
+        # ⑧ 영문 기관 이름 — 낱말마다 대문자로 시작하는 세 낱말 넘는 줄에 `Group` · `Center` · `Institute` (이슈 146)
+        if len(tokens) >= 3 and all(t[:1].isascii() and t[:1].isupper() for t in tokens) \
+                and not any("0" <= c <= "9" for c in text) and any(latin_letters(t) in LATIN_ORG2_WORDS for t in tokens):
+            orgs.append((1, order, text))
+            kinds.append("org")
+            continue
         # ⑧ 로고 약칭의 `S` · `O` 를 숫자로 읽은 것(`5L`) — 대문자와 `5` · `0` 만인 한 낱말은 글자로 바꿔 기관 후보 (이슈 145)
         if MISREAD_LOGO_RE.search(text) and any("A" <= c <= "Z" for c in text) and any(c in "50" for c in text):
             orgs.append((3, order, text.replace("5", "S").replace("0", "O")))
@@ -2417,6 +2441,8 @@ def parse_card(lines: list[list]) -> dict:
         out["name"] = min(names)[3]
     if roles:
         out["role"] = min(roles)[2]
+        if not depts and min(roles)[1] in of_depts:
+            depts.append(of_depts[min(roles)[1]])
     if orgs:
         org = min(orgs)[2]
         if depts and depts[0] not in org:
