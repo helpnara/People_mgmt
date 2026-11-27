@@ -107,7 +107,7 @@ public enum BusinessCardParser {
     /// 점 + 빈칸으로 끊은 번호(`+82. 2. 555. 0100`) — 빈칸 하나로 (이슈 138).
     /// 메일 도메인의 점을 쌍점으로 읽은 것(`…@shop.hanbit:com`) — 점으로 (이슈 142).
     static let emailColonPattern = #"(@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*):(?=[A-Za-z]{2,})"#
-    static let dotGapPattern = #"(?<=\d)\. (?=\d)"#
+    static let dotGapPattern = #"(?<=\d)[.,] (?=\d)"#
     static let urlPattern = #"(?:https?://|www\.)[^ ]+"#
     static let zipPattern = #"^\(?\d{5}\)?$"#
     static let siteSchemePattern = #"^(?:https?://)?(?:www\.)?"#
@@ -265,6 +265,24 @@ public enum BusinessCardParser {
                 names.append(Candidate(rank: 0, height: height, order: order, text: lead.joined()))
                 kinds.append("name")
                 continue
+            }
+
+            // 6. `|` 로 나뉜 줄의 한 조각이 성으로 시작하는 한글 이름(`… | 한서 윤`) — 인식이 직책 글과 이름을 한 줄로 (이슈 151)
+            if text.contains(" | ") {
+                var found: String?
+                for piece in text.components(separatedBy: " | ") {
+                    let pieceJoined = piece.replacingOccurrences(of: " ", with: "")
+                    let length = pieceJoined.unicodeScalars.count
+                    if isSyllables(pieceJoined), hasSurname(pieceJoined), isNameWord(pieceJoined),
+                       (2...3).contains(length) || (length == 4 && surnames2.contains(prefix(pieceJoined, 2))) {
+                        found = pieceJoined
+                    }
+                }
+                if let found {
+                    names.append(Candidate(rank: 1, height: height, order: order, text: found))
+                    kinds.append("name")
+                    continue
+                }
             }
 
             // 6. 한글 이름

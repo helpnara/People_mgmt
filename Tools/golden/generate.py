@@ -1915,7 +1915,7 @@ PAREN_ZERO_RE = re.compile(r"\(\+82[ .-]*0\)[ .-]*")
 PAREN_COUNTRY_RE = re.compile(r"\(\+82[ .-]*0?(\d{1,2})\)")
 ZERO_COUNTRY_RE = re.compile(r"\+82[ .-]*\(0\)[ .-]*")
 EMAIL_COLON_RE = re.compile(r"(@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*):(?=[A-Za-z]{2,})")
-DOT_GAP_RE = re.compile(r"(?<=\d)\. (?=\d)")
+DOT_GAP_RE = re.compile(r"(?<=\d)[.,] (?=\d)")
 ROLE_SPLIT_RE = re.compile(r"[ /|,·]+")
 ZIP_RE = re.compile(r"^\(?\d{5}\)?$")
 
@@ -2356,6 +2356,18 @@ def parse_card(lines: list[list]) -> dict:
             names.append((0, -height, order, "".join(lead)))
             kinds.append("name")
             continue
+        # ⑥ `|` 로 나뉜 줄의 한 조각이 성으로 시작하는 한글 이름(`… | 한서 윤`) — 인식이 직책 글과 이름을 한 줄로 (이슈 151)
+        if " | " in text:
+            found = None
+            for piece in text.split(" | "):
+                joined = piece.replace(" ", "")
+                if is_syllables(joined) and has_surname(joined) and is_name_word(joined) \
+                        and (2 <= len(joined) <= 3 or len(joined) == 4 and joined[:2] in SURNAMES2):
+                    found = joined
+            if found:
+                names.append((1, -height, order, found))
+                kinds.append("name")
+                continue
         # ⑥ 한글 이름
         if is_hangul_name(text) and is_name_word(text.replace(" ", "")):
             joined = text.replace(" ", "")
