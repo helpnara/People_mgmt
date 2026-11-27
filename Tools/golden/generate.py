@@ -1900,6 +1900,7 @@ EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
 PHONE_RE = re.compile(r"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)")
 CAP_WORD_RE = re.compile(r"^[A-Z][a-z][A-Za-z'-]*$")
+MISREAD_LOGO_RE = re.compile(r"^[A-Z50]{2,8}$")
 LOGO_WORD_RE = re.compile(r"^[A-Za-z]{2,8}$")
 LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
 # 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
@@ -2200,6 +2201,31 @@ def merged_lone_labels(texts: list) -> list:
     return out
 
 
+AT_NOISES = ["(a)", "a)", "(a", "@)", "a"]
+EMAIL_LOCAL_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def recovered_at(text: str, sites: list[str]) -> str:
+    """메일 이름표 줄에 `@` 가 없고 끝이 같은 명함 누리집 도메인이면, 그 앞의 `a` · `a)` · `(a)` 를 `@` 로
+    (`E-mail. seoyunasbworld.com` 꼴 — 인식이 `@` 를 `a` 로 읽음 · 이슈 145)."""
+    if "@" in text:
+        return text
+    head, _, token = text.rpartition(" ")
+    if not head or label_kind(label_key(head)) != ("kind", "email"):
+        return text
+    lower = token.lower()
+    for site in sites:
+        if not site or not lower.endswith(site) or len(lower) == len(site):
+            continue
+        before = token[:len(token) - len(site)]
+        for noise in AT_NOISES:
+            if before.endswith(noise) and len(before) > len(noise):
+                local = before[:len(before) - len(noise)]
+                if EMAIL_LOCAL_RE.search(local):
+                    return f"{head} {local}@{token[len(token) - len(site):]}"
+    return text
+
+
 def parse_card(lines: list[list]) -> dict:
     """명함 줄 → 칸. 이슈 130 (2026-11-26 · 실제 명함 13장) 에서 다시 짰다 — Swift `BusinessCardParser` 와 같은 규칙.
 
@@ -2228,7 +2254,7 @@ def parse_card(lines: list[list]) -> dict:
         lower = text.lower()
         kind = "other"
         # ① 연락 줄
-        contact_text = tidy_contact(text)
+        contact_text = recovered_at(tidy_contact(text), sites)
         for e in EMAIL_RE.findall(contact_text):
             contact_text = contact_text.replace(e, corrected_email(e, sites))
         emails = EMAIL_RE.findall(contact_text)
@@ -2337,6 +2363,11 @@ def parse_card(lines: list[list]) -> dict:
         if pieces and all(is_dept_token(p) for p in pieces):
             depts.append(pieces[-1])
             kinds.append("dept")
+            continue
+        # ⑧ 로고 약칭의 `S` · `O` 를 숫자로 읽은 것(`5L`) — 대문자와 `5` · `0` 만인 한 낱말은 글자로 바꿔 기관 후보 (이슈 145)
+        if MISREAD_LOGO_RE.search(text) and any("A" <= c <= "Z" for c in text) and any(c in "50" for c in text):
+            orgs.append((3, order, text.replace("5", "S").replace("0", "O")))
+            kinds.append("other")
             continue
         # ⑧ 영문 — 모두 대문자면 기관 후보, 아니면 영문 이름 후보 (ⓝ)
         if is_all_caps(text):

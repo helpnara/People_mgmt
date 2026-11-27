@@ -88,6 +88,9 @@ public enum BusinessCardParser {
     /// 이슈 133 — `+국가번호` 꼴 · 앞뒤에 숫자 · 붙임표가 이어지는 긴 숫자열(계좌번호)의 가운데는 번호로 보지 않는다.
     static let phonePattern = #"(?<![\d-])(?:\+\d{1,3}[\s.-]?)?\(?0?\d{1,2}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)"#
     static let capWordPattern = #"^[A-Z][a-z][A-Za-z'-]*$"#
+    static let misreadLogoPattern = #"^[A-Z50]{2,8}$"#
+    static let emailLocalPattern = #"^[A-Za-z0-9._-]+$"#
+    static let atNoises = ["(a)", "a)", "(a", "@)", "a"]
     static let logoWordPattern = #"^[A-Za-z]{2,8}$"#
     static let latinNamePattern = #"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$"#
     /// 메일 앞에 붙은 이름표 — `E.haneul@…` (이슈 118 · iOS 27 글자 인식이 `E. ` 의 빈칸을 먹었다).
@@ -138,7 +141,7 @@ public enum BusinessCardParser {
             let lower = text.lowercased()
 
             // 1. 연락 줄
-            var contactText = tidyContact(text)
+            var contactText = recoveredAt(tidyContact(text), sites: sites)
             for email in matches(emailPattern, in: contactText) {
                 contactText = contactText.replacingOccurrences(of: email, with: correctedEmail(email, sites: sites))
             }
@@ -277,6 +280,16 @@ public enum BusinessCardParser {
                 continue
             }
 
+            // 8. 로고 약칭의 `S` · `O` 를 숫자로 읽은 것(`5L`) — 대문자와 `5` · `0` 만인 한 낱말은 글자로 바꿔 기관 후보 (이슈 145)
+            if !matches(misreadLogoPattern, in: text).isEmpty,
+               text.unicodeScalars.contains(where: { (0x41...0x5A).contains($0.value) }),
+               text.contains(where: { $0 == "5" || $0 == "0" }) {
+                let fixed = text.replacingOccurrences(of: "5", with: "S").replacingOccurrences(of: "0", with: "O")
+                orgs.append(Candidate(rank: 3, height: 0, order: order, text: fixed))
+                kinds.append("other")
+                continue
+            }
+
             // 8. 영문 — 모두 대문자면 기관 후보, 아니면 영문 이름 후보 (ⓝ)
             if isAllCaps(text) {
                 // 한글 이름 바로 다음의 대문자 영문 줄은 그 이름의 로마자 — 기관 후보가 아니다 (ⓔⓔ)
@@ -344,6 +357,30 @@ public enum BusinessCardParser {
         }
         suggestion.contact = ContactSorter.split(contactLines.joined(separator: "\n"))
         return suggestion
+    }
+
+    // MARK: - 메일 `@` 되살리기 (이슈 145)
+
+    /// 메일 이름표 줄에 `@` 가 없고 끝이 같은 명함 누리집 도메인이면, 그 앞의 `a` · `a)` · `(a)` 를 `@` 로
+    /// (`E-mail. seoyunasbworld.com` 꼴 — 인식이 `@` 를 `a` 로 읽음). 파이썬 `recovered_at` 과 같다.
+    static func recoveredAt(_ text: String, sites: [String]) -> String {
+        if text.contains("@") { return text }
+        guard let space = text.lastIndex(of: " ") else { return text }
+        let head = String(text[..<space])
+        let token = String(text[text.index(after: space)...])
+        guard !head.isEmpty, ContactSorter.labelKind(ContactSorter.labelKey(head)) == .kind(.email) else { return text }
+        let lower = token.lowercased()
+        for site in sites where !site.isEmpty && lower.hasSuffix(site) && lower.count != site.count {
+            let before = String(token.dropLast(site.count))
+            let domain = String(token.suffix(site.count))
+            for noise in atNoises where before.hasSuffix(noise) && before.count > noise.count {
+                let local = String(before.dropLast(noise.count))
+                if !matches(emailLocalPattern, in: local).isEmpty {
+                    return head + " " + local + "@" + domain
+                }
+            }
+        }
+        return text
     }
 
     // MARK: - 떨어진 이름표 (이슈 141)

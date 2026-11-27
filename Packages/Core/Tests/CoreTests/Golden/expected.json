@@ -1987,6 +1987,152 @@
     {
       "expected": {
         "contact": {
+          "email": "seoyun@sbworld.com",
+          "fax": "+82 53-555-0199",
+          "mobile": "+82 10-5555-0101",
+          "office": "+8253-555-0100",
+          "other": "www.sbworld.com"
+        },
+        "emails": [
+          "seoyun@sbworld.com"
+        ],
+        "lines": [
+          "정직•열정 •나눔",
+          "5B",
+          "미래기술센터",
+          "한서윤 센터장",
+          "Corporation",
+          "경북 한빛시 바다읍",
+          "Tel. +8253-555-0100",
+          "바다공단로 77",
+          "Fax. +82 53-555-0199",
+          "Cell. +82 10-5555-0101",
+          "www.sbworld.com",
+          "E-mail. seoyunasbworld.com"
+        ],
+        "name": "한서윤",
+        "organization": "SB 미래기술센터",
+        "phones": [
+          "+8253-555-0100",
+          "+82 10-5555-0101"
+        ],
+        "role": "센터장"
+      },
+      "lines": [
+        [
+          "정직•열정 •나눔",
+          0.0602
+        ],
+        [
+          "5B",
+          0.1715
+        ],
+        [
+          "미래기술센터",
+          0.0537
+        ],
+        [
+          "한서윤 센터장",
+          0.0906
+        ],
+        [
+          "Corporation",
+          0.0702
+        ],
+        [
+          "경북 한빛시 바다읍",
+          0.0581
+        ],
+        [
+          "Tel. +8253-555-0100",
+          0.0581
+        ],
+        [
+          "바다공단로 77",
+          0.0586
+        ],
+        [
+          "Fax. +82 53-555-0199",
+          0.0581
+        ],
+        [
+          "Cell. +82 10-5555-0101",
+          0.0655
+        ],
+        [
+          "www.sbworld.com",
+          0.0552
+        ],
+        [
+          "E-mail. seoyunasbworld.com",
+          0.074
+        ]
+      ],
+      "name": "로고 숫자 오독 · 메일 @ 를 a 로 (이슈 145)"
+    },
+    {
+      "expected": {
+        "contact": {
+          "email": "seoyun@sbworld.com",
+          "fax": "",
+          "mobile": "",
+          "office": "+8253-555-0100",
+          "other": "www.sbworld.com"
+        },
+        "emails": [
+          "seoyun@sbworld.com"
+        ],
+        "lines": [
+          "SB",
+          "미래기술센터",
+          "한서 윤 센터장",
+          "Corporation",
+          "Tel. +8253-555-0100",
+          "www.sbworld.com",
+          "E-mail. seoyuna)sbworld.com"
+        ],
+        "name": "한서윤",
+        "organization": "SB 미래기술센터",
+        "phones": [
+          "+8253-555-0100"
+        ],
+        "role": "센터장"
+      },
+      "lines": [
+        [
+          "SB",
+          0.1708
+        ],
+        [
+          "미래기술센터",
+          0.0524
+        ],
+        [
+          "한서 윤 센터장",
+          0.0915
+        ],
+        [
+          "Corporation",
+          0.0714
+        ],
+        [
+          "Tel. +8253-555-0100",
+          0.0567
+        ],
+        [
+          "www.sbworld.com",
+          0.0584
+        ],
+        [
+          "E-mail. seoyuna)sbworld.com",
+          0.0595
+        ]
+      ],
+      "name": "메일 @ 를 a) 로 (이슈 145)"
+    },
+    {
+      "expected": {
+        "contact": {
           "email": "seoyun@hanbit.com",
           "fax": "",
           "mobile": "+82 10 5555 0101",

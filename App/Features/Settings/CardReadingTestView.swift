@@ -48,9 +48,10 @@ struct CardReadingTestView: View {
             case .name: suggestion.name
             case .organization: suggestion.organization
             case .role: suggestion.role
-            case .mobile: suggestion.contact.mobile
-            case .office: suggestion.contact.office
-            case .fax: suggestion.contact.fax
+            // 번호는 앱이 저장하는 모양 그대로 보인다 — `+82 10 …` → `010-…` (이슈 139 · 145)
+            case .mobile: PhoneFormat.normalized(suggestion.contact.mobile)
+            case .office: PhoneFormat.normalized(suggestion.contact.office)
+            case .fax: PhoneFormat.normalized(suggestion.contact.fax)
             case .email: suggestion.contact.email
             }
             guard let raw, !raw.isEmpty else { return nil }
