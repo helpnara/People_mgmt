@@ -59,7 +59,7 @@ public enum BusinessCardParser {
         "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
         "consultant", "president", "founder", "professor", "lead",
         "executive", "officer", "head", "vp", "architect", "specialist", "phd",
-        "advisor", "adviser", "coordinator", "analyst",
+        "advisor", "adviser", "coordinator", "analyst", "bd",
     ]
     static let koreanOrgKeywords = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
     static let latinOrgKeywords: Set<String> = ["inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"]
@@ -95,6 +95,7 @@ public enum BusinessCardParser {
     /// 이슈 130 ⓚ — 인식이 `@` 앞뒤에 끼운 `(` · `)` · 빈칸. ⓡ — `(+82 10)` · `+82 (0)41` 꼴 번호.
     static let atNoisePattern = #"(?<=[A-Za-z0-9._%+-])[ (]{1,2}@[ )]{0,2}(?=[A-Za-z0-9])|(?<=[A-Za-z0-9._%+-])@[ )]{1,2}(?=[A-Za-z0-9])"#
     static let parenCountryPattern = #"\(\+82[ .-]*0?(\d{1,2})\)"#
+    static let parenZeroPattern = #"\(\+82[ .-]*0\)[ .-]*"#
     static let zeroCountryPattern = #"\+82[ .-]*\(0\)[ .-]*"#
     /// 점 + 빈칸으로 끊은 번호(`+82. 2. 555. 0100`) — 빈칸 하나로 (이슈 138).
     /// 메일 도메인의 점을 쌍점으로 읽은 것(`…@shop.hanbit:com`) — 점으로 (이슈 142).
@@ -552,6 +553,8 @@ public enum BusinessCardParser {
     static func tidyContact(_ text: String) -> String {
         var result = separatingEmailLabel(text)
         result = replacing(atNoisePattern, in: result, with: "@")
+        // `(+82 0) 10-…` — 괄호 안이 국가번호와 앞자리 0 뿐 (이슈 143)
+        result = replacing(parenZeroPattern, in: result, with: "0")
         result = replacing(parenCountryPattern, in: result, with: "0$1")
         result = replacing(zeroCountryPattern, in: result, with: "0")
         result = replacing(dotGapPattern, in: result, with: " ")

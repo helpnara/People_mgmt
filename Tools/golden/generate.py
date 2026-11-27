@@ -1869,7 +1869,7 @@ ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전
                  "ceo", "cto", "cfo", "coo", "director", "manager", "engineer", "designer", "developer",
                  "consultant", "president", "founder", "professor", "lead",
                  "executive", "officer", "head", "vp", "architect", "specialist", "phd",
-                 "advisor", "adviser", "coordinator", "analyst"]
+                 "advisor", "adviser", "coordinator", "analyst", "bd"]
 KOREAN_ORG = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
 LATIN_ORG = {"inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"}
 DEPARTMENT_SUFFIXES = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]
@@ -1900,6 +1900,7 @@ LATIN_NAME_RE = re.compile(r"^[A-Z][A-Za-z'-]+(?: [A-Z][A-Za-z'-]+){1,2}$")
 EMAIL_LABEL_RE = re.compile(r"(?<![A-Za-z0-9._%+-])(E|EMAIL|Email|E-mail|E-Mail|MAIL|Mail)([.:])(?=[A-Za-z0-9._%+-]+@)")
 # 이슈 130 ⓚ — 인식이 `@` 앞뒤에 끼운 `(` · `)` · 빈칸. ⓡ — `(+82 10)` · `+82 (0)41` 꼴 번호.
 AT_NOISE_RE = re.compile(r"(?<=[A-Za-z0-9._%+-])[ (]{1,2}@[ )]{0,2}(?=[A-Za-z0-9])|(?<=[A-Za-z0-9._%+-])@[ )]{1,2}(?=[A-Za-z0-9])")
+PAREN_ZERO_RE = re.compile(r"\(\+82[ .-]*0\)[ .-]*")
 PAREN_COUNTRY_RE = re.compile(r"\(\+82[ .-]*0?(\d{1,2})\)")
 ZERO_COUNTRY_RE = re.compile(r"\+82[ .-]*\(0\)[ .-]*")
 EMAIL_COLON_RE = re.compile(r"(@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*):(?=[A-Za-z]{2,})")
@@ -1971,6 +1972,8 @@ def tidy_contact(text: str) -> str:
     """연락 줄 손질 — 메일 이름표 떼기 · `@` 둘레 잡음 · 국가번호 꼴 (이슈 118 · 130)."""
     text = separating_email_label(text)
     text = AT_NOISE_RE.sub("@", text)
+    # `(+82 0) 10-…` — 괄호 안이 국가번호와 앞자리 0 뿐 (이슈 143)
+    text = PAREN_ZERO_RE.sub("0", text)
     text = PAREN_COUNTRY_RE.sub(r"0\1", text)
     text = ZERO_COUNTRY_RE.sub("0", text)
     # 점 + 빈칸으로 끊은 번호(`+82. 2. 555. 0100`) — 빈칸 하나로 (이슈 138)

@@ -2687,6 +2687,39 @@
       ]
     },
     {
+      "name": "괄호 안 +82 0 · BD 직함 (이슈 143)",
+      "lines": [
+        [
+          "hBT",
+          0.1378
+        ],
+        [
+          "한서윤 Seoyun Han",
+          0.1071
+        ],
+        [
+          "Senior BD, Mobility / HBT Global Partner BD",
+          0.0795
+        ],
+        [
+          "12345 서울특별시 한빛구 바다로 508 한빛타워 13층",
+          0.0726
+        ],
+        [
+          "508, Bada-ro, Hanbit-gu, Seoul, 12345, Rep. of Korea",
+          0.0728
+        ],
+        [
+          "Cell (+82 0) 10-5555-0101 • seoyun@hanbit.com",
+          0.0569
+        ],
+        [
+          "https://hbt.hanbit.com/ko",
+          0.0593
+        ]
+      ]
+    },
+    {
       "name": "명함 시험 7 C 이름표 (이슈 130)",
       "lines": [
         [
