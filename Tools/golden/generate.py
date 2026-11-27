@@ -1878,7 +1878,7 @@ ROLE_KEYWORDS = ["대표이사", "대표", "회장", "사장", "부사장", "전
                  "advisor", "adviser", "coordinator", "analyst", "bd",
                  "researcher", "scientist"]
 KOREAN_ORG = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
-LATIN_ORG = {"inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"}
+LATIN_ORG = {"inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab", "limited", "pte"}
 DEPARTMENT_SUFFIXES = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]
 # 이슈 130 — 둘째 순위 기관 낱말(낱말 끝) · 지역 이름 · 부서 끝 · 주소 낱말 끝
 ORG2_SUFFIXES = ["대학원", "대학", "진흥원", "기술원", "조합", "공단"]
@@ -2229,6 +2229,12 @@ def recovered_at(text: str, sites: list[str]) -> str:
     return text
 
 
+def local_hit(token: str, locals_: list, domains_: list) -> bool:
+    """영문 낱말(3자 이상)이 같은 명함 메일 아이디 안에 있고 메일 도메인에는 없다 (이슈 146 · 149)."""
+    word = latin_letters(token)
+    return len(word) >= 3 and any(word in local for local in locals_) and not any(word in d for d in domains_)
+
+
 def parse_card(lines: list[list]) -> dict:
     """명함 줄 → 칸. 이슈 130 (2026-11-26 · 실제 명함 13장) 에서 다시 짰다 — Swift `BusinessCardParser` 와 같은 규칙.
 
@@ -2247,6 +2253,7 @@ def parse_card(lines: list[list]) -> dict:
     texts = merged_lone_labels(texts)
     sites = [site_domain(m.group(0)) for t, _ in texts for m in URL_RE.finditer(t)]
     of_depts = {}  # 차례 → `Head of … Team` 의 팀 (그 줄이 직무로 뽑힐 때만 소속에 붙인다)
+    domains_ = [e.split("@")[-1].lower() for t, _ in texts for e in EMAIL_RE.findall(tidy_contact(t))]
     locals_ = [e.split("@")[0].lower() for t, _ in texts for e in EMAIL_RE.findall(tidy_contact(t))]
     contact_lines = []
     names = []   # (순위, -높이, 차례, 이름)
@@ -2377,8 +2384,9 @@ def parse_card(lines: list[list]) -> dict:
             kinds.append("dept")
             continue
         # ⑧ 메일 아이디에 성이 든 영문 이름(`S.YUN HAN` ↔ `syhan@…`) — 모두 대문자여도 이름 (이슈 146)
-        if 2 <= len(tokens) <= 3 and all(LATIN_NAME_TOKEN_RE.search(t) for t in tokens) \
-                and len(latin_letters(tokens[-1])) >= 3 and any(latin_letters(tokens[-1]) in local for local in locals_) \
+        # 두세 낱말이면 마지막 낱말, 네 낱말까지는 어느 낱말이든(`Seoyun Han Min Ji` 꼴 · 이슈 149) — 메일 도메인에 든 낱말은 빼고
+        if 2 <= len(tokens) <= 4 and all(LATIN_NAME_TOKEN_RE.search(t) for t in tokens) \
+                and any(local_hit(t, locals_, domains_) for t in (tokens if len(tokens) == 4 else tokens[-1:])) \
                 and not has_latin_org_word(text):
             names.append((1, -height, order, text))
             kinds.append("name")
@@ -2407,6 +2415,13 @@ def parse_card(lines: list[list]) -> dict:
             kinds.append("name")
             continue
         kinds.append(kind)
+    # 영문 회사 줄(`… Private Limited`) 두 줄 안 위의 영문 이름 모양 줄(`Hanbit Manufacturing`)은 회사 이름의 앞부분 —
+    # 더 나은 이름 후보가 따로 있을 때만 (이슈 149)
+    for k, (rank, o_order, o_text) in enumerate(orgs):
+        prev = sorted((n for n in names if n[0] == 3 and o_order - 2 <= n[2] < o_order), key=lambda n: -n[2])
+        if rank == 0 and prev and all(ch.isascii() for ch in o_text) and any(n[0] < 3 for n in names):
+            orgs[k] = (rank, prev[0][2], f"{prev[0][3]} {o_text}")
+            names = [n for n in names if n is not prev[0]]
     # 직무 줄 바로 위의 영문 두세 낱말(모두 대문자여도) — 이름. 손글씨 메모를 인식이 한글로 읽은 것보다 먼저 (이슈 148)
     for i in range(len(texts) - 1):
         line = texts[i][0]

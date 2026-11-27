@@ -63,7 +63,7 @@ public enum BusinessCardParser {
         "researcher", "scientist",
     ]
     static let koreanOrgKeywords = ["주식회사", "(주)", "㈜", "유한회사", "재단", "협회", "대학교", "병원", "연구소", "은행", "그룹"]
-    static let latinOrgKeywords: Set<String> = ["inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab"]
+    static let latinOrgKeywords: Set<String> = ["inc", "corp", "co", "ltd", "llc", "company", "university", "labs", "lab", "limited", "pte"]
     /// 부서 이름 끝 — `개발팀` 을 사람 이름으로 보지 않으려고.
     static let departmentSuffixes = ["팀", "부", "실", "과", "처", "국", "센터", "본부", "그룹"]
     /// 이슈 130 — 둘째 순위 기관 낱말 끝 · 지역 이름 끝 · 부서 끝 · 주소 낱말 끝.
@@ -137,6 +137,11 @@ public enum BusinessCardParser {
         var depts: [String] = []
         var kinds: [String] = []
         var ofDepts: [Int: String] = [:]  // 차례 → `Head of … Team` 의 팀 (그 줄이 직무로 뽑힐 때만 소속에 붙인다)
+        let emailDomains: [String] = texts.flatMap { entry in
+            matches(emailPattern, in: tidyContact(entry.text)).map { email in
+                String(email.split(separator: "@", omittingEmptySubsequences: false).last ?? "").lowercased()
+            }
+        }
         let emailLocals: [String] = texts.flatMap { entry in
             matches(emailPattern, in: tidyContact(entry.text)).map { email in
                 String(email.split(separator: "@", omittingEmptySubsequences: false).first ?? "").lowercased()
@@ -302,9 +307,11 @@ public enum BusinessCardParser {
             }
 
             // 8. 메일 아이디에 성이 든 영문 이름(`S.YUN HAN` ↔ `syhan@…`) — 모두 대문자여도 이름 (이슈 146)
-            if (2...3).contains(tokens.count), tokens.allSatisfy({ !matches(latinNameTokenPattern, in: $0).isEmpty }),
-               let lastToken = tokens.last, latinLetters(lastToken).count >= 3,
-               emailLocals.contains(where: { $0.contains(latinLetters(lastToken)) }), !hasLatinOrgWord(text) {
+            // 두세 낱말이면 마지막 낱말, 네 낱말까지는 어느 낱말이든(`Seoyun Han Min Ji` 꼴 · 이슈 149) — 메일 도메인에 든 낱말은 빼고.
+            if (2...4).contains(tokens.count), tokens.allSatisfy({ !matches(latinNameTokenPattern, in: $0).isEmpty }),
+               (tokens.count == 4 ? tokens : Array(tokens.suffix(1))).contains(where: {
+                   localHit($0, locals: emailLocals, domains: emailDomains)
+               }), !hasLatinOrgWord(text) {
                 names.append(Candidate(rank: 1, height: height, order: order, text: text))
                 kinds.append("name")
                 continue
@@ -345,6 +352,18 @@ public enum BusinessCardParser {
                 continue
             }
             kinds.append("other")
+        }
+
+        // 영문 회사 줄(`… Private Limited`) 두 줄 안 위의 영문 이름 모양 줄(`Hanbit Manufacturing`)은 회사 이름의 앞부분 —
+        // 더 나은 이름 후보가 따로 있을 때만 (이슈 149).
+        for k in orgs.indices {
+            let org = orgs[k]
+            let prev = names.filter { $0.rank == 3 && org.order - 2 <= $0.order && $0.order < org.order }
+                .max { $0.order < $1.order }
+            if org.rank == 0, let prev, org.text.unicodeScalars.allSatisfy(\.isASCII), names.contains(where: { $0.rank < 3 }) {
+                orgs[k] = Candidate(rank: org.rank, height: org.height, order: prev.order, text: prev.text + " " + org.text)
+                names.removeAll { $0.order == prev.order && $0.rank == 3 && $0.text == prev.text }
+            }
         }
 
         // 직무 줄 바로 위의 영문 두세 낱말(모두 대문자여도) — 이름. 손글씨 메모를 인식이 한글로 읽은 것보다 먼저 (이슈 148).
@@ -410,6 +429,12 @@ public enum BusinessCardParser {
         }
         suggestion.contact = ContactSorter.split(contactLines.joined(separator: "\n"))
         return suggestion
+    }
+
+    /// 영문 낱말(3자 이상)이 같은 명함 메일 아이디 안에 있고 메일 도메인에는 없다 (이슈 146 · 149).
+    static func localHit(_ token: String, locals: [String], domains: [String]) -> Bool {
+        let word = latinLetters(token)
+        return word.count >= 3 && locals.contains { $0.contains(word) } && !domains.contains { $0.contains(word) }
     }
 
     // MARK: - 메일 `@` 되살리기 (이슈 145)

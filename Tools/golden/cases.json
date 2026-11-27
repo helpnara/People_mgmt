@@ -3002,6 +3002,67 @@
       ]
     },
     {
+      "name": "네 낱말 영문 이름 · 두 줄 영문 회사 이름 (이슈 149)",
+      "lines": [
+        [
+          "ab cd",
+          0.1135
+        ],
+        [
+          "make. it simple.",
+          0.0873
+        ],
+        [
+          "Hanbit Manufacturing",
+          0.0573
+        ],
+        [
+          "Hanbit",
+          0.0676
+        ],
+        [
+          "Singapore Private Limited",
+          0.0547
+        ],
+        [
+          "26 Bada South Avenue 10",
+          0.0459
+        ],
+        [
+          "Singapore 123456",
+          0.0515
+        ],
+        [
+          "T: +65 6555 0100",
+          0.0555
+        ],
+        [
+          "M: +65 8555 0101",
+          0.0459
+        ],
+        [
+          "F: +65 6555 0199",
+          0.0491
+        ],
+        [
+          "seoyun.han@hanbit.com",
+          0.05
+        ],
+        [
+          "Seoyun Han Min Ji",
+          0.0459
+        ],
+        [
+          "www.hanbit.sg",
+          0.0531
+        ],
+        [
+          "Engineering Manager (Quality)",
+          0.0496
+        ]
+      ]
+    },
+    {
       "name": "명함 시험 7 C 이름표 (이슈 130)",
       "lines": [
         [
